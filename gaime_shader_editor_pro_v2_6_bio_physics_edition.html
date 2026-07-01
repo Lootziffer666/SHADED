@@ -1,0 +1,2328 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GAIME Shader Editor Pro v2.6 (Bio-Physics Edition)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0e0e16;color:#e2e8f0;font-family:'Courier New',monospace;display:flex;height:100vh;overflow:hidden;transition:all 0.3s ease}
+#sidebar{width:350px;padding:12px;overflow-y:auto;background:#151526;border-right:1px solid #2d2d44;flex-shrink:0;box-shadow:4px 0 15px rgba(0,0,0,0.5);transition:margin-left 0.3s ease}
+#sidebar.hidden{margin-left:-350px} /* Ausblenden für den Kino-Modus */
+#canvas-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05050a;padding:10px;position:relative}
+canvas{max-width:100%;max-height:100%;display:block;box-shadow:0 10px 30px rgba(0,0,0,0.8);border-radius:4px}
+#physics-canvas{position:absolute;pointer-events:auto;cursor:crosshair;background:transparent}
+
+/* Schwebende Info-Overlays im Kino-Modus */
+#cinema-tip{position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#00ffcc;padding:8px 16px;border-radius:20px;font-size:10px;border:1px solid #00ffcc55;pointer-events:none;opacity:0;transition:opacity 0.5s;z-index:100}
+#btn-exit-cinema{position:absolute;top:20px;right:20px;background:rgba(21,21,38,0.85);color:#e2e8f0;border:1px solid #2d2d44;padding:8px;border-radius:50%;cursor:pointer;display:none;z-index:100;font-size:14px;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
+#btn-exit-cinema:hover{background:#00ffcc;color:#0e0e16}
+
+/* REC-Blinklicht für die Videoaufnahme */
+#rec-indicator{position:absolute;top:20px;left:20px;background:rgba(255,51,51,0.9);color:white;padding:5px 12px;border-radius:4px;font-size:10px;font-weight:bold;display:none;z-index:99;box-shadow:0 0 10px rgba(255,51,51,0.5);animation:blink 1s infinite}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+h2{color:#00ffcc;margin:12px 0 6px;font-size:11px;text-transform:uppercase;border-top:1px solid #2d2d44;padding-top:8px;letter-spacing:1px}
+.c{margin:4px 0 6px}
+.c label{display:flex;justify-content:space-between;font-size:10px;color:#a0aec0}
+.c input[type=range]{width:100%;height:14px;accent-color:#00ffcc;background:#1a1a2e;outline:none}
+.c .v{color:#00ffcc;min-width:35px;text-align:right;font-weight:bold}
+button{background:#00ffcc;color:#0e0e16;border:none;padding:6px 12px;cursor:pointer;font-weight:bold;margin:2px;border-radius:4px;font-size:10px;transition:all 0.2s}
+button:hover{background:#33ffdd;transform:translateY(-1px)}
+button.active{background:#ff5555;color:#fff}
+input[type=file]{font-size:9px;width:100%;margin:4px 0;background:#1a1a2e;padding:4px;border:1px dashed #444;border-radius:4px;color:#aaa}
+#title{color:#00ffcc;font-size:14px;font-weight:bold;margin-bottom:8px;text-shadow:0 0 5px rgba(0,255,204,0.3)}
+.tabs{display:flex;flex-wrap:wrap;gap:2px;margin:4px 0}
+.tabs button{font-size:9px;padding:5px 8px}
+.tabs button.sel{background:#00ffcc;color:#0e0e16}
+.tabs button:not(.sel){background:#252538;color:#a0aec0}
+.mat-panel{display:none}
+.mat-panel.active{display:block}
+#timeline{margin-top:10px;padding:8px;background:#1a1a2e;border-radius:6px;border:1px solid #2d2d44}
+
+.preset-box{background:#1e1e30;padding:8px;border-radius:6px;margin:6px 0;border:1px solid #00ffcc44}
+.preset-btn{background:#3b3b5c;color:#fff;width:100%;text-align:left;padding:6px 10px;margin:3px 0;font-size:10px;border-radius:3px}
+.preset-btn:hover{background:#00ffcc;color:#0e0e16}
+
+.ctrl-panel{background:#111122;padding:10px;border-radius:6px;border:1px solid #ffaa0044;margin:6px 0}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:120px;margin:10px auto}
+.dpad button{padding:10px;font-size:12px;background:#252538;color:#e2e8f0}
+.dpad button:active{background:#ffaa00;color:#0e0e16}
+.status-box{background:#1a1a2e;padding:6px;border-radius:4px;font-size:10px;margin-top:6px;border-left:3px solid #ffaa00}
+
+@media(max-width:700px){#sidebar{width:100%;height:55vh;order:2}#canvas-wrap{height:45vh;order:1}body{flex-direction:column}}
+</style>
+</head>
+<body>
+<div id="sidebar">
+<div id="title">GAIME Shader Editor Pro v2.6</div>
+
+<h2>Bilddateien laden</h2>
+<div>
+  <label style="font-size:9px;color:#888">1. Szene (Bild 1 - Beliebiges Bild!):</label>
+  <input type="file" id="f-scene" accept="image/*">
+  <label style="font-size:9px;color:#888">2. Material-Map (Optional):</label>
+  <input type="file" id="f-mat" accept="image/*">
+</div>
+
+<h2>Zero-Map Pipeline</h2>
+<div class="preset-box" style="border-color: #a855f7;">
+  <button id="btn-auto-map" onclick="autoGenerateMaterialMap()" style="width:100%;background:#a855f7;color:white;margin-bottom:4px;box-shadow: 0 0 10px rgba(168,85,247,0.3)">🧠 Auto-Generiere Material-Map</button>
+  <p style="font-size:8px;color:#aaa;text-align:center;line-height:1.2;">Analysiert das Szene-Bild und generiert vollautomatisch die Material-Map über HSL-Segmentierung!</p>
+</div>
+
+<h2>Atmosphären-Presets</h2>
+<div class="preset-box">
+  <button class="preset-btn" onclick="applyAtmospherePreset('summer_weather_sunny')" style="border-left: 3px solid #00ffcc;">☀️ Summer Weather Sunny (Palette-Swapping)</button>
+  <button class="preset-btn" onclick="applyAtmospherePreset('storm')">⛈️ Stürmische Gewitternacht</button>
+  <button class="preset-btn" onclick="applyAtmospherePreset('foggy')">🌫️ Regnerischer Nebeltag</button>
+  <button class="preset-btn" onclick="applyAtmospherePreset('winter')" style="border-left: 3px solid #38bdf8;">❄️ Verschneiter Frostwinter</button>
+  <button class="preset-btn" onclick="applyAtmospherePreset('autumn')" style="border-left: 3px solid #f97316;">🍁 Goldener Herbstwald (Ernte & Laub!)</button>
+</div>
+
+<h2>Showcase & Aufnahme</h2>
+<div class="preset-box" style="border: 1px solid #ff333344;">
+  <button id="btn-record" onclick="toggleRecording()" style="width:100%;background:#ff3333;color:white;margin-bottom:4px;">🔴 Showcase aufnehmen</button>
+  <button id="btn-cinema" onclick="toggleCinemaMode()" style="width:100%;background:#00ffcc;color:#0e0e16;margin-bottom:4px;">🎬 Kino-Modus (UI ausblenden)</button>
+  <button id="btn-png" style="width:100%;background:#3b3b5c;color:white;">📸 Schnappschuss speichern (PNG)</button>
+</div>
+
+<h2>Charakter-Shader & Bio-Sim</h2>
+<div class="ctrl-panel" style="border-color: #00ffcc55;">
+  <div style="font-size:10px;color:#00ffcc;font-weight:bold;text-align:center;">🧬 BIO-SHADER-EINSTELLUNGEN</div>
+  <div class="c"><label>Anstrengung (Exertion / Atmung)<span class="v" id="d-char-exertion">0%</span></label><input type="range" id="s-char-exertion" min="0" max="100" value="0"></div>
+  <div class="c"><label>Alterung / Falten<span class="v" id="d-char-age">0%</span></label><input type="range" id="s-char-age" min="0" max="100" value="0"></div>
+  <div class="c"><label>Muskelmasse / Build<span class="v" id="d-char-muscle">40%</span></label><input type="range" id="s-char-muscle" min="0" max="100" value="40"></div>
+  <div class="c"><label>Sonneneinwirkung (Teint)<span class="v" id="d-char-tan">50%</span></label><input type="range" id="s-char-tan" min="0" max="100" value="50"></div>
+</div>
+
+<h2>Spieler & Umwelt-Interaktion</h2>
+<div class="ctrl-panel">
+  <div style="font-size:10px;color:#ffaa00;font-weight:bold;text-align:center;">🎮 INTERAKTIVE STEUERUNG</div>
+  <p style="font-size:9px;color:#888;margin:4px 0;text-align:center;">WASD zum Laufen | <b>Leertaste</b> zum Dashen<br><b>F</b> drücken zum Feuer legen | <b>K</b> für Kino-Modus</p>
+  
+  <div style="display:flex;gap:4px;margin:6px 0;">
+    <button id="btn-fire-tool" onclick="toggleFirePlacement()" style="flex:1;background:#ef4444;color:white;font-size:9px;">🔥 Feuer-Tool</button>
+    <button id="btn-clear-trails" onclick="clearAllTrails()" style="flex:1;background:#444;color:white;font-size:9px;">🗑️ Reset Welt</button>
+  </div>
+
+  <div class="dpad">
+    <div></div><button onclick="movePlayer(0,-15)">▲</button><div></div>
+    <button onclick="movePlayer(-15,0)">◀</button>
+    <button onclick="triggerStrike()" style="background:#ff5555;color:white;">🔨</button>
+    <button onclick="movePlayer(15,0)">▶</button>
+    <div></div><button onclick="movePlayer(0,15)">▼</button><div></div>
+  </div>
+
+  <div class="status-box">
+    <div>Holz-Zustand: <span id="p-wood-state" style="color:#f97316;font-weight:bold;">Trocken</span></div>
+    <div>Slippery-Effekt (Eis): <span id="p-slip" style="color:#a5f3fc;font-weight:bold;">Nein</span></div>
+    <div>Schnee-Trägheit: <span id="p-snow-resist" style="color:#f3f4f6;font-weight:bold;">0% Trägheit</span></div>
+    <div>Lagerfeuer active: <span id="p-fires-count" style="color:#ef4444;font-weight:bold;">0</span></div>
+    <div>Kleidung: <span id="p-wetness" style="color:#38bdf8;font-weight:bold;">Trocken</span></div>
+    <div id="p-status-text" style="color:#aaa;margin-top:4px;font-style:italic;">Bewege den Spieler oder platziere ein Lagerfeuer...</div>
+  </div>
+</div>
+
+<h2>Globale Effekte</h2>
+<div class="c"><label>Wetter-Intensität<span class="v" id="d-w">0.00</span></label><input type="range" id="s-w" min="0" max="100" value="0"></div>
+<div class="c"><label>Windgeschwindigkeit<span class="v" id="d-wind">0.30</span></label><input type="range" id="s-wind" min="0" max="100" value="30"></div>
+<div class="c"><label><input type="checkbox" id="s-anim" checked> Animation aktiv</label></div>
+
+<h2>Jahreszeiten & Klima</h2>
+<div class="c"><label>Umgebungstemperatur (°C)<span class="v" id="d-temp">20</span></label><input type="range" id="s-temp" min="-20" max="40" value="20"></div>
+<div class="c"><label>Sonneneinstrahlung / Bleichen<span class="v" id="d-sun-bleach">0.00</span></label><input type="range" id="s-sun-bleach" min="0" max="100" value="0"></div>
+<div class="c"><label>Schnee-Bedeckung<span class="v" id="d-snow-cov">0.00</span></label><input type="range" id="s-snow-cov" min="0" max="100" value="0"></div>
+<div class="c"><label>Schneefall-Stärke<span class="v" id="d-snow-fall">0.00</span></label><input type="range" id="s-snow-fall" min="0" max="100" value="0"></div>
+<div class="c"><label>Herbst: Laub-Färbung<span class="v" id="d-leaf-col">0.00</span></label><input type="range" id="s-leaf-col" min="0" max="100" value="0"></div>
+<div class="c"><label>Herbst: Laub-Fall<span class="v" id="d-leaf-fall">0.00</span></label><input type="range" id="s-leaf-fall" min="0" max="100" value="0"></div>
+<div class="c"><label>Laub-Feuchtigkeit<span class="v" id="d-leaf-wet">0.00</span></label><input type="range" id="s-leaf-wet" min="0" max="100" value="0"></div>
+<div class="c"><label>Frühlings-Wachstum<span class="v" id="d-spring-grow">0.00</span></label><input type="range" id="s-spring-grow" min="0" max="100" value="0"></div>
+
+<h2>Material-Einstellungen</h2>
+<div class="tabs" id="mat-tabs">
+<button class="sel" data-m="roof">Dach</button>
+<button data-m="stone">Stein</button>
+<button data-m="grass">Gras</button>
+<button data-m="wood">Holz</button>
+<button data-m="foliage">Laub</button>
+<button data-m="puddle">Pfütze</button>
+<button data-m="fog">Nebel</button>
+<button data-m="window">Fenster</button>
+</div>
+<div id="mat-panels"></div>
+
+<h2>Spezialeffekte</h2>
+<div class="c"><label>Pfützenbildung<span class="v" id="d-pud">0.55</span></label><input type="range" id="s-pud" min="0" max="100" value="55"></div>
+<div class="c"><label>Regenschlieren<span class="v" id="d-rain">0.20</span></label><input type="range" id="s-rain" min="0" max="100" value="20"></div>
+<div class="c"><label>Dach-Rinnrinnsale<span class="v" id="d-riv">0.12</span></label><input type="range" id="s-riv" min="0" max="100" value="12"></div>
+<div class="c"><label>Schattenaufhellung<span class="v" id="d-shad">0.12</span></label><input type="range" id="s-shad" min="0" max="50" value="12"></div>
+
+<h2>Alterung & Verfall</h2>
+<div class="c"><label>Alterungseffekt<span class="v" id="d-age">0.00</span></label><input type="range" id="s-age" min="0" max="100" value="0"></div>
+<div class="c"><label>Moosbewuchs<span class="v" id="d-moss">0.50</span></label><input type="range" id="s-moss" min="0" max="100" value="50"></div>
+<div class="c"><label>Pfad-Überwucherung<span class="v" id="d-inv">0.50</span></label><input type="range" id="s-inv" min="0" max="100" value="50"></div>
+
+<div id="timeline">
+  <h2 style="border:none;margin:0;padding:0;color:#00ffcc;">Storyboard & Ablauf</h2>
+  <div style="display:flex;gap:4px;margin-top:6px;">
+    <button id="btn-story-add" onclick="addStoryboardStep()" style="flex:1;background:#00ffcc;color:#0e0e16;">➕ Step hinzufügen</button>
+    <button id="btn-story-clear" onclick="clearStoryboard()" style="background:#ff5555;color:#fff;">🗑️ Reset</button>
+  </div>
+  <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
+    <button id="btn-story-play" onclick="toggleStoryPlay()" style="flex:1;background:#ffaa00;color:#0e0e16;">▶ Story abspielen</button>
+    <label style="font-size:10px;color:#a0aec0;display:flex;align-items:center;gap:3px;cursor:pointer;user-select:none;">
+      <input type="checkbox" id="cb-story-loop" checked> Loop
+    </label>
+  </div>
+  <div id="storyboard-list"></div>
+</div>
+
+<h2>Exportieren</h2>
+<button id="btn-json">Parameter (JSON)</button>
+</div>
+<div id="canvas-wrap">
+  <div id="rec-indicator">🔴 REC</div>
+  <div id="cinema-tip">Kino-Modus aktiv! Drücke ESC oder 'K', um das Menü einzublenden.</div>
+  <button id="btn-exit-cinema" onclick="exitCinemaMode()" title="Kino-Modus beenden">⚙️ Exit</button>
+  <canvas id="gl"></canvas>
+  <canvas id="physics-canvas"></canvas>
+</div>
+
+<script>
+// Standard-Material-Definitionen
+const MATS={
+  roof:{r:195,g:105,b:55,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  stone:{r:215,g:185,b:125,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  grass:{r:115,g:165,b:65,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  wood:{r:110,g:70,b:40,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  foliage:{r:85,g:135,b:60,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  puddle:{r:60,g:80,b:100,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  fog:{r:180,g:195,b:205,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100},
+  window:{r:245,g:195,b:85,contrast:50,brightness:50,sharpness:0,blur:0,opacity:100}
+};
+
+// Generiere Panels für Materialien
+const panelsDiv=document.getElementById('mat-panels');
+Object.keys(MATS).forEach(m=>{
+  const d=MATS[m];
+  panelsDiv.innerHTML+=`<div class="mat-panel${m==='roof'?' active':''}" id="p-${m}">
+<div class="c"><label>Rot (R)<span class="v" id="d-${m}-r">${d.r}</span></label><input type="range" id="s-${m}-r" min="0" max="255" value="${d.r}"></div>
+<div class="c"><label>Grün (G)<span class="v" id="d-${m}-g">${d.g}</span></label><input type="range" id="s-${m}-g" min="0" max="255" value="${d.g}"></div>
+<div class="c"><label>Blau (B)<span class="v" id="d-${m}-b">${d.b}</span></label><input type="range" id="s-${m}-b" min="0" max="255" value="${d.b}"></div>
+<div class="c"><label>Kontrast<span class="v" id="d-${m}-con">${d.contrast}</span></label><input type="range" id="s-${m}-con" min="0" max="100" value="${d.contrast}"></div>
+<div class="c"><label>Helligkeit<span class="v" id="d-${m}-bri">${d.brightness}</span></label><input type="range" id="s-${m}-bri" min="0" max="100" value="${d.brightness}"></div>
+<div class="c"><label>Schärfe<span class="v" id="d-${m}-sha">${d.sharpness}</span></label><input type="range" id="s-${m}-sha" min="0" max="100" value="${d.sharpness}"></div>
+<div class="c"><label>Kantenglättung<span class="v" id="d-${m}-blu">${d.blur}</span></label><input type="range" id="s-${m}-blu" min="0" max="100" value="${d.blur}"></div>
+<div class="c"><label>Effekt-Intensität<span class="v" id="d-${m}-opa">${d.opacity}</span></label><input type="range" id="s-${m}-opa" min="0" max="100" value="${d.opacity}"></div>
+</div>`;
+});
+
+// Tab-Umschalter
+document.querySelectorAll('#mat-tabs button').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('#mat-tabs button').forEach(b=>b.classList.remove('sel'));
+    btn.classList.add('sel');
+    document.querySelectorAll('.mat-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('p-'+btn.dataset.m).classList.add('active');
+  };
+});
+
+// Slider-Wertanzeigen aktualisieren
+document.querySelectorAll('input[type=range]').forEach(inp=>{
+  inp.oninput=()=>{
+    const did=inp.id.replace('s-','d-');
+    const el=document.getElementById(did);
+    if(el)el.textContent=inp.value;
+  };
+});
+
+// === CPU ÖKO-, BIO-, CHEMIE- & METEOROLOGIE-PHYSICS ENGINE ===
+const pCanvas = document.getElementById('physics-canvas');
+const pCtx = pCanvas.getContext('2d');
+
+let playerX = 250;
+let playerY = 250;
+let playerVX = 0;
+let playerVY = 0;
+let playerRadius = 7;
+let dashCooldown = 0;
+let playerWetness = 0;
+
+// Platzierungstool für Lagerfeuer
+let firePlacementActive = false;
+
+// Partikel und Objekte
+let foliageLeaves = [];
+let fallingFruit = [];
+let grassBlades = [];
+let flowers = [];
+let campfires = [];
+let smokeParticles = [];
+let sootMarks = [];
+let sparks = [];
+let breathParticles = []; // Atem-Kondensation im Frost
+let sweatParticles = []; // Schweißperlen bei Anstrengung
+
+// Offscreen-Abfragedaten für pixelgenaue Klassifizierung
+let matData = null;
+let matWidth = 0;
+let matHeight = 0;
+const offCanvas = document.createElement('canvas');
+const offCtx = offCanvas.getContext('2d');
+
+// Hilfsfunktion zur Farbabstands-Berechnung
+function dist3d(r1, g1, b1, r2, g2, b2) {
+  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+}
+
+// Pixelabfrage der geladenen Material-Map
+function getMatAt(x, y) {
+  if (!matData) return null;
+  const imgX = Math.floor((x / pCanvas.width) * matWidth);
+  const imgY = Math.floor((y / pCanvas.height) * matHeight);
+  if (imgX < 0 || imgX >= matWidth || imgY < 0 || imgY >= matHeight) return null;
+  const idx = (imgY * matWidth + imgX) * 4;
+  return {
+    r: matData.data[idx],
+    g: matData.data[idx+1],
+    b: matData.data[idx+2]
+  };
+}
+
+// Bestimmt das Material basierend auf dem Nearest-Neighbor-Ansatz
+function getMaterialTypeAt(x, y) {
+  const pix = getMatAt(x, y);
+  if (!pix) return 'grass';
+  const r = pix.r / 255;
+  const g = pix.g / 255;
+  const b = pix.b / 255;
+
+  const dRoof = dist3d(r, g, b, 0.976, 0.447, 0.913); // Pink: #F972E9
+  const dPath = dist3d(r, g, b, 0.863, 0.149, 0.149); // Rot:  #DC2626
+  const dWood = dist3d(r, g, b, 0.522, 0.302, 0.055); // Braun:#854D0E
+  const dWin  = dist3d(r, g, b, 0.059, 0.463, 0.431); // Teal: #0F766E
+  const dPud  = dist3d(r, g, b, 0.024, 0.714, 0.831); // Cyan: #06B6D4
+  const dRock = dist3d(r, g, b, 0.278, 0.333, 0.412); // Grau: #475569
+  const dTree = dist3d(r, g, b, 0.670, 0.055, 0.720); // Lila: #AA0EB7
+
+  const best = Math.min(dRoof, dPath, dWood, dWin, dPud, dRock, dTree);
+  if (best > 0.3) return 'grass';
+
+  if (best === dRoof) return 'roof';
+  if (best === dPath || best === dRock) return 'stone';
+  if (best === dWood) return 'wood';
+  if (best === dTree) return 'foliage';
+  if (best === dPud) return 'puddle';
+  if (best === dWin) return 'window';
+  return 'grass';
+}
+
+// === ZERO-MAP AUTOMATISIERUNG: Pixel-by-Pixel Segmentierung ===
+let loadedSceneImage = null; // Globale Referenz auf das Originalbild
+
+function autoGenerateMaterialMap() {
+  if (!sceneOk || !loadedSceneImage) {
+    const statusEl = document.getElementById('p-status-text');
+    statusEl.textContent = "⚠️ Lade zuerst ein Szene-Bild hoch, um die Map zu generieren!";
+    return;
+  }
+
+  const statusEl = document.getElementById('p-status-text');
+  statusEl.textContent = "🧠 HSL-Segmentierung läuft... Bitte warten.";
+
+  const genCanvas = document.createElement('canvas');
+  genCanvas.width = loadedSceneImage.width;
+  genCanvas.height = loadedSceneImage.height;
+  const genCtx = genCanvas.getContext('2d');
+  genCtx.drawImage(loadedSceneImage, 0, 0);
+
+  const imgData = genCtx.getImageData(0, 0, genCanvas.width, genCanvas.height);
+  const data = imgData.data;
+
+  // Helfer: RGB zu HSL Konvertierung
+  function rgbToHsl(r, g, b) {
+    r /= 255, g /= 255, b /= 255;
+    let max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if (max == min) {
+      h = s = 0; // achromatisch
+    } else {
+      let d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return [h * 360, s, l];
+  }
+
+  // Pixelweiser Klassifizierungs-Loop
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i+1];
+    const b = data[i+2];
+
+    const [h, s, l] = rgbToHsl(r, g, b);
+    let outR = 128, outG = 128, outB = 128; // Standard Grau (Stone)
+
+    // Segmentierungsregeln
+    if (l > 0.85 && s < 0.25) {
+      // Extrem helle Glanzpunkte -> Fenster (#0F766E, Teal)
+      outR = 15; outG = 118; outB = 110;
+    } else if (h >= 35 && h <= 160 && s > 0.15) {
+      // Grüne und olivfarbene Farbtöne
+      const py = (i / 4) / genCanvas.width;
+      if (py < genCanvas.height * 0.45) {
+        // Obere Bildhälfte -> Laub/Baumkronen (#AA0EB7, Lila)
+        outR = 170; outG = 14; outB = 183;
+      } else {
+        // Untere Bildhälfte -> Gras/Untergrund (#000000)
+        outR = 0; outG = 0; outB = 0;
+      }
+    } else if ((h >= 0 && h < 35) || (h >= 330 && h <= 360)) {
+      // Rote, Orange und Terracottatöne
+      if (s > 0.22 && l > 0.15 && l < 0.55) {
+        // Satte Rottöne -> Ziegeldächer (#F972E9, Pink)
+        outR = 249; outG = 114; outB = 233;
+      } else if (l < 0.3) {
+        // Dunkle Erdtöne -> Holz (#854D0E, Braun)
+        outR = 133; outG = 77; outB = 14;
+      } else {
+        // Desaturierte Rottöne -> Stein/Felsen (#475569, Grau)
+        outR = 71; outG = 85; outB = 105;
+      }
+    } else if (h >= 170 && h <= 260 && s > 0.2) {
+      // Bläulicher Bereich -> Pfützen (#06B6D4, Cyan)
+      outR = 6; outG = 182; outB = 212;
+    } else {
+      // Neutraler Rest -> Stein-Pfad (#DC2626, Rot)
+      outR = 220; outG = 38; outB = 38;
+    }
+
+    data[i] = outR;
+    data[i+1] = outG;
+    data[i+2] = outB;
+    data[i+3] = 255; // Deckkraft voll
+  }
+
+  genCtx.putImageData(imgData, 0, 0);
+
+  // Generierte Map in das Offscreen-Canvas zur CPU-Physik-Abfrage laden
+  offCanvas.width = genCanvas.width;
+  offCanvas.height = genCanvas.height;
+  offCtx.drawImage(genCanvas, 0, 0);
+  matData = offCtx.getImageData(0, 0, genCanvas.width, genCanvas.height);
+  matWidth = genCanvas.width;
+  matHeight = genCanvas.height;
+
+  // Map an WebGL übergeben
+  gl.activeTexture(gl.TEXTURE0 + 1);
+  gl.bindTexture(gl.TEXTURE_2D, mTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, genCanvas);
+  hasMat = 1;
+
+  statusEl.textContent = "✅ Material-Map erfolgreich auto-generiert!";
+  
+  // Triggere kurzes Aufblitzen des Preset-Knopfes
+  const btn = document.getElementById('btn-auto-map');
+  btn.style.background = "#22c55e";
+  setTimeout(() => { btn.style.background = "#a855f7"; }, 1500);
+}
+
+// Initialisiere dynamisches Öko-System
+function initEcosystem() {
+  foliageLeaves = [];
+  fallingFruit = [];
+  grassBlades = [];
+  flowers = [];
+  campfires = [];
+  smokeParticles = [];
+  sootMarks = [];
+  sparks = [];
+  breathParticles = [];
+  sweatParticles = [];
+
+  // Grasbüschel
+  const numBlades = 450;
+  for (let i = 0; i < numBlades; i++) {
+    const rx = Math.random() * pCanvas.width;
+    const ry = Math.random() * pCanvas.height;
+    grassBlades.push({
+      x: rx,
+      y: ry,
+      height: 6 + Math.random() * 8,
+      bend: 0,
+      targetBend: 0,
+      bendSpeed: 5 + Math.random() * 5,
+      wear: 0.0,
+      phase: Math.random() * 10
+    });
+  }
+
+  // Blumen
+  const numFlowers = 80;
+  for (let i = 0; i < numFlowers; i++) {
+    flowers.push({
+      x: Math.random() * pCanvas.width,
+      y: Math.random() * pCanvas.height,
+      color: pickFlowerColor(),
+      bloomProgress: 0.0,
+      phase: Math.random() * 5
+    });
+  }
+
+  // Herbstlaub
+  const numLeaves = 100;
+  for (let i = 0; i < numLeaves; i++) {
+    foliageLeaves.push({
+      x: Math.random() * pCanvas.width,
+      y: Math.random() * pCanvas.height,
+      vx: 0,
+      vy: 0,
+      z: 0,
+      vz: 0,
+      angle: Math.random() * Math.PI * 2,
+      vangle: 0,
+      size: 4 + Math.random() * 4,
+      color: pickAutumnColor(),
+      weight: 0.8 + Math.random() * 0.4
+    });
+  }
+}
+
+function pickFlowerColor() {
+  const colors = ['#f43f5e', '#a855f7', '#ec4899', '#facc15', '#3b82f6'];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function pickAutumnColor() {
+  const colors = ['#d97706', '#ea580c', '#dc2626', '#ca8a04', '#854d0e'];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Trail Map Kanäle für WebGL:
+// R = Footprints/Dämpfung (Schnee-Wegdrücken)
+// G = Shake (Schnee von Bäumen schütteln)
+// B = Trampelpfade (Matsch / Grass-Wear) -> Permanent!
+// A = Feuer-Melt (Schneefreier Bereich um Lagerfeuer)
+const trailCanvas = document.createElement('canvas');
+trailCanvas.width = 512;
+trailCanvas.height = 512;
+const trailCtx = trailCanvas.getContext('2d');
+trailCtx.fillStyle = 'black';
+trailCtx.fillRect(0, 0, 512, 512);
+
+function drawFootprint() {
+  const tx = (playerX / pCanvas.width) * 512;
+  const ty = (playerY / pCanvas.height) * 512;
+  
+  // Roter transienter Pfad
+  trailCtx.beginPath();
+  trailCtx.arc(tx, ty, 7, 0, Math.PI * 2);
+  trailCtx.fillStyle = 'rgba(255, 0, 0, 1.0)';
+  trailCtx.fill();
+
+  // Blauer Kanal permanent (Trampelpfad wächst mit jedem Tritt!)
+  trailCtx.beginPath();
+  trailCtx.arc(tx, ty, 10, 0, Math.PI * 2);
+  trailCtx.fillStyle = 'rgba(0, 0, 255, 0.015)'; 
+  trailCtx.fill();
+}
+
+function toggleFirePlacement() {
+  firePlacementActive = !firePlacementActive;
+  const btn = document.getElementById('btn-fire-tool');
+  if (firePlacementActive) {
+    btn.textContent = "🔥 Klicke zum Feuer legen";
+    btn.style.background = "#22c55e";
+  } else {
+    btn.textContent = "🔥 Feuer-Tool";
+    btn.style.background = "#ef4444";
+  }
+}
+
+function clearAllTrails() {
+  trailCtx.fillStyle = 'black';
+  trailCtx.fillRect(0, 0, 512, 512);
+  sootMarks = [];
+  campfires = [];
+  initEcosystem();
+}
+
+// Platziert ein Lagerfeuer/Brandherd an Koordinaten
+function spawnCampfire(x, y, isWildfire = false) {
+  if (isWildfire) {
+    const mat = getMaterialTypeAt(x, y);
+    if (mat !== 'wood' && mat !== 'foliage' && mat !== 'roof') {
+      return; 
+    }
+  }
+
+  const alreadyBurning = campfires.some(f => Math.hypot(f.x - x, f.y - y) < 15);
+  if (alreadyBurning) return;
+
+  const ageVal = gv('s-age', 100);
+  const wetnessVal = gv('s-leaf-wet', 100);
+
+  const isBrittleMorsch = ageVal > 0.5 && wetnessVal < 0.3;
+  const fireLife = isBrittleMorsch ? 60.0 : (wetnessVal > 0.6 ? 20.0 : 45.0);
+
+  campfires.push({
+    x: x,
+    y: y,
+    fuel: fireLife,
+    maxFuel: fireLife,
+    size: 15 + Math.random() * 5,
+    isWildfire: isWildfire
+  });
+}
+
+// Triggert Erschütterung und Schütteln von Bäumen
+function triggerStrike() {
+  const statusEl = document.getElementById('p-status-text');
+  statusEl.textContent = "🔨 BOOM! Äpfel und trockenes Laub stürzen zu Boden!";
+  
+  const tx = (playerX / pCanvas.width) * 512;
+  const ty = (playerY / pCanvas.height) * 512;
+  trailCtx.beginPath();
+  trailCtx.arc(tx, ty, 60, 0, Math.PI * 2);
+  trailCtx.fillStyle = 'rgba(0, 255, 0, 1.0)'; // Grüner Kanal (Schüttel-Impuls)
+  trailCtx.fill();
+
+  // 1. Laub aufwirbeln
+  const wetness = gv('s-leaf-wet', 100);
+  foliageLeaves.forEach(l => {
+    const d = Math.hypot(l.x - playerX, l.y - playerY);
+    if (d < 80) {
+      const liftPower = (1.0 - wetness * 0.95) * (4 + Math.random() * 5);
+      l.vz = liftPower;
+      l.vx = (l.x - playerX) * 0.08 * (1.0 - wetness * 0.8);
+      l.vy = (l.y - playerY) * 0.08 * (1.0 - wetness * 0.8);
+      l.vangle = (Math.random() - 0.5) * 15;
+    }
+  });
+
+  // 2. Äpfel ernten
+  if (matData) {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const rx = playerX + (Math.random() - 0.5) * 120;
+      const ry = playerY + (Math.random() - 0.5) * 120;
+      const mat = getMaterialTypeAt(rx, ry);
+      if (mat === 'foliage' && fallingFruit.length < 35) {
+        fallingFruit.push({
+          x: rx,
+          y: ry - 25,
+          targetY: ry,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -2 - Math.random() * 2,
+          gravity: 0.2,
+          state: 'falling',
+          radius: 3.5,
+          color: '#ef4444',
+          rot: Math.random() * Math.PI,
+          vrot: (Math.random() - 0.5) * 0.2,
+          age: 0
+        });
+      }
+    }
+  }
+}
+
+function triggerDash() {
+  if (dashCooldown > 0) return;
+  dashCooldown = 1.0;
+  
+  const wetness = gv('s-leaf-wet', 100);
+  const statusEl = document.getElementById('p-status-text');
+  statusEl.textContent = "⚡ SPRINT! Luftwirbel schleudert trockenes Laub hoch!";
+
+  foliageLeaves.forEach(l => {
+    const d = Math.hypot(l.x - playerX, l.y - playerY);
+    if (d < 110) {
+      const force = (1.0 - d / 110) * (1.0 - wetness * 0.95);
+      l.vz = force * (7 + Math.random() * 8);
+      l.vx = (l.x - playerX) * 0.18 * force;
+      l.vy = (l.y - playerY) * 0.18 * force;
+      l.vangle = (Math.random() - 0.5) * 30;
+    }
+  });
+}
+
+// Interaktive D-Pad-Steuerung
+function movePlayer(dx, dy) {
+  playerX = Math.max(12, Math.min(pCanvas.width - 12, playerX + dx));
+  playerY = Math.max(12, Math.min(pCanvas.height - 12, playerY + dy));
+  drawFootprint();
+}
+
+// === TIMELINE & LERP ===
+function getState(){
+  const s={
+    w:+document.getElementById('s-w').value,
+    wind:+document.getElementById('s-wind').value,
+    temp:+document.getElementById('s-temp').value,
+    pud:+document.getElementById('s-pud').value,
+    rain:+document.getElementById('s-rain').value,
+    riv:+document.getElementById('s-riv').value,
+    shad:+document.getElementById('s-shad').value,
+    age:+document.getElementById('s-age').value,
+    moss:+document.getElementById('s-moss').value,
+    inv:+document.getElementById('s-inv').value,
+    snowCov:+document.getElementById('s-snow-cov').value,
+    snowFall:+document.getElementById('s-snow-fall').value,
+    leafCol:+document.getElementById('s-leaf-col').value,
+    leafFall:+document.getElementById('s-leaf-fall').value,
+    leafWet:+document.getElementById('s-leaf-wet').value,
+    springGrow:+document.getElementById('s-spring-grow').value,
+    sunBleach:+document.getElementById('s-sun-bleach').value,
+    mats:{}
+  };
+  Object.keys(MATS).forEach(m=>{
+    const pre=m==='foliage'?'fol':m;
+    s.mats[m]={r:+document.getElementById(`s-${pre}-r`).value,g:+document.getElementById(`s-${pre}-g`).value,
+      b:+document.getElementById(`s-${pre}-b`).value,con:+document.getElementById(`s-${pre}-con`).value,
+      bri:+document.getElementById(`s-${pre}-bri`).value,sha:+document.getElementById(`s-${pre}-sha`).value,
+      blu:+document.getElementById(`s-${pre}-blu`).value,opa:+document.getElementById(`s-${pre}-opa`).value};
+  });
+  return s;
+}
+
+function setState(s){
+  document.getElementById('s-w').value=s.w;
+  document.getElementById('s-wind').value=s.wind;
+  document.getElementById('s-temp').value=s.temp !== undefined ? s.temp : 20;
+  document.getElementById('s-pud').value=s.pud;
+  document.getElementById('s-rain').value=s.rain;
+  document.getElementById('s-riv').value=s.riv;
+  document.getElementById('s-shad').value=s.shad;
+  document.getElementById('s-age').value=s.age;
+  document.getElementById('s-moss').value=s.moss;
+  document.getElementById('s-inv').value=s.inv;
+  
+  document.getElementById('s-snow-cov').value = s.snowCov !== undefined ? s.snowCov : 0;
+  document.getElementById('s-snow-fall').value = s.snowFall !== undefined ? s.snowFall : 0;
+  document.getElementById('s-leaf-col').value = s.leafCol !== undefined ? s.leafCol : 0;
+  document.getElementById('s-leaf-fall').value = s.leafFall !== undefined ? s.leafFall : 0;
+  document.getElementById('s-leaf-wet').value = s.leafWet !== undefined ? s.leafWet : 0;
+  document.getElementById('s-spring-grow').value = s.springGrow !== undefined ? s.springGrow : 0;
+  document.getElementById('s-sun-bleach').value = s.sunBleach !== undefined ? s.sunBleach : 0;
+
+  Object.keys(s.mats).forEach(m=>{const d=s.mats[m];
+    const pre=m==='foliage'?'fol':m;
+    document.getElementById(`s-${pre}-r`).value=d.r;document.getElementById(`s-${pre}-g`).value=d.g;document.getElementById(`s-${pre}-b`).value=d.b;
+    document.getElementById(`s-${pre}-con`).value=d.con||d.contrast;document.getElementById(`s-${pre}-bri`).value=d.bri||d.brightness;
+    document.getElementById(`s-${pre}-sha`).value=d.sha||d.sharpness;document.getElementById(`s-${pre}-blu`).value=d.blu||d.blur;document.getElementById(`s-${pre}-opa`).value=d.opa||d.opacity;
+  });
+  document.querySelectorAll('input[type=range]').forEach(inp=>{const did=inp.id.replace('s-','d-');const el=document.getElementById(did);if(el)el.textContent=inp.value;});
+}
+
+function lerpState(a,b,t){
+  const r={
+    w:a.w+(b.w-a.w)*t,
+    wind:a.wind+(b.wind-a.wind)*t,
+    temp:a.temp+(b.temp-a.temp)*t,
+    pud:a.pud+(b.pud-a.pud)*t,
+    rain:a.rain+(b.rain-a.rain)*t,
+    riv:a.riv+(b.riv-a.riv)*t,
+    shad:a.shad+(b.shad-a.shad)*t,
+    age:a.age+(b.age-a.age)*t,
+    moss:a.moss+(b.moss-a.moss)*t,
+    inv:a.inv+(b.inv-a.inv)*t,
+    snowCov:(a.snowCov||0)+((b.snowCov||0)-(a.snowCov||0))*t,
+    snowFall:(a.snowFall||0)+((b.snowFall||0)-(a.snowFall||0))*t,
+    leafCol:(a.leafCol||0)+((b.leafCol||0)-(a.leafCol||0))*t,
+    leafFall:(a.leafFall||0)+((b.leafFall||0)-(a.leafFall||0))*t,
+    leafWet:(a.leafWet||0)+((b.leafWet||0)-(a.leafWet||0))*t,
+    springGrow:(a.springGrow||0)+((b.springGrow||0)-(a.springGrow||0))*t,
+    sunBleach:(a.sunBleach||0)+((b.sunBleach||0)-(a.sunBleach||0))*t,
+    mats:{}
+  };
+  Object.keys(a.mats).forEach(m=>{r.mats[m]={};Object.keys(a.mats[m]).forEach(k=>{r.mats[m][k]=a.mats[m][k]+(b.mats[m][k]-a.mats[m][k])*t;});});
+  return r;
+}
+
+// === KINO-MODUS (CINEMA MODE) ===
+function toggleCinemaMode() {
+  const sidebar = document.getElementById('sidebar');
+  const cinemaTip = document.getElementById('cinema-tip');
+  const exitBtn = document.getElementById('btn-exit-cinema');
+  
+  if (sidebar.classList.contains('hidden')) {
+    exitCinemaMode();
+  } else {
+    sidebar.classList.add('hidden');
+    exitBtn.style.display = 'block';
+    cinemaTip.style.opacity = '1';
+    setTimeout(() => { cinemaTip.style.opacity = '0'; }, 3000);
+  }
+}
+
+function exitCinemaMode() {
+  const sidebar = document.getElementById('sidebar');
+  const exitBtn = document.getElementById('btn-exit-cinema');
+  sidebar.classList.remove('hidden');
+  exitBtn.style.display = 'none';
+}
+
+// === DYNAMISCHES STORYBOARD-FEATURE ===
+let storyboard = [];
+let storyPlaying = false;
+let storyActiveIndex = 0;
+let storyStepTimeElapsed = 0;
+
+function loadDefaultStoryboard() {
+  storyboard = [
+    {
+      name: "Sonniger Sommermorgen",
+      duration: 5.0,
+      state: {
+        w: 0, wind: 30, temp: 24, pud: 0, rain: 0, riv: 0, shad: 0, age: 10, moss: 15, inv: 5,
+        snowCov: 0, snowFall: 0, leafCol: 0, leafFall: 0, leafWet: 0, springGrow: 85, sunBleach: 0,
+        mats: {
+          roof: { r: 195, g: 105, b: 55, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          stone: { r: 215, g: 185, b: 125, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          grass: { r: 115, g: 165, b: 65, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          wood: { r: 110, g: 70, b: 40, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          foliage: { r: 85, g: 135, b: 60, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          puddle: { r: 60, g: 80, b: 100, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          fog: { r: 180, g: 195, b: 205, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          window: { r: 245, g: 195, b: 85, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 }
+        }
+      }
+    },
+    {
+      name: "Goldener Herbststurm",
+      duration: 6.5,
+      state: {
+        w: 60, wind: 75, temp: 9, pud: 35, rain: 25, riv: 15, shad: 12, age: 45, moss: 45, inv: 35,
+        snowCov: 0, snowFall: 0, leafCol: 95, leafFall: 85, leafWet: 15, springGrow: 0, sunBleach: 10,
+        mats: {
+          roof: { r: 170, g: 90, b: 45, con: 55, bri: 46, sha: 0, blu: 0, opa: 100 },
+          stone: { r: 160, g: 130, b: 90, con: 55, bri: 44, sha: 0, blu: 0, opa: 100 },
+          grass: { r: 115, g: 165, b: 65, con: 55, bri: 46, sha: 0, blu: 0, opa: 100 },
+          wood: { r: 95, g: 60, b: 35, con: 55, bri: 44, sha: 0, blu: 0, opa: 100 },
+          foliage: { r: 85, g: 135, b: 60, con: 55, bri: 46, sha: 0, blu: 0, opa: 100 },
+          puddle: { r: 43, g: 42, b: 41, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+          fog: { r: 155, g: 135, b: 115, con: 50, bri: 50, sha: 0, blu: 0, opa: 15 },
+          window: { r: 245, g: 175, b: 65, con: 50, bri: 50, sha: 0, blu: 0, opa: 60 }
+        }
+      }
+    },
+    {
+      name: "Eisiger Blizzard",
+      duration: 8.0,
+      state: {
+        w: 100, wind: 90, temp: -12, pud: 30, rain: 0, riv: 0, shad: 15, age: 40, moss: 15, inv: 10,
+        snowCov: 95, snowFall: 100, leafCol: 0, leafFall: 0, leafWet: 20, springGrow: 0, sunBleach: 0,
+        mats: {
+          roof: { r: 115, g: 65, b: 35, con: 50, bri: 40, sha: 0, blu: 0, opa: 100 },
+          stone: { r: 120, g: 110, b: 100, con: 50, bri: 38, sha: 0, blu: 0, opa: 100 },
+          grass: { r: 75, g: 90, b: 65, con: 50, bri: 35, sha: 0, blu: 0, opa: 100 },
+          wood: { r: 70, g: 45, b: 30, con: 50, bri: 38, sha: 0, blu: 0, opa: 100 },
+          foliage: { r: 50, g: 75, b: 45, con: 50, bri: 35, sha: 0, blu: 0, opa: 100 },
+          puddle: { r: 180, g: 210, b: 235, con: 50, bri: 65, sha: 0, blu: 0, opa: 100 }, 
+          fog: { r: 185, g: 200, b: 210, con: 50, bri: 55, sha: 0, blu: 0, opa: 25 },
+          window: { r: 245, g: 165, b: 45, con: 50, bri: 55, sha: 0, blu: 0, opa: 75 }
+        }
+      }
+    }
+  ];
+  renderStoryboard();
+}
+
+function renderStoryboard() {
+  const container = document.getElementById('storyboard-list');
+  container.innerHTML = '';
+  
+  storyboard.forEach((step, idx) => {
+    const stepEl = document.createElement('div');
+    stepEl.className = 'story-step';
+    stepEl.id = `story-step-${idx}`;
+    
+    stepEl.innerHTML = `
+      <div class="story-step-header">
+        <span>SCHRITT #${idx + 1}</span>
+        <div style="display:flex;gap:2px;">
+          <button onclick="moveStep(${idx}, -1)" style="padding:1px 4px;font-size:8px;background:none;color:#aaa;">▲</button>
+          <button onclick="moveStep(${idx}, 1)" style="padding:1px 4px;font-size:8px;background:none;color:#aaa;">▼</button>
+        </div>
+      </div>
+      <div class="story-step-row">
+        <input type="text" value="${step.name}" onchange="updateStepName(${idx}, this.value)" placeholder="Schrittname...">
+        <label style="font-size:9px;color:#888;">Dauer:</label>
+        <input type="number" step="0.5" min="0.1" max="60" value="${step.duration}" onchange="updateStepDuration(${idx}, this.value)">
+        <span style="font-size:9px;color:#888;">s</span>
+      </div>
+      <div class="story-step-actions">
+        <button onclick="captureStepState(${idx})" title="Speichert die aktuellen Slider-Zustände">💾 Erfassen</button>
+        <button onclick="applyStepState(${idx})" title="Vorschau dieses Zustands">👁️ Preview</button>
+        <button onclick="deleteStep(${idx})" style="background:#ff555544;color:#ff8888;" title="Entfernen">❌</button>
+      </div>
+      <div style="background:#111122;height:3px;border-radius:2px;overflow:hidden;margin-top:2px;">
+        <div id="step-progress-${idx}" style="background:#00ffcc;height:100%;width:0%;transition:width 0.1s linear;"></div>
+      </div>
+    `;
+    container.appendChild(stepEl);
+  });
+}
+
+function addStoryboardStep() {
+  const currentState = getState();
+  storyboard.push({
+    name: "Neuer Wetterschritt",
+    duration: 4.0,
+    state: currentState
+  });
+  renderStoryboard();
+}
+
+function clearStoryboard() {
+  storyboard = [];
+  renderStoryboard();
+  if (storyPlaying) toggleStoryPlay();
+}
+
+function deleteStep(idx) {
+  storyboard.splice(idx, 1);
+  renderStoryboard();
+  if (storyboard.length < 2 && storyPlaying) toggleStoryPlay();
+}
+
+function moveStep(idx, dir) {
+  const targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= storyboard.length) return;
+  const temp = storyboard[idx];
+  storyboard[idx] = storyboard[targetIdx];
+  storyboard[targetIdx] = temp;
+  renderStoryboard();
+}
+
+function updateStepName(idx, value) {
+  if (storyboard[idx]) storyboard[idx].name = value;
+}
+
+function updateStepDuration(idx, value) {
+  if (storyboard[idx]) storyboard[idx].duration = Math.max(0.1, parseFloat(value) || 4.0);
+}
+
+function captureStepState(idx) {
+  if (storyboard[idx]) {
+    storyboard[idx].state = getState();
+    const btn = document.querySelector(`#story-step-${idx} .story-step-actions button`);
+    if (btn) {
+      const origText = btn.innerHTML;
+      btn.innerHTML = "✅ Erfasst!";
+      btn.style.color = "#00ffcc";
+      setTimeout(() => {
+        btn.innerHTML = origText;
+        btn.style.color = "";
+      }, 1000);
+    }
+  }
+}
+
+function applyStepState(idx) {
+  if (storyboard[idx]) {
+    setState(storyboard[idx].state);
+  }
+}
+
+function toggleStoryPlay() {
+  if (storyboard.length < 2) {
+    const statusEl = document.getElementById('p-status-text');
+    statusEl.textContent = "⚠️ Füge mindestens 2 Story-Schritte für einen Ablauf hinzu!";
+    return;
+  }
+  storyPlaying = !storyPlaying;
+  const btn = document.getElementById('btn-story-play');
+  if (storyPlaying) {
+    btn.textContent = "⏹️ Ablauf stoppen";
+    btn.classList.add('active');
+    storyActiveIndex = 0;
+    storyStepTimeElapsed = 0;
+    
+    storyboard.forEach((_, i) => {
+      const p = document.getElementById(`step-progress-${i}`);
+      if (p) p.style.width = '0%';
+    });
+  } else {
+    btn.textContent = "▶ Story abspielen";
+    btn.classList.remove('active');
+  }
+}
+
+// === INTERAKTIVES PHYSIK- STEUERUNGS- & TASTATUR-GRID ===
+const keysPressed = {};
+window.addEventListener('keydown', (e) => {
+  keysPressed[e.key.toLowerCase()] = true;
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    triggerDash();
+  }
+  if (e.key === 'f' || e.code === 'KeyF') {
+    e.preventDefault();
+    spawnCampfire(playerX, playerY);
+    const statusEl = document.getElementById('p-status-text');
+    statusEl.textContent = "🔥 Lagerfeuer an Spieler-Position entzündet!";
+  }
+  if (e.key === 'k' || e.code === 'KeyK') {
+    toggleCinemaMode();
+  }
+  if (e.key === 'Escape') {
+    exitCinemaMode();
+  }
+});
+window.addEventListener('keyup', (e) => {
+  keysPressed[e.key.toLowerCase()] = false;
+});
+
+// === ATMOSPHÄREN-PRESETS IMPLEMENTIERUNG ===
+function applyAtmospherePreset(preset) {
+  let s;
+  if (preset === 'summer_weather_sunny') {
+    s = {
+      w: 0, wind: 30, temp: 24, pud: 0, rain: 0, riv: 0, shad: 0, age: 10, moss: 15, inv: 5,
+      snowCov: 0, snowFall: 0, leafCol: 0, leafFall: 0, leafWet: 0, springGrow: 85, sunBleach: 0,
+      mats: {
+        roof: { r: 195, g: 105, b: 55, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        stone: { r: 215, g: 185, b: 125, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        grass: { r: 115, g: 165, b: 65, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        wood: { r: 110, g: 70, b: 40, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        foliage: { r: 85, g: 135, b: 60, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        puddle: { r: 60, g: 80, b: 100, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        fog: { r: 180, g: 195, b: 205, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        window: { r: 245, g: 195, b: 85, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 }
+      }
+    };
+  } else if (preset === 'storm') {
+    s = {
+      w: 80, wind: 80, temp: 12, pud: 70, rain: 80, riv: 60, shad: 25, age: 30, moss: 50, inv: 40,
+      snowCov: 0, snowFall: 0, leafCol: 20, leafFall: 30, leafWet: 80, springGrow: 0, sunBleach: 0,
+      mats: {
+        roof: { r: 150, g: 80, b: 40, con: 60, bri: 40, sha: 20, blu: 10, opa: 100 },
+        stone: { r: 160, g: 140, b: 100, con: 60, bri: 40, sha: 10, blu: 10, opa: 100 },
+        grass: { r: 80, g: 120, b: 45, con: 55, bri: 42, sha: 0, blu: 0, opa: 100 },
+        wood: { r: 85, g: 50, b: 30, con: 60, bri: 38, sha: 10, blu: 10, opa: 100 },
+        foliage: { r: 60, g: 100, b: 40, con: 55, bri: 42, sha: 10, blu: 10, opa: 100 },
+        puddle: { r: 50, g: 70, b: 90, con: 50, bri: 45, sha: 0, blu: 0, opa: 100 },
+        fog: { r: 120, g: 130, b: 140, con: 50, bri: 45, sha: 0, blu: 0, opa: 60 },
+        window: { r: 255, g: 150, b: 50, con: 60, bri: 60, sha: 0, blu: 0, opa: 90 }
+      }
+    };
+  } else if (preset === 'foggy') {
+    s = {
+      w: 50, wind: 15, temp: 8, pud: 40, rain: 20, riv: 10, shad: 15, age: 40, moss: 70, inv: 60,
+      snowCov: 0, snowFall: 0, leafCol: 40, leafFall: 10, leafWet: 50, springGrow: 10, sunBleach: 0,
+      mats: {
+        roof: { r: 160, g: 90, b: 45, con: 50, bri: 45, sha: 0, blu: 20, opa: 100 },
+        stone: { r: 180, g: 160, b: 110, con: 50, bri: 45, sha: 0, blu: 20, opa: 100 },
+        grass: { r: 90, g: 140, b: 50, con: 45, bri: 45, sha: 0, blu: 10, opa: 100 },
+        wood: { r: 90, g: 60, b: 35, con: 50, bri: 42, sha: 0, blu: 20, opa: 100 },
+        foliage: { r: 70, g: 115, b: 50, con: 45, bri: 45, sha: 0, blu: 25, opa: 100 },
+        puddle: { r: 55, g: 75, b: 95, con: 45, bri: 48, sha: 0, blu: 5, opa: 100 },
+        fog: { r: 190, g: 200, b: 210, con: 45, bri: 55, sha: 0, blu: 30, opa: 85 },
+        window: { r: 230, g: 180, b: 75, con: 50, bri: 50, sha: 0, blu: 5, opa: 50 }
+      }
+    };
+  } else if (preset === 'winter') {
+    s = {
+      w: 100, wind: 60, temp: -10, pud: 10, rain: 0, riv: 0, shad: 20, age: 20, moss: 10, inv: 10,
+      snowCov: 90, snowFall: 95, leafCol: 0, leafFall: 0, leafWet: 20, springGrow: 0, sunBleach: 0,
+      mats: {
+        roof: { r: 115, g: 65, b: 35, con: 50, bri: 40, sha: 0, blu: 0, opa: 100 },
+        stone: { r: 120, g: 110, b: 100, con: 50, bri: 38, sha: 0, blu: 0, opa: 100 },
+        grass: { r: 75, g: 90, b: 65, con: 50, bri: 35, sha: 0, blu: 0, opa: 100 },
+        wood: { r: 70, g: 45, b: 30, con: 50, bri: 38, sha: 0, blu: 0, opa: 100 },
+        foliage: { r: 50, g: 75, b: 45, con: 50, bri: 35, sha: 0, blu: 0, opa: 100 },
+        puddle: { r: 180, g: 210, b: 235, con: 50, bri: 65, sha: 0, blu: 0, opa: 100 }, 
+        fog: { r: 185, g: 200, b: 210, con: 50, bri: 55, sha: 0, blu: 0, opa: 25 },
+        window: { r: 245, g: 165, b: 45, con: 50, bri: 55, sha: 0, blu: 0, opa: 75 }
+      }
+    };
+  } else if (preset === 'autumn') {
+    s = {
+      w: 40, wind: 50, temp: 11, pud: 20, rain: 15, riv: 5, shad: 10, age: 30, moss: 40, inv: 30,
+      snowCov: 0, snowFall: 0, leafCol: 90, leafFall: 80, leafWet: 10, springGrow: 0, sunBleach: 10,
+      mats: {
+        roof: { r: 170, g: 90, b: 45, con: 55, bri: 46, sha: 0, blu: 0, opa: 100 },
+        stone: { r: 160, g: 130, b: 90, con: 55, bri: 44, sha: 0, blu: 0, opa: 100 },
+        grass: { r: 115, g: 165, b: 65, con: 55, bri: 46, sha: 0, blu: 0, opa: 100 },
+        wood: { r: 95, g: 60, b: 35, con: 55, bri: 44, sha: 0, blu: 0, opa: 100 },
+        foliage: { r: 85, g: 135, b: 60, con: 55, bri: 46, sha: 0, blu: 0, opa: 100 },
+        puddle: { r: 43, g: 42, b: 41, con: 50, bri: 50, sha: 0, blu: 0, opa: 100 },
+        fog: { r: 155, g: 135, b: 115, con: 50, bri: 50, sha: 0, blu: 0, opa: 15 },
+        window: { r: 245, g: 175, b: 65, con: 50, bri: 50, sha: 0, blu: 0, opa: 60 }
+      }
+    };
+  }
+  if (s) {
+    setState(s);
+    const statusEl = document.getElementById('p-status-text');
+    statusEl.textContent = `🌤️ Atmosphäre auf das Preset "${preset}" gesetzt!`;
+  }
+}
+
+// === SHOWCASE VIDEO RECORDING (COMPOSITED API) ===
+let isRecording = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+const recordCanvas = document.createElement('canvas');
+const recordCtx = recordCanvas.getContext('2d');
+
+function startRecording() {
+  recordedChunks = [];
+  recordCanvas.width = canvas.width;
+  recordCanvas.height = canvas.height;
+  
+  let stream = recordCanvas.captureStream(30);
+  let options = { mimeType: 'video/webm; codecs=vp9' };
+  
+  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    options = { mimeType: 'video/webm' };
+  }
+  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    options = { mimeType: '' }; 
+  }
+  
+  try {
+    mediaRecorder = new MediaRecorder(stream, options);
+  } catch(e) {
+    console.warn("MediaRecorder Fallback", e);
+    mediaRecorder = new MediaRecorder(stream);
+  }
+
+  mediaRecorder.ondataavailable = e => {
+    if (e.data && e.data.size > 0) {
+      recordedChunks.push(e.data);
+    }
+  };
+
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GAIME_EcoPhysics_Showcase_${Date.now()}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  isRecording = true;
+  mediaRecorder.start();
+  document.getElementById('rec-indicator').style.display = 'block';
+  document.getElementById('btn-record').textContent = "⏹️ Stoppen & Video laden";
+  document.getElementById('btn-record').style.background = "#eab308";
+  document.getElementById('btn-record').style.color = "#000";
+}
+
+function stopRecording() {
+  if (mediaRecorder && isRecording) {
+    mediaRecorder.stop();
+    isRecording = false;
+    document.getElementById('rec-indicator').style.display = 'none';
+    document.getElementById('btn-record').textContent = "🔴 Showcase aufnehmen";
+    document.getElementById('btn-record').style.background = "#ff3333";
+    document.getElementById('btn-record').style.color = "white";
+  }
+}
+
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+// === WEBGL SHADER PIPELINE SETUP ===
+const VS=`attribute vec2 a_pos;varying vec2 v_uv;void main(){v_uv=a_pos*0.5+0.5;v_uv.y=1.0-v_uv.y;gl_Position=vec4(a_pos,0,1);}`;
+const FS=`precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_scene,u_mat,u_trail;
+uniform float u_time,u_weather,u_wind,u_hasMat;
+uniform vec3 u_cRoof,u_cStone,u_cGrass,u_cWood,u_cFol,u_cWin,u_cPud,u_cFog;
+uniform vec4 u_pRoof,u_pStone,u_pGrass,u_pWood,u_pFol; 
+uniform float u_pud,u_rain,u_shad,u_riv,u_fog;
+uniform float u_age,u_moss,u_inv;
+
+// Seasons / Klima-Uniforms
+uniform float u_snowCover,u_snowFall,u_leafColor,u_leafFall;
+uniform float u_temperature; 
+uniform float u_sunBleach;
+
+// Spieler Position
+uniform vec2 u_playerPos;
+
+vec3 applyGrade(vec3 col, vec3 target, vec4 params, float mask) {
+  float con = (params.x - 0.5) * 2.0;
+  float bri = (params.y - 0.5) * 2.0;
+  float opa = params.w;
+  
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+  vec3 colored = target * clamp(lum * 2.1, 0.1, 1.9);
+  vec3 graded = mix(col, colored, mask * opa);
+  
+  float gradLum = dot(graded, vec3(0.299, 0.587, 0.114));
+  graded = mix(vec3(gradLum), graded, 1.0 + con * mask);
+  graded += vec3(bri * 0.5 * mask);
+  
+  return graded;
+}
+
+void main(){
+  vec2 uv=v_uv;
+  vec3 originalColor=texture2D(u_scene,uv).rgb;
+  
+  float grayLum = dot(originalColor, vec3(0.299, 0.587, 0.114));
+  vec3 dry = mix(originalColor, vec3(grayLum), u_hasMat);
+  
+  vec4 ms=texture2D(u_mat,uv);
+  vec3 mm=ms.rgb;
+  
+  float flowAng=ms.g*6.2832;
+  float bCh=ms.b;
+  float dripInt=clamp(bCh/0.71,0.0,1.0)*step(bCh,0.75);
+
+  // Störungs- & Physikkanäle auslesen:
+  // r = Fußspuren (Melt)
+  // g = Shake-Effekt
+  // b = Permanent Trampelpfade (Matsch / Grass-Wear) -> Permanent!
+  vec4 trail = texture2D(u_trail, uv);
+  float footprint = trail.r;
+  float shakeImpulse = trail.g;
+  float wear = trail.b;
+
+  // NEAREST NEIGHBOR CLASSIFICATION
+  float dRoof = distance(mm, vec3(0.976, 0.447, 0.913)); // Pink: #F972E9
+  float dPath = distance(mm, vec3(0.863, 0.149, 0.149)); // Rot:  #DC2626
+  float dWood = distance(mm, vec3(0.522, 0.302, 0.055)); // Braun:#854D0E
+  float dWin  = distance(mm, vec3(0.059, 0.463, 0.431)); // Teal: #0F766E
+  float dPud  = distance(mm, vec3(0.024, 0.714, 0.831)); // Cyan: #06B6D4
+  float dRock = distance(mm, vec3(0.278, 0.333, 0.412)); // Grau: #475569
+  float dTree = distance(mm, vec3(0.670, 0.055, 0.720)); // Lila: #AA0EB7
+
+  float best = min(min(min(dRoof, dPath), min(dWood, dWin)), min(min(dPud, dRock), dTree));
+
+  float mR   = step(dRoof, best + 0.001) * u_hasMat;
+  float mS   = max(step(dPath, best + 0.001), step(dRock, best + 0.001)) * u_hasMat;
+  float mW   = step(dWood, best + 0.001) * u_hasMat;
+  float mF   = step(dTree, best + 0.001) * u_hasMat;
+  float isWin= step(dWin,  best + 0.001) * u_hasMat;
+  float mP0  = step(dPud,  best + 0.001) * u_hasMat;
+  float mG   = clamp(u_hasMat - mR - mS - mW - mF - isWin - mP0, 0.0, 1.0);
+  
+  float w=u_weather;
+  vec3 fin=dry+vec3((1.0-grayLum)*w*u_shad);
+
+  // Herbstlaub-Färbung
+  vec3 autumnColor = mix(vec3(0.88, 0.38, 0.05), vec3(0.68, 0.12, 0.01), sin(uv.x * 25.0 + uv.y * 18.0) * 0.5 + 0.5);
+  vec3 dryGrassColor = mix(vec3(0.58, 0.48, 0.15), vec3(0.40, 0.34, 0.12), sin(uv.x * 15.0) * 0.5 + 0.5);
+
+  vec3 cFol = mix(u_cFol, autumnColor, u_leafColor);
+  vec3 cGrass = mix(u_cGrass, dryGrassColor, u_leafColor);
+  
+  // PHYSIKALISCHE TRAMPELPFADE
+  vec3 mudColor = vec3(0.35, 0.23, 0.12) * clamp(grayLum * 1.5, 0.3, 1.3);
+  cGrass = mix(cGrass, mudColor, wear);
+
+  // Recolor-Zuweisung
+  fin=applyGrade(fin,u_cRoof,u_pRoof,mR);
+  fin=applyGrade(fin,u_cStone,u_pStone,mS);
+  fin=applyGrade(fin,cGrass,u_pGrass,mG);
+  fin=applyGrade(fin,u_cWood,u_pWood,mW);
+  fin=applyGrade(fin,cFol,u_pFol,mF);
+  
+  float noMat = 1.0 - u_hasMat;
+  fin=mix(fin,originalColor*(1.0-w*0.4),vec3(noMat*w));
+  
+  // === PHYSIKALISCHE REGENTROPFEN & EIS-PFÜTZEN ===
+  vec3 puddleColor = u_cPud;
+  if (u_temperature < 0.0) {
+    vec3 iceColor = vec3(0.70, 0.85, 0.95);
+    float frostPattern = sin(uv.x * 300.0) * cos(uv.y * 300.0) * 0.12;
+    puddleColor = mix(iceColor, vec3(0.95), clamp(frostPattern, 0.0, 1.0));
+  }
+
+  float pn=sin(uv.x*19.0+uv.y*13.0+1.7)*sin(uv.x*29.0-uv.y*7.0)+sin(uv.x*5.0+uv.y*37.0+3.1)*0.7;
+  float pField=clamp(pn*0.4+0.4,0.0,1.0);
+  float pTh=mix(w*u_pud,w*1.3,dripInt*u_hasMat);
+  float hasPud=clamp(mS*step(pField,pTh)+mG*dripInt*u_hasMat*step(pField,w*0.8),0.0,1.0);
+  
+  float ripple = 0.0;
+  if (u_temperature >= 0.0) {
+    ripple = sin(uv.x*90.0+u_time*2.5)*sin(uv.y*70.0+u_time*1.8);
+    ripple = clamp(ripple*ripple,0.0,1.0)*0.1;
+  }
+  
+  float cloud=clamp(sin((uv.x+u_time*0.02)*3.0)*sin((uv.y+u_time*0.015)*2.0)*0.4+0.2,0.0,0.35)*0.12;
+  fin=mix(fin, puddleColor+vec3(ripple)+vec3(cloud), hasPud*w);
+  
+  // Dach-Rinnrinnsale
+  if (u_temperature >= 0.0) {
+    float rivX=fract(uv.x*(-sin(flowAng))+uv.y*cos(flowAng)*35.0+sin((uv.x*cos(flowAng)+uv.y*sin(flowAng))*8.0)*0.08);
+    float riv=step(0.44,rivX)*step(rivX,0.56)*step(0.2,fract((uv.x*cos(flowAng)+uv.y*sin(flowAng))*4.0+u_time*3.5))*step(fract((uv.x*cos(flowAng)+uv.y*sin(flowAng))*4.0+u_time*3.5),0.7)*mR*w*u_riv;
+    fin+=riv*vec3(0.3,0.4,0.6);
+  }
+  
+  // Fenster-Glow
+  fin=mix(fin,u_cWin,isWin*w*0.7);
+
+  // Schnee-Akkumulation
+  float snowMask = 0.0;
+  float groundSnowCap = clamp(u_snowCover * (1.0 - footprint * 0.95), 0.0, 1.0);
+  snowMask += mG * (groundSnowCap * 1.4);
+  
+  float foliageSnow = clamp(sin(uv.x * 60.0) * cos(uv.y * 60.0) * 0.5 + 0.5, 0.0, 1.0);
+  float foliageSnowCap = clamp(u_snowCover * (1.0 - shakeImpulse * 0.95), 0.0, 1.0);
+  snowMask += mF * clamp(foliageSnowCap * 1.25 - (1.0 - foliageSnow) * 0.4, 0.0, 1.0);
+  
+  float roofSnow = clamp(sin(uv.x * 45.0 + uv.y * 15.0) * 0.3 + 0.7, 0.0, 1.0);
+  float roofSnowCap = clamp(u_snowCover * (1.0 - shakeImpulse * 0.85), 0.0, 1.0);
+  snowMask += mR * clamp(roofSnowCap * 1.15 - (1.0 - roofSnow) * 0.3, 0.0, 1.0);
+  
+  float stoneSnowCap = clamp(u_snowCover * (1.0 - footprint * 0.90), 0.0, 1.0);
+  float stoneSnow = clamp(sin(uv.x * 55.0 - uv.y * 55.0) * 0.4 + 0.6, 0.0, 1.0);
+  snowMask += mS * clamp(stoneSnowCap * 1.1 - (1.0 - stoneSnow) * 0.5, 0.0, 1.0);
+  
+  snowMask = clamp(snowMask, 0.0, 1.0);
+
+  // Lagerfeuer-Schmelze (Alpha-Kanal der Trailmap schmilzt den Schnee kreisförmig!)
+  snowMask = clamp(snowMask * (1.0 - trail.a), 0.0, 1.0);
+
+  float snowNoise = fract(sin(uv.x * 233.0 + uv.y * 144.0) * 43758.5) * 0.15 + 0.85;
+  vec3 snowColor = vec3(0.95, 0.98, 1.0) * snowNoise;
+  fin = mix(fin, snowColor, snowMask * u_snowCover * 0.95);
+
+  // === RUST DECAY SYSTEM (Chemischer Rost) ===
+  float rustFactor = clamp((u_age * u_weather) * 1.5 - 0.1, 0.0, 1.0);
+  float rustNoise = fract(sin(uv.x * 123.0 + uv.y * 111.0) * 43758.5) * 0.5 + sin(uv.x * 15.0 + uv.y * 15.0) * 0.3;
+  vec3 rustColor = vec3(0.48, 0.18, 0.05) * (0.8 + rustNoise * 0.3);
+  fin = mix(fin, rustColor, (mR + isWin) * rustFactor * step(0.4, rustNoise));
+
+  // === THERMAL EMBRITTLEMENT (Risse durch Extreme-Klima) ===
+  float extTemp = abs(u_temperature - 10.0); // Abweichung von Normaltemperatur (10 Grad)
+  if (extTemp > 18.0) {
+    float crackIntensity = clamp((extTemp - 18.0) / 12.0, 0.0, 1.0) * u_age;
+    float crackPattern = step(0.993, sin(uv.x * 700.0 + sin(uv.y * 120.0) * 3.0)) * step(0.993, cos(uv.y * 700.0 + cos(uv.x * 120.0) * 3.0));
+    fin = mix(fin, vec3(0.04), crackPattern * crackIntensity * (mS + mR + mW));
+  }
+
+  // === SUN BLEACHING / DESATURATION ===
+  vec3 bleachedGray = vec3(dot(fin, vec3(0.299, 0.587, 0.114)));
+  fin = mix(fin, bleachedGray * 1.15, u_sunBleach * 0.65);
+
+  // Nebel
+  float fogZ=clamp((uv.y-0.55)*3.0,0.0,1.0);
+  fin=mix(fin,u_cFog,w*w*fogZ*u_fog);
+  
+  // Regen
+  float rn=clamp(step(0.993,fract(sin(uv.x*280.0+uv.y*550.0+u_time*18.0+u_wind*uv.x*140.0)*43758.5))+step(0.994,fract(sin(uv.x*180.0+uv.y*400.0+u_time*14.0+u_wind*uv.x*100.0+5.7)*43758.5)), 0.0, 1.0)*w*w*u_rain;
+  fin+=rn*vec3(0.5,0.6,0.8);
+
+  // Schneeflocken
+  float snowFlakes = 0.0;
+  if (u_snowFall > 0.0) {
+    for (int i = 1; i <= 3; i++) {
+      float fi = float(i);
+      vec2 sUv = uv * (15.0 + fi * 5.0);
+      sUv.y += u_time * (0.35 + fi * 0.12);
+      sUv.x += u_time * (0.12 + u_wind * 0.3) + sin(sUv.y * 2.0 + u_time) * 0.25;
+      vec2 ip = floor(sUv);
+      vec2 fp = fract(sUv);
+      float rand = fract(sin(dot(ip, vec2(127.1, 311.7))) * 43758.5453);
+      if (rand < u_snowFall * 0.35) {
+        float flake = smoothstep(0.25, 0.05, distance(fp, vec2(0.5)));
+        if (distance(uv, u_playerPos) < 0.04) flake *= 0.1;
+        snowFlakes = max(snowFlakes, flake * (0.5 + rand * 0.5));
+      }
+    }
+  }
+  fin = mix(fin, vec3(0.95, 0.98, 1.0), snowFlakes * u_snowFall * 0.9);
+
+  // Laubfall (Kosmetisch im Hintergrund)
+  float leavesFlurry = 0.0;
+  if (u_leafFall > 0.0) {
+    for (int i = 1; i <= 3; i++) {
+      float fi = float(i);
+      vec2 lUv = uv * (10.0 + fi * 4.0);
+      lUv.y += u_time * (0.25 + fi * 0.1) * (1.0 + u_wind * 0.4);
+      lUv.x += u_time * (0.3 + u_wind * 0.6) + sin(lUv.y * 1.5 + u_time * 1.5) * 0.3;
+      vec2 ip = floor(lUv);
+      vec2 fp = fract(lUv);
+      float rand = fract(sin(dot(ip, vec2(127.1, 311.7))) * 43758.5453);
+      if (rand < u_leafFall * 0.3) {
+        vec2 center = vec2(0.5) + vec2(sin(u_time + rand * 6.28) * 0.15, cos(u_time * 1.2 + rand * 6.28) * 0.15);
+        float angle = u_time * (1.5 + rand * 3.0) + rand * 6.28;
+        mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+        vec2 rotatedFp = rot * (fp - center);
+        float leafShape = smoothstep(0.16, 0.04, abs(rotatedFp.x) * 1.6 + abs(rotatedFp.y) * 0.7);
+        leavesFlurry = max(leavesFlurry, leafShape * (0.5 + rand * 0.5));
+      }
+    }
+  }
+  vec3 fallLeafColor = mix(vec3(0.85, 0.35, 0.08), vec3(0.7, 0.15, 0.05), uv.y);
+  fin = mix(fin, fallLeafColor, leavesFlurry * u_leafFall * 0.95);
+
+  // Moos & Bewuchs
+  float age=u_age;
+  float mossN=fract(sin(uv.x*127.1+uv.y*311.7)*43758.5)*0.5+sin(uv.x*23.0+uv.y*17.0)*0.3+0.2;
+  fin=mix(fin,vec3(0.12,0.28,0.08),mR*age*u_moss*step(0.4,mossN)*0.7);
+  float invN=fract(sin(uv.x*97.0+uv.y*53.0)*43758.5)*0.5+sin(uv.x*11.0-uv.y*7.0)*0.3+0.2;
+  fin=mix(fin,vec3(0.08,0.22,0.05),mS*age*u_inv*step(0.35,invN)*0.6);
+  fin=mix(fin,fin*vec3(0.5,0.6,0.4),mW*age*0.5);
+  
+  gl_FragColor=vec4(clamp(fin,0.0,1.0),1.0);
+}`;
+
+const canvas=document.getElementById('gl');
+const gl=canvas.getContext('webgl',{preserveDrawingBuffer:true});
+function compile(s,t){const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(sh));return sh;}
+const prog=gl.createProgram();gl.attachShader(prog,compile(VS,gl.VERTEX_SHADER));gl.attachShader(prog,compile(FS,gl.FRAGMENT_SHADER));gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog,gl.LINK_STATUS))console.error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+const aP=gl.getAttribLocation(prog,'a_pos');gl.enableVertexAttribArray(aP);gl.vertexAttribPointer(aP,2,gl.FLOAT,false,0,0);
+
+function mkTex(u){const t=gl.createTexture();gl.activeTexture(gl.TEXTURE0+u);gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([128,128,128,255]));return t;}
+const sTex=mkTex(0),mTex=mkTex(1),trailTex=mkTex(2);
+
+gl.uniform1i(gl.getUniformLocation(prog,'u_scene'),0);
+gl.uniform1i(gl.getUniformLocation(prog,'u_mat'),1);
+gl.uniform1i(gl.getUniformLocation(prog,'u_trail'),2);
+
+const U={};
+[
+  'u_time','u_weather','u_wind','u_hasMat',
+  'u_cRoof','u_cStone','u_cGrass','u_cWood','u_cFol','u_cWin','u_cPud','u_cFog',
+  'u_pRoof','u_pStone','u_pGrass','u_pWood','u_pFol',
+  'u_pud','u_rain','u_shad','u_riv','u_fog','u_age','u_moss','u_inv',
+  'u_snowCover','u_snowFall','u_leafColor','u_leafFall','u_temperature',
+  'u_sunBleach','u_playerPos'
+].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+
+let hasMat=0,time=0,lastT=0,sceneOk=false;
+function loadImg(f,u,t){
+  const i=new Image();
+  i.onload=()=>{
+    gl.activeTexture(gl.TEXTURE0+u);
+    gl.bindTexture(gl.TEXTURE_2D,t);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,i);
+    if(!u){
+      loadedSceneImage = i; // Referenz sichern
+      canvas.width=i.width;
+      canvas.height=i.height;
+      pCanvas.width=i.width;
+      pCanvas.height=i.height;
+      gl.viewport(0,0,i.width,i.height);
+      sceneOk=true;
+      initEcosystem();
+    } else {
+      offCanvas.width = i.width;
+      offCanvas.height = i.height;
+      offCtx.drawImage(i, 0, 0);
+      matData = offCtx.getImageData(0, 0, i.width, i.height);
+      matWidth = i.width;
+      matHeight = i.height;
+      hasMat=1;
+    }
+  };
+  i.src=URL.createObjectURL(f);
+}
+document.getElementById('f-scene').onchange=e=>{if(e.target.files[0])loadImg(e.target.files[0],0,sTex);};
+document.getElementById('f-mat').onchange=e=>{if(e.target.files[0])loadImg(e.target.files[0],1,mTex);};
+
+function gv(id,d){
+  const el = document.getElementById(id);
+  return el ? (+el.value/d) : 0;
+}
+
+// === MAIN PHYSICS & RENDERING LOOP ===
+function render(now){
+  if(!lastT)lastT=now;
+  const dt=Math.min(0.03, (now-lastT)/1000); 
+  lastT=now;
+  
+  if(document.getElementById('s-anim').checked)time+=dt;
+
+  // === DYNAMISCHES TIMELINE / STORYBOARD PLAYBACK ===
+  if (storyPlaying && storyboard.length >= 2) {
+    const activeStep = storyboard[storyActiveIndex];
+    const nextIndex = (storyActiveIndex + 1) % storyboard.length;
+    const nextStep = storyboard[nextIndex];
+
+    storyStepTimeElapsed += dt;
+    let t = Math.min(storyStepTimeElapsed / activeStep.duration, 1.0);
+    
+    const stateInterpolated = lerpState(activeStep.state, nextStep.state, t);
+    setState(stateInterpolated);
+
+    const activeProgress = document.getElementById(`step-progress-${storyActiveIndex}`);
+    if (activeProgress) {
+      activeProgress.style.width = (t * 100) + "%";
+    }
+
+    if (storyStepTimeElapsed >= activeStep.duration) {
+      if (activeProgress) activeProgress.style.width = "100%";
+      
+      storyStepTimeElapsed = 0;
+      storyActiveIndex++;
+
+      document.querySelectorAll('.story-step').forEach(el => el.classList.remove('active'));
+      const activeCard = document.getElementById(`story-step-${storyActiveIndex}`);
+      if (activeCard) activeCard.classList.add('active');
+
+      if (storyActiveIndex >= storyboard.length - 1) {
+        if (document.getElementById('cb-story-loop').checked) {
+          if (storyActiveIndex >= storyboard.length) {
+            storyActiveIndex = 0;
+          }
+        } else {
+          toggleStoryPlay();
+          const statusEl = document.getElementById('p-status-text');
+          statusEl.textContent = "🎬 Storyboard-Ablauf abgeschlossen!";
+        }
+      }
+    }
+  }
+
+  if(!sceneOk){requestAnimationFrame(render);return;}
+
+  // Slider-Werte auslesen
+  const windSpd = gv('s-wind', 100) * 1.5;
+  const wetness = gv('s-leaf-wet', 100);
+  const snowCov = gv('s-snow-cov', 100);
+  const snowFall = gv('s-snow-fall', 100);
+  const leafCol = gv('s-leaf-col', 100);
+  const temp = gv('s-temp', 1.0); 
+  const sunBleach = gv('s-sun-bleach', 100);
+  const springGrow = gv('s-spring-grow', 100); 
+  const rainStrength = gv('s-rain', 100);
+  const ageVal = gv('s-age', 100);
+
+  // Bio-Slider auslesen
+  const charExertion = gv('s-char-exertion', 100); // 0.0 - 1.0
+  const charAge = gv('s-char-age', 100); // 0.0 - 1.0
+  const charMuscle = gv('s-char-muscle', 100); // 0.0 - 1.0
+  const charTan = gv('s-char-tan', 100); // 0.0 - 1.0
+
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+
+  // === PLAYER VELOCITY & TRÄGHEIT ===
+  let moveX = 0;
+  let moveY = 0;
+  if (keysPressed['w'] || keysPressed['arrowup']) moveY -= 1;
+  if (keysPressed['s'] || keysPressed['arrowdown']) moveY += 1;
+  if (keysPressed['a'] || keysPressed['arrowleft']) moveX -= 1;
+  if (keysPressed['d'] || keysPressed['arrowright']) moveX += 1;
+
+  if (rainStrength > 0.1) {
+    playerWetness = Math.min(100, playerWetness + rainStrength * 5 * dt);
+  }
+
+  const currentTileMaterial = getMaterialTypeAt(playerX, playerY);
+  const isFrozen = temp < 0;
+  const isSlippery = isFrozen && (currentTileMaterial === 'puddle' || currentTileMaterial === 'stone');
+
+  let snowResistFactor = 1.0;
+  if (snowCov > 0.4) {
+    snowResistFactor = Math.max(0.25, 1.0 - (snowCov - 0.4) * 1.25);
+  }
+
+  const baseVelocity = 120 * snowResistFactor;
+  if (moveX !== 0 || moveY !== 0) {
+    const len = Math.hypot(moveX, moveY);
+    const targetVX = (moveX / len) * baseVelocity;
+    const targetVY = (moveY / len) * baseVelocity;
+    
+    if (isSlippery) {
+      playerVX += (targetVX - playerVX) * 1.5 * dt;
+      playerVY += (targetVY - playerVY) * 1.5 * dt;
+    } else {
+      playerVX = targetVX;
+      playerVY = targetVY;
+    }
+    
+    playerX = Math.max(12, Math.min(pCanvas.width - 12, playerX + playerVX * dt));
+    playerY = Math.max(12, Math.min(pCanvas.height - 12, playerY + playerVY * dt));
+    drawFootprint();
+  } else {
+    if (isSlippery) {
+      playerVX *= 0.97;
+      playerVY *= 0.97;
+      playerX = Math.max(12, Math.min(pCanvas.width - 12, playerX + playerVX * dt));
+      playerY = Math.max(12, Math.min(pCanvas.height - 12, playerY + playerVY * dt));
+    } else {
+      playerVX = 0;
+      playerVY = 0;
+    }
+  }
+
+  if (dashCooldown > 0) dashCooldown -= dt;
+
+  // === DYNAMISCHER THERMODYNAMISCHER BRANDHERD ===
+  campfires.forEach((fire, fIdx) => {
+    fire.fuel -= dt;
+
+    const distToPlayer = Math.hypot(fire.x - playerX, fire.y - playerY);
+    if (distToPlayer < 75) {
+      playerWetness = Math.max(0, playerWetness - 25 * dt);
+      const statusEl = document.getElementById('p-status-text');
+      statusEl.textContent = "🔥 Angenehme Strahlungswärme trocknet deine nasse Kleidung.";
+    }
+
+    if (distToPlayer < playerRadius + fire.size * 0.4) {
+      const statusEl = document.getElementById('p-status-text');
+      statusEl.textContent = "⚠️ AUTSCH! Du verbrennst dich am offenen Feuer!";
+    }
+
+    // Schnee schmelzen
+    const tx = (fire.x / pCanvas.width) * 512;
+    const ty = (fire.y / pCanvas.height) * 512;
+    trailCtx.beginPath();
+    trailCtx.arc(tx, ty, 35 * (fire.fuel / fire.maxFuel), 0, Math.PI * 2);
+    trailCtx.fillStyle = 'rgba(0, 0, 0, 1.0)'; 
+    trailCtx.globalCompositeOperation = 'source-over';
+    trailCtx.fill();
+
+    // Rauch
+    if (Math.random() < 0.45) {
+      smokeParticles.push({
+        x: fire.x + (Math.random() - 0.5) * 10,
+        y: fire.y - 5,
+        vx: (Math.random() - 0.5) * 1.5 + windSpd * 0.5,
+        vy: -1.5 - Math.random() * 2,
+        size: 5 + Math.random() * 6,
+        opacity: 0.6 + Math.random() * 0.4,
+        life: 1.0,
+        state: 'rising'
+      });
+    }
+
+    // Funken
+    if (Math.random() < 0.6) {
+      sparks.push({
+        x: fire.x + (Math.random() - 0.5) * 12,
+        y: fire.y - 8,
+        vx: (Math.random() - 0.5) * 3 + windSpd * 0.8,
+        vy: -3 - Math.random() * 4,
+        size: 1.2 + Math.random() * 2,
+        color: Math.random() < 0.4 ? '#f97316' : '#ef4444',
+        life: 1.0
+      });
+    }
+
+    // Ausbreitung
+    if (Math.random() < 0.03 && fire.fuel > 5.0) {
+      const spreadAngle = (Math.random() - 0.5) * 0.5 + Math.atan2(0, windSpd || 1);
+      const spreadDist = 20 + Math.random() * 25;
+      const targetX = fire.x + Math.cos(spreadAngle) * spreadDist;
+      const targetY = fire.y + Math.sin(spreadAngle) * spreadDist;
+      const targetMat = getMaterialTypeAt(targetX, targetY);
+      
+      if (targetMat === 'wood' || targetMat === 'roof' || targetMat === 'foliage') {
+        if (wetness < 0.7) { 
+          spawnCampfire(targetX, targetY, true);
+        }
+      }
+    }
+
+    if (fire.fuel <= 0) {
+      sootMarks.push({ x: fire.x, y: fire.y, size: fire.size * 0.8, isAsh: true });
+      campfires.splice(fIdx, 1);
+      return;
+    }
+
+    // Zeichnen
+    pCtx.fillStyle = fire.isWildfire ? 'rgba(239, 68, 68, 0.4)' : 'rgba(120, 30, 10, 0.6)';
+    pCtx.beginPath();
+    pCtx.arc(fire.x, fire.y, fire.size * (fire.fuel / fire.maxFuel), 0, Math.PI * 2);
+    pCtx.fill();
+
+    const fireProgress = fire.fuel / fire.maxFuel;
+    for (let f = 0; f < 5; f++) {
+      const flHeight = (12 + Math.random() * 15) * fireProgress;
+      const flWidth = (3 + Math.random() * 4) * fireProgress;
+      const flX = fire.x + (Math.random() - 0.5) * 12 * fireProgress;
+      
+      const grad = pCtx.createLinearGradient(flX, fire.y, flX, fire.y - flHeight);
+      grad.addColorStop(0, '#f97316');
+      grad.addColorStop(0.5, '#ef4444');
+      grad.addColorStop(1, '#eab308');
+
+      pCtx.fillStyle = grad;
+      pCtx.beginPath();
+      pCtx.moveTo(flX - flWidth, fire.y);
+      pCtx.quadraticCurveTo(flX, fire.y - flHeight, flX + flWidth, fire.y);
+      pCtx.fill();
+    }
+  });
+
+  // Rauchpartikel bewegen & unter Decken kollidieren lassen
+  smokeParticles.forEach((sm, sIdx) => {
+    const tile = getMaterialTypeAt(sm.x, sm.y);
+    
+    if (sm.state === 'rising') {
+      if (tile === 'roof' || tile === 'wood') {
+        sm.state = 'trapped';
+        sm.vy = 0;
+        if (sootMarks.length < 150 && Math.random() < 0.1) {
+          sootMarks.push({ x: sm.x, y: sm.y, size: 5 + Math.random() * 10, isAsh: false });
+        }
+      } else {
+        sm.y += sm.vy;
+        sm.x += sm.vx;
+      }
+    } else if (sm.state === 'trapped') {
+      sm.vx += (windSpd * 0.15 - sm.vx) * 0.1;
+      sm.x += sm.vx;
+      sm.y += (Math.random() - 0.5) * 0.5;
+    }
+
+    sm.life -= dt * 0.4;
+    if (sm.life <= 0) {
+      smokeParticles.splice(sIdx, 1);
+      return;
+    }
+
+    pCtx.fillStyle = `rgba(100, 100, 105, ${sm.opacity * sm.life * 0.45})`;
+    pCtx.beginPath();
+    pCtx.arc(sm.x, sm.y, sm.size * (1.5 - sm.life), 0, Math.PI * 2);
+    pCtx.fill();
+  });
+
+  sootMarks.forEach(s => {
+    pCtx.fillStyle = s.isAsh ? 'rgba(30, 30, 30, 0.4)' : 'rgba(15, 10, 5, 0.08)';
+    pCtx.beginPath();
+    pCtx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    pCtx.fill();
+  });
+
+  // Funken
+  sparks.forEach((sp, spIdx) => {
+    sp.x += sp.vx;
+    sp.y += sp.vy;
+    sp.vy += 0.05; 
+    sp.life -= dt * 0.8;
+
+    if (sp.life <= 0) {
+      sparks.splice(spIdx, 1);
+      return;
+    }
+
+    const currentMat = getMaterialTypeAt(sp.x, sp.y);
+    if (currentMat === 'roof' || currentMat === 'wood') {
+      pCtx.fillStyle = '#ff4500';
+      pCtx.beginPath();
+      pCtx.arc(sp.x, sp.y, 2 + Math.random() * 2, 0, Math.PI * 2);
+      pCtx.fill();
+      
+      if (Math.random() < 0.04 && wetness < 0.5) {
+        spawnCampfire(sp.x, sp.y, true);
+      }
+      
+      sparks.splice(spIdx, 1);
+      return;
+    }
+
+    pCtx.fillStyle = sp.color;
+    pCtx.beginPath();
+    pCtx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+    pCtx.fill();
+  });
+
+  // Frühlings-Blumen sprießen
+  flowers.forEach(fl => {
+    if (springGrow > 0.1) {
+      fl.bloomProgress = Math.min(1.0, fl.bloomProgress + dt * 0.25 * springGrow);
+    } else {
+      fl.bloomProgress = Math.max(0.0, fl.bloomProgress - dt * 0.1);
+    }
+
+    const currentMat = getMaterialTypeAt(fl.x, fl.y);
+    if (currentMat === 'grass' && fl.bloomProgress > 0.05) {
+      pCtx.save();
+      pCtx.translate(fl.x, fl.y);
+      pCtx.fillStyle = '#22c55e';
+      pCtx.fillRect(-1.5, -fl.bloomProgress * 4, 3, fl.bloomProgress * 4);
+
+      if (fl.bloomProgress > 0.7) {
+        pCtx.fillStyle = fl.color;
+        pCtx.beginPath();
+        const bloomSize = (fl.bloomProgress - 0.7) * 8; 
+        pCtx.arc(0, -fl.bloomProgress * 4, bloomSize, 0, Math.PI * 2);
+        pCtx.fill();
+        
+        pCtx.fillStyle = '#eab308';
+        pCtx.beginPath();
+        pCtx.arc(0, -fl.bloomProgress * 4, bloomSize * 0.35, 0, Math.PI * 2);
+        pCtx.fill();
+      }
+      pCtx.restore();
+    }
+  });
+
+  // Interaktives Gras
+  grassBlades.forEach(g => {
+    const dToPlayer = Math.hypot(g.x - playerX, g.y - playerY);
+    const windBending = Math.sin(time * 4.0 + g.phase) * (windSpd * 1.8);
+    
+    if (dToPlayer < playerRadius + 8) {
+      const pushDir = Math.sign(g.x - playerX);
+      g.targetBend = pushDir * 18.0;
+      g.wear = Math.min(1.0, g.wear + dt * 0.12);
+    } else {
+      g.targetBend = windBending;
+    }
+
+    g.bend += (g.targetBend - g.bend) * g.bendSpeed * dt;
+
+    const currentMat = getMaterialTypeAt(g.x, g.y);
+    if (currentMat === 'grass') {
+      pCtx.save();
+      pCtx.translate(g.x, g.y);
+
+      let grassColor = `rgb(105, 155, 55)`; 
+      if (g.wear > 0.7) {
+        grassColor = `rgb(85, 65, 30)`; 
+      } else if (g.wear > 0.25) {
+        grassColor = `rgb(100, 115, 45)`; 
+      } else if (leafCol > 0.3) {
+        grassColor = `rgb(165, 135, 55)`; 
+      }
+
+      if (sunBleach > 0.2) {
+        grassColor = `rgb(140, 145, 100)`; 
+      }
+
+      if (snowCov < 0.85) {
+        pCtx.strokeStyle = grassColor;
+        pCtx.lineWidth = 1.6 * (1.0 - g.wear * 0.7);
+        pCtx.beginPath();
+        pCtx.moveTo(0, 0);
+        pCtx.quadraticCurveTo(g.bend * 0.5, -g.height * 0.5, g.bend, -g.height);
+        pCtx.stroke();
+      }
+      pCtx.restore();
+    }
+  });
+
+  // Eiszapfen
+  if (temp < 0 && matData) {
+    pCtx.fillStyle = 'rgba(180, 220, 240, 0.75)';
+    for (let x = 30; x < pCanvas.width; x += 40) {
+      for (let y = 30; y < pCanvas.height; y += 40) {
+        const mat = getMaterialTypeAt(x, y);
+        const matBelow = getMaterialTypeAt(x, y + 8);
+        
+        if (mat === 'roof' && matBelow !== 'roof') {
+          const icicleLen = Math.abs(temp) * 0.7 + (Math.sin(x) * 4);
+          pCtx.beginPath();
+          pCtx.moveTo(x - 2, y + 3);
+          pCtx.lineTo(x + 2, y + 3);
+          pCtx.lineTo(x, y + 3 + icicleLen);
+          pCtx.closePath();
+          pCtx.fill();
+        }
+      }
+    }
+  }
+
+  // Laub-Wirbel und Windschatten
+  foliageLeaves.forEach(l => {
+    const dToPlayer = Math.hypot(l.x - playerX, l.y - playerY);
+    
+    if (dToPlayer < playerRadius + 10 && l.z === 0) {
+      const angle = Math.atan2(l.y - playerY, l.x - playerX);
+      const pushForce = (playerRadius + 10 - dToPlayer) * 0.6 * (1.0 - wetness * 0.85);
+      l.vx += Math.cos(angle) * pushForce;
+      l.vy += Math.sin(angle) * pushForce;
+    }
+
+    let effectiveWind = windSpd;
+    const currentMat = getMaterialTypeAt(l.x, l.y);
+    if (currentMat === 'wood' || currentMat === 'roof') {
+      effectiveWind *= 0.15; 
+    }
+
+    if (l.z > 0) {
+      l.vx += effectiveWind * 0.12 * dt;
+      l.vy += (Math.sin(time * 3.0 + l.x * 0.05) * 0.5) * dt; 
+    } else {
+      l.vx += effectiveWind * 0.03 * (1.0 - wetness * 0.98) * dt;
+    }
+
+    l.x += l.vx;
+    l.y += l.vy;
+    
+    if (l.z > 0) {
+      l.vz -= 9.8 * 1.5 * dt; 
+      l.z += l.vz;
+      l.vx *= 0.96;
+      l.vy *= 0.96;
+      l.angle += l.vangle * dt;
+      if (l.z <= 0) {
+        l.z = 0;
+        l.vz = 0;
+        l.vx = 0;
+        l.vy = 0;
+        l.vangle = 0;
+      }
+    } else {
+      const friction = currentMat === 'stone' ? 0.90 : 0.82;
+      l.vx *= friction;
+      l.vy *= friction;
+    }
+
+    if (l.x < 0) { l.x = pCanvas.width; l.vx = 0; }
+    if (l.x > pCanvas.width) { l.x = 0; l.vx = 0; }
+    if (l.y < 0) { l.y = pCanvas.height; l.vy = 0; }
+    if (l.y > pCanvas.height) { l.y = 0; l.vy = 0; }
+
+    if (leafCol > 0.1) {
+      if (l.z > 0) {
+        pCtx.fillStyle = 'rgba(0,0,0,0.22)';
+        pCtx.beginPath();
+        pCtx.ellipse(l.x, l.y + l.z, l.size * 0.8, l.size * 0.4, l.angle, 0, Math.PI * 2);
+        pCtx.fill();
+      }
+      
+      pCtx.save();
+      pCtx.translate(l.x, l.y - l.z);
+      pCtx.rotate(l.angle);
+      pCtx.fillStyle = l.color;
+      pCtx.beginPath();
+      pCtx.ellipse(0, 0, l.size, l.size * 0.5, 0, 0, Math.PI * 2);
+      pCtx.fill();
+      pCtx.restore();
+    }
+  });
+
+  // Obst / Äpfel
+  fallingFruit.forEach((f, idx) => {
+    f.age += dt;
+
+    if (f.state === 'falling') {
+      f.vy += f.gravity;
+      f.y += f.vy;
+      f.x += f.vx;
+      
+      const currentMat = getMaterialTypeAt(f.x, f.y);
+      if (currentMat === 'roof') {
+        f.state = 'rolling';
+        f.vy = 0.5; 
+        f.vx = (Math.random() - 0.5) * 2;
+      } else if (f.y >= f.targetY) {
+        f.y = f.targetY;
+        f.vy = 0;
+        f.vx = 0;
+        f.state = 'resting';
+      }
+    } else if (f.state === 'rolling') {
+      const pix = getMatAt(f.x, f.y);
+      let flowX = 0;
+      let flowY = 1.0; 
+      
+      if (pix) {
+        const flowAng = (pix.g / 255) * Math.PI * 2;
+        flowX = Math.cos(flowAng);
+        flowY = Math.sin(flowAng);
+      }
+      
+      f.vx += flowX * 0.25;
+      f.vy += flowY * 0.25;
+      
+      const speed = Math.hypot(f.vx, f.vy);
+      if (speed > 4.5) {
+        f.vx = (f.vx / speed) * 4.5;
+        f.vy = (f.vy / speed) * 4.5;
+      }
+
+      f.x += f.vx;
+      f.y += f.vy;
+      f.rot += f.vx * 0.05;
+
+      const currentMat = getMaterialTypeAt(f.x, f.y);
+      if (currentMat !== 'roof') {
+        if (currentMat === 'grass' || currentMat === 'stone') {
+          f.state = 'resting';
+        }
+      }
+    } else if (f.state === 'resting') {
+      const currentMat = getMaterialTypeAt(f.x, f.y);
+      const friction = currentMat === 'stone' ? 0.94 : 0.82;
+      f.vx *= friction;
+      f.vy *= friction;
+      f.x += f.vx;
+      f.y += f.vy;
+      f.rot += f.vx * 0.05;
+
+      const dToPlayer = Math.hypot(f.x - playerX, f.y - playerY);
+      if (dToPlayer < playerRadius + f.radius + 3) {
+        const angle = Math.atan2(f.y - playerY, f.x - playerX);
+        f.vx = Math.cos(angle) * 4.0;
+        f.vy = Math.sin(angle) * 4.0;
+      }
+
+      if (f.age > 15) f.state = 'rotting';
+    } else if (f.state === 'rotting') {
+      f.radius -= dt * 0.15;
+      if (f.radius <= 0.5) {
+        const tx = (f.x / pCanvas.width) * 512;
+        const ty = (f.y / pCanvas.height) * 512;
+        trailCtx.beginPath();
+        trailCtx.arc(tx, ty, 15, 0, Math.PI * 2);
+        trailCtx.fillStyle = 'rgba(0, 80, 0, 0.4)'; 
+        trailCtx.fill();
+        
+        fallingFruit.splice(idx, 1);
+        return;
+      }
+    }
+
+    if (leafCol > 0.3) {
+      pCtx.save();
+      pCtx.translate(f.x, f.y);
+      pCtx.rotate(f.rot);
+      pCtx.fillStyle = f.state === 'rotting' ? '#5c4033' : f.color;
+      pCtx.beginPath();
+      pCtx.arc(0, 0, f.radius, 0, Math.PI * 2);
+      pCtx.fill();
+      
+      pCtx.strokeStyle = '#4b3621';
+      pCtx.lineWidth = 1.2;
+      pCtx.beginPath();
+      pCtx.moveTo(0, -f.radius);
+      pCtx.quadraticCurveTo(2, -f.radius - 3, 3, -f.radius - 2);
+      pCtx.stroke();
+      pCtx.restore();
+    }
+  });
+
+  // === BIO-SIMULATION: CHATAKTER SPEZIALEFFEKTE ===
+  // 1. Zitterschütteln bei eisiger Kälte (< 0°C)
+  let shiverX = 0;
+  if (temp < 0) {
+    const shiverAmp = Math.max(0.1, -temp * 0.15);
+    shiverX = Math.sin(time * 50.0) * shiverAmp;
+  }
+
+  // 2. Atem-Kondensation erzeugen bei Frost (< 5°C)
+  const breathFreq = 1.5 + charExertion * 3.5; // Schnelleres Atmen bei Anstrengung
+  const breathCycle = (time * breathFreq) % (Math.PI * 2);
+  const isExhaling = breathCycle > Math.PI * 0.9 && breathCycle < Math.PI * 1.5;
+
+  if (temp < 5 && isExhaling && Math.random() < 0.15) {
+    // Dampfwolke stößt aus dem Gesicht des Spielers aus
+    breathParticles.push({
+      x: playerX + 3 + shiverX,
+      y: playerY - 7,
+      vx: 1.0 + windSpd * 0.4 + (Math.random() - 0.5) * 0.5,
+      vy: -0.5 - Math.random() * 0.5,
+      size: 1.5,
+      alpha: 0.8,
+      life: 1.0
+    });
+  }
+
+  // 3. Schweißperlen bei hoher Exertion/Anstrengung
+  if (charExertion > 0.4 && Math.random() < charExertion * 0.08) {
+    sweatParticles.push({
+      x: playerX + (Math.random() - 0.5) * 8,
+      y: playerY - 12 + Math.random() * 4,
+      vy: 1.0 + Math.random() * 1.5,
+      life: 1.0
+    });
+  }
+
+  // Atemkondensation zeichnen & bewegen
+  breathParticles.forEach((b, bIdx) => {
+    b.x += b.vx * dt * 25.0;
+    b.y += b.vy * dt * 25.0;
+    b.size += dt * 5.0; // Dehnt sich aus
+    b.alpha -= dt * 1.2; // Verblasst
+    
+    if (b.alpha <= 0) {
+      breathParticles.splice(bIdx, 1);
+      return;
+    }
+    pCtx.fillStyle = `rgba(235, 245, 255, ${b.alpha * 0.45})`;
+    pCtx.beginPath();
+    pCtx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+    pCtx.fill();
+  });
+
+  // Schweißperlen bewegen & zeichnen
+  sweatParticles.forEach((sw, sIdx) => {
+    sw.y += sw.vy;
+    sw.life -= dt * 2.0;
+    if (sw.life <= 0) {
+      sweatParticles.splice(sIdx, 1);
+      return;
+    }
+    pCtx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+    pCtx.beginPath();
+    pCtx.arc(sw.x, sw.y, 1.2, 0, Math.PI * 2);
+    pCtx.fill();
+  });
+
+  // === DYNAMISCHER BIO-CHARAKTER VECTOR RENDERING ===
+  pCtx.save();
+  pCtx.translate(playerX + shiverX, playerY);
+
+  // 1. Körperschatten
+  pCtx.fillStyle = 'rgba(0,0,0,0.3)';
+  pCtx.beginPath();
+  pCtx.ellipse(0, 4, playerRadius * 1.2, playerRadius * 0.5, 0, 0, Math.PI*2);
+  pCtx.fill();
+
+  // 2. Muskelmasse skaliert den Torso
+  const armSize = 3 + charMuscle * 5; // Dickere Arme
+  const chestWidth = playerRadius + charMuscle * 6; // Breiterer Brustkorb
+
+  // 3. Bräunung / Teint-Farbe interpolieren
+  // Blass (#f8fafc) -> Natur (#fed7aa) -> Bronze (#b45309) -> Sonnenbrand-Rot (#f87171)
+  let skinColor = '#fed7aa'; // Normal
+  if (charTan < 0.3) {
+    skinColor = mixHexColors('#fed7aa', '#f8fafc', (0.3 - charTan) / 0.3); // Blass
+  } else if (charTan < 0.7) {
+    skinColor = mixHexColors('#fed7aa', '#b45309', (charTan - 0.3) / 0.4); // Bronze/Tan
+  } else {
+    skinColor = mixHexColors('#b45309', '#f87171', (charTan - 0.7) / 0.3); // Sonnenbrand
+  }
+
+  // Rötung des Gesichts bei extremer Anstrengung
+  if (charExertion > 0.3) {
+    skinColor = mixHexColors(skinColor, '#ef4444', charExertion * 0.5);
+  }
+
+  // 4. Atembewegung (Mesh-Deformation / Sinus-Stauchung)
+  const breathingSpeed = 2.0 + charExertion * 6.5; 
+  const breathingAmp = 1.0 + charExertion * 3.5;
+  const breathScale = Math.sin(time * breathingSpeed) * breathingAmp;
+
+  // Schultern / Arme zeichnen
+  pCtx.fillStyle = '#3b3b5c'; // Hemdfarbe
+  // Linker Arm
+  pCtx.beginPath();
+  pCtx.arc(-chestWidth * 0.8, -3 + breathScale * 0.35, armSize * 0.7, 0, Math.PI*2);
+  pCtx.fill();
+  // Rechter Arm
+  pCtx.beginPath();
+  pCtx.arc(chestWidth * 0.8, -3 + breathScale * 0.35, armSize * 0.7, 0, Math.PI*2);
+  pCtx.fill();
+
+  // Torso / Brustkorb (Atmet!)
+  pCtx.beginPath();
+  pCtx.ellipse(0, -1, chestWidth, 8 + breathScale * 0.6, 0, 0, Math.PI*2);
+  pCtx.fill();
+
+  // 5. Kopf & Gesicht (Zittert & altert!)
+  pCtx.fillStyle = skinColor;
+  pCtx.beginPath();
+  pCtx.arc(0, -13 + breathScale * 0.15, 6, 0, Math.PI*2);
+  pCtx.fill();
+
+  // Haare (Werden im Alter prozedural grau-weiß)
+  let hairColor = '#1e293b'; // Junges Schwarz-Blau
+  if (charAge > 0.1) {
+    hairColor = mixHexColors('#1e293b', '#e2e8f0', charAge);
+  }
+  pCtx.fillStyle = hairColor;
+  pCtx.beginPath();
+  pCtx.arc(0, -16 + breathScale * 0.15, 6.2, Math.PI, Math.PI * 2); // Haarkappe
+  pCtx.fill();
+
+  // 6. Falten zeichnen (Forehead & Eye wrinkles)
+  if (charAge > 0.3) {
+    pCtx.strokeStyle = 'rgba(0,0,0,0.22)';
+    pCtx.lineWidth = 1.0;
+    
+    // Stirnfalten
+    const ageY = -13 + breathScale * 0.15;
+    pCtx.beginPath();
+    pCtx.arc(0, ageY - 1, 3.5, Math.PI * 1.2, Math.PI * 1.8);
+    pCtx.stroke();
+
+    pCtx.beginPath();
+    pCtx.arc(0, ageY - 3, 2.5, Math.PI * 1.2, Math.PI * 1.8);
+    pCtx.stroke();
+  }
+
+  // Augen
+  pCtx.fillStyle = '#111';
+  const lookX = playerVX !== 0 ? Math.sign(playerVX) * 1.5 : 0;
+  const lookY = playerVY !== 0 ? Math.sign(playerVY) * 0.8 - 13 + breathScale * 0.15 : -13 + breathScale * 0.15;
+  pCtx.beginPath();
+  pCtx.arc(lookX - 1.5, lookY, 1.2, 0, Math.PI*2);
+  pCtx.arc(lookX + 1.5, lookY, 1.2, 0, Math.PI*2);
+  pCtx.fill();
+
+  pCtx.restore();
+
+  // Hilfsfunktion zum Mischen zweier Hex-Farbcodes
+  function mixHexColors(color1, color2, weight) {
+    const r1 = parseInt(color1.substring(1, 3), 16);
+    const g1 = parseInt(color1.substring(3, 5), 16);
+    const b1 = parseInt(color1.substring(5, 7), 16);
+    
+    const r2 = parseInt(color2.substring(1, 3), 16);
+    const g2 = parseInt(color2.substring(3, 5), 16);
+    const b2 = parseInt(color2.substring(5, 7), 16);
+    
+    const r = Math.round(r1 * (1 - weight) + r2 * weight);
+    const g = Math.round(g1 * (1 - weight) + g2 * weight);
+    const b = Math.round(b1 * (1 - weight) + b2 * weight);
+    
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
+  // Trail-Verschleiß berechnen
+  const trailDecay = 0.04 + snowFall * 0.16;
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 512;
+  tempCanvas.height = 512;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(trailCanvas, 0, 0);
+
+  trailCtx.save();
+  trailCtx.fillStyle = `rgba(0, 0, 0, ${trailDecay * dt})`;
+  trailCtx.fillRect(0, 0, 512, 512);
+  trailCtx.restore();
+
+  trailCtx.save();
+  trailCtx.globalCompositeOperation = 'screen';
+  trailCtx.drawImage(tempCanvas, 0, 0); 
+  trailCtx.restore();
+
+  // UI Status Updates
+  const wetnessEl = document.getElementById('p-wetness');
+  const slipEl = document.getElementById('p-slip');
+  const snowResistEl = document.getElementById('p-snow-resist');
+  const woodStateEl = document.getElementById('p-wood-state');
+  const firesCountEl = document.getElementById('p-fires-count');
+
+  wetnessEl.textContent = playerWetness > 75 ? "Durchnässt!" : (playerWetness > 25 ? "Feucht" : "Trocken");
+  wetnessEl.style.color = playerWetness > 25 ? "#38bdf8" : "#22c55e";
+
+  slipEl.textContent = isSlippery ? "Rutschig! (Eis)" : "Nein";
+  slipEl.style.color = isSlippery ? "#a5f3fc" : "#aaa";
+
+  const depthPct = Math.round(snowCov * 100);
+  if (snowResistEl) {
+    snowResistEl.textContent = Math.round((1.0 - snowResistFactor) * 100) + "% Trägheit";
+  }
+
+  firesCountEl.textContent = campfires.length;
+
+  if (ageVal > 0.5) {
+    if (wetness > 0.6) {
+      woodStateEl.textContent = "Moderig & Feucht (Brandsicher!)";
+      woodStateEl.style.color = "#38bdf8";
+    } else {
+      woodStateEl.textContent = "Morsch (Brandgefährlich!)";
+      woodStateEl.style.color = "#ef4444";
+    }
+  } else {
+    woodStateEl.textContent = wetness > 0.6 ? "Nass" : "Gesund & Trocken";
+    woodStateEl.style.color = "#22c55e";
+  }
+
+  // === WEBGL UNIFORM DISPATCH ===
+  gl.activeTexture(gl.TEXTURE2D + 2);
+  gl.bindTexture(gl.TEXTURE_2D, trailTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, trailCanvas);
+
+  gl.uniform1f(U.u_time, time);
+  gl.uniform1f(U.u_weather, gv('s-w', 100));
+  gl.uniform1f(U.u_wind, gv('s-wind', 100));
+  gl.uniform1f(U.u_hasMat, hasMat);
+  gl.uniform1f(U.u_pud, gv('s-pud', 100));
+  gl.uniform1f(U.u_rain, gv('s-rain', 100));
+  gl.uniform1f(U.u_shad, gv('s-shad', 50));
+  gl.uniform1f(U.u_riv, gv('s-riv', 100));
+  
+  gl.uniform1f(U.u_snowCover, snowCov);
+  gl.uniform1f(U.u_snowFall, snowFall);
+  gl.uniform1f(U.u_leafColor, leafCol);
+  gl.uniform1f(U.u_leafFall, gv('s-leaf-fall', 100));
+  gl.uniform1f(U.u_temperature, temp);
+  gl.uniform1f(U.u_sunBleach, sunBleach);
+  
+  gl.uniform2f(U.u_playerPos, playerX / canvas.width, playerY / canvas.height);
+  
+  // Nebel
+  const fogOpaEl = document.getElementById('s-fog-opa');
+  gl.uniform1f(U.u_fog, fogOpaEl ? (+fogOpaEl.value/100) : 0.25);
+  
+  gl.uniform1f(U.u_age, gv('s-age', 100));
+  gl.uniform1f(U.u_moss, gv('s-moss', 100));
+  gl.uniform1f(U.u_inv, gv('s-inv', 100));
+  
+  // Recolor Materials
+  ['roof','stone','grass','wood','foliage'].forEach((m,i)=>{
+    const pre=m==='foliage'?'fol':m;
+    const r=gv(`s-${pre}-r`, 255),g=gv(`s-${pre}-g`, 255),b=gv(`s-${pre}-b`, 255);
+    const con=gv(`s-${pre}-con`, 100),bri=gv(`s-${pre}-bri`, 100),blu=gv(`s-${pre}-blu`, 100),opa=gv(`s-${pre}-opa`, 100);
+    const uC=['u_cRoof','u_cStone','u_cGrass','u_cWood','u_cFol'][i];
+    const uP=['u_pRoof','u_pStone','u_pGrass','u_pWood','u_pFol'][i];
+    gl.uniform3f(U[uC], r, g, b);gl.uniform4f(U[uP], con, bri, blu, opa);
+  });
+  const wr=gv('s-window-r', 255),wg=gv('s-window-g', 255),wb=gv('s-window-b', 255);
+  gl.uniform3f(U.u_cWin, wr, wg, wb);
+  const pr=gv('s-puddle-r', 255),pg=gv('s-puddle-g', 255),pb=gv('s-puddle-b', 255);
+  gl.uniform3f(U.u_cPud, pr, pg, pb);
+  const fr=gv('s-fog-r', 255),fg2=gv('s-fog-g', 255),fb=gv('s-fog-b', 255);
+  gl.uniform3f(U.u_cFog, fr, fg2, fb);
+  
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+
+  // === DYNAMISCHES SHOWCASE COMPOSITING ===
+  if (isRecording) {
+    recordCtx.clearRect(0, 0, recordCanvas.width, recordCanvas.height);
+    recordCtx.drawImage(canvas, 0, 0); 
+    recordCtx.drawImage(pCanvas, 0, 0); 
+  }
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+// Schnappschuss (PNG) - Erstellt ein sauberes Composite-Bild ohne UI
+document.getElementById('btn-png').onclick=()=>{
+  const tempCap = document.createElement('canvas');
+  tempCap.width = canvas.width;
+  tempCap.height = canvas.height;
+  const tempCtx = tempCap.getContext('2d');
+  tempCtx.drawImage(canvas, 0, 0);
+  tempCtx.drawImage(pCanvas, 0, 0);
+  
+  tempCap.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download=`GAIME_Shader_Snapshot_${Date.now()}.png`;
+    a.click();
+  },'image/png');
+};
+
+document.getElementById('btn-json').onclick=()=>{
+  const blob=new Blob([JSON.stringify({
+    state: getState(),
+    storyboard: storyboard
+  },null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='shader_params.json';
+  a.click();
+};
+
+window.addEventListener('load', () => {
+  // Erzeugt das vordefinierte Storyboard direkt beim Laden des Editors
+  loadDefaultStoryboard();
+});
+</script>
+</body>
+</html>
