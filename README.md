@@ -94,7 +94,7 @@ Programmatischer Zugriff im Browser (Test-API, nicht entfernen):
 window.SHADED.erstellen()               // Analyse + Standard-Storyboard starten
 window.SHADED.applyAct('sturmnacht')    // tag|aufzug|sturmnacht|morgen|danach|verfall
 window.SHADED.setParams({rain:1,wet:1}) // 9 Parameter, alle 0..1
-window.SHADED.setTime(21.7)             // deterministische Screenshots
+window.SHADED.setTime(21.7, true)       // Zeit setzen; true = einfrieren (deterministische Frames)
 window.SHADED.isReady()                 // Analyse fertig?
 window.SHADED.getMaterialTypeAt(u,v)    // 'grass'|'roof'|... an UV-Position
 ```

@@ -505,7 +505,7 @@ void main(){
     for(int i=0;i<3;i++){
       float fi=float(i);
       vec2 fuv = uv*vec2((28.0+fi*14.0)*u_aspect, 28.0+fi*14.0);
-      fuv.y += t*(0.5+fi*0.25);
+      fuv.y -= t*(0.5+fi*0.25);                   // Flocken sinken (uv.y wächst abwärts)
       fuv.x += sin(fuv.y*1.7 + t*(0.8+fi*0.3))*0.35 + t*u_wind*(0.5+fi*0.25);
       vec2 ip=floor(fuv), fp=fract(fuv)-0.5;
       float rnd=hash(ip);
@@ -524,7 +524,7 @@ void main(){
       vec2 ruv = uv;
       ruv.x += ruv.y*(0.16+u_wind*0.38)*(1.0+fi*0.13);
       ruv *= vec2(90.0+fi*45.0, 2.3+fi*0.9);
-      ruv.y += t*(2.7+fi*1.2)*(1.0+u_wind*0.4);
+      ruv.y -= t*(2.7+fi*1.2)*(1.0+u_wind*0.4);   // Phase MINUS = Muster wandert nach unten (uv.y wächst abwärts)
       float colid = floor(ruv.x);
       float y = fract(ruv.y + hash(vec2(colid,fi))*13.7);
       float on = step(1.0 - u_rain*0.42, hash(vec2(colid,fi+9.0)));
@@ -1493,9 +1493,9 @@ document.getElementById('btn-add').onclick=()=>{
 // =========================== Render-Loop ===========================
 // Welt-Logik läuft in festen Substeps (max 50 ms): Die Weltzeit folgt der
 // Echtzeit auch bei niedriger Framerate (Headless, schwache GPU, Tab-Drossel).
-let time=0,lastT=0,mossBoost=0;
+let time=0,lastT=0,mossBoost=0,timeFrozen=false;
 function tickWorld(dt){
-  time+=dt;
+  if(!timeFrozen) time+=dt;
   tickStory(dt);
   tickActBlend(dt);
   if(!playing&&!actBlend) for(const key in PARAMS) CUR[key]+= (PARAMS[key]-CUR[key])*Math.min(1,dt*4);
@@ -1536,7 +1536,7 @@ window.SHADED = {
   applyAct:(id)=>applyAct(id,true),
   setParams:(p)=>{ stopStory(); Object.assign(PARAMS,p); Object.assign(CUR,p); syncSliders(); },
   getParams:()=>({...CUR}),
-  setTime:(t)=>{ time=t; },
+  setTime:(t,freeze)=>{ time=t; timeFrozen=!!freeze; },  // freeze=true: deterministische Frames
   isReady:()=>ready,
   getMaterialTypeAt,
   story:{ play:playStory, stop:stopStory, board:()=>storyboard },
