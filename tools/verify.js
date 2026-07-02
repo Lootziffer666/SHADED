@@ -41,7 +41,8 @@ const server = http.createServer((req, res) => {
   await page.waitForFunction(() => window.SHADED.isReady());
   await page.waitForTimeout(400);
 
-  const shots = [['tag', 3.0], ['aufzug', 10.0], ['sturmnacht', 21.7], ['morgen', 5.0], ['danach', 7.0], ['verfall', 4.0]];
+  const shots = [['tag', 3.0], ['aufzug', 10.0], ['sturmnacht', 21.7], ['morgen', 5.0], ['danach', 7.0], ['verfall', 4.0],
+                 ['fruehling', 2.5], ['herbst', 6.0], ['schnee', 9.3]];
   for (const [act, t] of shots) {
     await page.evaluate(([a, tt]) => { window.SHADED.applyAct(a); window.SHADED.setTime(tt); }, [act, t]);
     await page.waitForTimeout(250);

@@ -71,6 +71,10 @@ body.cinema #exit-cinema{display:block}
     <button data-act="morgen">🌫️ Morgengrauen</button>
     <button data-act="danach">💧 Der Tag danach</button>
     <button data-act="verfall">🌿 Jahre später</button>
+    <button data-act="fruehling">🌸 Frühlingsmorgen</button>
+    <button data-act="herbst">🍁 Goldener Herbst</button>
+    <button data-act="schnee">❄️ Erster Schnee</button>
+    <button id="btn-year">📅 Ein Jahr (Loop)</button>
   </div>
 
   <h2>Storyboard</h2>
@@ -126,21 +130,30 @@ const PALETTE = { // Klassenname -> akzeptierte Map-Farben (erste = kanonisch)
 };
 const G=0,F=1,R=2,P=3,W=4,N=5,A=6,K=7; // Klassen-Indizes (N=window, A=water)
 
-// --- High-Level-Parameter (alles 0..1) ---
-const PARAMS = { dayNight:0, storm:0, rain:0, wet:0, puddle:0.02, fog:0.05, wind:0.3, glow:0.12, decay:0 };
+// --- High-Level-Parameter (alles 0..1; temperature: 0=−20 °C, 0.5=0 °C, 1=+30 °C) ---
+const PARAMS = { dayNight:0, storm:0, rain:0, wet:0, puddle:0.02, fog:0.05, wind:0.3, glow:0.12, decay:0,
+                 snow:0, snowfall:0, temperature:0.6, autumn:0, bloom:0, bleach:0 };
+const DEFAULTS = {...PARAMS};
 const PARAM_META = [
   ['dayNight','Tag ↔ Nacht'], ['storm','Sturm / Bewölkung'], ['rain','Regen'],
   ['wet','Nässe'], ['puddle','Pfützenstand'], ['fog','Nebel'],
-  ['wind','Wind'], ['glow','Fensterlicht'], ['decay','Verfall']
+  ['wind','Wind'], ['glow','Fensterlicht'], ['decay','Verfall'],
+  ['snow','Schneedecke'], ['snowfall','Schneefall'], ['temperature','Temperatur (−20…+30 °C)'],
+  ['autumn','Herbst'], ['bloom','Frühlingsblüte'], ['bleach','Sonnenbleiche']
 ];
+// Akte definieren nur relevante Keys; fehlende werden mit DEFAULTS aufgefüllt.
 const ACTS = {
-  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0}},
-  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0}},
-  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0}},
-  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0}},
-  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0}},
-  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1}}
+  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0, temperature:0.70}},
+  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0, temperature:0.56}},
+  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0, temperature:0.52}},
+  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0, temperature:0.52}},
+  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0, temperature:0.62}},
+  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1, temperature:0.55}},
+  fruehling:  {label:'Frühlingsmorgen',   p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.14, wind:0.40, glow:0.10, decay:0, temperature:0.62, bloom:0.90}},
+  herbst:     {label:'Goldener Herbst',   p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.25, wind:0.70, glow:0.30, decay:0.06,temperature:0.56, autumn:0.92}},
+  schnee:     {label:'Erster Schnee',     p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.30, wind:0.30, glow:0.50, decay:0, temperature:0.24, snow:0.85, snowfall:0.70}}
 };
+Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
 // =========================== WebGL ===========================
 const canvas = document.getElementById('gl');
@@ -152,6 +165,7 @@ uniform sampler2D u_scene,u_maskA,u_maskB,u_phys,u_emis;
 uniform vec2  u_px;
 uniform float u_time,u_aspect;
 uniform float u_dayNight,u_storm,u_rain,u_wet,u_puddle,u_fog,u_wind,u_glow,u_decay,u_flash;
+uniform float u_snow,u_snowfall,u_temperature,u_autumn,u_bloom,u_bleach;
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -193,6 +207,32 @@ void main(){
   vec3 base = texture2D(u_scene,suv).rgb;
   vec3 col = base;
 
+  float tempC = u_temperature*50.0 - 20.0;          // 0..1 -> −20..+30 °C
+  float icy = 1.0 - smoothstep(-1.5, 1.0, tempC);   // gefroren um 0 °C
+
+  // --- Herbst: Kronen & Gras färben sich pro Zelle golden bis rostrot ---
+  if(u_autumn>0.003){
+    float cellN = vnoise(uv*vec2(14.0*u_aspect,14.0));
+    float lumB = lum(base);
+    vec3 acol = mix(vec3(0.87,0.55,0.12), vec3(0.72,0.27,0.08), cellN) * (0.35+1.0*lumB);
+    col = mix(col, acol, mFol*u_autumn*0.85);
+    vec3 gcol = vec3(0.64,0.52,0.20)*(0.4+1.1*lumB);
+    col = mix(col, gcol, mGrass*u_autumn*0.55);
+    // gefallenes Laub sammelt sich an Pfadrändern (Bleed-Halo + flache Pfadzonen)
+    float litterZone = mGrass*phys.b + mPath*(1.0-smoothstep(0.15,0.55,phys.r));
+    float litter = step(0.62, vnoise(uv*vec2(170.0*u_aspect,170.0))) * litterZone;
+    col = mix(col, mix(vec3(0.80,0.45,0.10),vec3(0.55,0.22,0.06),vnoise(uv*vec2(80.0*u_aspect,80.0)))*(0.4+0.9*lumB),
+              litter*u_autumn*0.8);
+  }
+
+  // --- Frühling: Blütensprenkel auf der Vegetation ---
+  if(u_bloom>0.003){
+    vec2 bc = floor(uv*vec2(220.0*u_aspect,220.0));
+    float on = step(1.0-u_bloom*0.15, hash(bc));
+    vec3 bcol = mix(vec3(0.98,0.62,0.78), vec3(0.99,0.92,0.58), hash(bc+5.1));
+    col = mix(col, bcol, on*smoothstep(0.55,0.85,veg)*0.8);   // nur satte Vegetationskerne
+  }
+
   // --- Nässe: poröse Materialien dunkeln stark ab, Farben sättigen ---
   float porous = mRoof*0.50 + mWood*0.50 + mPath*0.44 + mRock*0.42 + mGrass*0.28 + mFol*0.22 + mWin*0.10;
   col *= 1.0 - porous*u_wet;
@@ -215,12 +255,36 @@ void main(){
     col = mix(col, vec3(lum(col)), u_decay*0.22);
   }
 
+  // --- Schneedecke: Dächer & Gras zuerst, Pfade fleckig zuletzt ---
+  if(u_snow>0.003){
+    float hr=smoothstep(0.35,0.65,mRoof), hg=smoothstep(0.35,0.65,mGrass),
+          hf=smoothstep(0.35,0.65,mFol),  hk=smoothstep(0.35,0.65,mRock),
+          hp=smoothstep(0.35,0.65,mPath);
+    float patch = fbm(uv*vec2(18.0*u_aspect,18.0));
+    float cover = hr*smoothstep(0.00,0.80,u_snow)
+                + hg*smoothstep(0.05,0.85,u_snow)
+                + hf*smoothstep(0.15,1.00,u_snow)*0.8
+                + hk*smoothstep(0.20,1.00,u_snow)*0.9
+                + hp*smoothstep(0.35,1.00,u_snow)*(0.4+0.6*smoothstep(0.25,0.75,patch));
+    cover = clamp(cover,0.0,1.0);
+    float sparkleS = smoothstep(0.997,1.0,hash(floor(uv*vec2(500.0*u_aspect,500.0))+vec2(floor(t*3.0))));
+    vec3 snowCol = (vec3(0.90,0.93,0.98) + 0.06*vnoise(uv*vec2(90.0*u_aspect,90.0)) + sparkleS*0.35)
+                 * (0.78+0.22*lum(base));   // Relief bleibt lesbar
+    col = mix(col, snowCol, cover*0.95);
+  }
+
   // --- Wolkenschatten wandern (Tag) ---
   float cloud = fbm(uv*vec2(2.6*u_aspect,2.6) + vec2(t*0.05*(0.4+u_wind), t*0.012));
   col *= mix(1.0, 0.74+0.26*smoothstep(0.35,0.75,cloud), (1.0-night)*(0.30+0.60*u_storm));
 
   // --- Grading (Tag/Nacht/Sturm) ---
   col = grade(col);
+
+  // --- Sonnenbleiche: material-gewichtet entsättigen & aufhellen (nur Tag) ---
+  if(u_bleach>0.003){
+    float bl = u_bleach * (1.0-night) * (mRoof*1.0 + mWood*1.0 + mPath*0.7 + mRock*0.6 + veg*0.45 + mWin*0.2);
+    col = mix(col, vec3(lum(col))*1.12 + 0.04, clamp(bl,0.0,1.0)*0.55);
+  }
 
   // --- Himmel-/Reflexionsfarben ---
   vec3 sky = mix( mix(vec3(0.62,0.70,0.82), vec3(0.28,0.31,0.38), u_storm),
@@ -251,11 +315,18 @@ void main(){
   if(pud>0.002){
     vec2 rip = vec2(vnoise(uv*vec2(150.0*u_aspect,150.0)+vec2(0.0,t*1.3)),
                     vnoise(uv*vec2(120.0*u_aspect,120.0)-vec2(t*0.9,0.0))) - 0.5;
-    vec2 roff = rip*(0.003 + 0.009*u_rain);
+    vec2 roff = rip*(0.003 + 0.009*u_rain) * (1.0-icy);   // Eis kräuselt nicht
     vec3 refl = grade(texture2D(u_scene, vec2(uv.x, uv.y-0.055)+roff).rgb);
     vec3 pcol = mix(refl*0.75, sky, 0.45);
     vec4 eref = texture2D(u_emis, uv - vec2(0.0,0.045) + roff*2.0);
     pcol += eref.rgb * u_glow * (0.35 + 1.9*night);  // DER Schlüssel-Shot: Fenster spiegeln
+    // gefroren: heller, matter Spiegel mit Frostmuster, Warmlicht gedämpft & statisch
+    if(icy>0.003){
+      float frost = fbm(uv*vec2(70.0*u_aspect,70.0)) * (sin(uv.x*300.0)*cos(uv.y*280.0)*0.5+0.5);
+      vec3 iceCol = mix(vec3(0.74,0.82,0.92)*(0.75+0.45*frost), refl, 0.22)
+                  + eref.rgb*u_glow*(0.15+0.6*night);
+      pcol = mix(pcol, grade(iceCol), icy);
+    }
     pcol += vec3(0.9,0.95,1.0) * u_flash * 0.55;
     col = mix(col, pcol, pud * clamp(u_puddle*2.2,0.0,1.0) * ground);
   }
@@ -267,7 +338,7 @@ void main(){
     float ph = fract(t*(0.7+0.6*hash(cid+3.1)) + hash(cid));
     vec2 cOff = (vec2(hash(cid+1.7),hash(cid+2.3))-0.5)*0.5;
     float ring = smoothstep(0.05,0.0,abs(length(cf-cOff)-ph*0.42)) * (1.0-ph)
-               * step(hash(cid+4.2), u_rain*0.85);
+               * step(hash(cid+4.2), u_rain*0.85) * (1.0-icy*0.85);
     col += ring * (pud*0.5 + u_wet*0.22) * ground * vec3(0.7,0.8,0.92);
   }
 
@@ -294,8 +365,25 @@ void main(){
     float f2 = fbm(uv*vec2(6.5*u_aspect,6.5) + vec2(-t*0.045*(0.5+u_wind), t*0.020) + 31.7);
     float edge = smoothstep(0.22,0.60,length((uv-0.5)*vec2(1.15,1.35))) + smoothstep(0.75,0.15,uv.y)*0.3;
     float fogAmt = clamp((0.45*f1+0.38*f2)*(0.35+0.85*edge),0.0,1.0)*u_fog;
-    vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8;
+    vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8 + u_snow*0.05;
     col = mix(col, fogCol, fogAmt*0.85);
+  }
+
+  // --- Schneefall: träge taumelnde Flocken, windverdriftet (3 Parallax-Schichten) ---
+  if(u_snowfall>0.004){
+    float sf = 0.0;
+    for(int i=0;i<3;i++){
+      float fi=float(i);
+      vec2 fuv = uv*vec2((28.0+fi*14.0)*u_aspect, 28.0+fi*14.0);
+      fuv.y += t*(0.5+fi*0.25);
+      fuv.x += sin(fuv.y*1.7 + t*(0.8+fi*0.3))*0.35 + t*u_wind*(0.5+fi*0.25);
+      vec2 ip=floor(fuv), fp=fract(fuv)-0.5;
+      float rnd=hash(ip);
+      vec2 cO=(vec2(hash(ip+2.1),hash(ip+3.7))-0.5)*0.55;
+      float flake = smoothstep(0.13+0.07*rnd, 0.02, length(fp-cO));
+      sf += flake * step(1.0-u_snowfall*0.5, rnd) * (1.0-fi*0.22);
+    }
+    col = mix(col, vec3(0.93,0.95,1.0), clamp(sf,0.0,1.0)*0.85);
   }
 
   // --- Regenschlieren (3 Parallax-Schichten, windgeschert) ---
@@ -390,7 +478,7 @@ function hex(c){ return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),par
 function classifyScenePixel(r,g,b){
   const [h,s,l]=rgbToHsl(r,g,b);
   if(s<=0.14){ if(l<0.22) return W; if(l<0.52) return K; return P; }
-  if(h>=270&&h<=345) return F;               // Blütenbäume (pink/magenta)
+  if(h>=270&&h<=345) return (l>0.28&&s>0.2)? F : W;  // helle Blütenbäume vs. dunkle Konturen
   if(h>=60&&h<170)  return l>0.42? G : F;    // helles Gras vs. dunkle Kronen
   if(h>=170&&h<205){                          // Teal: Türen/Fenster nur satt & mittelhell,
     if(s>0.28&&l>=0.14&&l<0.40) return N;     // dunkle Blaugrün-Schatten sind Laub
@@ -664,6 +752,18 @@ function defaultStoryboard(){
   ];
   renderStory();
 }
+function yearStoryboard(){
+  storyboard = [
+    {name:'Frühlingsmorgen', dur:8,  p:{...ACTS.fruehling.p}},
+    {name:'Hochsommer',      dur:8,  p:{...ACTS.tag.p, temperature:0.85}},
+    {name:'Goldener Herbst', dur:9,  p:{...ACTS.herbst.p}},
+    {name:'Herbststurm-Nacht',dur:11,p:{...ACTS.sturmnacht.p, autumn:0.7, temperature:0.5}},
+    {name:'Erster Schnee',   dur:11, p:{...ACTS.schnee.p}},
+    {name:'Tauwetter',       dur:9,  p:{...DEFAULTS, dayNight:0.12, storm:0.2, wet:0.8, puddle:0.7,
+                                        fog:0.5, wind:0.35, glow:0.2, snow:0.25, temperature:0.56}}
+  ];
+  renderStory();
+}
 function renderStory(){
   const list=document.getElementById('story-list'); list.innerHTML='';
   storyboard.forEach((s,i)=>{
@@ -706,7 +806,11 @@ function tickStory(dt){
   const blendDur=Math.min(3.5, step.dur*0.55);
   const k=Math.min(1, stepT/blendDur);
   const e=k*k*(3-2*k);   // smoothstep
-  for(const key in PARAMS) CUR[key]=blendFrom[key]+(step.p[key]-blendFrom[key])*e;
+  for(const key in PARAMS){
+    const from = blendFrom[key]!==undefined ? blendFrom[key] : DEFAULTS[key];
+    const to   = step.p[key]  !==undefined ? step.p[key]   : DEFAULTS[key];
+    CUR[key]=from+(to-from)*e;
+  }
   document.querySelectorAll('.story-step').forEach((el,i)=>el.classList.toggle('playing',i===stepIdx));
   const bar=document.getElementById('bar-'+stepIdx);
   if(bar) bar.style.width=Math.min(100,stepT/step.dur*100)+'%';
@@ -743,6 +847,12 @@ const setStatus=s=>document.getElementById('status').textContent=s;
 
 const slidersDiv=document.getElementById('sliders');
 PARAM_META.forEach(([key,label])=>{
+  if(key==='snow'){
+    const h=document.createElement('div');
+    h.style.cssText='font-size:9px;color:#7dd3fc;letter-spacing:1.5px;text-transform:uppercase;margin:10px 0 2px;border-top:1px solid #23233a;padding-top:8px';
+    h.textContent='Klima & Jahreszeit';
+    slidersDiv.appendChild(h);
+  }
   const d=document.createElement('div'); d.className='c';
   d.innerHTML=`<label>${label}<span class="v" id="v-${key}">${PARAMS[key].toFixed(2)}</span></label>
     <input type="range" id="s-${key}" min="0" max="100" value="${Math.round(PARAMS[key]*100)}">`;
@@ -875,6 +985,9 @@ document.getElementById('btn-json').onclick=()=>{
   URL.revokeObjectURL(a.href);
 };
 document.getElementById('btn-play').onclick=()=>playing?stopStory():playStory();
+document.getElementById('btn-year').onclick=()=>{
+  yearStoryboard(); playStory(); setStatus('📅 Ein Jahr im Loop – Frühling bis Tauwetter.');
+};
 document.getElementById('btn-add').onclick=()=>{
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
 };
