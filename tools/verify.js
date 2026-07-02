@@ -11,7 +11,9 @@ const path = require('path');
 const REPO = path.join(__dirname, '..');
 const OUT = path.join(__dirname, 'verify-out');
 fs.mkdirSync(OUT, { recursive: true });
-const BASE_IMG = path.join(REPO, 'ResizedImage_2026-06-30_10-29-19_2317[41].png');
+const BASE_IMG = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579.png');   // Szene (mit Fenstern)
+const MARKER_IMG = path.join(REPO, 'file_00000000c84071f4bcd6ff9afdba7246.png');  // Pink-Marker-Overlay
+const LEGACY_IMG = path.join(REPO, 'ResizedImage_2026-06-30_10-29-19_2317[41].png');
 const MAT_IMG = path.join(REPO, '1782824829119.png');
 
 const server = http.createServer((req, res) => {
@@ -37,6 +39,8 @@ const server = http.createServer((req, res) => {
   await page.goto('http://localhost:8931/index.html');
   await page.setInputFiles('#f-scene', BASE_IMG);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('Szene geladen'));
+  await page.setInputFiles('#f-mat', MARKER_IMG);
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
   await page.click('#btn-create');
   await page.waitForFunction(() => window.SHADED.isReady());
   await page.waitForTimeout(400);
@@ -79,7 +83,9 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(700);
   await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_interaktion.png') });
 
-  // Zweiter Durchlauf: mit gemalter Material-Map
+  // Zweiter Durchlauf: Legacy-Szene mit gemalter Palette-Material-Map
+  await page.setInputFiles('#f-scene', LEGACY_IMG);
+  await page.waitForTimeout(300);
   await page.setInputFiles('#f-mat', MAT_IMG);
   await page.waitForTimeout(300);
   await page.click('#btn-create');
@@ -93,7 +99,21 @@ const server = http.createServer((req, res) => {
     window.SHADED.getMaterialTypeAt(0.13, 0.35), // linkes Dach
     window.SHADED.getMaterialTypeAt(0.05, 0.05)  // Baum oben links
   ]);
-  console.log('Materialproben (Pfad/Dach/Baum):', mats.join(', '));
+  console.log('Materialproben Legacy-Map (Pfad/Dach/Baum):', mats.join(', '));
+
+  // Dritter Durchlauf: Taverne (andere Auflösung, anderer Stil, ohne Zweitbild)
+  // Vergleichen mit ResizedImage_2026-06-30_23-13-00_0185[1].png (Regen-Target)
+  await page.setInputFiles('#f-scene', path.join(REPO, 'ResizedImage_2026-06-30_23-14-34_6442[1].jpg'));
+  await page.waitForTimeout(300);
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.evaluate(() => {
+    window.SHADED.applyAct('morgen');
+    window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0.35, fog: 0.5, rain: 0.5, wet: 1, puddle: 0.8, glow: 0.8 });
+    window.SHADED.setTime(5.0, true);
+  });
+  await page.waitForTimeout(250);
+  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_taverne_regen.png') });
   console.log('Konsole-Fehler:', errors.length ? errors.join(' | ') : 'keine');
   await browser.close();
   server.close();

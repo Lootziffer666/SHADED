@@ -23,7 +23,12 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 
 | Datei | Rolle |
 |---|---|
-| `ResizedImage_2026-06-30_10-29-19_2317[41].png` | Ausgangsbild (buntes Dorf, Tag) |
+| `file_00000000974871f49fe71f6b456f9579.png` | **Ausgangsbild** (Dorf mit echten Fenstern) – Demo-Button lädt es |
+| `file_00000000c84071f4bcd6ff9afdba7246.png` | **Fenster-Marker-Overlay** zum Ausgangsbild (Fenster pink übermalt) – Demo lädt es automatisch mit |
+| `ResizedImage_2026-06-30_10-29-19_2317[41].png` | Legacy-Ausgangsbild (Dorf OHNE echte Fenster – Testfall für Palette-Map & Heuristik) |
+| `file_0000000029f871f4bc597d92064d2e97.png` | **Frühlings-Zielbild** (Dorf in voller Blüte – Referenz für den `fruehling`-Akt) |
+| `ResizedImage_2026-06-30_23-14-34_6442[1].jpg` | Taverne, bunt & sonnig (zweite Testszene: anderer Stil, andere Auflösung) |
+| `ResizedImage_2026-06-30_23-13-00_0185[1].png` | **Taverne-Zielbild** (Regen, Matsch, Warmlicht) – Vergleich für `shot_taverne_regen.png` |
 | `file_00000000b27471f4a8aeb27484b46720.png` | **Zielbild Sturmnacht** – Referenz für Nässe-Abdunklung, Warmlicht, Nebel |
 | `file_00000000fbc472438dcc92aff24bed6e.png` | **Zielbild Tag danach** – glitzernd nass, Pfützen, Restfeuchte |
 | `1782823262240.png` | Physik-Referenz Tag: Puddle Collection, Water Bleed-out |
@@ -51,7 +56,12 @@ Für selbstgemalte Material-Maps (zweiter Datei-Input). **Achtung, historischer 
 
 Ohne Map segmentiert SHADED das Bild selbst (HSL-Heuristik + Majority-Filter + morphologische Fenster-Erkennung).
 
-**Einfachster Weg zu perfekten Fenstern – das Marker-Overlay:** Statt einer vollen Material-Map kannst Du als Zweitbild eine **Kopie der Szene** hochladen, in der nur die Fenster pink (`#F972E9`-artig, sattes Magenta-Pink) übermalt sind. SHADED erkennt das Format automatisch (geringe Paletten-Abdeckung = Overlay): Der Rest der Szene wird normal analysiert, aber **genau die markierten Flächen** werden Fenster – tagsüber dunkles Glas, nachts warmes Licht. Marker haben Vorrang vor jeder Heuristik. Pink direkt im Szenenbild selbst funktioniert ebenfalls (gleicher Farbton).
+**Der Korrektur-Workflow – das Marker-Overlay:** Statt einer vollen Material-Map kannst Du als Zweitbild eine **Kopie der Szene** hochladen, in der Du nur dort übermalst, wo die Automatik danebenliegt. SHADED erkennt das Format automatisch (geringe Paletten-Abdeckung = Overlay) und wertet **ausschließlich die Pixel aus, die sich vom Original unterscheiden**:
+
+- **Pink** (`#F972E9`-artig, jeder Ton von Rosé bis Magenta) = **Fenster**. Tagsüber dunkles Glas, nachts warmes Licht. Hat das Overlay Pink-Marker, gelten NUR diese als Fenster – die Heuristik hat kein Veto.
+- **Jede andere kanonische Palettenfarbe** = **lokale Klassen-Korrektur**: z. B. Dach-Orange über eine Terrasse malen, die fälschlich als Pfad erkannt wurde, oder Holz-Braun über eine falsch erkannte Fläche. Der Rest des Bildes bleibt vollautomatisch.
+
+So liefert der Workflow deterministisch Dorf-Qualität für jedes Bild – ohne KI, mit zwei Minuten Malaufwand nur an den Fehlstellen. Pink direkt im Szenenbild selbst funktioniert ebenfalls.
 
 ## Architektur (Kurzfassung)
 
