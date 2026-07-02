@@ -24,7 +24,8 @@
    glow, decay`; alle 0..1) steuern alles. Neue Systeme bekommen neue Parameter
    im selben Stil (PARAMS + PARAM_META → Slider & Uniform automatisch).
 5. **Texture-Units:** 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis,
-   **5 reserviert** für die Trail-/Störungstextur (Runde 4).
+   5 Trail-/Störungstextur (Runde 4; Decay direkt auf Pixeldaten, nie per
+   Canvas-Composite).
 6. **Prototyp eingefroren:** `gaime_shader_editor_pro_v2_6_bio_physics_edition.html`
    nie editieren; bekannte Bugs (gl.TEXTURE2D+2, s-fol-*-IDs, Screen-Composite-
    Decay, Paletten-Mismatch) nicht zurückholen.

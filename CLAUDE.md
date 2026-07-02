@@ -27,8 +27,10 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
    9 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
    Akte/Storyboard integriert – keine Spezial-Codepfade an der Engine vorbei.
-7. **Texture-Unit 5 ist reserviert** für die Trail-/Störungstextur aus Runde 4.
-   Units: 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis.
+7. **Texture-Units:** 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis,
+   5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
+   B Trampelpfad permanent, A Hitze/Brand ~25 s). Trail-Decay wirkt IMMER direkt
+   auf den Pixeldaten – nie über Canvas-Composite-Tricks.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 

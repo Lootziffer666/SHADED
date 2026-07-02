@@ -17,6 +17,7 @@ python3 -m http.server 8000
 ```
 
 Steuerung: `K` = Kino-Modus (UI aus), Akt-Buttons springen zu Stimmungen, „Experten-Regler" für Feintuning, 📸 PNG-Snapshot, 🔴 WebM-Aufnahme, Storyboard-Editor für eigene Abläufe.
+Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Schneedellen), `Leertaste` Sprint (Laub stiebt, Früchte fallen), `F` bzw. 🔥 Feuer-Tool entzündet Lagerfeuer (Warmlicht, Rauch, Brandspuren; Regen löscht). Ohne Eingabe bleibt SHADED ein reines Ambient-Stück.
 
 ## Assets im Repo
 
@@ -62,12 +63,12 @@ Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipel
 
 ## Fahrplan
 
-- **Runde 1 – Wasser, Sturm & Atmosphäre** ✅ (dieser Stand)
-- **Runde 2 – Jahreszeiten & Klima:** Schnee (Bedeckung/Fall/Schmelze), Temperatur (Eis-Pfützen, Frost, Eiszapfen), Herbstfärbung/-fall, Frühlingswachstum, Sonnenbleiche → Spec: [`.kiro/specs/round-2-seasons-climate/`](.kiro/specs/round-2-seasons-climate/requirements.md)
-- **Runde 3 – Material Fatigue & Verfall:** Alterung als kontinuierlicher, materialabhängiger Zeitprozess: Moos, Überwucherung, Rost, Risse, morsches vs. feuchtes Holz → Spec: [`.kiro/specs/round-3-material-fatigue/`](.kiro/specs/round-3-material-fatigue/requirements.md)
-- **Runde 4 – Interaktion & Ökosystem:** Spieler (WASD/Dash, Trampelpfade mit echtem Decay), Lagerfeuer + Brandausbreitung, Laub-/Frucht-/Gras-Partikel, Bio-Charakter → Spec: [`.kiro/specs/round-4-interaction-ecosystem/`](.kiro/specs/round-4-interaction-ecosystem/requirements.md)
+- **Runde 1 – Wasser, Sturm & Atmosphäre** ✅
+- **Runde 2 – Jahreszeiten & Klima** ✅: Schnee (Bedeckung/Fall/Schmelze), Temperatur (Eis-Pfützen, Frost, Eiszapfen), Herbstfärbung/-fall, Frühlingswachstum, Sonnenbleiche → Spec: [`.kiro/specs/round-2-seasons-climate/`](.kiro/specs/round-2-seasons-climate/requirements.md)
+- **Runde 3 – Material Fatigue & Verfall** ✅: Alterung als kontinuierlicher, materialabhängiger Zeitprozess: Moos, Überwucherung, Rost, Risse, morsches vs. feuchtes Holz → Spec: [`.kiro/specs/round-3-material-fatigue/`](.kiro/specs/round-3-material-fatigue/requirements.md)
+- **Runde 4 – Interaktion & Ökosystem** ✅: Spieler (WASD/Dash, Trampelpfade mit echtem Decay), Lagerfeuer + Brandausbreitung, Laub-/Frucht-Partikel, Bio-Charakter (Atmung, Frostatem, Nässe) → Spec: [`.kiro/specs/round-4-interaction-ecosystem/`](.kiro/specs/round-4-interaction-ecosystem/requirements.md)
 
-Nichts davon ist verworfen – die Architektur reserviert bereits Andockpunkte (Textur-Unit 5 für Trail-Maps, `u_decay`, `SHADED.getMaterialTypeAt`, erweiterbares Storyboard).
+Der verbindliche Fahrplan (Runde 1–4) ist damit komplett umgesetzt.
 
 **Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze“-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
 

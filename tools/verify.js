@@ -58,6 +58,27 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(250);
   await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_zeitraffer_mitte.png') });
 
+  // Interaktionstest (Runde 4): Trampelpfad wächst, Delle klingt ab, Feuer leuchtet
+  await page.evaluate(() => {
+    window.SHADED.applyAct('tag');
+    window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0.8, storm: 0, rain: 0, fog: 0.1, glow: 0.6 });
+    window.SHADED.setTime(2.0);
+    window.SHADED.player.enable();
+  });
+  const p0 = await page.evaluate(() => window.SHADED.player.pos());
+  await page.keyboard.down('d');
+  await page.waitForTimeout(1300);
+  await page.keyboard.up('d');
+  const s1 = await page.evaluate(u => window.SHADED.trail.sample(u.u + 0.02, u.v + 0.006), p0);
+  await page.waitForTimeout(3200);
+  const s2 = await page.evaluate(u => window.SHADED.trail.sample(u.u + 0.02, u.v + 0.006), p0);
+  const trailOk = s1.b > 0.02 && s1.r > 0.05 && s2.r < s1.r * 0.5 && Math.abs(s2.b - s1.b) < 0.02;
+  console.log(`Trail-Test: B=${s1.b.toFixed(3)} (permanent: ${s2.b.toFixed(3)}), ` +
+    `R=${s1.r.toFixed(3)} -> ${s2.r.toFixed(3)} nach 3.2s  =>  ${trailOk ? 'PASS' : 'FAIL'}`);
+  await page.evaluate(u => window.SHADED.fire.ignite(u.u + 0.08, u.v), p0);
+  await page.waitForTimeout(700);
+  await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_interaktion.png') });
+
   // Zweiter Durchlauf: mit gemalter Material-Map
   await page.setInputFiles('#f-mat', MAT_IMG);
   await page.waitForTimeout(300);

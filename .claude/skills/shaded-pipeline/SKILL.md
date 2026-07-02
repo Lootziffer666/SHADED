@@ -20,8 +20,19 @@ Bild ──► analyze() [CPU, einmal pro „Erstellen“]
           └─ emis   (RGB: warmer Glow 2-stufig geblurrt +
                      energie-normalisiert; A: Fenstermaske)  → Unit 4
 Szene (Vollauflösung)                                        → Unit 0
-Unit 5: RESERVIERT (Trail-Map, Runde 4)
+Trail-Map (512², CPU-Uint8Array, dirty-Upload)               → Unit 5
+  R Delle (HWZ 1.5 s) · G Impuls (0.4 s) · B Trampelpfad (permanent) · A Hitze/Brand (~25 s)
+  Decay direkt auf den Pixeldaten (trailTick), Stempel via trailStamp(u,v,rad,ch,strength)
 ```
+
+Runde-4-Laufzeitwelt (CPU + Overlay-Canvas `#ov`, deckungsgleich über `#gl`):
+Spieler (WASD/Dash, materialabhängig via `getMaterialTypeAt`, Eis-Trägheit,
+Fußspuren→R/B), Lagerfeuer (max 8, Uniform-Array `u_fires`, Ausbreitung mit
+Nässe-Veto, Regen löscht, A-Kanal-Brandspur), Partikel (Laub/Früchte/Rauch/
+Funken/Atem – rückwärts splicen!). Welt-Logik läuft in festen 50-ms-Substeps
+(`tickWorld`), damit Weltzeit = Echtzeit auch bei niedriger Framerate.
+API: `SHADED.player{enable,move,pos,setAge}`, `SHADED.fire{ignite,list}`,
+`SHADED.trail{clear,sample}`.
 
 Masken sind weich (1px-Blur) und werden LINEAR gesampelt → saubere Kanten.
 Klassen-Indizes: G=0 grass, F=1 foliage, R=2 roof, P=3 path, W=4 wood, N=5 window, A=6 water, K=7 rock.
