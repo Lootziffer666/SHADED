@@ -69,7 +69,7 @@ Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipel
 
 Nichts davon ist verworfen – die Architektur reserviert bereits Andockpunkte (Textur-Unit 5 für Trail-Maps, `u_decay`, `SHADED.getMaterialTypeAt`, erweiterbares Storyboard).
 
-**Langfrist-Vision:** [`docs/vision-40-weltgesetze.md`](docs/vision-40-weltgesetze.md) – der „40 Sichtbare Weltgesetze“-Katalog („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
+**Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze“-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
 
 ## Instruktionen für LLMs / Agenten
 

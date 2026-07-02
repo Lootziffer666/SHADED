@@ -49,6 +49,15 @@ const server = http.createServer((req, res) => {
     await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_' + act + '.png') });
   }
 
+  // Zeitraffer-Mitte: halber Verfall (Holz grau, Dach-Moos beginnt, Pfad noch frei)
+  await page.evaluate(() => {
+    window.SHADED.applyAct('verfall');
+    window.SHADED.setParams({ ...window.SHADED.getParams(), decay: 0.5 });
+    window.SHADED.setTime(4.4);
+  });
+  await page.waitForTimeout(250);
+  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_zeitraffer_mitte.png') });
+
   // Zweiter Durchlauf: mit gemalter Material-Map
   await page.setInputFiles('#f-mat', MAT_IMG);
   await page.waitForTimeout(300);

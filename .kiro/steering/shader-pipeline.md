@@ -46,7 +46,7 @@ in `tickLightning()`). Alle 0..1. CUR (geblendet) wird gerendert, PARAMS ist der
 1. Wind-Sway (Domain-Warp, nur Vegetation) → Basisfarbe
 2. Nässe-Abdunklung (`porous`-Gewichte) + Sättigungs-Boost
 3. Specular-Sheen (Luminanz-Gradient)
-4. Verfall (Moos auf Dach; Pfad-Überwucherung via `phys.a`-Distanzschwelle – Ränder zuerst)
+4. Verfall (Runde 3: Verfallskurven `dWood 0.05–0.55 → dRoof 0.20–0.75 → dPath 0.35–0.90 → dRock 0.60–1.0`; Holz versilbert + Splitter, Dach-Moos + fehlende-Ziegel-Löcher, Pfad-Überwucherung via `phys.a`-Distanzfront im Szenen-Graston `u_grassAvg`, Ranken, Flechten, Risse + Dach-Sag ab decay>0.75; `u_mossBoost` = CPU-Feuchte-Patina, `u_bleach` schaltet Moos→Ausbleichen; Fensterlicht erlischt ab decay 0.6)
 5. Wolkenschatten → `grade()` (Tag/Nacht/Sturm; wird AUCH auf Pfützen-Reflexionen angewandt!)
 6. Rinnsal-Netz (fbm entlang Flussfeld, nur `mPath*rain*wet`)
 7. Pfützen (Tiefe+Noise vs. Schwelle `0.95-0.78*puddle`; Reflexion = Szene↑ + Himmel + `u_emis`-Warmlicht)

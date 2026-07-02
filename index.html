@@ -75,6 +75,7 @@ body.cinema #exit-cinema{display:block}
     <button data-act="herbst">🍁 Goldener Herbst</button>
     <button data-act="schnee">❄️ Erster Schnee</button>
     <button id="btn-year">📅 Ein Jahr (Loop)</button>
+    <button id="btn-timelapse">⏳ Zeitraffer-Verfall</button>
   </div>
 
   <h2>Storyboard</h2>
@@ -166,6 +167,8 @@ uniform vec2  u_px;
 uniform float u_time,u_aspect;
 uniform float u_dayNight,u_storm,u_rain,u_wet,u_puddle,u_fog,u_wind,u_glow,u_decay,u_flash;
 uniform float u_snow,u_snowfall,u_temperature,u_autumn,u_bloom,u_bleach;
+uniform vec3 u_grassAvg;    // mittlere Grasfarbe der Szene (aus analyze())
+uniform float u_mossBoost;  // Feuchte-Patina: akkumuliert bei langer Nässe (CPU)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -204,6 +207,9 @@ void main(){
   float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
   vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
   vec2 suv = uv + sway * veg * u_wind * gust * 0.0022;
+  // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
+  float lateDecay = smoothstep(0.75,1.0,u_decay);
+  suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
   vec3 base = texture2D(u_scene,suv).rgb;
   vec3 col = base;
 
@@ -283,14 +289,59 @@ void main(){
   float sheen = clamp((lC-lU)*6.0,0.0,1.0) * u_wet;
   col += sheen * vec3(0.85,0.92,1.0) * (mRoof+mPath+mRock+mWood) * (0.28 - 0.16*night);
 
-  // --- Verfall: Moos auf Dächern, Pfad wuchert von den Rändern zu ---
-  if(u_decay>0.003){
+  // --- Material Fatigue & Verfall (Runde 3): Materialien altern in realistischer
+  //     Reihenfolge über versetzte Verfallskurven; Klima entscheidet Moos vs. Bleiche ---
+  if(u_decay>0.003 || u_mossBoost>0.003){
+    float lumB3 = lum(base);
+    float dWood = smoothstep(0.05,0.55,u_decay);   // Holz zuerst
+    float dRoof = smoothstep(0.20,0.75,u_decay);
+    float dPath = smoothstep(0.35,0.90,u_decay);
+    float dRock = smoothstep(0.60,1.00,u_decay);   // Fels zuletzt
+    float mossy = clamp(1.0 - u_bleach*0.85, 0.15, 1.0);  // trockenes Klima bleicht statt bemoost
+
+    // Holz: vergraut silbrig, gerichtete Splitter-Striche
+    vec3 silverWood = vec3(0.70,0.72,0.76)*(0.35+0.9*lumB3);
+    col = mix(col, silverWood, mWood*dWood*0.7);
+    vec2 wCo = uv*vec2(u_aspect,1.0);
+    float splinter = step(0.82, vnoise(vec2(dot(wCo,vec2(0.97,0.26))*640.0, dot(wCo,vec2(-0.26,0.97))*40.0)));
+    col = mix(col, col*0.55, splinter*mWood*dWood*0.5);
+
+    // Dach: Moos (Feuchte-Patina u_mossBoost beschleunigt) + fehlende Ziegel-Zellen
+    float mossAmt = clamp(dRoof + u_mossBoost*0.6, 0.0, 1.0)*mossy;
     float mossN = fbm(uv*vec2(26.0*u_aspect,26.0));
-    vec3 mossCol = vec3(0.22,0.34,0.12)*(0.55+0.8*lum(base));
-    col = mix(col, mossCol, (mRoof+mWood*0.5) * u_decay * smoothstep(0.42,0.72,mossN) * 0.85);
-    float creep = smoothstep(phys.a, phys.a+0.18, u_decay*0.85);
-    vec3 growCol = vec3(0.30,0.42,0.16)*(0.5+0.8*lum(base));
-    col = mix(col, growCol, mPath * creep * smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0))) * 0.9);
+    vec3 mossCol = vec3(0.22,0.34,0.12)*(0.55+0.8*lumB3);
+    col = mix(col, mossCol, (mRoof + mWood*0.4) * mossAmt * smoothstep(0.42,0.72,mossN) * 0.85);
+    vec2 tuvC = uv*vec2(46.0*u_aspect,46.0);
+    vec2 tid = floor(tuvC), tf = fract(tuvC)-0.5;
+    float tileGone = step(0.965 - lateDecay*0.06, hash(tid));
+    float holeR = 0.24 + 0.20*hash(tid+3.3);
+    float hole = smoothstep(holeR+0.10, holeR-0.06, length(tf-(vec2(hash(tid+1.1),hash(tid+2.2))-0.5)*0.22));
+    vec3 holeCol = vec3(0.10,0.08,0.06)*(0.7+0.5*vnoise(uv*vec2(220.0*u_aspect,220.0)));
+    col = mix(col, holeCol, mRoof*tileGone*hole*smoothstep(0.5,0.9,dRoof)*0.8);
+
+    // Pfad: Überwucherung von den Rändern (Distanzfront) im Graston DIESER Szene
+    float creep = smoothstep(phys.a, phys.a+0.18, dPath*0.95);
+    vec3 growCol = u_grassAvg*(0.55+0.75*lumB3);
+    col = mix(col, growCol, mPath*creep*smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0)))*0.92);
+
+    // Ranken/Moosschleier: vertikale Strähnen auf Mauerwerk & Holz (spät)
+    float vine = smoothstep(0.60,0.82, fbm(vec2(uv.x*70.0*u_aspect, uv.y*10.0)));
+    col = mix(col, mossCol*1.15, vine*lateDecay*mossy*(mPath+mWood+mRock)*0.4);
+
+    // Fels: Flechten
+    float lichen = step(0.7, vnoise(uv*vec2(120.0*u_aspect,120.0)));
+    col = mix(col, vec3(0.55,0.58,0.42)*(0.5+0.8*lumB3), mRock*dRock*lichen*0.5);
+
+    // Spätphase: Risse entlang der Bildkanten (Kantenstärke × ridged Noise)
+    if(lateDecay>0.01){
+      float eH = lum(texture2D(u_scene, uv+vec2(u_px.x*2.0,0.0)).rgb) - lum(texture2D(u_scene, uv-vec2(u_px.x*2.0,0.0)).rgb);
+      float eV = lum(texture2D(u_scene, uv+vec2(0.0,u_px.y*2.0)).rgb) - lum(texture2D(u_scene, uv-vec2(0.0,u_px.y*2.0)).rgb);
+      float edgeS = clamp((abs(eH)+abs(eV))*3.0, 0.0, 1.0);
+      float ridged = 1.0-abs(2.0*fbm(uv*vec2(90.0*u_aspect,90.0))-1.0);
+      float crack = step(0.86, ridged*(0.5+0.5*edgeS));
+      col = mix(col, vec3(0.05), crack*lateDecay*(mRoof+mWood+mPath+mRock)*0.6);
+    }
+
     col = mix(col, vec3(lum(col)), u_decay*0.22);
   }
 
@@ -393,7 +444,8 @@ void main(){
   // --- Fensterlicht: warmer Kern + Glow, flackert lebendig ---
   vec4 emis = texture2D(u_emis,uv);
   float flick = 0.82 + 0.18*vnoise(vec2(t*2.3, floor(uv.x*40.0)+floor(uv.y*24.0)*7.0));
-  float lamp = u_glow * (0.22 + 0.78*night) * flick;
+  float lamp = u_glow * (0.22 + 0.78*night) * flick
+             * (1.0 - smoothstep(0.6,0.92,u_decay));   // verlassene Häuser erlöschen
   col = mix(col, vec3(1.0,0.80,0.46), mWin * lamp * 0.75);
   col += emis.rgb * lamp * 0.7;
   col += emis.rgb * u_wet * ground * night * u_glow * 0.55;  // diffuser Warmschein auf Nässe
@@ -476,7 +528,9 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
+ 'u_grassAvg','u_mossBoost',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
 function mkTex(unit){
   const t=gl.createTexture();
@@ -736,6 +790,11 @@ function analyze(){
       eR[j]=1.0*lm; eG[j]=0.72*lm; eB[j]=0.34*lm; sharpWin[j]=1;
     }
   }
+  // Mittlere Grasfarbe der Szene messen -> Überwucherung wächst im Ton DIESER Welt
+  let gaR=0,gaG=0,gaB=0,gaN=0;
+  for(let j=0;j<AW*AH;j++) if(classGrid[j]===G){ gaR+=spx[j*4];gaG+=spx[j*4+1];gaB+=spx[j*4+2];gaN++; }
+  if(gaN>50) gl.uniform3f(U.u_grassAvg, gaR/gaN/255*0.9, gaG/gaN/255*0.95, gaB/gaN/255*0.85);
+
   const gR1=Float32Array.from(eR),gG1=Float32Array.from(eG),gB1=Float32Array.from(eB);
   boxBlur(gR1,AW,AH,4,3);boxBlur(gG1,AW,AH,4,3);boxBlur(gB1,AW,AH,4,3);
   boxBlur(eR,AW,AH,14,3);boxBlur(eG,AW,AH,14,3);boxBlur(eB,AW,AH,14,3);
@@ -849,6 +908,11 @@ function tickStory(dt){
     const from = blendFrom[key]!==undefined ? blendFrom[key] : DEFAULTS[key];
     const to   = step.p[key]  !==undefined ? step.p[key]   : DEFAULTS[key];
     CUR[key]=from+(to-from)*e;
+  }
+  // animierte Parameter: fahren linear über die GESAMTE Schrittdauer (z. B. Zeitraffer)
+  if(step.animate) for(const ak in step.animate){
+    const a=step.animate[ak];
+    CUR[ak]=a.from+(a.to-a.from)*Math.min(1, stepT/step.dur);
   }
   document.querySelectorAll('.story-step').forEach((el,i)=>el.classList.toggle('playing',i===stepIdx));
   const bar=document.getElementById('bar-'+stepIdx);
@@ -971,6 +1035,7 @@ document.getElementById('btn-demo').onclick=async()=>{
 function erstellen(){
   if(!sceneImg){ setStatus('⚠️ Zuerst ein Bild laden!'); return false; }
   setStatus('🧠 Analysiere Materialien, Senken, Flussfeld, Lichtquellen …');
+  mossBoost=0;
   analyze();
   defaultStoryboard();
   Object.assign(PARAMS,ACTS.tag.p); Object.assign(CUR,ACTS.tag.p); syncSliders();
@@ -1027,12 +1092,21 @@ document.getElementById('btn-play').onclick=()=>playing?stopStory():playStory();
 document.getElementById('btn-year').onclick=()=>{
   yearStoryboard(); playStory(); setStatus('📅 Ein Jahr im Loop – Frühling bis Tauwetter.');
 };
+document.getElementById('btn-timelapse').onclick=()=>{
+  storyboard=[
+    {name:'Der letzte Tag',  dur:4,  p:{...ACTS.tag.p}},
+    {name:'Jahre vergehen',  dur:22, p:{...ACTS.verfall.p}, animate:{decay:{from:0,to:1}}},
+    {name:'Vergessen',       dur:6,  p:{...ACTS.verfall.p}}
+  ];
+  renderStory(); playStory();
+  setStatus('⏳ Zeitraffer: Das Dorf altert vor Deinen Augen (decay 0→1).');
+};
 document.getElementById('btn-add').onclick=()=>{
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
 };
 
 // =========================== Render-Loop ===========================
-let time=0,lastT=0;
+let time=0,lastT=0,mossBoost=0;
 function frame(now){
   const dt=Math.min(0.05,(now-lastT)/1000||0); lastT=now;
   time+=dt;
@@ -1040,10 +1114,14 @@ function frame(now){
   tickActBlend(dt);
   if(!playing&&!actBlend) for(const key in PARAMS) CUR[key]+= (PARAMS[key]-CUR[key])*Math.min(1,dt*4);
 
+  // Feuchte-Patina: lange Nässe lässt Moos schneller kommen (persistiert über Akte)
+  if(ready) mossBoost = Math.min(1, mossBoost + dt*Math.max(0, CUR.wet-0.5)*0.02);
+
   if(sceneImg){
     gl.uniform1f(U.u_time,time);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
+    gl.uniform1f(U.u_mossBoost, ready? mossBoost*0.3 : 0);
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   }
   requestAnimationFrame(frame);

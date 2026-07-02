@@ -1,7 +1,11 @@
-# 40 Sichtbare Weltgesetze — Shader-First Systemkatalog
+# 60 Sichtbare Weltgesetze — Shader-First Systemkatalog
 
 > Ausgehend vom Kernprinzip „Was du siehst = was gilt“: Shader zeigen nicht an,
 > dass etwas passiert. Shader SIND das Passieren.
+
+> **These (Owner):** Jeder sichtbare Zustand muss mindestens eine spielmechanische
+> Folge haben. Kein hübscher Effekt ohne Konsequenz. Kein unsichtbarer Zustand
+> ohne visuelle Spur.
 
 **Status:** Design-Referenz für die langfristige SHADED-Vision (Owner-Input, 2026-06-28).
 Noch NICHT Teil des verbindlichen Fahrplans (Runde 1–4, siehe `.kiro/specs/`); Systeme
@@ -164,6 +168,82 @@ Tiere folgen. Regen schwächt. Wind verschiebt. Feuer überdeckt kurz mit Rauch.
 38. Sternenlicht/Mondlicht (silberne Kanten, Pflanzen öffnen, Phasen ändern Puzzles)
 39. Wolken als wandernde Regelzonen (Schatten bewegt sich, Solar pausiert)
 40. Falsche Sauberkeit (Sterilität = verdächtig, Illusionen ohne Materialgeschichte)
+
+---
+
+## 41–60: Fehlende Weltgesetze (Owner-Nachtrag, 2026-07-02)
+
+41. **Hitzeverzug als Geometriefehler** – Luft flimmert über Feuer/Schmieden/Lava; Holztüren verziehen sich und klemmen; Metallgitter dehnen sich; Glas bekommt Wellen; Seile verlieren Zug. *Gameplay:* Türen öffnen schlechter, Pfeile unpräziser, Spiegelrätsel brechen, Brücken instabil.
+42. **Trocknung als Zeitmesser** – frische Pfütze spiegelnd, antrocknender Rand matt; Fußspur: dunkler Kern, heller Rand; Blut: glänzend→klebrig→dunkel→flockig; Kleidung: tropft→dampft→steif. *Gameplay:* Spurenlesen ohne HUD – der Boden ist die Uhr.
+43. **Rauchschichtung** – sammelt sich unter Decken, zieht durch Ritzen, sinkt bei kalter Luft, färbt Lichtkegel, verrät Luftströmungen. *Gameplay:* Lüftung, Verstecken, Ersticken, Feuerortung, geheime Gänge.
+44. **Atem als Wahrheitsindikator** – Kälte: Atemwolken; Angst: schnelle kurze Stöße; Gift: grünlich; Krankheit: unregelmäßig; Unsichtbarkeit: verräterischer Dampf. *Gameplay:* Gegnerzustand lesen, Hinterhalte entlarven.
+45. **Berührungsspuren auf Objekten** – Türklinken blank poliert, Truhendeckel staubfrei, Bücher mit abgegriffenen Ecken, plattgetretene Wege, fehlender Staubumriss am Waffenständer. *Gameplay:* Detektivarbeit, Lügen erkennen.
+46. **Soziale Wärme** – bewohnte Räume warm; verlassene kühler/staubiger/flacher; Streit: harte Schatten; Trauer: entsättigt; Fest: weiche Lichtstreuung. *Gameplay:* Dorfzustand ohne Dialogbox.
+47. **Lügen als Materialfehler** – Schatten passt nicht exakt, Spiegelung verzögert, Staub liegt falsch, Lichtkante flackert, Pflanzen neigen sich weg. *Gameplay:* keine „Detect Lie“-Taste – die Welt widerspricht.
+48. **Schuld als Anhaftung** – Blut geht nie ganz raus, Ruß bleibt in Nähten, Schatten haftet länger, Tiere meiden dich, Spiegelbild dunkler. *Gameplay:* Moral ohne Balken – die Welt erinnert sich.
+49. **Segen und Fluch als Oberflächenverhalten** – gesegnetes Holz fault langsamer, verfluchte Steine schwitzen, heilige Orte sammeln Tau, verdorbene bleiben staubfrei, Runen nur bei bestimmter Feuchtigkeit. *Gameplay:* Religion+Magie+Umwelt als EIN System.
+50. **Müdigkeit der Welt** – Farben flacher, Partikel langsamer, Geräusche gedämpft, Pflanzen hängen, Feuer kleiner. *Gameplay:* verfluchte Zonen, Kriegsgebiete, übernutzte Magieplätze.
+51. **Überpflege als Warnsignal** – kein Staub, keine Kratzer, symmetrische Schatten, gleichmäßige Feuchtigkeit. *Gameplay:* Illusionen, falsche Dörfer (ergänzt #40).
+52. **Materialgedächtnis bei Magie** – Feuer hinterlässt mineralisierte Ränder, Eis macht Stein spröde, Blitz magnetisiert Metall, Heilmagie lässt Moos wachsen, Schattenmagie bleicht Pigmente. *Gameplay:* Zauber sind Werkzeuge UND Beweise.
+53. **Gewohnheitspfade** – Graswege entstehen langsam, Marktflächen heller, Wachrouten festgetreten, Kinderpfade chaotischer, Tiere nutzen andere Routen. *Gameplay:* Routinen lesen, Hinterhalte planen.
+54. **Angstzonen bei Tieren** – Vögel fliegen auf, Insekten verstummen, Hunde knurren in Richtung, Fische verschwinden, Pferde scheuen vor unsichtbarer Magie. *Gameplay:* Natur als Sensoriksystem.
+55. **Metall als Erinnerungsträger** – Klingen schimmern anders nach Blut, Rüstung mit Einschlagswärme, Münzen blank durch Besitz, Schlüssel rosten nach Feuchte, Glocken ändern Klang bei Rissen. *Gameplay:* Waffenhistorie, Forensik.
+56. **Nahrung als Weltzustand** – Brot trocknet, Fleisch zieht Fliegen, Obst bekommt Druckstellen, Suppe dampft nach Raumtemperatur, vergiftetes Essen glänzt falsch. *Gameplay:* Hunger, Gift, Armut, Lagerhaltung.
+57. **Sprache als sichtbarer Abdruck** – laute Worte erzeugen Staubfall, Flüche färben Kerzenrauch, Lügen stören Spiegelungen, Gebete beruhigen Partikel, Schreie treiben Vögel auf. *Gameplay:* Dialoge verändern Weltzustände.
+58. **Alterung durch Nähe** – Feuer trocknet Balken, Wasser lässt Wände blühen, Magie kristallisiert Staub, viele Menschen polieren Boden, Leichen vergiften Pflanzen. *Gameplay:* Räume erzählen Kausalität.
+59. **Grenzen als sichtbare Spannung** – Stadtgrenze: Staubrichtung ändert sich; Bannkreis: Schnee bleibt außen; Besitzgrenze: kälteres Licht; Biomgrenze: Pflanzen mischen sich; politische Grenze: Wachenwege, Abnutzung. *Gameplay:* Levelgrenzen ohne UI.
+60. **Konsequenz-Narben** – Branddorf: Asche→schwarze Erde→neues Wachstum; Schlachtfeld: Rost, Knochenstaub, kahle Pfade; Flut: Treibgutlinien; Dürre: Risse, tote Brunnen; Heilung: Blumen wachsen zuerst an den Wunden der Welt. *Gameplay:* Entscheidungen verändern Karten langfristig.
+
+---
+
+## Neue Systemachsen
+
+### A. Lebensdauer – jeder Shader-State braucht eine Haltbarkeit
+
+| Dauer | Beispiel |
+|---|---|
+| Sekunden | Atem, Klangwellen, Funken |
+| Minuten | Fußspuren, Rauch, nasse Kleidung |
+| Stunden | Blut, Pfützen, Geruch |
+| Tage | Schlammwege, Ruß, Frostschäden |
+| Wochen | Rost, Moos, Nutzungsspuren |
+| Permanent | Brandnarben, Reparaturen, Konsequenz-Narben |
+
+### B. Übertragung – Zustände müssen wandern können
+
+Stiefel tragen Schlamm · Kleidung trägt Geruch · Wasser trägt Blut · Wind trägt
+Rauch · Tiere tragen Pollen · Waffen tragen Öl/Blut/Rost · Feuer trägt Asche.
+**Der Kern: Shader sind nicht lokal. Shader sind ansteckend.**
+
+### C. Lesbarkeit – jeder Effekt braucht drei Stufen
+
+| Stufe | Bedeutung |
+|---|---|
+| Atmosphärisch | sieht schön/lebendig aus |
+| Interpretierbar | Spieler kann Ursache vermuten |
+| Mechanisch | Spieler kann gezielt handeln |
+
+Beispiel Schnee: schön = weiße Landschaft · interpretierbar = Fußspuren sichtbar · mechanisch = Gegner verfolgen dich.
+
+### D. Gegenmaßnahmen – jedes sichtbare Problem braucht eine Handlung
+
+| Zustand | Gegenmittel |
+|---|---|
+| Blutspur | reinigen, Regen, Schnee verwischen |
+| Geruch | Rauch, Wasser, Kräuter |
+| Rost | Öl, Schmiede, trockene Lagerung |
+| Kälte | Feuer, Kleidung, Windschutz |
+| Nässe | Sonne, Wärme, trockener Raum |
+| Angst | Licht, Musik, Begleiter |
+| Gift | Kräuter, frische Luft, Zeit |
+| Feuer | Wasser, Sand, Windrichtung nutzen |
+
+---
+
+## Wichtigster Design-Satz
+
+> Nicht „Shader zeigen Gameplay“.
+> **Shader sind die Grammatik der Welt.**
 
 ---
 
