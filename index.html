@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SHADED – Ein Bild. Erstellen. Lebendig.</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b0b12;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;height:100vh;overflow:hidden}
+#sidebar{width:330px;padding:14px;overflow-y:auto;background:#12121f;border-right:1px solid #23233a;flex-shrink:0;transition:margin-left .35s ease}
+body.cinema #sidebar{margin-left:-330px}
+#stage{flex:1;display:flex;align-items:center;justify-content:center;background:#05050a;position:relative;padding:12px}
+canvas#gl{max-width:100%;max-height:100%;display:block;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.85)}
+#drop-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4b4b6b;font-size:15px;pointer-events:none;gap:8px;text-align:center}
+#drop-hint b{color:#7dd3fc;font-size:22px}
+h1{font-size:17px;letter-spacing:3px;color:#7dd3fc;margin-bottom:2px}
+.sub{font-size:10px;color:#64648a;margin-bottom:12px}
+h2{color:#7dd3fc;margin:14px 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;border-top:1px solid #23233a;padding-top:10px}
+button{background:#1e1e32;color:#cbd5e1;border:1px solid #2e2e4a;padding:7px 10px;cursor:pointer;border-radius:6px;font-size:11px;transition:all .15s}
+button:hover{background:#2a2a44;border-color:#7dd3fc55}
+button.primary{background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;font-weight:700;font-size:14px;width:100%;padding:12px;box-shadow:0 4px 18px rgba(14,165,233,.35)}
+button.primary:hover{filter:brightness(1.15)}
+button.primary:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+button.active{background:#7dd3fc;color:#0b0b12;font-weight:700}
+input[type=file]{font-size:10px;width:100%;margin:4px 0;background:#181828;padding:6px;border:1px dashed #33334f;border-radius:6px;color:#889}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
+.acts button{text-align:left;font-size:10.5px;padding:8px}
+.c{margin:7px 0}
+.c label{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:2px}
+.c .v{color:#7dd3fc;font-weight:600}
+.c input[type=range]{width:100%;accent-color:#7dd3fc}
+#status{background:#181828;border-left:3px solid #7dd3fc;padding:7px 9px;font-size:10px;color:#a9b4c9;border-radius:0 6px 6px 0;margin:10px 0;min-height:30px}
+details{margin-top:8px}
+summary{cursor:pointer;font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;border-top:1px solid #23233a}
+.story-step{background:#181828;border:1px solid #26263e;border-radius:6px;padding:7px;margin:5px 0;font-size:10px}
+.story-step.playing{border-color:#7dd3fc}
+.story-step .row{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+.story-step input[type=text]{flex:1;background:#101020;border:1px solid #2a2a42;color:#cbd5e1;font-size:10px;padding:3px 5px;border-radius:4px}
+.story-step input[type=number]{width:44px;background:#101020;border:1px solid #2a2a42;color:#cbd5e1;font-size:10px;padding:3px;border-radius:4px}
+.story-step .bar{height:3px;background:#101020;border-radius:2px;overflow:hidden;margin-top:5px}
+.story-step .bar div{height:100%;width:0;background:#7dd3fc}
+.btnrow{display:flex;gap:5px;margin:6px 0}
+.btnrow button{flex:1}
+#exit-cinema{position:absolute;top:16px;right:16px;display:none;z-index:10;border-radius:50%;width:38px;height:38px;font-size:15px}
+body.cinema #exit-cinema{display:block}
+#rec{position:absolute;top:16px;left:16px;display:none;background:rgba(239,68,68,.92);color:#fff;padding:5px 12px;border-radius:5px;font-size:10px;font-weight:700;animation:blink 1s infinite;z-index:10}
+@keyframes blink{50%{opacity:.35}}
+@media(max-width:720px){body{flex-direction:column}#sidebar{width:100%;height:52vh;order:2}#stage{height:48vh;order:1}}
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h1>SHADED</h1>
+  <div class="sub">Ein Bild. Erstellen. Lebendig.</div>
+
+  <h2>1 · Bild</h2>
+  <input type="file" id="f-scene" accept="image/*" title="Szenenbild laden">
+  <input type="file" id="f-mat" accept="image/*" title="Optional: gemalte Material-Map">
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional: eigene Material-Map (kanonische Palette). Ohne Map analysiert SHADED das Bild selbst.</div>
+  <button id="btn-demo" style="width:100%">🖼️ Demo-Dorf laden (aus Repo)</button>
+
+  <h2>2 · Erstellen</h2>
+  <button id="btn-create" class="primary">✨ Erstellen</button>
+  <div id="status">Lade ein Bild und drücke „Erstellen“.</div>
+
+  <h2>Akte</h2>
+  <div class="acts">
+    <button data-act="tag">☀️ Goldener Tag</button>
+    <button data-act="aufzug">🌩️ Sturm zieht auf</button>
+    <button data-act="sturmnacht">⛈️ Sturmnacht</button>
+    <button data-act="morgen">🌫️ Morgengrauen</button>
+    <button data-act="danach">💧 Der Tag danach</button>
+    <button data-act="verfall">🌿 Jahre später</button>
+  </div>
+
+  <h2>Storyboard</h2>
+  <div class="btnrow">
+    <button id="btn-play">▶ Abspielen</button>
+    <button id="btn-add">➕ Schritt</button>
+    <label style="font-size:10px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="cb-loop" checked> Loop</label>
+  </div>
+  <div id="story-list"></div>
+
+  <h2>Aufnahme</h2>
+  <div class="btnrow">
+    <button id="btn-cinema">🎬 Kino (K)</button>
+    <button id="btn-png">📸 PNG</button>
+    <button id="btn-rec">🔴 WebM</button>
+  </div>
+  <div class="btnrow"><button id="btn-json">💾 Parameter (JSON)</button></div>
+
+  <details>
+    <summary>Experten-Regler</summary>
+    <div id="sliders"></div>
+  </details>
+</div>
+
+<div id="stage">
+  <div id="rec">🔴 REC</div>
+  <button id="exit-cinema" title="Kino-Modus verlassen">⚙️</button>
+  <canvas id="gl" width="16" height="9"></canvas>
+  <div id="drop-hint"><b>SHADED</b><span>Bild hierher ziehen oder links laden,<br>dann „✨ Erstellen“ drücken.</span></div>
+</div>
+
+<script>
+'use strict';
+/* =========================================================================
+   SHADED – Runde 1: Wasser, Sturm & Atmosphäre.
+   Architektur: 1 Szene + 4 abgeleitete Texturen -> 1 Fragment-Shader,
+   gesteuert von 9 High-Level-Parametern. CPU- und GPU-Materialwissen
+   kommen aus DERSELBEN Analyse (classGrid) – nie zweigleisig klassifizieren.
+   Reserviert für Folge-Runden: Textur-Unit 5 (Trail), u_decay, SHADED-API.
+   ========================================================================= */
+
+// --- Kanonische Material-Palette (Achtung: #F972E9 war ein Zahlendreher von #F97316!) ---
+const CLASSES = ['grass','foliage','roof','path','wood','window','water','rock'];
+const PALETTE = { // Klassenname -> akzeptierte Map-Farben (erste = kanonisch)
+  grass:   ['#16A34A','#139942','#000000'],
+  foliage: ['#AA0EB7','#A51AA7'],
+  roof:    ['#F97316','#F47210','#F972E9'],
+  path:    ['#DC2626'],
+  wood:    ['#854D0E'],
+  window:  ['#0F766E'],
+  water:   ['#06B6D4'],
+  rock:    ['#475569']
+};
+const G=0,F=1,R=2,P=3,W=4,N=5,A=6,K=7; // Klassen-Indizes (N=window, A=water)
+
+// --- High-Level-Parameter (alles 0..1) ---
+const PARAMS = { dayNight:0, storm:0, rain:0, wet:0, puddle:0.02, fog:0.05, wind:0.3, glow:0.12, decay:0 };
+const PARAM_META = [
+  ['dayNight','Tag ↔ Nacht'], ['storm','Sturm / Bewölkung'], ['rain','Regen'],
+  ['wet','Nässe'], ['puddle','Pfützenstand'], ['fog','Nebel'],
+  ['wind','Wind'], ['glow','Fensterlicht'], ['decay','Verfall']
+];
+const ACTS = {
+  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0}},
+  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0}},
+  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0}},
+  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0}},
+  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0}},
+  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1}}
+};
+
+// =========================== WebGL ===========================
+const canvas = document.getElementById('gl');
+const gl = canvas.getContext('webgl',{preserveDrawingBuffer:true});
+const VS = `attribute vec2 a;varying vec2 v_uv;void main(){v_uv=a*0.5+0.5;v_uv.y=1.0-v_uv.y;gl_Position=vec4(a,0.,1.);}`;
+const FS = `precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_scene,u_maskA,u_maskB,u_phys,u_emis;
+uniform vec2  u_px;
+uniform float u_time,u_aspect;
+uniform float u_dayNight,u_storm,u_rain,u_wet,u_puddle,u_fog,u_wind,u_glow,u_decay,u_flash;
+
+float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float vnoise(vec2 p){
+  vec2 i=floor(p),f=fract(p); vec2 u=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);
+}
+float fbm(vec2 p){
+  float v=0.0,a=0.5;
+  for(int i=0;i<4;i++){ v+=a*vnoise(p); p=p*2.03+vec2(17.3,9.1); a*=0.5; }
+  return v;
+}
+float lum(vec3 c){ return dot(c,vec3(0.299,0.587,0.114)); }
+
+// Tag/Nacht/Sturm-Grading – wird auch auf Reflexionen angewendet
+vec3 grade(vec3 c){
+  c *= 1.0 - u_storm*(1.0-u_dayNight)*0.20;                    // Sturmtag: fahl
+  c = mix(c, vec3(lum(c)), u_storm*0.18);                      // entsättigt
+  vec3 nc = pow(max(c,0.0), vec3(1.28)) * vec3(0.34,0.40,0.62) * 1.35; // Mondblau
+  return mix(c, nc, u_dayNight);
+}
+
+void main(){
+  vec2 uv = v_uv;
+  float t = u_time;
+  float night = u_dayNight;
+
+  vec4 mA = texture2D(u_maskA,uv);   // r=grass g=foliage b=roof a=path
+  vec4 mB = texture2D(u_maskB,uv);   // r=wood  g=window  b=water a=rock
+  float mGrass=mA.r, mFol=mA.g, mRoof=mA.b, mPath=mA.a;
+  float mWood=mB.r,  mWin=mB.g,  mWater=mB.b, mRock=mB.a;
+  vec4 phys = texture2D(u_phys,uv);  // r=Pfützentiefe g=Flusswinkel b=Bleed a=Pfad-Distanz
+  float veg = clamp(mGrass+mFol,0.0,1.0);
+  float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
+
+  // --- Die Szene atmet: Vegetation schwankt im Wind (Domain-Warp) ---
+  float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
+  vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
+  vec2 suv = uv + sway * veg * u_wind * gust * 0.0022;
+  vec3 base = texture2D(u_scene,suv).rgb;
+  vec3 col = base;
+
+  // --- Nässe: poröse Materialien dunkeln stark ab, Farben sättigen ---
+  float porous = mRoof*0.50 + mWood*0.50 + mPath*0.44 + mRock*0.42 + mGrass*0.28 + mFol*0.22 + mWin*0.10;
+  col *= 1.0 - porous*u_wet;
+  col = mix(vec3(lum(col)), col, 1.0 + 0.35*u_wet);
+
+  // --- Specular-Sheen auf nassen, obenliegenden Kanten ---
+  float lC = lum(texture2D(u_scene,uv).rgb);
+  float lU = lum(texture2D(u_scene,uv-vec2(0.0,u_px.y*3.0)).rgb);
+  float sheen = clamp((lC-lU)*6.0,0.0,1.0) * u_wet;
+  col += sheen * vec3(0.85,0.92,1.0) * (mRoof+mPath+mRock+mWood) * (0.28 - 0.16*night);
+
+  // --- Verfall: Moos auf Dächern, Pfad wuchert von den Rändern zu ---
+  if(u_decay>0.003){
+    float mossN = fbm(uv*vec2(26.0*u_aspect,26.0));
+    vec3 mossCol = vec3(0.22,0.34,0.12)*(0.55+0.8*lum(base));
+    col = mix(col, mossCol, (mRoof+mWood*0.5) * u_decay * smoothstep(0.42,0.72,mossN) * 0.85);
+    float creep = smoothstep(phys.a, phys.a+0.18, u_decay*0.85);
+    vec3 growCol = vec3(0.30,0.42,0.16)*(0.5+0.8*lum(base));
+    col = mix(col, growCol, mPath * creep * smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0))) * 0.9);
+    col = mix(col, vec3(lum(col)), u_decay*0.22);
+  }
+
+  // --- Wolkenschatten wandern (Tag) ---
+  float cloud = fbm(uv*vec2(2.6*u_aspect,2.6) + vec2(t*0.05*(0.4+u_wind), t*0.012));
+  col *= mix(1.0, 0.74+0.26*smoothstep(0.35,0.75,cloud), (1.0-night)*(0.30+0.60*u_storm));
+
+  // --- Grading (Tag/Nacht/Sturm) ---
+  col = grade(col);
+
+  // --- Himmel-/Reflexionsfarben ---
+  vec3 sky = mix( mix(vec3(0.62,0.70,0.82), vec3(0.28,0.31,0.38), u_storm),
+                  mix(vec3(0.09,0.12,0.21), vec3(0.045,0.055,0.10), u_storm), night );
+
+  // --- Rinnsale / Wasserflussnetz auf Pfaden (bei Regen) ---
+  float rainy = u_rain * clamp(u_wet*1.6,0.0,1.0);
+  vec4 erefG = texture2D(u_emis, uv - vec2(0.0,0.05));
+  if(rainy>0.004){
+    float ang = phys.g*6.2832;
+    vec2 dir = vec2(cos(ang),sin(ang));
+    vec2 pc = uv*vec2(u_aspect,1.0)*100.0;
+    float along = dot(pc,dir), across = dot(pc,vec2(-dir.y,dir.x));
+    float riv  = smoothstep(0.60,0.78, fbm(vec2(across*1.4,       along*0.35 - t*2.6)));
+    float riv2 = smoothstep(0.66,0.80, fbm(vec2(across*3.1 + 7.0, along*0.55 - t*3.4)))*0.8;
+    float net = max(riv,riv2) * mPath * rainy;
+    vec3 rivCol = mix(vec3(0.70,0.80,0.95), sky+0.3, 0.35);
+    col = mix(col, col*0.72 + rivCol*0.5, net);
+    col += erefG.rgb * net * night * u_glow * 0.9;   // Warmlicht glitzert im Flussnetz
+  }
+
+  // --- Pfützen: sammeln sich in Senken, spiegeln Himmel & Warmlicht ---
+  float pnz = fbm(uv*vec2(9.0*u_aspect,9.0));
+  float depth = max(phys.r*(mPath+mRock), phys.b*mGrass*0.6) * (0.55+0.45*pnz);
+  depth = max(depth, mWater);                       // echtes Wasser ist immer voll
+  float th = 0.95 - u_puddle*0.78;
+  float pud = smoothstep(th, th+0.20, depth);
+  if(pud>0.002){
+    vec2 rip = vec2(vnoise(uv*vec2(150.0*u_aspect,150.0)+vec2(0.0,t*1.3)),
+                    vnoise(uv*vec2(120.0*u_aspect,120.0)-vec2(t*0.9,0.0))) - 0.5;
+    vec2 roff = rip*(0.003 + 0.009*u_rain);
+    vec3 refl = grade(texture2D(u_scene, vec2(uv.x, uv.y-0.055)+roff).rgb);
+    vec3 pcol = mix(refl*0.75, sky, 0.45);
+    vec4 eref = texture2D(u_emis, uv - vec2(0.0,0.045) + roff*2.0);
+    pcol += eref.rgb * u_glow * (0.35 + 1.9*night);  // DER Schlüssel-Shot: Fenster spiegeln
+    pcol += vec3(0.9,0.95,1.0) * u_flash * 0.55;
+    col = mix(col, pcol, pud * clamp(u_puddle*2.2,0.0,1.0) * ground);
+  }
+
+  // --- Regen-Aufprallringe auf allem Nassen ---
+  if(u_rain>0.004){
+    vec2 cellUv = uv*vec2(38.0*u_aspect,38.0);
+    vec2 cid=floor(cellUv), cf=fract(cellUv)-0.5;
+    float ph = fract(t*(0.7+0.6*hash(cid+3.1)) + hash(cid));
+    vec2 cOff = (vec2(hash(cid+1.7),hash(cid+2.3))-0.5)*0.5;
+    float ring = smoothstep(0.05,0.0,abs(length(cf-cOff)-ph*0.42)) * (1.0-ph)
+               * step(hash(cid+4.2), u_rain*0.85);
+    col += ring * (pud*0.5 + u_wet*0.22) * ground * vec3(0.7,0.8,0.92);
+  }
+
+  // --- Tropfkanten unter Dächern ---
+  if(u_rain>0.004){
+    float dripEdge = clamp(texture2D(u_maskA, uv-vec2(0.0,0.007)).b - mRoof, 0.0, 1.0);
+    float colid = floor(uv.x*180.0*u_aspect);
+    float drip = step(0.90, fract(uv.y*34.0 - t*2.2 + hash(vec2(colid,1.0))*7.0))
+               * step(hash(vec2(colid,2.0)), 0.6);
+    col += dripEdge * drip * u_rain * vec3(0.55,0.65,0.85) * 0.6;
+  }
+
+  // --- Fensterlicht: warmer Kern + Glow, flackert lebendig ---
+  vec4 emis = texture2D(u_emis,uv);
+  float flick = 0.82 + 0.18*vnoise(vec2(t*2.3, floor(uv.x*40.0)+floor(uv.y*24.0)*7.0));
+  float lamp = u_glow * (0.22 + 0.78*night) * flick;
+  col = mix(col, vec3(1.0,0.80,0.46), mWin * lamp * 0.75);
+  col += emis.rgb * lamp * 0.7;
+  col += emis.rgb * u_wet * ground * night * u_glow * 0.55;  // diffuser Warmschein auf Nässe
+
+  // --- Nebelschleier (fbm-Schichten, dichter am Rand) ---
+  if(u_fog>0.003){
+    float f1 = fbm(uv*vec2(3.2*u_aspect,3.2) + vec2(t*0.060*(0.5+u_wind), -t*0.010));
+    float f2 = fbm(uv*vec2(6.5*u_aspect,6.5) + vec2(-t*0.045*(0.5+u_wind), t*0.020) + 31.7);
+    float edge = smoothstep(0.22,0.60,length((uv-0.5)*vec2(1.15,1.35))) + smoothstep(0.75,0.15,uv.y)*0.3;
+    float fogAmt = clamp((0.45*f1+0.38*f2)*(0.35+0.85*edge),0.0,1.0)*u_fog;
+    vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8;
+    col = mix(col, fogCol, fogAmt*0.85);
+  }
+
+  // --- Regenschlieren (3 Parallax-Schichten, windgeschert) ---
+  if(u_rain>0.004){
+    float rn = 0.0;
+    for(int i=0;i<3;i++){
+      float fi=float(i);
+      vec2 ruv = uv;
+      ruv.x += ruv.y*(0.16+u_wind*0.38)*(1.0+fi*0.13);
+      ruv *= vec2(90.0+fi*45.0, 2.3+fi*0.9);
+      ruv.y += t*(2.7+fi*1.2)*(1.0+u_wind*0.4);
+      float colid = floor(ruv.x);
+      float y = fract(ruv.y + hash(vec2(colid,fi))*13.7);
+      float on = step(1.0 - u_rain*0.42, hash(vec2(colid,fi+9.0)));
+      rn += on * smoothstep(0.35,0.0,abs(fract(ruv.x)-0.5))
+              * smoothstep(0.0,0.10,y)*smoothstep(0.50,0.22,y) * (1.0-fi*0.22);
+    }
+    col = mix(col, vec3(0.72,0.80,0.95), clamp(rn,0.0,1.0)*u_rain*0.32);
+  }
+
+  // --- Blitz ---
+  col += u_flash * (vec3(0.30,0.36,0.55) + col*0.9);
+
+  // --- Tag danach: Sonnenglitzern auf nassen Flächen ---
+  float spTw = hash(floor(uv*vec2(420.0*u_aspect,420.0)) + vec2(floor(t*7.0)));
+  col += smoothstep(0.9976,1.0,spTw) * u_wet * (1.0-night) * (1.0-u_storm) * ground * vec3(1.2);
+
+  // --- Atmen + Nacht-Vignette ---
+  col *= 1.0 + 0.012*sin(t*0.45);
+  col *= 1.0 - (0.30*night + 0.10*u_storm) * pow(length(uv-0.5)*1.42, 1.8);
+
+  gl_FragColor = vec4(clamp(col,0.0,1.0),1.0);
+}`;
+
+function compile(src,type){
+  const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error('Shader: '+gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog,compile(VS,gl.VERTEX_SHADER));
+gl.attachShader(prog,compile(FS,gl.FRAGMENT_SHADER));
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog,gl.LINK_STATUS)) throw new Error('Link: '+gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+const aLoc=gl.getAttribLocation(prog,'a'); gl.enableVertexAttribArray(aLoc);
+gl.vertexAttribPointer(aLoc,2,gl.FLOAT,false,0,0);
+gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
+
+const U={};
+['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
+ ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+
+function mkTex(unit){
+  const t=gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+  return t;
+}
+// Unit 5 bleibt frei reserviert für die Trail-/Störungstextur (Runde 4).
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4) };
+gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
+gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);
+
+function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canvas
+  gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,tex);
+  if(data instanceof Uint8Array) gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);
+  else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,data);
+}
+
+// =========================== Analyse-Pipeline ===========================
+let sceneImg=null, matImg=null, ready=false;
+let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
+
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;
+  if(mx===mn) return [0,0,l];
+  const d=mx-mn, s=l>0.5? d/(2-mx-mn) : d/(mx+mn);
+  let h= mx===r ? (g-b)/d+(g<b?6:0) : mx===g ? (b-r)/d+2 : (r-g)/d+4;
+  return [h*60,s,l];
+}
+function hex(c){ return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]; }
+
+// Heuristische Segmentierung eines beliebigen Szenenbildes
+function classifyScenePixel(r,g,b){
+  const [h,s,l]=rgbToHsl(r,g,b);
+  if(s<=0.14){ if(l<0.22) return W; if(l<0.52) return K; return P; }
+  if(h>=270&&h<=345) return F;               // Blütenbäume (pink/magenta)
+  if(h>=60&&h<170)  return l>0.42? G : F;    // helles Gras vs. dunkle Kronen
+  if(h>=170&&h<205){                          // Teal: Türen/Fenster nur satt & mittelhell,
+    if(s>0.28&&l>=0.14&&l<0.40) return N;     // dunkle Blaugrün-Schatten sind Laub
+    return l<0.40? F : A;
+  }
+  if(h>=205&&h<=265){
+    if(l<0.35) return F;                      // dunkelblaue Schattentöne = Laub
+    return s>0.3? A : K;
+  }
+  // warmer Bereich
+  if(l<0.24) return W;
+  if(s>0.42&&l<0.62) return R;
+  if(l>0.55) return P;
+  return s>0.3? R : K;
+}
+// Gemalte Material-Map: Nearest-Neighbor gegen die kanonische Palette
+const NN=[];
+Object.keys(PALETTE).forEach(name=>{
+  const ci=CLASSES.indexOf(name);
+  PALETTE[name].forEach(hx=>NN.push([...hex(hx),ci]));
+});
+function classifyMapPixel(r,g,b){
+  let best=1e9,bi=G;
+  for(const [pr,pg,pb,ci] of NN){
+    const d=(r-pr)*(r-pr)+(g-pg)*(g-pg)+(b-pb)*(b-pb);
+    if(d<best){best=d;bi=ci;}
+  }
+  return bi;
+}
+
+function majorityFilter(grid,w,h,passes){
+  const cnt=new Uint8Array(8);
+  for(let p=0;p<passes;p++){
+    const out=new Uint8Array(grid);
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      cnt.fill(0);
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++) cnt[grid[(y+dy)*w+x+dx]]++;
+      let bi=grid[y*w+x],bc=cnt[bi];
+      for(let c=0;c<8;c++) if(cnt[c]>bc){bc=cnt[c];bi=c;}
+      out[y*w+x]=bi;
+    }
+    grid.set(out);
+  }
+}
+function boxBlur(src,w,h,r,passes){ // separabel, in-place-artig auf Float32Array
+  let a=src, b=new Float32Array(src.length);
+  for(let p=0;p<passes;p++){
+    for(let y=0;y<h;y++){ // horizontal
+      let acc=0; const row=y*w;
+      for(let x=-r;x<=r;x++) acc+=a[row+Math.min(w-1,Math.max(0,x))];
+      for(let x=0;x<w;x++){
+        b[row+x]=acc/(2*r+1);
+        acc+=a[row+Math.min(w-1,x+r+1)]-a[row+Math.max(0,x-r)];
+      }
+    }
+    for(let x=0;x<w;x++){ // vertikal
+      let acc=0;
+      for(let y=-r;y<=r;y++) acc+=b[Math.min(h-1,Math.max(0,y))*w+x];
+      for(let y=0;y<h;y++){
+        a[y*w+x]=acc/(2*r+1);
+        acc+=b[Math.min(h-1,y+r+1)*w+x]-b[Math.max(0,y-r)*w+x];
+      }
+    }
+  }
+  return a;
+}
+function chamfer(mask,w,h){ // Distanz zum Maskenrand, innerhalb mask>0.5
+  const INF=1e6, d=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++) d[i]=mask[i]>0.5?INF:0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const i=y*w+x; if(d[i]===0)continue;
+    let m=d[i];
+    if(x>0)m=Math.min(m,d[i-1]+1);
+    if(y>0)m=Math.min(m,d[i-w]+1);
+    if(x>0&&y>0)m=Math.min(m,d[i-w-1]+1.4);
+    if(x<w-1&&y>0)m=Math.min(m,d[i-w+1]+1.4);
+    d[i]=m;
+  }
+  for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){
+    const i=y*w+x; if(d[i]===0)continue;
+    let m=d[i];
+    if(x<w-1)m=Math.min(m,d[i+1]+1);
+    if(y<h-1)m=Math.min(m,d[i+w]+1);
+    if(x<w-1&&y<h-1)m=Math.min(m,d[i+w+1]+1.4);
+    if(x>0&&y<h-1)m=Math.min(m,d[i+w-1]+1.4);
+    d[i]=m;
+  }
+  return d;
+}
+
+function analyze(){
+  // Analyse-Auflösung: schnell, aber fein genug für Masken
+  AW = Math.min(512, sceneImg.width);
+  AH = Math.round(AW * sceneImg.height/sceneImg.width);
+  const cv=document.createElement('canvas'); cv.width=AW; cv.height=AH;
+  const cx=cv.getContext('2d',{willReadFrequently:true});
+
+  // 1) Klassifizieren – gemalte Map hat Vorrang, sonst Heuristik aufs Szenenbild
+  const src = matImg || sceneImg;
+  cx.drawImage(src,0,0,AW,AH);
+  const px = cx.getImageData(0,0,AW,AH).data;
+  classGrid = new Uint8Array(AW*AH);
+  const useMap = !!matImg;
+  for(let i=0,j=0;i<px.length;i+=4,j++){
+    classGrid[j] = useMap ? classifyMapPixel(px[i],px[i+1],px[i+2])
+                          : classifyScenePixel(px[i],px[i+1],px[i+2]);
+  }
+  majorityFilter(classGrid,AW,AH,2);
+
+  // Fenster-Plausibilität: ein Fenster ohne Gebäude drumherum ist ein Baumschatten.
+  if(!useMap){
+    const fixed=new Uint8Array(classGrid);
+    const RAD=4;
+    for(let y=0;y<AH;y++)for(let x=0;x<AW;x++){
+      const j=y*AW+x;
+      if(classGrid[j]!==N)continue;
+      let veg=0,wallish=0,roofish=0;
+      for(let dy=-RAD;dy<=RAD;dy++)for(let dx=-RAD;dx<=RAD;dx++){
+        const yy=y+dy,xx=x+dx;
+        if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
+        const c=classGrid[yy*AW+xx];
+        if(c===G||c===F)veg++;
+        else if(c===W||c===P||c===K)wallish++;
+        else if(c===R)roofish++;
+      }
+      if(veg>(wallish+roofish)*1.4) fixed[j]=F;         // Teal im Grünen = Schattenlaub
+      else if(roofish>wallish*1.3) fixed[j]=R;          // Teal-Akzent auf dem Dach = Dach
+    }
+    classGrid=fixed;
+
+    // Tür-/Fensteröffnungen: dunkle KOMPAKTE Blobs in Fassaden. Morphologisches
+    // Opening (Erosion+Dilation) lässt dünne Fachwerkbalken verschwinden,
+    // Türen und Fensterhöhlen überleben – sie bekommen nachts das Warmlicht.
+    const darkM=new Uint8Array(AW*AH);
+    for(let j=0;j<AW*AH;j++) darkM[j]= classGrid[j]===W?1:0;
+    const erF=new Float32Array(darkM); boxBlur(erF,AW,AH,2,1);
+    const opened=new Uint8Array(AW*AH);
+    for(let j=0;j<AW*AH;j++) opened[j]= erF[j]>0.94?1:0;  // Erosion: Balken weg
+    const dil=new Float32Array(opened); boxBlur(dil,AW,AH,2,1);
+    const cand=new Uint8Array(AW*AH);
+    for(let j=0;j<AW*AH;j++) cand[j]= (dil[j]>0.06 && darkM[j])?1:0;
+
+    // Connected Components: nur kompakte Blobs in Fenstergröße werden Lichter,
+    // ganze dunkle Fassaden oder Riesenflächen bleiben, was sie sind.
+    const minArea=5, maxArea=Math.max(60, AW*AH*0.0012);
+    const seen=new Uint8Array(AW*AH), stack=[];
+    for(let s0=0;s0<AW*AH;s0++){
+      if(!cand[s0]||seen[s0])continue;
+      stack.length=0; stack.push(s0); seen[s0]=1;
+      const blob=[];
+      while(stack.length){
+        const j=stack.pop(); blob.push(j);
+        const y=Math.floor(j/AW),x=j%AW;
+        if(x>0&&cand[j-1]&&!seen[j-1]){seen[j-1]=1;stack.push(j-1);}
+        if(x<AW-1&&cand[j+1]&&!seen[j+1]){seen[j+1]=1;stack.push(j+1);}
+        if(y>0&&cand[j-AW]&&!seen[j-AW]){seen[j-AW]=1;stack.push(j-AW);}
+        if(y<AH-1&&cand[j+AW]&&!seen[j+AW]){seen[j+AW]=1;stack.push(j+AW);}
+      }
+      if(blob.length<minArea||blob.length>maxArea)continue;
+      // Fassaden-Check am Blob-Schwerpunkt: braucht Wand, darf nicht im Dach schwimmen
+      let cx=0,cy=0; blob.forEach(j=>{cx+=j%AW;cy+=Math.floor(j/AW);});
+      cx=Math.round(cx/blob.length); cy=Math.round(cy/blob.length);
+      let veg=0,wall=0,roof=0;
+      for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){
+        const yy=cy+dy,xx=cx+dx;
+        if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
+        const c=classGrid[yy*AW+xx];
+        if(c===G||c===F)veg++;
+        else if(c===P||c===K)wall++;
+        else if(c===R)roof++;
+      }
+      if(wall>veg*0.7 && wall>roof*0.6 && wall>=12)
+        blob.forEach(j=>classGrid[j]=N);
+    }
+  }
+
+  // 2) Weiche Masken (leichtes Blur = Anti-Aliasing an Materialgrenzen)
+  const m={}; CLASSES.forEach((_,c)=>m[c]=new Float32Array(AW*AH));
+  for(let j=0;j<classGrid.length;j++) m[classGrid[j]][j]=1;
+  CLASSES.forEach((_,c)=>boxBlur(m[c],AW,AH,1,1));
+
+  // 3) Abgeleitete Karten
+  const pathHard=new Float32Array(AW*AH);
+  for(let j=0;j<classGrid.length;j++) pathHard[j]= classGrid[j]===P?1:0;
+  const dPath = chamfer(pathHard,AW,AH);
+  const scale = Math.max(6, AW/60);                     // "Senken"-Tiefe relativ zur Pfadbreite
+  const depthMap=new Float32Array(AW*AH);
+  for(let j=0;j<AW*AH;j++) depthMap[j]=Math.pow(Math.min(1,dPath[j]/scale),0.8);
+
+  const pathBlur=Float32Array.from(pathHard); boxBlur(pathBlur,AW,AH,Math.round(scale*0.9),3);
+  const bleed=new Float32Array(AW*AH);                  // Wasser blutet in Grasränder aus
+  for(let j=0;j<AW*AH;j++) bleed[j]=Math.min(1,Math.max(0,pathBlur[j]-pathHard[j])*2.2);
+
+  // Flussfeld: Tangente des geblurrten Pfads, Fluss zeigt „hangabwärts“ (Bild-unten)
+  const flow=new Float32Array(AW*AH);
+  for(let y=0;y<AH;y++)for(let x=0;x<AW;x++){
+    const j=y*AW+x;
+    const gx=pathBlur[y*AW+Math.min(AW-1,x+1)]-pathBlur[y*AW+Math.max(0,x-1)];
+    const gy=pathBlur[Math.min(AH-1,y+1)*AW+x]-pathBlur[Math.max(0,y-1)*AW+x];
+    let tx=-gy, ty=gx;
+    if(ty<0){tx=-tx;ty=-ty;}
+    const len=Math.hypot(tx,ty);
+    let angle = len<1e-4 ? Math.PI/2 : Math.atan2(ty,tx);
+    if(angle<0)angle+=Math.PI*2;
+    flow[j]=angle/(Math.PI*2);
+  }
+
+  // 4) Emissiv: Fenster warm einfärben, zweistufig weichzeichnen -> Glow
+  const eR=new Float32Array(AW*AH), eG=new Float32Array(AW*AH), eB=new Float32Array(AW*AH);
+  const sharpWin=new Float32Array(AW*AH);
+  cx.drawImage(sceneImg,0,0,AW,AH);
+  const spx = cx.getImageData(0,0,AW,AH).data;
+  for(let j=0;j<AW*AH;j++){
+    if(classGrid[j]===N){
+      const lm=0.6+0.4*(spx[j*4]*0.299+spx[j*4+1]*0.587+spx[j*4+2]*0.114)/255;
+      eR[j]=1.0*lm; eG[j]=0.72*lm; eB[j]=0.34*lm; sharpWin[j]=1;
+    }
+  }
+  const gR1=Float32Array.from(eR),gG1=Float32Array.from(eG),gB1=Float32Array.from(eB);
+  boxBlur(gR1,AW,AH,4,3);boxBlur(gG1,AW,AH,4,3);boxBlur(gB1,AW,AH,4,3);
+  boxBlur(eR,AW,AH,14,3);boxBlur(eG,AW,AH,14,3);boxBlur(eB,AW,AH,14,3);
+  // Energie-Normalisierung: große Leuchtflächen (gemalte Türen) dürfen nicht
+  // heller strahlen als kleine Fenster – Glow relativ zur lokalen Dichte dämpfen.
+  const wd1=Float32Array.from(sharpWin); boxBlur(wd1,AW,AH,4,3);
+  const wd2=Float32Array.from(sharpWin); boxBlur(wd2,AW,AH,14,3);
+  for(let j=0;j<AW*AH;j++){
+    const n1=Math.min(1.4, 0.30/(0.16+wd1[j]));
+    const n2=Math.min(1.4, 0.30/(0.16+wd2[j]));
+    gR1[j]*=n1; gG1[j]*=n1; gB1[j]*=n1;
+    eR[j]*=n2;  eG[j]*=n2;  eB[j]*=n2;
+  }
+  boxBlur(sharpWin,AW,AH,1,1);
+
+  // 5) In Texturen packen
+  const tA=new Uint8Array(AW*AH*4), tB=new Uint8Array(AW*AH*4),
+        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4);
+  const q=v=>Math.max(0,Math.min(255,Math.round(v*255)));
+  for(let j=0;j<AW*AH;j++){
+    tA[j*4]=q(m[G][j]); tA[j*4+1]=q(m[F][j]); tA[j*4+2]=q(m[R][j]); tA[j*4+3]=q(m[P][j]);
+    tB[j*4]=q(m[W][j]); tB[j*4+1]=q(m[N][j]); tB[j*4+2]=q(m[A][j]); tB[j*4+3]=q(m[K][j]);
+    tP[j*4]=q(depthMap[j]); tP[j*4+1]=q(flow[j]); tP[j*4+2]=q(bleed[j]); tP[j*4+3]=q(Math.min(1,dPath[j]/scale));
+    tE[j*4]=q(gR1[j]*0.85+eR[j]*0.6); tE[j*4+1]=q(gG1[j]*0.85+eG[j]*0.6);
+    tE[j*4+2]=q(gB1[j]*0.85+eB[j]*0.6); tE[j*4+3]=q(sharpWin[j]);
+  }
+  uploadTex(1,TEX.maskA,AW,AH,tA);
+  uploadTex(2,TEX.maskB,AW,AH,tB);
+  uploadTex(3,TEX.phys,AW,AH,tP);
+  uploadTex(4,TEX.emis,AW,AH,tE);
+  ready=true;
+}
+
+// CPU-Materialabfrage – identische Wahrheit wie die GPU-Masken (für Runde 2–4)
+function getMaterialTypeAt(u,v){
+  if(!classGrid) return null;
+  const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+  const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+  return CLASSES[classGrid[y*AW+x]];
+}
+
+// =========================== Storyboard ===========================
+let storyboard=[], playing=false, stepIdx=0, stepT=0, blendFrom=null;
+const CUR={...PARAMS};    // gerenderte (geblendete) Werte
+
+function defaultStoryboard(){
+  storyboard = [
+    {name:'Goldener Tag',    dur:7,  p:{...ACTS.tag.p}},
+    {name:'Sturm zieht auf', dur:7,  p:{...ACTS.aufzug.p}},
+    {name:'Sturmnacht',      dur:16, p:{...ACTS.sturmnacht.p}},
+    {name:'Morgengrauen',    dur:7,  p:{...ACTS.morgen.p}},
+    {name:'Der Tag danach',  dur:11, p:{...ACTS.danach.p}}
+  ];
+  renderStory();
+}
+function renderStory(){
+  const list=document.getElementById('story-list'); list.innerHTML='';
+  storyboard.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='story-step'; el.id='step-'+i;
+    el.innerHTML=`<div class="row"><input type="text" value="${s.name}">
+      <input type="number" step="0.5" min="0.5" value="${s.dur}"><span>s</span></div>
+      <div class="row"><button data-a="cap">💾</button><button data-a="pre">👁</button>
+      <button data-a="up">▲</button><button data-a="dn">▼</button><button data-a="del">❌</button></div>
+      <div class="bar"><div id="bar-${i}"></div></div>`;
+    el.querySelector('input[type=text]').onchange=e=>s.name=e.target.value;
+    el.querySelector('input[type=number]').onchange=e=>s.dur=Math.max(0.5,+e.target.value||4);
+    el.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      const a=b.dataset.a;
+      if(a==='cap'){s.p={...PARAMS}; setStatus('Zustand in „'+s.name+'“ gespeichert.');}
+      if(a==='pre'){stopStory(); Object.assign(PARAMS,s.p); syncSliders();}
+      if(a==='del'){storyboard.splice(i,1); renderStory();}
+      if(a==='up'&&i>0){[storyboard[i-1],storyboard[i]]=[storyboard[i],storyboard[i-1]];renderStory();}
+      if(a==='dn'&&i<storyboard.length-1){[storyboard[i+1],storyboard[i]]=[storyboard[i],storyboard[i+1]];renderStory();}
+    });
+    list.appendChild(el);
+  });
+}
+function playStory(){
+  if(storyboard.length<1) return;
+  playing=true; stepIdx=0; stepT=0; blendFrom={...CUR};
+  document.getElementById('btn-play').textContent='⏹ Stoppen';
+  document.getElementById('btn-play').classList.add('active');
+}
+function stopStory(){
+  playing=false;
+  document.getElementById('btn-play').textContent='▶ Abspielen';
+  document.getElementById('btn-play').classList.remove('active');
+  document.querySelectorAll('.story-step').forEach(e=>e.classList.remove('playing'));
+}
+function tickStory(dt){
+  if(!playing||!storyboard.length) return;
+  const step=storyboard[stepIdx];
+  stepT+=dt;
+  const blendDur=Math.min(3.5, step.dur*0.55);
+  const k=Math.min(1, stepT/blendDur);
+  const e=k*k*(3-2*k);   // smoothstep
+  for(const key in PARAMS) CUR[key]=blendFrom[key]+(step.p[key]-blendFrom[key])*e;
+  document.querySelectorAll('.story-step').forEach((el,i)=>el.classList.toggle('playing',i===stepIdx));
+  const bar=document.getElementById('bar-'+stepIdx);
+  if(bar) bar.style.width=Math.min(100,stepT/step.dur*100)+'%';
+  if(stepT>=step.dur){
+    if(bar) bar.style.width='0%';
+    stepT=0; blendFrom={...CUR}; stepIdx++;
+    if(stepIdx>=storyboard.length){
+      if(document.getElementById('cb-loop').checked) stepIdx=0;
+      else { stopStory(); Object.assign(PARAMS,CUR); syncSliders(); }
+    }
+  }
+}
+
+// =========================== Blitze ===========================
+let flashPulses=[];  // Zeitstempel
+let nextFlashAt=0;
+function tickLightning(t){
+  const storm=CUR.storm*CUR.dayNight;
+  if(storm>0.45){
+    if(nextFlashAt===0) nextFlashAt=t+1.5+Math.random()*4;
+    if(t>=nextFlashAt){
+      flashPulses.push(t, t+0.10+Math.random()*0.12);   // Doppelschlag
+      nextFlashAt=t + (2.5+Math.random()*6)/Math.max(0.3,storm);
+    }
+  } else nextFlashAt=0;
+  let f=0;
+  flashPulses=flashPulses.filter(p=>t-p<0.6);
+  for(const p of flashPulses) if(t>=p) f=Math.max(f,Math.exp(-(t-p)*9));
+  return Math.min(1,f)*storm;
+}
+
+// =========================== UI ===========================
+const setStatus=s=>document.getElementById('status').textContent=s;
+
+const slidersDiv=document.getElementById('sliders');
+PARAM_META.forEach(([key,label])=>{
+  const d=document.createElement('div'); d.className='c';
+  d.innerHTML=`<label>${label}<span class="v" id="v-${key}">${PARAMS[key].toFixed(2)}</span></label>
+    <input type="range" id="s-${key}" min="0" max="100" value="${Math.round(PARAMS[key]*100)}">`;
+  slidersDiv.appendChild(d);
+  d.querySelector('input').oninput=e=>{
+    stopStory();
+    PARAMS[key]=+e.target.value/100;
+    document.getElementById('v-'+key).textContent=PARAMS[key].toFixed(2);
+  };
+});
+function syncSliders(){
+  PARAM_META.forEach(([key])=>{
+    document.getElementById('s-'+key).value=Math.round(PARAMS[key]*100);
+    document.getElementById('v-'+key).textContent=PARAMS[key].toFixed(2);
+  });
+}
+
+document.querySelectorAll('.acts button').forEach(b=>{
+  b.onclick=()=>{ applyAct(b.dataset.act); };
+});
+function applyAct(id,instant){
+  const act=ACTS[id]; if(!act)return;
+  stopStory();
+  if(instant){ Object.assign(PARAMS,act.p); Object.assign(CUR,act.p); }
+  else { blendFrom={...CUR}; storyboard.length&&0; Object.assign(PARAMS,act.p);
+         playing=false; actBlend={from:{...CUR},to:{...act.p},t:0}; }
+  syncSliders();
+  setStatus('Akt: '+act.label);
+}
+let actBlend=null;
+function tickActBlend(dt){
+  if(!actBlend)return;
+  actBlend.t+=dt;
+  const k=Math.min(1,actBlend.t/2.2), e=k*k*(3-2*k);
+  for(const key in PARAMS) CUR[key]=actBlend.from[key]+(actBlend.to[key]-actBlend.from[key])*e;
+  if(k>=1) actBlend=null;
+}
+
+function loadImageFile(file,isMat){
+  const img=new Image();
+  img.onload=()=>{
+    if(isMat){ matImg=img; setStatus('Material-Map geladen ('+img.width+'×'+img.height+'). Jetzt „Erstellen“.'); }
+    else{
+      sceneImg=img;
+      canvas.width=img.width; canvas.height=img.height;
+      gl.viewport(0,0,img.width,img.height);
+      uploadTex(0,TEX.scene,0,0,img);
+      gl.uniform2f(U.u_px,1/img.width,1/img.height);
+      gl.uniform1f(U.u_aspect,img.width/img.height);
+      document.getElementById('drop-hint').style.display='none';
+      ready=false;
+      setStatus('Szene geladen ('+img.width+'×'+img.height+'). Drücke „✨ Erstellen“.');
+    }
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(file);
+}
+document.getElementById('f-scene').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],false);
+document.getElementById('f-mat').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],true);
+
+const stage=document.getElementById('stage');
+stage.addEventListener('dragover',e=>e.preventDefault());
+stage.addEventListener('drop',e=>{
+  e.preventDefault();
+  if(e.dataTransfer.files[0]) loadImageFile(e.dataTransfer.files[0],false);
+});
+
+document.getElementById('btn-demo').onclick=async()=>{
+  try{
+    const name='ResizedImage_2026-06-30_10-29-19_2317[41].png';
+    const r=await fetch(encodeURIComponent(name).replace(/%2F/g,'/'));
+    if(!r.ok)throw 0;
+    loadImageFile(await r.blob(),false);
+  }catch(_){ setStatus('Demo nur über einen lokalen Server verfügbar (python3 -m http.server).'); }
+};
+
+function erstellen(){
+  if(!sceneImg){ setStatus('⚠️ Zuerst ein Bild laden!'); return false; }
+  setStatus('🧠 Analysiere Materialien, Senken, Flussfeld, Lichtquellen …');
+  analyze();
+  defaultStoryboard();
+  Object.assign(PARAMS,ACTS.tag.p); Object.assign(CUR,ACTS.tag.p); syncSliders();
+  playStory();
+  setStatus('✅ Szene lebt. Storyboard läuft (Loop). „K“ = Kino-Modus.');
+  return true;
+}
+document.getElementById('btn-create').onclick=erstellen;
+
+// Kino / Aufnahme / Export
+function toggleCinema(){ document.body.classList.toggle('cinema'); }
+document.getElementById('btn-cinema').onclick=toggleCinema;
+document.getElementById('exit-cinema').onclick=toggleCinema;
+window.addEventListener('keydown',e=>{
+  if(e.key==='k'||e.key==='K')toggleCinema();
+  if(e.key==='Escape')document.body.classList.remove('cinema');
+});
+document.getElementById('btn-png').onclick=()=>{
+  canvas.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b); a.download='SHADED_'+Date.now()+'.png'; a.click();
+    URL.revokeObjectURL(a.href);
+  },'image/png');
+};
+let recorder=null,chunks=[];
+document.getElementById('btn-rec').onclick=()=>{
+  if(recorder){ recorder.stop(); return; }
+  chunks=[];
+  const stream=canvas.captureStream(30);
+  let opt={mimeType:'video/webm; codecs=vp9'};
+  if(!MediaRecorder.isTypeSupported(opt.mimeType))opt={mimeType:'video/webm'};
+  recorder=new MediaRecorder(stream,opt);
+  recorder.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  recorder.onstop=()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob(chunks,{type:'video/webm'}));
+    a.download='SHADED_Showcase_'+Date.now()+'.webm'; a.click();
+    URL.revokeObjectURL(a.href);
+    recorder=null;
+    document.getElementById('rec').style.display='none';
+    document.getElementById('btn-rec').textContent='🔴 WebM';
+  };
+  recorder.start();
+  document.getElementById('rec').style.display='block';
+  document.getElementById('btn-rec').textContent='⏹ Stopp';
+};
+document.getElementById('btn-json').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({params:PARAMS,storyboard},null,2)],{type:'application/json'}));
+  a.download='shaded_params.json'; a.click();
+  URL.revokeObjectURL(a.href);
+};
+document.getElementById('btn-play').onclick=()=>playing?stopStory():playStory();
+document.getElementById('btn-add').onclick=()=>{
+  storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
+};
+
+// =========================== Render-Loop ===========================
+let time=0,lastT=0;
+function frame(now){
+  const dt=Math.min(0.05,(now-lastT)/1000||0); lastT=now;
+  time+=dt;
+  tickStory(dt);
+  tickActBlend(dt);
+  if(!playing&&!actBlend) for(const key in PARAMS) CUR[key]+= (PARAMS[key]-CUR[key])*Math.min(1,dt*4);
+
+  if(sceneImg){
+    gl.uniform1f(U.u_time,time);
+    PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
+    gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// =========================== Agent-/Test-API (nicht entfernen!) ===========================
+window.SHADED = {
+  version:'1.0.0',
+  erstellen,
+  applyAct:(id)=>applyAct(id,true),
+  setParams:(p)=>{ stopStory(); Object.assign(PARAMS,p); Object.assign(CUR,p); syncSliders(); },
+  getParams:()=>({...CUR}),
+  setTime:(t)=>{ time=t; },
+  isReady:()=>ready,
+  getMaterialTypeAt,
+  story:{ play:playStory, stop:stopStory, board:()=>storyboard },
+  loadImageFile
+};
+</script>
+</body>
+</html>
