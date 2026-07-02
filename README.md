@@ -56,7 +56,12 @@ Für selbstgemalte Material-Maps (zweiter Datei-Input). **Achtung, historischer 
 
 Ohne Map segmentiert SHADED das Bild selbst (HSL-Heuristik + Majority-Filter + morphologische Fenster-Erkennung).
 
-**Einfachster Weg zu perfekten Fenstern – das Marker-Overlay:** Statt einer vollen Material-Map kannst Du als Zweitbild eine **Kopie der Szene** hochladen, in der nur die Fenster pink (`#F972E9`-artig, sattes Magenta-Pink) übermalt sind. SHADED erkennt das Format automatisch (geringe Paletten-Abdeckung = Overlay): Der Rest der Szene wird normal analysiert, aber **genau die markierten Flächen** werden Fenster – tagsüber dunkles Glas, nachts warmes Licht. Marker haben Vorrang vor jeder Heuristik. Pink direkt im Szenenbild selbst funktioniert ebenfalls (gleicher Farbton).
+**Der Korrektur-Workflow – das Marker-Overlay:** Statt einer vollen Material-Map kannst Du als Zweitbild eine **Kopie der Szene** hochladen, in der Du nur dort übermalst, wo die Automatik danebenliegt. SHADED erkennt das Format automatisch (geringe Paletten-Abdeckung = Overlay) und wertet **ausschließlich die Pixel aus, die sich vom Original unterscheiden**:
+
+- **Pink** (`#F972E9`-artig, jeder Ton von Rosé bis Magenta) = **Fenster**. Tagsüber dunkles Glas, nachts warmes Licht. Hat das Overlay Pink-Marker, gelten NUR diese als Fenster – die Heuristik hat kein Veto.
+- **Jede andere kanonische Palettenfarbe** = **lokale Klassen-Korrektur**: z. B. Dach-Orange über eine Terrasse malen, die fälschlich als Pfad erkannt wurde, oder Holz-Braun über eine falsch erkannte Fläche. Der Rest des Bildes bleibt vollautomatisch.
+
+So liefert der Workflow deterministisch Dorf-Qualität für jedes Bild – ohne KI, mit zwei Minuten Malaufwand nur an den Fehlstellen. Pink direkt im Szenenbild selbst funktioniert ebenfalls.
 
 ## Architektur (Kurzfassung)
 

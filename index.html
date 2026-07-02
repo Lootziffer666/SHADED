@@ -791,16 +791,25 @@ function analyze(){
   cx.drawImage(src,0,0,AW,AH);
   const px = cx.getImageData(0,0,AW,AH).data;
   classGrid = new Uint8Array(AW*AH);
+  let markerClass=null;
   if(markerMode){
-    // Marker = pinkfarbene Pixel, die sich DEUTLICH vom Ausgangsbild unterscheiden.
-    // Blumen etc. sind in beiden Bildern identisch und fallen dadurch heraus.
+    // Marker = Pixel, die sich DEUTLICH vom Ausgangsbild unterscheiden.
+    // Pink = Fenster; jede andere kanonische Palettenfarbe = lokale Klassen-
+    // Korrektur (z. B. Dach-Orange über einen falsch erkannten Bereich malen).
+    // Unveränderte Bildteile (Blumen etc.) können nie Marker sein.
     markerWin=new Uint8Array(AW*AH);
+    markerClass=new Uint8Array(AW*AH);           // 0 = kein Override, sonst Klasse+1
     for(let j=0;j<AW*AH;j++){
       const r=mpx[j*4],g=mpx[j*4+1],b=mpx[j*4+2];
       const dr=r-px[j*4],dg=g-px[j*4+1],db=b-px[j*4+2];
-      const differs = dr*dr+dg*dg+db*db > 3000;
-      const pinkish = r>150 && g<140 && (r-g)>55 && (b-g)>20;
-      if(differs && pinkish) markerWin[j]=1;
+      if(dr*dr+dg*dg+db*db <= 3000) continue;
+      if(r>150 && g<140 && (r-g)>55 && (b-g)>20){ markerWin[j]=1; continue; }
+      let best=1e9,bi=-1;
+      for(const [pr,pg,pb,ci] of NN){
+        const d=(r-pr)*(r-pr)+(g-pg)*(g-pg)+(b-pb)*(b-pb);
+        if(d<best){best=d;bi=ci;}
+      }
+      if(best<3600) markerClass[j]=bi+1;
     }
   }
   for(let i=0,j=0;i<px.length;i+=4,j++){
@@ -939,7 +948,12 @@ function analyze(){
         else if(c===R)roof++;
       }
       ringLum/=Math.max(1,ring);
-      if(wood>ring*0.35 && wood>veg && wood>roof && roof<ring*0.15 && wood>=14 && ringLum<95)
+      // konservativ: lieber KEIN Fenster als falsche (Korrektur geht per Overlay)
+      let blobLum=0;
+      blob.forEach(j=>{blobLum+=px[j*4]*0.299+px[j*4+1]*0.587+px[j*4+2]*0.114;});
+      blobLum/=blob.length;
+      if(wood>ring*0.35 && wood>veg && wood>roof && roof<ring*0.15 && wood>=14
+         && ringLum<68 && blob.length>=6 && blobLum>ringLum+45)
         blob.forEach(j=>classGrid[j]=N);
     }
 
@@ -988,11 +1002,13 @@ function analyze(){
     }
     } // Ende !markerMode (Heuristik-Fensterdetektoren)
 
-    // Marker-Overlay: die pink markierten Flächen SIND die Fenster – exakt,
-    // vollständig, ohne Heuristik-Veto. Heuristik-Fenster ohne Marker fliegen.
+    // Marker-Overlay: Pink SIND die Fenster – exakt, ohne Heuristik-Veto;
+    // andere Palettenfarben korrigieren die Klasse lokal. Heuristik-Fenster
+    // ohne Marker fliegen (der Nutzer hat die Fenster ja vollständig markiert).
     if(markerMode){
       for(let j=0;j<AW*AH;j++){
         if(markerWin[j]) classGrid[j]=N;
+        else if(markerClass[j]) classGrid[j]=markerClass[j]-1;
         else if(classGrid[j]===N) classGrid[j]=K;
       }
     }
