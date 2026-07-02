@@ -478,7 +478,7 @@ void main(){
   // Unbeleuchtet ist ein Fenster dunkles Glas mit Himmelston – so verschwinden
   // auch Pink-Marker aus dem Quellbild; beleuchtet glüht es warm.
   vec3 glassCol = mix(vec3(0.16,0.19,0.24), sky, 0.35);
-  col = mix(col, glassCol, mWin * 0.85 * (1.0 - lamp*litVar));
+  col = mix(col, glassCol, mWin * 0.92 * (1.0 - lamp*litVar));
   col = mix(col, lampCol, mWin * lamp * litVar * 0.88);
   col += emis.rgb * lamp * 0.7;
   col += emis.rgb * u_wet * ground * night * u_glow * 0.55;  // diffuser Warmschein auf Nässe
@@ -768,10 +768,10 @@ function analyze(){
   // 1) Klassifizieren – gemalte Map hat Vorrang, sonst Heuristik aufs Szenenbild
   // Zweitbild verstehen: kanonische Material-Map ODER Szenen-Kopie mit pink
   // markierten Fenstern (Marker-Overlay). Entscheidung über Paletten-Abdeckung.
-  let markerMode=false, markerWin=null;
+  let markerMode=false, markerWin=null, mpx=null;
   if(matImg){
     cx.drawImage(matImg,0,0,AW,AH);
-    const mpx = cx.getImageData(0,0,AW,AH).data;
+    mpx = cx.getImageData(0,0,AW,AH).data;
     let hits=0,samples=0;
     for(let j=0;j<AW*AH;j+=7){
       const r=mpx[j*4],g=mpx[j*4+1],b=mpx[j*4+2];
@@ -784,19 +784,24 @@ function analyze(){
       samples++;
     }
     markerMode = hits/samples < 0.5;
-    if(markerMode){
-      markerWin=new Uint8Array(AW*AH);
-      for(let j=0;j<AW*AH;j++){
-        const r=mpx[j*4],g=mpx[j*4+1],b=mpx[j*4+2];
-        if(r>170&&b>150&&g<150&&(r-g)>60&&(b-g)>40) markerWin[j]=1;  // Magenta-Pink
-      }
-    }
   }
   const useMap = !!matImg && !markerMode;
   const src = useMap ? matImg : sceneImg;
   cx.drawImage(src,0,0,AW,AH);
   const px = cx.getImageData(0,0,AW,AH).data;
   classGrid = new Uint8Array(AW*AH);
+  if(markerMode){
+    // Marker = pinkfarbene Pixel, die sich DEUTLICH vom Ausgangsbild unterscheiden.
+    // Blumen etc. sind in beiden Bildern identisch und fallen dadurch heraus.
+    markerWin=new Uint8Array(AW*AH);
+    for(let j=0;j<AW*AH;j++){
+      const r=mpx[j*4],g=mpx[j*4+1],b=mpx[j*4+2];
+      const dr=r-px[j*4],dg=g-px[j*4+1],db=b-px[j*4+2];
+      const differs = dr*dr+dg*dg+db*db > 3000;
+      const pinkish = r>150 && g<140 && (r-g)>55 && (b-g)>20;
+      if(differs && pinkish) markerWin[j]=1;
+    }
+  }
   for(let i=0,j=0;i<px.length;i+=4,j++){
     classGrid[j] = useMap ? classifyMapPixel(px[i],px[i+1],px[i+2])
                           : classifyScenePixel(px[i],px[i+1],px[i+2]);
@@ -1560,10 +1565,13 @@ stage.addEventListener('drop',e=>{
 
 document.getElementById('btn-demo').onclick=async()=>{
   try{
-    const name='ResizedImage_2026-06-30_10-29-19_2317[41].png';
-    const r=await fetch(encodeURIComponent(name).replace(/%2F/g,'/'));
-    if(!r.ok)throw 0;
-    loadImageFile(await r.blob(),false);
+    // Kanonisches Demo-Paar: Szene + Fenster-Marker-Overlay
+    const scene='file_00000000974871f49fe71f6b456f9579.png';
+    const marker='file_00000000c84071f4bcd6ff9afdba7246.png';
+    const r1=await fetch(scene); if(!r1.ok)throw 0;
+    loadImageFile(await r1.blob(),false);
+    const r2=await fetch(marker);
+    if(r2.ok) loadImageFile(await r2.blob(),true);
   }catch(_){ setStatus('Demo nur über einen lokalen Server verfügbar (python3 -m http.server).'); }
 };
 
