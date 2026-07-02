@@ -51,6 +51,8 @@ Für selbstgemalte Material-Maps (zweiter Datei-Input). **Achtung, historischer 
 
 Ohne Map segmentiert SHADED das Bild selbst (HSL-Heuristik + Majority-Filter + morphologische Fenster-Erkennung).
 
+**Einfachster Weg zu perfekten Fenstern – das Marker-Overlay:** Statt einer vollen Material-Map kannst Du als Zweitbild eine **Kopie der Szene** hochladen, in der nur die Fenster pink (`#F972E9`-artig, sattes Magenta-Pink) übermalt sind. SHADED erkennt das Format automatisch (geringe Paletten-Abdeckung = Overlay): Der Rest der Szene wird normal analysiert, aber **genau die markierten Flächen** werden Fenster – tagsüber dunkles Glas, nachts warmes Licht. Marker haben Vorrang vor jeder Heuristik. Pink direkt im Szenenbild selbst funktioniert ebenfalls (gleicher Farbton).
+
 ## Architektur (Kurzfassung)
 
 Single-File-App (`index.html`), WebGL 1, kein Build-Step.

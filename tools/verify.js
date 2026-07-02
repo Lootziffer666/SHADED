@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
   const shots = [['tag', 3.0], ['aufzug', 10.0], ['sturmnacht', 21.7], ['morgen', 5.0], ['danach', 7.0], ['verfall', 4.0],
                  ['fruehling', 2.5], ['herbst', 6.0], ['schnee', 9.3]];
   for (const [act, t] of shots) {
-    await page.evaluate(([a, tt]) => { window.SHADED.applyAct(a); window.SHADED.setTime(tt); }, [act, t]);
+    await page.evaluate(([a, tt]) => { window.SHADED.applyAct(a); window.SHADED.setTime(tt,true); }, [act, t]);
     await page.waitForTimeout(250);
     await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_' + act + '.png') });
   }
@@ -53,7 +53,7 @@ const server = http.createServer((req, res) => {
   await page.evaluate(() => {
     window.SHADED.applyAct('verfall');
     window.SHADED.setParams({ ...window.SHADED.getParams(), decay: 0.5 });
-    window.SHADED.setTime(4.4);
+    window.SHADED.setTime(4.4,true);
   });
   await page.waitForTimeout(250);
   await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_zeitraffer_mitte.png') });
@@ -84,7 +84,7 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(300);
   await page.click('#btn-create');
   await page.waitForFunction(() => window.SHADED.isReady());
-  await page.evaluate(() => { window.SHADED.applyAct('sturmnacht'); window.SHADED.setTime(21.7); });
+  await page.evaluate(() => { window.SHADED.applyAct('sturmnacht'); window.SHADED.setTime(21.7,true); });
   await page.waitForTimeout(250);
   await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_map_sturmnacht.png') });
 
