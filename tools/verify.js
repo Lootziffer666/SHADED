@@ -100,6 +100,20 @@ const server = http.createServer((req, res) => {
     window.SHADED.getMaterialTypeAt(0.05, 0.05)  // Baum oben links
   ]);
   console.log('Materialproben Legacy-Map (Pfad/Dach/Baum):', mats.join(', '));
+
+  // Dritter Durchlauf: Taverne (andere Auflösung, anderer Stil, ohne Zweitbild)
+  // Vergleichen mit ResizedImage_2026-06-30_23-13-00_0185[1].png (Regen-Target)
+  await page.setInputFiles('#f-scene', path.join(REPO, 'ResizedImage_2026-06-30_23-14-34_6442[1].jpg'));
+  await page.waitForTimeout(300);
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.evaluate(() => {
+    window.SHADED.applyAct('morgen');
+    window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0.35, fog: 0.5, rain: 0.5, wet: 1, puddle: 0.8, glow: 0.8 });
+    window.SHADED.setTime(5.0, true);
+  });
+  await page.waitForTimeout(250);
+  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_taverne_regen.png') });
   console.log('Konsole-Fehler:', errors.length ? errors.join(' | ') : 'keine');
   await browser.close();
   server.close();

@@ -26,6 +26,9 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 | `file_00000000974871f49fe71f6b456f9579.png` | **Ausgangsbild** (Dorf mit echten Fenstern) – Demo-Button lädt es |
 | `file_00000000c84071f4bcd6ff9afdba7246.png` | **Fenster-Marker-Overlay** zum Ausgangsbild (Fenster pink übermalt) – Demo lädt es automatisch mit |
 | `ResizedImage_2026-06-30_10-29-19_2317[41].png` | Legacy-Ausgangsbild (Dorf OHNE echte Fenster – Testfall für Palette-Map & Heuristik) |
+| `file_0000000029f871f4bc597d92064d2e97.png` | **Frühlings-Zielbild** (Dorf in voller Blüte – Referenz für den `fruehling`-Akt) |
+| `ResizedImage_2026-06-30_23-14-34_6442[1].jpg` | Taverne, bunt & sonnig (zweite Testszene: anderer Stil, andere Auflösung) |
+| `ResizedImage_2026-06-30_23-13-00_0185[1].png` | **Taverne-Zielbild** (Regen, Matsch, Warmlicht) – Vergleich für `shot_taverne_regen.png` |
 | `file_00000000b27471f4a8aeb27484b46720.png` | **Zielbild Sturmnacht** – Referenz für Nässe-Abdunklung, Warmlicht, Nebel |
 | `file_00000000fbc472438dcc92aff24bed6e.png` | **Zielbild Tag danach** – glitzernd nass, Pfützen, Restfeuchte |
 | `1782823262240.png` | Physik-Referenz Tag: Puddle Collection, Water Bleed-out |
