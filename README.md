@@ -69,6 +69,8 @@ Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipel
 
 Nichts davon ist verworfen – die Architektur reserviert bereits Andockpunkte (Textur-Unit 5 für Trail-Maps, `u_decay`, `SHADED.getMaterialTypeAt`, erweiterbares Storyboard).
 
+**Langfrist-Vision:** [`docs/vision-40-weltgesetze.md`](docs/vision-40-weltgesetze.md) – der „40 Sichtbare Weltgesetze“-Katalog („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
+
 ## Instruktionen für LLMs / Agenten
 
 **Lies zuerst [`CLAUDE.md`](CLAUDE.md)** (Invarianten & Regeln). Kiro-Nutzer: Steering liegt in [`.kiro/steering/`](.kiro/steering/), die Folge-Runden sind als Build-by-specs-Specs in [`.kiro/specs/`](.kiro/specs/) formuliert (requirements → design → tasks).

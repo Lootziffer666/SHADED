@@ -260,7 +260,7 @@ void main(){
       float size = 0.22*(0.7+0.7*hash(fid+7.9));
       float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
       float petal = smoothstep(petalR+0.03, petalR-0.05, rad);
-      float centerDot = smoothstep(size*0.32, size*0.12, rad);
+      float centerDot = smoothstep(size*0.50, size*0.26, rad);   // Blütenkörbchen
       float pick = hash(fid+4.4);
       vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
                   pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
@@ -268,7 +268,7 @@ void main(){
                               vec3(0.99,0.90,0.55);              // gelb
       float fm = petal*on*grassGate;
       col = mix(col, fCol*(0.7+0.45*lumB2), fm*0.95);
-      col = mix(col, vec3(0.99,0.83,0.30), centerDot*fm);        // gelbes Herz
+      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate); // sattes gelbes Körbchen
     }
   }
 
