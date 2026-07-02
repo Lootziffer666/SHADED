@@ -10,7 +10,10 @@ body{background:#0b0b12;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 #sidebar{width:330px;padding:14px;overflow-y:auto;background:#12121f;border-right:1px solid #23233a;flex-shrink:0;transition:margin-left .35s ease}
 body.cinema #sidebar{margin-left:-330px}
 #stage{flex:1;display:flex;align-items:center;justify-content:center;background:#05050a;position:relative;padding:12px}
+#canvas-wrap{position:relative;display:flex;max-width:100%;max-height:100%}
 canvas#gl{max-width:100%;max-height:100%;display:block;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.85)}
+canvas#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:6px}
+canvas#ov.firetool{pointer-events:auto;cursor:crosshair}
 #drop-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4b4b6b;font-size:15px;pointer-events:none;gap:8px;text-align:center}
 #drop-hint b{color:#7dd3fc;font-size:22px}
 h1{font-size:17px;letter-spacing:3px;color:#7dd3fc;margin-bottom:2px}
@@ -56,7 +59,7 @@ body.cinema #exit-cinema{display:block}
   <h2>1 · Bild</h2>
   <input type="file" id="f-scene" accept="image/*" title="Szenenbild laden">
   <input type="file" id="f-mat" accept="image/*" title="Optional: gemalte Material-Map">
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional: eigene Material-Map (kanonische Palette). Ohne Map analysiert SHADED das Bild selbst.</div>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional – zwei Formate: volle Material-Map (kanonische Palette) ODER eine Kopie der Szene, in der nur die Fenster pink (#F972E9) übermalt sind. Ohne Zweitbild analysiert SHADED alles selbst.</div>
   <button id="btn-demo" style="width:100%">🖼️ Demo-Dorf laden (aus Repo)</button>
 
   <h2>2 · Erstellen</h2>
@@ -71,6 +74,18 @@ body.cinema #exit-cinema{display:block}
     <button data-act="morgen">🌫️ Morgengrauen</button>
     <button data-act="danach">💧 Der Tag danach</button>
     <button data-act="verfall">🌿 Jahre später</button>
+    <button data-act="fruehling">🌸 Frühlingsmorgen</button>
+    <button data-act="herbst">🍁 Goldener Herbst</button>
+    <button data-act="schnee">❄️ Erster Schnee</button>
+    <button id="btn-year">📅 Ein Jahr (Loop)</button>
+    <button id="btn-timelapse">⏳ Zeitraffer-Verfall</button>
+  </div>
+
+  <h2>Interaktion</h2>
+  <div style="font-size:9px;color:#667;line-height:1.5">WASD/Pfeile: Figur (erscheint beim ersten Tastendruck) · Leertaste: Sprint · F: Feuer an der Figur</div>
+  <div class="btnrow">
+    <button id="btn-fire">🔥 Feuer-Tool</button>
+    <button id="btn-clear-world">🧹 Spuren löschen</button>
   </div>
 
   <h2>Storyboard</h2>
@@ -98,7 +113,10 @@ body.cinema #exit-cinema{display:block}
 <div id="stage">
   <div id="rec">🔴 REC</div>
   <button id="exit-cinema" title="Kino-Modus verlassen">⚙️</button>
-  <canvas id="gl" width="16" height="9"></canvas>
+  <div id="canvas-wrap">
+    <canvas id="gl" width="16" height="9"></canvas>
+    <canvas id="ov" width="16" height="9"></canvas>
+  </div>
   <div id="drop-hint"><b>SHADED</b><span>Bild hierher ziehen oder links laden,<br>dann „✨ Erstellen“ drücken.</span></div>
 </div>
 
@@ -126,21 +144,30 @@ const PALETTE = { // Klassenname -> akzeptierte Map-Farben (erste = kanonisch)
 };
 const G=0,F=1,R=2,P=3,W=4,N=5,A=6,K=7; // Klassen-Indizes (N=window, A=water)
 
-// --- High-Level-Parameter (alles 0..1) ---
-const PARAMS = { dayNight:0, storm:0, rain:0, wet:0, puddle:0.02, fog:0.05, wind:0.3, glow:0.12, decay:0 };
+// --- High-Level-Parameter (alles 0..1; temperature: 0=−20 °C, 0.5=0 °C, 1=+30 °C) ---
+const PARAMS = { dayNight:0, storm:0, rain:0, wet:0, puddle:0.02, fog:0.05, wind:0.3, glow:0.12, decay:0,
+                 snow:0, snowfall:0, temperature:0.6, autumn:0, bloom:0, bleach:0 };
+const DEFAULTS = {...PARAMS};
 const PARAM_META = [
   ['dayNight','Tag ↔ Nacht'], ['storm','Sturm / Bewölkung'], ['rain','Regen'],
   ['wet','Nässe'], ['puddle','Pfützenstand'], ['fog','Nebel'],
-  ['wind','Wind'], ['glow','Fensterlicht'], ['decay','Verfall']
+  ['wind','Wind'], ['glow','Fensterlicht'], ['decay','Verfall'],
+  ['snow','Schneedecke'], ['snowfall','Schneefall'], ['temperature','Temperatur (−20…+30 °C)'],
+  ['autumn','Herbst'], ['bloom','Frühlingsblüte'], ['bleach','Sonnenbleiche']
 ];
+// Akte definieren nur relevante Keys; fehlende werden mit DEFAULTS aufgefüllt.
 const ACTS = {
-  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0}},
-  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0}},
-  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0}},
-  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0}},
-  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0}},
-  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1}}
+  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0, temperature:0.70}},
+  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0, temperature:0.56}},
+  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0, temperature:0.52}},
+  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0, temperature:0.52}},
+  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0, temperature:0.62}},
+  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1, temperature:0.55}},
+  fruehling:  {label:'Frühlingsmorgen',   p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.14, wind:0.40, glow:0.10, decay:0, temperature:0.62, bloom:0.90}},
+  herbst:     {label:'Goldener Herbst',   p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.25, wind:0.70, glow:0.30, decay:0.06,temperature:0.56, autumn:0.92}},
+  schnee:     {label:'Erster Schnee',     p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.30, wind:0.30, glow:0.50, decay:0, temperature:0.24, snow:0.85, snowfall:0.70}}
 };
+Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
 // =========================== WebGL ===========================
 const canvas = document.getElementById('gl');
@@ -152,6 +179,12 @@ uniform sampler2D u_scene,u_maskA,u_maskB,u_phys,u_emis;
 uniform vec2  u_px;
 uniform float u_time,u_aspect;
 uniform float u_dayNight,u_storm,u_rain,u_wet,u_puddle,u_fog,u_wind,u_glow,u_decay,u_flash;
+uniform float u_snow,u_snowfall,u_temperature,u_autumn,u_bloom,u_bleach;
+uniform vec3 u_grassAvg;    // mittlere Grasfarbe der Szene (aus analyze())
+uniform float u_mossBoost;  // Feuchte-Patina: akkumuliert bei langer Nässe (CPU)
+uniform sampler2D u_trail;  // Runde 4: r=Störung/Delle g=Impuls b=Trampelpfad a=Hitze/Brand
+uniform vec4 u_fires[8];    // Lagerfeuer: xy=uv z=Intensität w=Radius
+uniform float u_fireCount;
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -183,20 +216,96 @@ void main(){
   float mGrass=mA.r, mFol=mA.g, mRoof=mA.b, mPath=mA.a;
   float mWood=mB.r,  mWin=mB.g,  mWater=mB.b, mRock=mB.a;
   vec4 phys = texture2D(u_phys,uv);  // r=Pfützentiefe g=Flusswinkel b=Bleed a=Pfad-Distanz
+  vec4 trail = texture2D(u_trail,uv);// r=Delle g=Impuls b=Trampelpfad a=Hitze/Brand
   float veg = clamp(mGrass+mFol,0.0,1.0);
   float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
 
   // --- Die Szene atmet: Vegetation schwankt im Wind (Domain-Warp) ---
   float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
   vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
-  vec2 suv = uv + sway * veg * u_wind * gust * 0.0022;
+  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * 0.0022;  // Impuls schüttelt
+  // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
+  float lateDecay = smoothstep(0.75,1.0,u_decay);
+  suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
   vec3 base = texture2D(u_scene,suv).rgb;
   vec3 col = base;
+
+  float tempC = u_temperature*50.0 - 20.0;          // 0..1 -> −20..+30 °C
+  float icy = 1.0 - smoothstep(-1.5, 1.0, tempC);   // gefroren um 0 °C
+
+  // --- Herbst: Kronen & Gras färben sich pro Zelle golden bis rostrot ---
+  if(u_autumn>0.003){
+    float cellN = vnoise(uv*vec2(14.0*u_aspect,14.0));
+    float lumB = lum(base);
+    vec3 acol = mix(vec3(0.87,0.55,0.12), vec3(0.72,0.27,0.08), cellN) * (0.35+1.0*lumB);
+    col = mix(col, acol, mFol*u_autumn*0.85);
+    vec3 gcol = vec3(0.64,0.52,0.20)*(0.4+1.1*lumB);
+    col = mix(col, gcol, mGrass*u_autumn*0.55);
+    // gefallenes Laub sammelt sich an Pfadrändern (Bleed-Halo + flache Pfadzonen)
+    float litterZone = mGrass*phys.b + mPath*(1.0-smoothstep(0.15,0.55,phys.r));
+    float litter = step(0.62, vnoise(uv*vec2(170.0*u_aspect,170.0))) * litterZone;
+    col = mix(col, mix(vec3(0.80,0.45,0.10),vec3(0.55,0.22,0.06),vnoise(uv*vec2(80.0*u_aspect,80.0)))*(0.4+0.9*lumB),
+              litter*u_autumn*0.8);
+  }
+
+  // --- Frühling: Blütenbäume schäumen auf, Wiesenblumen wachsen in Clustern ---
+  if(u_bloom>0.003){
+    float lumB2 = lum(base);
+    // 1) Baumkronen: klumpige Blütenwolken (rosa/weiß), dunkle Zwischenräume bleiben
+    float clumps = smoothstep(0.44,0.62, vnoise(uv*vec2(26.0*u_aspect,26.0))*0.6
+                                       + vnoise(uv*vec2(64.0*u_aspect,64.0))*0.4);
+    float crownHue = vnoise(uv*vec2(7.0*u_aspect,7.0));
+    vec3 crownCol = mix(vec3(0.96,0.52,0.76), vec3(0.97,0.89,0.82), smoothstep(0.55,0.85,crownHue))
+                  * (0.85+0.3*lumB2)
+                  * (0.80+0.36*vnoise(uv*vec2(95.0*u_aspect,95.0)));  // innere Blüten-Textur
+    // Nur echte Kronen blühen: Pixel muss grünlich (Laub) oder rosa (Blütenbaum)
+    // sein – dunkle Blauschatten auf Dächern/Wänden können nie blühen.
+    float greenish = smoothstep(0.0,0.12, base.g - max(base.r*0.75, base.b*0.95));
+    float pinkish  = smoothstep(0.04,0.16, base.r - base.g) * step(base.g, base.b+0.15);
+    float bloomable = clamp(greenish+pinkish, 0.0, 1.0);
+    float treeSel = smoothstep(0.42,0.60, vnoise(uv*vec2(3.0*u_aspect,3.0)+7.7)); // nicht jeder Baum
+    float crownGate = smoothstep(0.55,0.9,mFol) * bloomable * treeSel;
+    col = mix(col, crownCol, crownGate*u_bloom*clumps*0.95);
+
+    // 2) Wiesenblumen: nur in Cluster-Inseln + verdichtet am Pfadrand (Bleed-Halo)
+    float meadow = smoothstep(0.50,0.72, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
+    float density = clamp(meadow + phys.b*0.75, 0.0, 1.0);
+    float grassGate = smoothstep(0.5,0.8,mGrass);
+    vec2 fc = uv*vec2(34.0*u_aspect,34.0);
+    vec2 fid = floor(fc), ffp = fract(fc)-0.5;
+    float fr = hash(fid);
+    float on = step(1.0 - u_bloom*(0.18+0.72*density), fr);
+    if(on*grassGate>0.01){
+      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.4;
+      vec2 d = ffp-fOff;
+      float rad = length(d);
+      float ang = atan(d.y,d.x);
+      float size = 0.22*(0.7+0.7*hash(fid+7.9));
+      float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
+      float petal = smoothstep(petalR+0.03, petalR-0.05, rad);
+      float centerDot = smoothstep(size*0.50, size*0.26, rad);   // Blütenkörbchen
+      float pick = hash(fid+4.4);
+      vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
+                  pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
+                  pick<0.82 ? vec3(0.62,0.76,0.97) :             // hellblau
+                              vec3(0.99,0.90,0.55);              // gelb
+      float fm = petal*on*grassGate;
+      col = mix(col, fCol*(0.7+0.45*lumB2), fm*0.95);
+      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate); // sattes gelbes Körbchen
+    }
+  }
 
   // --- Nässe: poröse Materialien dunkeln stark ab, Farben sättigen ---
   float porous = mRoof*0.50 + mWood*0.50 + mPath*0.44 + mRock*0.42 + mGrass*0.28 + mFol*0.22 + mWin*0.10;
   col *= 1.0 - porous*u_wet;
   col = mix(vec3(lum(col)), col, 1.0 + 0.35*u_wet);
+
+  // --- Trampelpfade (Runde 4): wiederholtes Begehen macht Gras zu Matsch ---
+  float mud = smoothstep(0.10,0.72, trail.b) * mGrass;
+  if(mud>0.003){
+    vec3 mudCol = mix(u_grassAvg*0.55, vec3(0.32,0.23,0.14), 0.7)*(0.45+0.85*lum(base));
+    col = mix(col, mudCol, mud*0.85);
+  }
 
   // --- Specular-Sheen auf nassen, obenliegenden Kanten ---
   float lC = lum(texture2D(u_scene,uv).rgb);
@@ -204,15 +313,79 @@ void main(){
   float sheen = clamp((lC-lU)*6.0,0.0,1.0) * u_wet;
   col += sheen * vec3(0.85,0.92,1.0) * (mRoof+mPath+mRock+mWood) * (0.28 - 0.16*night);
 
-  // --- Verfall: Moos auf Dächern, Pfad wuchert von den Rändern zu ---
-  if(u_decay>0.003){
+  // --- Material Fatigue & Verfall (Runde 3): Materialien altern in realistischer
+  //     Reihenfolge über versetzte Verfallskurven; Klima entscheidet Moos vs. Bleiche ---
+  if(u_decay>0.003 || u_mossBoost>0.003){
+    float lumB3 = lum(base);
+    float dWood = smoothstep(0.05,0.55,u_decay);   // Holz zuerst
+    float dRoof = smoothstep(0.20,0.75,u_decay);
+    float dPath = smoothstep(0.35,0.90,u_decay);
+    float dRock = smoothstep(0.60,1.00,u_decay);   // Fels zuletzt
+    float mossy = clamp(1.0 - u_bleach*0.85, 0.15, 1.0);  // trockenes Klima bleicht statt bemoost
+
+    // Holz: vergraut silbrig, gerichtete Splitter-Striche
+    vec3 silverWood = vec3(0.70,0.72,0.76)*(0.35+0.9*lumB3);
+    col = mix(col, silverWood, mWood*dWood*0.7);
+    vec2 wCo = uv*vec2(u_aspect,1.0);
+    float splinter = step(0.82, vnoise(vec2(dot(wCo,vec2(0.97,0.26))*640.0, dot(wCo,vec2(-0.26,0.97))*40.0)));
+    col = mix(col, col*0.55, splinter*mWood*dWood*0.5);
+
+    // Dach: Moos (Feuchte-Patina u_mossBoost beschleunigt) + fehlende Ziegel-Zellen
+    float mossAmt = clamp(dRoof + u_mossBoost*0.6, 0.0, 1.0)*mossy;
     float mossN = fbm(uv*vec2(26.0*u_aspect,26.0));
-    vec3 mossCol = vec3(0.22,0.34,0.12)*(0.55+0.8*lum(base));
-    col = mix(col, mossCol, (mRoof+mWood*0.5) * u_decay * smoothstep(0.42,0.72,mossN) * 0.85);
-    float creep = smoothstep(phys.a, phys.a+0.18, u_decay*0.85);
-    vec3 growCol = vec3(0.30,0.42,0.16)*(0.5+0.8*lum(base));
-    col = mix(col, growCol, mPath * creep * smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0))) * 0.9);
+    vec3 mossCol = vec3(0.22,0.34,0.12)*(0.55+0.8*lumB3);
+    col = mix(col, mossCol, (mRoof + mWood*0.4) * mossAmt * smoothstep(0.42,0.72,mossN) * 0.85);
+    vec2 tuvC = uv*vec2(46.0*u_aspect,46.0);
+    vec2 tid = floor(tuvC), tf = fract(tuvC)-0.5;
+    float tileGone = step(0.965 - lateDecay*0.06, hash(tid));
+    float holeR = 0.24 + 0.20*hash(tid+3.3);
+    float hole = smoothstep(holeR+0.10, holeR-0.06, length(tf-(vec2(hash(tid+1.1),hash(tid+2.2))-0.5)*0.22));
+    vec3 holeCol = vec3(0.10,0.08,0.06)*(0.7+0.5*vnoise(uv*vec2(220.0*u_aspect,220.0)));
+    col = mix(col, holeCol, mRoof*tileGone*hole*smoothstep(0.5,0.9,dRoof)*0.8);
+
+    // Pfad: Überwucherung von den Rändern (Distanzfront) im Graston DIESER Szene
+    float creep = smoothstep(phys.a, phys.a+0.18, dPath*0.95);
+    vec3 growCol = u_grassAvg*(0.55+0.75*lumB3);
+    col = mix(col, growCol, mPath*creep*smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0)))*0.92);
+
+    // Ranken/Moosschleier: vertikale Strähnen auf Mauerwerk & Holz (spät)
+    float vine = smoothstep(0.60,0.82, fbm(vec2(uv.x*70.0*u_aspect, uv.y*10.0)));
+    col = mix(col, mossCol*1.15, vine*lateDecay*mossy*(mPath+mWood+mRock)*0.4);
+
+    // Fels: Flechten
+    float lichen = step(0.7, vnoise(uv*vec2(120.0*u_aspect,120.0)));
+    col = mix(col, vec3(0.55,0.58,0.42)*(0.5+0.8*lumB3), mRock*dRock*lichen*0.5);
+
+    // Spätphase: Risse entlang der Bildkanten (Kantenstärke × ridged Noise)
+    if(lateDecay>0.01){
+      float eH = lum(texture2D(u_scene, uv+vec2(u_px.x*2.0,0.0)).rgb) - lum(texture2D(u_scene, uv-vec2(u_px.x*2.0,0.0)).rgb);
+      float eV = lum(texture2D(u_scene, uv+vec2(0.0,u_px.y*2.0)).rgb) - lum(texture2D(u_scene, uv-vec2(0.0,u_px.y*2.0)).rgb);
+      float edgeS = clamp((abs(eH)+abs(eV))*3.0, 0.0, 1.0);
+      float ridged = 1.0-abs(2.0*fbm(uv*vec2(90.0*u_aspect,90.0))-1.0);
+      float crack = step(0.86, ridged*(0.5+0.5*edgeS));
+      col = mix(col, vec3(0.05), crack*lateDecay*(mRoof+mWood+mPath+mRock)*0.6);
+    }
+
     col = mix(col, vec3(lum(col)), u_decay*0.22);
+  }
+
+  // --- Schneedecke: Dächer & Gras zuerst, Pfade fleckig zuletzt ---
+  if(u_snow>0.003){
+    float hr=smoothstep(0.35,0.65,mRoof), hg=smoothstep(0.35,0.65,mGrass),
+          hf=smoothstep(0.35,0.65,mFol),  hk=smoothstep(0.35,0.65,mRock),
+          hp=smoothstep(0.35,0.65,mPath);
+    float patch = fbm(uv*vec2(18.0*u_aspect,18.0));
+    float cover = hr*smoothstep(0.00,0.80,u_snow)
+                + hg*smoothstep(0.05,0.85,u_snow)
+                + hf*smoothstep(0.15,1.00,u_snow)*0.8
+                + hk*smoothstep(0.20,1.00,u_snow)*0.9
+                + hp*smoothstep(0.35,1.00,u_snow)*(0.4+0.6*smoothstep(0.25,0.75,patch));
+    cover = clamp(cover,0.0,1.0);
+    cover *= clamp(1.0 - trail.r*0.9 - trail.a*1.2, 0.0, 1.0);  // Fußdellen & Feuerschmelze
+    float sparkleS = smoothstep(0.997,1.0,hash(floor(uv*vec2(500.0*u_aspect,500.0))+vec2(floor(t*3.0))));
+    vec3 snowCol = (vec3(0.90,0.93,0.98) + 0.06*vnoise(uv*vec2(90.0*u_aspect,90.0)) + sparkleS*0.35)
+                 * (0.78+0.22*lum(base));   // Relief bleibt lesbar
+    col = mix(col, snowCol, cover*0.95);
   }
 
   // --- Wolkenschatten wandern (Tag) ---
@@ -221,6 +394,12 @@ void main(){
 
   // --- Grading (Tag/Nacht/Sturm) ---
   col = grade(col);
+
+  // --- Sonnenbleiche: material-gewichtet entsättigen & aufhellen (nur Tag) ---
+  if(u_bleach>0.003){
+    float bl = u_bleach * (1.0-night) * (mRoof*1.0 + mWood*1.0 + mPath*0.7 + mRock*0.6 + veg*0.45 + mWin*0.2);
+    col = mix(col, vec3(lum(col))*1.12 + 0.04, clamp(bl,0.0,1.0)*0.55);
+  }
 
   // --- Himmel-/Reflexionsfarben ---
   vec3 sky = mix( mix(vec3(0.62,0.70,0.82), vec3(0.28,0.31,0.38), u_storm),
@@ -246,16 +425,24 @@ void main(){
   float pnz = fbm(uv*vec2(9.0*u_aspect,9.0));
   float depth = max(phys.r*(mPath+mRock), phys.b*mGrass*0.6) * (0.55+0.45*pnz);
   depth = max(depth, mWater);                       // echtes Wasser ist immer voll
+  depth = max(depth, smoothstep(0.5,0.95,trail.b)*mGrass*0.65); // Matschsenken sammeln Wasser
   float th = 0.95 - u_puddle*0.78;
   float pud = smoothstep(th, th+0.20, depth);
   if(pud>0.002){
     vec2 rip = vec2(vnoise(uv*vec2(150.0*u_aspect,150.0)+vec2(0.0,t*1.3)),
                     vnoise(uv*vec2(120.0*u_aspect,120.0)-vec2(t*0.9,0.0))) - 0.5;
-    vec2 roff = rip*(0.003 + 0.009*u_rain);
+    vec2 roff = rip*(0.003 + 0.009*u_rain) * (1.0-icy);   // Eis kräuselt nicht
     vec3 refl = grade(texture2D(u_scene, vec2(uv.x, uv.y-0.055)+roff).rgb);
     vec3 pcol = mix(refl*0.75, sky, 0.45);
     vec4 eref = texture2D(u_emis, uv - vec2(0.0,0.045) + roff*2.0);
     pcol += eref.rgb * u_glow * (0.35 + 1.9*night);  // DER Schlüssel-Shot: Fenster spiegeln
+    // gefroren: heller, matter Spiegel mit Frostmuster, Warmlicht gedämpft & statisch
+    if(icy>0.003){
+      float frost = fbm(uv*vec2(70.0*u_aspect,70.0)) * (sin(uv.x*300.0)*cos(uv.y*280.0)*0.5+0.5);
+      vec3 iceCol = mix(vec3(0.74,0.82,0.92)*(0.75+0.45*frost), refl, 0.22)
+                  + eref.rgb*u_glow*(0.15+0.6*night);
+      pcol = mix(pcol, grade(iceCol), icy);
+    }
     pcol += vec3(0.9,0.95,1.0) * u_flash * 0.55;
     col = mix(col, pcol, pud * clamp(u_puddle*2.2,0.0,1.0) * ground);
   }
@@ -267,7 +454,7 @@ void main(){
     float ph = fract(t*(0.7+0.6*hash(cid+3.1)) + hash(cid));
     vec2 cOff = (vec2(hash(cid+1.7),hash(cid+2.3))-0.5)*0.5;
     float ring = smoothstep(0.05,0.0,abs(length(cf-cOff)-ph*0.42)) * (1.0-ph)
-               * step(hash(cid+4.2), u_rain*0.85);
+               * step(hash(cid+4.2), u_rain*0.85) * (1.0-icy*0.85);
     col += ring * (pud*0.5 + u_wet*0.22) * ground * vec3(0.7,0.8,0.92);
   }
 
@@ -280,13 +467,34 @@ void main(){
     col += dripEdge * drip * u_rain * vec3(0.55,0.65,0.85) * 0.6;
   }
 
-  // --- Fensterlicht: warmer Kern + Glow, flackert lebendig ---
+  // --- Fensterlicht: jedes Fenster hat eigene Wärme, Helligkeit & Flacker-Rhythmus ---
   vec4 emis = texture2D(u_emis,uv);
-  float flick = 0.82 + 0.18*vnoise(vec2(t*2.3, floor(uv.x*40.0)+floor(uv.y*24.0)*7.0));
-  float lamp = u_glow * (0.22 + 0.78*night) * flick;
-  col = mix(col, vec3(1.0,0.80,0.46), mWin * lamp * 0.75);
+  float winId = hash(floor(uv*vec2(36.0*u_aspect,36.0)));   // ~1 Zelle pro Fenster
+  float flick = 0.80 + 0.20*vnoise(vec2(t*(1.6+winId*1.6), winId*9.0));
+  float lamp = u_glow * (0.22 + 0.78*night) * flick
+             * (1.0 - smoothstep(0.6,0.92,u_decay));   // verlassene Häuser erlöschen
+  float litVar = 0.72 + 0.28*step(0.25, fract(winId*7.31));  // nicht jedes Fenster gleich hell
+  vec3 lampCol = mix(vec3(1.0,0.83,0.46), vec3(1.0,0.58,0.22), fract(winId*3.77)*0.7);
+  // Unbeleuchtet ist ein Fenster dunkles Glas mit Himmelston – so verschwinden
+  // auch Pink-Marker aus dem Quellbild; beleuchtet glüht es warm.
+  vec3 glassCol = mix(vec3(0.16,0.19,0.24), sky, 0.35);
+  col = mix(col, glassCol, mWin * 0.85 * (1.0 - lamp*litVar));
+  col = mix(col, lampCol, mWin * lamp * litVar * 0.88);
   col += emis.rgb * lamp * 0.7;
   col += emis.rgb * u_wet * ground * night * u_glow * 0.55;  // diffuser Warmschein auf Nässe
+
+  // --- Brandspuren & Lagerfeuer-Licht (Runde 4) ---
+  float scorch = smoothstep(0.18,0.85,trail.a);
+  col = mix(col, vec3(0.09,0.07,0.06)*(0.5+0.6*lum(base)), scorch*(1.0-mWater)*0.8);
+  for(int i=0;i<8;i++){
+    if(float(i)>=u_fireCount) break;
+    vec4 fdef = u_fires[i];
+    float dd = length((uv-fdef.xy)*vec2(u_aspect,1.0));
+    float ffl = 0.72+0.28*vnoise(vec2(t*7.0+float(i)*3.1, float(i)*1.7));
+    float fglow = exp(-dd*dd/(fdef.w*fdef.w)) * fdef.z * ffl;
+    col += vec3(1.0,0.52,0.16) * fglow * (0.35+0.75*night);
+    col += vec3(1.0,0.85,0.45) * smoothstep(fdef.w*0.35,0.0,dd) * fdef.z * ffl * 0.5;
+  }
 
   // --- Nebelschleier (fbm-Schichten, dichter am Rand) ---
   if(u_fog>0.003){
@@ -294,8 +502,25 @@ void main(){
     float f2 = fbm(uv*vec2(6.5*u_aspect,6.5) + vec2(-t*0.045*(0.5+u_wind), t*0.020) + 31.7);
     float edge = smoothstep(0.22,0.60,length((uv-0.5)*vec2(1.15,1.35))) + smoothstep(0.75,0.15,uv.y)*0.3;
     float fogAmt = clamp((0.45*f1+0.38*f2)*(0.35+0.85*edge),0.0,1.0)*u_fog;
-    vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8;
+    vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8 + u_snow*0.05;
     col = mix(col, fogCol, fogAmt*0.85);
+  }
+
+  // --- Schneefall: träge taumelnde Flocken, windverdriftet (3 Parallax-Schichten) ---
+  if(u_snowfall>0.004){
+    float sf = 0.0;
+    for(int i=0;i<3;i++){
+      float fi=float(i);
+      vec2 fuv = uv*vec2((28.0+fi*14.0)*u_aspect, 28.0+fi*14.0);
+      fuv.y -= t*(0.5+fi*0.25);                   // Flocken sinken (uv.y wächst abwärts)
+      fuv.x += sin(fuv.y*1.7 + t*(0.8+fi*0.3))*0.35 + t*u_wind*(0.5+fi*0.25);
+      vec2 ip=floor(fuv), fp=fract(fuv)-0.5;
+      float rnd=hash(ip);
+      vec2 cO=(vec2(hash(ip+2.1),hash(ip+3.7))-0.5)*0.55;
+      float flake = smoothstep(0.13+0.07*rnd, 0.02, length(fp-cO));
+      sf += flake * step(1.0-u_snowfall*0.5, rnd) * (1.0-fi*0.22);
+    }
+    col = mix(col, vec3(0.93,0.95,1.0), clamp(sf,0.0,1.0)*0.85);
   }
 
   // --- Regenschlieren (3 Parallax-Schichten, windgeschert) ---
@@ -306,7 +531,7 @@ void main(){
       vec2 ruv = uv;
       ruv.x += ruv.y*(0.16+u_wind*0.38)*(1.0+fi*0.13);
       ruv *= vec2(90.0+fi*45.0, 2.3+fi*0.9);
-      ruv.y += t*(2.7+fi*1.2)*(1.0+u_wind*0.4);
+      ruv.y -= t*(2.7+fi*1.2)*(1.0+u_wind*0.4);   // Phase MINUS = Muster wandert nach unten (uv.y wächst abwärts)
       float colid = floor(ruv.x);
       float y = fract(ruv.y + hash(vec2(colid,fi))*13.7);
       float on = step(1.0 - u_rain*0.42, hash(vec2(colid,fi+9.0)));
@@ -349,7 +574,9 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
+ 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
 function mkTex(unit){
   const t=gl.createTexture();
@@ -361,10 +588,57 @@ function mkTex(unit){
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   return t;
 }
-// Unit 5 bleibt frei reserviert für die Trail-/Störungstextur (Runde 4).
-const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4) };
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5) };
 gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
-gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);
+gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);  gl.uniform1i(U.u_trail,5);
+gl.uniform1f(U.u_fireCount,0);
+
+// === Runde 4: Trail-/Störungstextur (Unit 5) ===
+// Kanäle: R transiente Störung (Fußdelle, Halbwertszeit 1.5 s), G Impuls (0.4 s),
+// B permanenter Trampelpfad, A Hitze/Brandspur (~25 s). Decay wirkt DIREKT auf
+// den Pixeldaten – nicht per Composite-Trick (Prototyp-Bug Nr. 6).
+const TR=512;
+const trailData = new Uint8Array(TR*TR*4);
+let trailDirty=true, trailDecayAcc=0;
+function trailStamp(u,v,rad,ch,strength,cap){
+  const cx=u*TR, cy=v*TR, r=Math.max(1,rad*TR);
+  const x0=Math.max(0,Math.floor(cx-r)), x1=Math.min(TR-1,Math.ceil(cx+r));
+  const y0=Math.max(0,Math.floor(cy-r)), y1=Math.min(TR-1,Math.ceil(cy+r));
+  const mx = cap!==undefined?cap:255;
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    const d=Math.hypot(x-cx,y-cy)/r;
+    if(d>1)continue;
+    const i=(y*TR+x)*4+ch;
+    trailData[i]=Math.min(mx, trailData[i]+strength*255*(1-d*d));
+  }
+  trailDirty=true;
+}
+function trailTick(dt){
+  trailDecayAcc+=dt;
+  if(trailDecayAcc<0.066) return;              // ~15 Hz genügt
+  const d=trailDecayAcc; trailDecayAcc=0;
+  const kR=Math.exp(-d*0.462), kG=Math.exp(-d*1.733), kA=Math.exp(-d*0.028);
+  let any=false;
+  for(let i=0;i<trailData.length;i+=4){
+    if(trailData[i])  {trailData[i]  =(trailData[i]*kR)|0; any=true;}
+    if(trailData[i+1]){trailData[i+1]=(trailData[i+1]*kG)|0; any=true;}
+    if(trailData[i+3]){trailData[i+3]=(trailData[i+3]*kA)|0; any=true;}
+  }
+  if(any) trailDirty=true;
+}
+function trailUpload(){
+  if(!trailDirty)return;
+  gl.activeTexture(gl.TEXTURE0+5); gl.bindTexture(gl.TEXTURE_2D,TEX.trail);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,TR,TR,0,gl.RGBA,gl.UNSIGNED_BYTE,trailData);
+  trailDirty=false;
+}
+function trailClear(){ trailData.fill(0); trailDirty=true; }
+function trailSample(u,v){
+  const x=Math.max(0,Math.min(TR-1,(u*TR)|0)), y=Math.max(0,Math.min(TR-1,(v*TR)|0));
+  const i=(y*TR+x)*4;
+  return {r:trailData[i]/255, g:trailData[i+1]/255, b:trailData[i+2]/255, a:trailData[i+3]/255};
+}
+trailUpload();   // sofort nullen – der 1×1-Platzhalter hätte a=1 (Brandspur überall)
 
 function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canvas
   gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,tex);
@@ -389,8 +663,11 @@ function hex(c){ return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),par
 // Heuristische Segmentierung eines beliebigen Szenenbildes
 function classifyScenePixel(r,g,b){
   const [h,s,l]=rgbToHsl(r,g,b);
+  // Explizit markierte Fenster: leuchtendes Magenta-Pink (à la #F972E9) im
+  // Szenenbild = Fenster. Blütenbäume sind blasser/violetter, Blumen rötlicher.
+  if(h>=295&&h<=340&&s>0.7&&l>0.45&&l<0.85) return N;
   if(s<=0.14){ if(l<0.22) return W; if(l<0.52) return K; return P; }
-  if(h>=270&&h<=345) return F;               // Blütenbäume (pink/magenta)
+  if(h>=270&&h<=345) return (l>0.28&&s>0.2)? F : W;  // helle Blütenbäume vs. dunkle Konturen
   if(h>=60&&h<170)  return l>0.42? G : F;    // helles Gras vs. dunkle Kronen
   if(h>=170&&h<205){                          // Teal: Türen/Fenster nur satt & mittelhell,
     if(s>0.28&&l>=0.14&&l<0.40) return N;     // dunkle Blaugrün-Schatten sind Laub
@@ -489,11 +766,37 @@ function analyze(){
   const cx=cv.getContext('2d',{willReadFrequently:true});
 
   // 1) Klassifizieren – gemalte Map hat Vorrang, sonst Heuristik aufs Szenenbild
-  const src = matImg || sceneImg;
+  // Zweitbild verstehen: kanonische Material-Map ODER Szenen-Kopie mit pink
+  // markierten Fenstern (Marker-Overlay). Entscheidung über Paletten-Abdeckung.
+  let markerMode=false, markerWin=null;
+  if(matImg){
+    cx.drawImage(matImg,0,0,AW,AH);
+    const mpx = cx.getImageData(0,0,AW,AH).data;
+    let hits=0,samples=0;
+    for(let j=0;j<AW*AH;j+=7){
+      const r=mpx[j*4],g=mpx[j*4+1],b=mpx[j*4+2];
+      let best=1e9;
+      for(const [pr,pg,pb] of NN){
+        const d=(r-pr)*(r-pr)+(g-pg)*(g-pg)+(b-pb)*(b-pb);
+        if(d<best)best=d;
+      }
+      if(best<3600)hits++;
+      samples++;
+    }
+    markerMode = hits/samples < 0.5;
+    if(markerMode){
+      markerWin=new Uint8Array(AW*AH);
+      for(let j=0;j<AW*AH;j++){
+        const r=mpx[j*4],g=mpx[j*4+1],b=mpx[j*4+2];
+        if(r>170&&b>150&&g<150&&(r-g)>60&&(b-g)>40) markerWin[j]=1;  // Magenta-Pink
+      }
+    }
+  }
+  const useMap = !!matImg && !markerMode;
+  const src = useMap ? matImg : sceneImg;
   cx.drawImage(src,0,0,AW,AH);
   const px = cx.getImageData(0,0,AW,AH).data;
   classGrid = new Uint8Array(AW*AH);
-  const useMap = !!matImg;
   for(let i=0,j=0;i<px.length;i+=4,j++){
     classGrid[j] = useMap ? classifyMapPixel(px[i],px[i+1],px[i+2])
                           : classifyScenePixel(px[i],px[i+1],px[i+2]);
@@ -507,6 +810,7 @@ function analyze(){
     for(let y=0;y<AH;y++)for(let x=0;x<AW;x++){
       const j=y*AW+x;
       if(classGrid[j]!==N)continue;
+      if(px[j*4]>190&&px[j*4+2]>170&&px[j*4+1]<160)continue;  // Pink-Marker: unantastbar
       let veg=0,wallish=0,roofish=0;
       for(let dy=-RAD;dy<=RAD;dy++)for(let dx=-RAD;dx<=RAD;dx++){
         const yy=y+dy,xx=x+dx;
@@ -521,6 +825,7 @@ function analyze(){
     }
     classGrid=fixed;
 
+    if(!markerMode){
     // Tür-/Fensteröffnungen: dunkle KOMPAKTE Blobs in Fassaden. Morphologisches
     // Opening (Erosion+Dilation) lässt dünne Fachwerkbalken verschwinden,
     // Türen und Fensterhöhlen überleben – sie bekommen nachts das Warmlicht.
@@ -535,7 +840,8 @@ function analyze(){
 
     // Connected Components: nur kompakte Blobs in Fenstergröße werden Lichter,
     // ganze dunkle Fassaden oder Riesenflächen bleiben, was sie sind.
-    const minArea=5, maxArea=Math.max(60, AW*AH*0.0012);
+    const minArea=5, maxArea=Math.max(60, AW*AH*0.004);
+    const maxBW=AW*0.08, maxBH=AH*0.14;
     const seen=new Uint8Array(AW*AH), stack=[];
     for(let s0=0;s0<AW*AH;s0++){
       if(!cand[s0]||seen[s0])continue;
@@ -550,20 +856,139 @@ function analyze(){
         if(y<AH-1&&cand[j+AW]&&!seen[j+AW]){seen[j+AW]=1;stack.push(j+AW);}
       }
       if(blob.length<minArea||blob.length>maxArea)continue;
-      // Fassaden-Check am Blob-Schwerpunkt: braucht Wand, darf nicht im Dach schwimmen
+      // Fensterform: kompakt und ungefähr rechteckig – keine Schattenstreifen,
+      // keine First-/Traufen-Flecken
+      let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
+      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
+        if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0v)y0v=y; if(y>y1v)y1v=y;});
+      const bw=x1-x0+1, bh=y1v-y0v+1;
+      const boxAspect=bw/bh, fill=blob.length/(bw*bh);
+      if(boxAspect<0.3||boxAspect>3.2||fill<0.45) continue;
+      if(bw>maxBW||bh>maxBH) continue;
+      // Fassaden-Check am Blob-Schwerpunkt: Wand muss dominieren, Dach klar nicht
       let cx=0,cy=0; blob.forEach(j=>{cx+=j%AW;cy+=Math.floor(j/AW);});
       cx=Math.round(cx/blob.length); cy=Math.round(cy/blob.length);
-      let veg=0,wall=0,roof=0;
+      let veg=0,wall=0,roof=0,wood=0;
       for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){
         const yy=cy+dy,xx=cx+dx;
         if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
         const c=classGrid[yy*AW+xx];
         if(c===G||c===F)veg++;
         else if(c===P||c===K)wall++;
+        else if(c===W)wood++;
         else if(c===R)roof++;
       }
-      if(wall>veg*0.7 && wall>roof*0.6 && wall>=12)
+      const wallScore=wall+wood*0.7;   // dunkle Fachwerk-Fassaden sind auch Fassaden!
+      if(wallScore>veg*0.8 && wallScore>roof*1.2 && wallScore>=12){
+        // Die GANZE Box wird Fenster: nachts leuchtet ein sauberes Rechteck,
+        // wie in der Zielreferenz – nicht die ausgefranste Blob-Silhouette.
+        for(let y=y0v;y<=y1v;y++)for(let x=x0;x<=x1;x++){
+          const c=classGrid[y*AW+x];
+          if(c!==R&&c!==F) classGrid[y*AW+x]=N;
+        }
+      }
+    }
+
+    // Umgekehrte Polarität: helle Fensterscheiben in DUNKLEN Fachwerk-Fassaden –
+    // kleine, kompakte helle Inseln (Wand- ODER Fels-klassifiziert: graue Scheiben
+    // landen als K), deren Umfeld von Holz dominiert wird.
+    const isPane=c=>c===P||c===K;
+    const seenP=new Uint8Array(AW*AH), stP=[];
+    for(let s0=0;s0<AW*AH;s0++){
+      if(!isPane(classGrid[s0])||seenP[s0])continue;
+      stP.length=0; stP.push(s0); seenP[s0]=1;
+      const blob=[];
+      while(stP.length){
+        const j=stP.pop(); blob.push(j);
+        const y=(j/AW)|0,x=j%AW;
+        if(x>0&&isPane(classGrid[j-1])&&!seenP[j-1]){seenP[j-1]=1;stP.push(j-1);}
+        if(x<AW-1&&isPane(classGrid[j+1])&&!seenP[j+1]){seenP[j+1]=1;stP.push(j+1);}
+        if(y>0&&isPane(classGrid[j-AW])&&!seenP[j-AW]){seenP[j-AW]=1;stP.push(j-AW);}
+        if(y<AH-1&&isPane(classGrid[j+AW])&&!seenP[j+AW]){seenP[j+AW]=1;stP.push(j+AW);}
+      }
+      if(blob.length<4||blob.length>maxArea)continue;   // Riesenflächen = Wände+Boden
+      let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
+      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
+        if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
+      const bw=x1-x0+1,bh=y1v-y0v+1;
+      if(bw/bh<0.3||bw/bh>3.2||blob.length/(bw*bh)<0.45)continue;
+      if(bw>maxBW||bh>maxBH)continue;
+      // Farbe: Scheiben sind neutral/bläulich – warme Cremewände sind KEINE Fenster
+      let mr=0,mb=0;
+      blob.forEach(j=>{mr+=px[j*4];mb+=px[j*4+2];});
+      mr/=blob.length;mb/=blob.length;
+      if(mr-mb>25)continue;
+      // Ring UM die Scheibe (nicht ihr Inneres) muss holzdominiert UND dunkel sein:
+      // Fenster leuchten aus dunklen Fassaden – hellgraue Ziegel-Umgebung ist Dach.
+      let veg=0,wall=0,roof=0,wood=0,ring=0,ringLum=0;
+      for(let y=Math.max(0,y0v-4);y<=Math.min(AH-1,y1v+4);y++)
+      for(let x=Math.max(0,x0-4);x<=Math.min(AW-1,x1+4);x++){
+        if(x>=x0&&x<=x1&&y>=y0v&&y<=y1v)continue;
+        const c=classGrid[y*AW+x]; ring++;
+        const jj=(y*AW+x)*4;
+        ringLum += px[jj]*0.299+px[jj+1]*0.587+px[jj+2]*0.114;
+        if(c===G||c===F)veg++;
+        else if(c===P||c===K)wall++;
+        else if(c===W)wood++;
+        else if(c===R)roof++;
+      }
+      ringLum/=Math.max(1,ring);
+      if(wood>ring*0.35 && wood>veg && wood>roof && roof<ring*0.15 && wood>=14 && ringLum<95)
         blob.forEach(j=>classGrid[j]=N);
+    }
+
+    // Finale Fenster-Validierung: JEDES Licht (auch aus der Teal-Regel) muss wie
+    // ein Fenster geformt sein und in einer Fassade sitzen – sonst wird es Stein.
+    const seenN=new Uint8Array(AW*AH), st=[];
+    for(let s0=0;s0<AW*AH;s0++){
+      if(classGrid[s0]!==N||seenN[s0])continue;
+      st.length=0; st.push(s0); seenN[s0]=1;
+      const blob=[];
+      while(st.length){
+        const j=st.pop(); blob.push(j);
+        const y=(j/AW)|0,x=j%AW;
+        if(x>0&&classGrid[j-1]===N&&!seenN[j-1]){seenN[j-1]=1;st.push(j-1);}
+        if(x<AW-1&&classGrid[j+1]===N&&!seenN[j+1]){seenN[j+1]=1;st.push(j+1);}
+        if(y>0&&classGrid[j-AW]===N&&!seenN[j-AW]){seenN[j-AW]=1;st.push(j-AW);}
+        if(y<AH-1&&classGrid[j+AW]===N&&!seenN[j+AW]){seenN[j+AW]=1;st.push(j+AW);}
+      }
+      let x0=1e9,x1=-1,y0v=1e9,y1v=-1,cx=0,cy=0;
+      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;cx+=x;cy+=y;
+        if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
+      cx=Math.round(cx/blob.length);cy=Math.round(cy/blob.length);
+      const bw=x1-x0+1,bh=y1v-y0v+1;
+      const okShape = blob.length>=4 && blob.length<=maxArea &&
+        bw/bh>=0.3 && bw/bh<=3.2 && blob.length/(bw*bh)>=0.4 &&
+        bw<=maxBW && bh<=maxBH;
+      let veg=0,wall=0,roof=0,wood=0;
+      for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){
+        const yy=cy+dy,xx=cx+dx;
+        if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
+        const c=classGrid[yy*AW+xx];
+        if(c===G||c===F)veg++;
+        else if(c===P||c===K)wall++;
+        else if(c===W)wood++;
+        else if(c===R)roof++;
+      }
+      // Explizite Pink-Marker (#F972E9-artig) sind eine Nutzer-Ansage –
+      // die Heuristik-Validierung hat hier kein Veto. Anteil reicht: auch wenn
+      // der Marker mit einem erkannten Dunkel-Fenster zu EINEM Blob verschmilzt.
+      let pinkN=0;
+      blob.forEach(j=>{ if(px[j*4]>190&&px[j*4+2]>170&&px[j*4+1]<160) pinkN++; });
+      const explicitPink = pinkN > blob.length*0.25;
+      const wsc=wall+wood*0.7;
+      if(!explicitPink && !(okShape && wsc>veg*0.8 && wsc>roof*1.2 && wsc>=12))
+        blob.forEach(j=>classGrid[j]=K);
+    }
+    } // Ende !markerMode (Heuristik-Fensterdetektoren)
+
+    // Marker-Overlay: die pink markierten Flächen SIND die Fenster – exakt,
+    // vollständig, ohne Heuristik-Veto. Heuristik-Fenster ohne Marker fliegen.
+    if(markerMode){
+      for(let j=0;j<AW*AH;j++){
+        if(markerWin[j]) classGrid[j]=N;
+        else if(classGrid[j]===N) classGrid[j]=K;
+      }
     }
   }
 
@@ -609,6 +1034,11 @@ function analyze(){
       eR[j]=1.0*lm; eG[j]=0.72*lm; eB[j]=0.34*lm; sharpWin[j]=1;
     }
   }
+  // Mittlere Grasfarbe der Szene messen -> Überwucherung wächst im Ton DIESER Welt
+  let gaR=0,gaG=0,gaB=0,gaN=0;
+  for(let j=0;j<AW*AH;j++) if(classGrid[j]===G){ gaR+=spx[j*4];gaG+=spx[j*4+1];gaB+=spx[j*4+2];gaN++; }
+  if(gaN>50) gl.uniform3f(U.u_grassAvg, gaR/gaN/255*0.9, gaG/gaN/255*0.95, gaB/gaN/255*0.85);
+
   const gR1=Float32Array.from(eR),gG1=Float32Array.from(eG),gB1=Float32Array.from(eB);
   boxBlur(gR1,AW,AH,4,3);boxBlur(gG1,AW,AH,4,3);boxBlur(gB1,AW,AH,4,3);
   boxBlur(eR,AW,AH,14,3);boxBlur(eG,AW,AH,14,3);boxBlur(eB,AW,AH,14,3);
@@ -664,6 +1094,18 @@ function defaultStoryboard(){
   ];
   renderStory();
 }
+function yearStoryboard(){
+  storyboard = [
+    {name:'Frühlingsmorgen', dur:8,  p:{...ACTS.fruehling.p}},
+    {name:'Hochsommer',      dur:8,  p:{...ACTS.tag.p, temperature:0.85}},
+    {name:'Goldener Herbst', dur:9,  p:{...ACTS.herbst.p}},
+    {name:'Herbststurm-Nacht',dur:11,p:{...ACTS.sturmnacht.p, autumn:0.7, temperature:0.5}},
+    {name:'Erster Schnee',   dur:11, p:{...ACTS.schnee.p}},
+    {name:'Tauwetter',       dur:9,  p:{...DEFAULTS, dayNight:0.12, storm:0.2, wet:0.8, puddle:0.7,
+                                        fog:0.5, wind:0.35, glow:0.2, snow:0.25, temperature:0.56}}
+  ];
+  renderStory();
+}
 function renderStory(){
   const list=document.getElementById('story-list'); list.innerHTML='';
   storyboard.forEach((s,i)=>{
@@ -706,7 +1148,16 @@ function tickStory(dt){
   const blendDur=Math.min(3.5, step.dur*0.55);
   const k=Math.min(1, stepT/blendDur);
   const e=k*k*(3-2*k);   // smoothstep
-  for(const key in PARAMS) CUR[key]=blendFrom[key]+(step.p[key]-blendFrom[key])*e;
+  for(const key in PARAMS){
+    const from = blendFrom[key]!==undefined ? blendFrom[key] : DEFAULTS[key];
+    const to   = step.p[key]  !==undefined ? step.p[key]   : DEFAULTS[key];
+    CUR[key]=from+(to-from)*e;
+  }
+  // animierte Parameter: fahren linear über die GESAMTE Schrittdauer (z. B. Zeitraffer)
+  if(step.animate) for(const ak in step.animate){
+    const a=step.animate[ak];
+    CUR[ak]=a.from+(a.to-a.from)*Math.min(1, stepT/step.dur);
+  }
   document.querySelectorAll('.story-step').forEach((el,i)=>el.classList.toggle('playing',i===stepIdx));
   const bar=document.getElementById('bar-'+stepIdx);
   if(bar) bar.style.width=Math.min(100,stepT/step.dur*100)+'%';
@@ -724,6 +1175,7 @@ function tickStory(dt){
 let flashPulses=[];  // Zeitstempel
 let nextFlashAt=0;
 function tickLightning(t){
+  if(timeFrozen){ flashPulses.length=0; nextFlashAt=t+1; return 0; }  // deterministische Frames
   const storm=CUR.storm*CUR.dayNight;
   if(storm>0.45){
     if(nextFlashAt===0) nextFlashAt=t+1.5+Math.random()*4;
@@ -738,11 +1190,306 @@ function tickLightning(t){
   return Math.min(1,f)*storm;
 }
 
+// =========================== Runde 4: Spieler, Feuer, Ökosystem ===========================
+const ov=document.getElementById('ov');
+const ovx=ov.getContext('2d');
+
+const player={active:false,u:0.5,v:0.6,vu:0,vv:0,exert:0,wet:0,age:0,
+              breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0};
+const keys={};
+const MAT_SPEED={path:1.0,grass:0.75,rock:0.85,wood:0.9,foliage:0.6,water:0.45,window:0.9,roof:0.9};
+
+function spawnPlayer(){
+  if(player.active||!ready)return;
+  // nächstes Pfad-Pixel zur Bildmitte suchen
+  let best=1e9,bu=0.5,bv=0.6;
+  for(let y=0;y<AH;y+=2)for(let x=0;x<AW;x+=2){
+    if(classGrid[y*AW+x]!==P)continue;
+    const du=x/AW-0.5, dv=y/AH-0.55, d=du*du+dv*dv;
+    if(d<best){best=d;bu=x/AW;bv=y/AH;}
+  }
+  player.u=bu; player.v=bv; player.active=true;
+  setStatus('🚶 Figur erwacht. WASD laufen · Leertaste Sprint · F Feuer.');
+}
+function dash(){
+  if(!player.active||player.dashCd>0)return;
+  player.dashT=0.25; player.dashCd=1.1; player.exert=Math.min(1,player.exert+0.5);
+  trailStamp(player.u,player.v,0.05,1,0.9);           // Impuls: Laub & Vegetation stieben
+  leaves.forEach(l=>{
+    const d=Math.hypot(l.u-player.u,(l.v-player.v));
+    if(d<0.09&&l.z<=0){ const a=Math.atan2(l.v-player.v,l.u-player.u);
+      l.vz=0.5+Math.random()*0.5; l.vu+=Math.cos(a)*0.06; l.vv+=Math.sin(a)*0.06; l.va=(Math.random()-0.5)*14; }
+  });
+  // Früchte fallen von nahen Kronen
+  for(let tries=0,drops=0;tries<24&&drops<2;tries++){
+    const ru=player.u+(Math.random()-0.5)*0.12, rv=player.v+(Math.random()-0.5)*0.12;
+    if(getMaterialTypeAt(ru,rv)==='foliage'){
+      fruits.push({u:ru,v:rv,z:0.9,vz:0,vu:(Math.random()-0.5)*0.01,vv:(Math.random()-0.5)*0.01,age:0,r:1});
+      drops++;
+    }
+  }
+}
+function playerTick(dt){
+  if(!player.active)return;
+  let mu=0,mv=0;
+  if(keys.w||keys.arrowup)mv-=1;
+  if(keys.s||keys.arrowdown)mv+=1;
+  if(keys.a||keys.arrowleft)mu-=1;
+  if(keys.d||keys.arrowright)mu+=1;
+  const mat=getMaterialTypeAt(player.u,player.v)||'path';
+  const tempC=CUR.temperature*50-20;
+  const slippery = tempC<0 && (mat==='water'||mat==='path'||mat==='rock');
+  const moving = (mu||mv);
+  let speed=0.085*(MAT_SPEED[mat]||1)*(1-CUR.snow*0.45);
+  if(player.dashT>0){speed*=3.4;player.dashT-=dt;}
+  if(player.dashCd>0)player.dashCd-=dt;
+  if(moving){
+    const len=Math.hypot(mu,mv), tu=mu/len*speed, tv=mv/len*speed;
+    if(slippery){ player.vu+=(tu-player.vu)*1.6*dt; player.vv+=(tv-player.vv)*1.6*dt; }
+    else{ player.vu=tu; player.vv=tv; }
+    player.exert=Math.min(1,player.exert+dt*(player.dashT>0?0.6:0.18));
+    player.lookX=Math.sign(mu); player.lookY=Math.sign(mv);
+  }else if(slippery){ player.vu*=Math.pow(0.5,dt/1.2); player.vv*=Math.pow(0.5,dt/1.2); }
+  else{ player.vu=0; player.vv=0; }
+  player.exert=Math.max(0,player.exert-dt*0.10);
+  const du=player.vu*dt, dv=player.vv*dt;
+  player.u=Math.max(0.01,Math.min(0.99,player.u+du));
+  player.v=Math.max(0.01,Math.min(0.99,player.v+dv));
+  // Fußspuren: transiente Delle + permanenter Trampelpfad
+  player.stampAcc+=Math.hypot(du,dv);
+  if(player.stampAcc>0.014){
+    player.stampAcc=0;
+    trailStamp(player.u,player.v+0.006,0.007,0,0.7);
+    trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
+  }
+  // Nässe der Figur
+  if(CUR.rain>0.1) player.wet=Math.min(1,player.wet+CUR.rain*dt*0.25);
+  let nearFire=fires.some(f=>Math.hypot(f.u-player.u,f.v-player.v)<0.09);
+  player.wet=Math.max(0,player.wet-dt*(nearFire?0.35:0.02));
+}
+
+// --- Lagerfeuer ---
+const fires=[];
+let fireToolActive=false;
+function igniteFire(u,v,wild){
+  if(!ready)return false;
+  if(wild){ const m=getMaterialTypeAt(u,v); if(m!=='wood'&&m!=='roof'&&m!=='foliage')return false; }
+  if(fires.length>=8)return false;
+  if(fires.some(f=>Math.hypot(f.u-u,f.v-v)<0.025))return false;
+  fires.push({u,v,fuel:22+Math.random()*10,max:30,size:0.020+Math.random()*0.008,wild:!!wild,seed:Math.random()*7});
+  return true;
+}
+function fireTick(dt){
+  for(let i=fires.length-1;i>=0;i--){
+    const f=fires[i];
+    const douse=1 + CUR.rain*2.5 + Math.max(0,CUR.wet-0.4)*2.0;
+    f.fuel-=dt*douse;
+    // Brandspur + Schneeschmelze in den A-Kanal brennen
+    trailStamp(f.u,f.v,f.size*(0.8+0.4*(1-f.fuel/f.max)),3,0.55*dt);
+    // Rauch & Funken
+    if(Math.random()<0.5) smoke.push({u:f.u+(Math.random()-0.5)*0.012,v:f.v-0.008,
+      vu:(Math.random()-0.5)*0.004+CUR.wind*0.012, vv:-0.015-Math.random()*0.012,
+      r:0.004+Math.random()*0.004, life:1});
+    if(Math.random()<0.4) sparks.push({u:f.u+(Math.random()-0.5)*0.008,v:f.v-0.006,
+      vu:(Math.random()-0.5)*0.02+CUR.wind*0.02, vv:-0.03-Math.random()*0.03, life:0.8});
+    // Ausbreitung: nur trocken, windgetrieben
+    if(f.fuel>6 && CUR.wet<0.3 && CUR.rain<0.35 && Math.random()<dt*1.2){
+      igniteFire(f.u+(Math.random()-0.35+CUR.wind*0.4)*0.05, f.v+(Math.random()-0.5)*0.04, true);
+    }
+    if(f.fuel<=0) fires.splice(i,1);
+  }
+}
+const fireArr=new Float32Array(32);
+function fireUniforms(){
+  fireArr.fill(0);
+  fires.forEach((f,i)=>{
+    const p=Math.min(1,f.fuel/f.max);
+    fireArr[i*4]=f.u; fireArr[i*4+1]=f.v;
+    fireArr[i*4+2]=(0.35+0.65*p);
+    fireArr[i*4+3]=f.size*(2.6+p);
+  });
+  gl.uniform4fv(U['u_fires[0]'],fireArr);
+  gl.uniform1f(U.u_fireCount,fires.length);
+}
+
+// --- Partikel-Ökosystem (Overlay; rückwärts splicen!) ---
+let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[];
+function initEco(){
+  leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];
+  for(let i=0;i<90;i++) leaves.push({u:Math.random(),v:Math.random(),
+    vu:0,vv:0,z:0,vz:0,ang:Math.random()*6.28,va:0,s:0.5+Math.random()*0.5,
+    col:['#c96f10','#b7420e','#a3320b','#8a6d1c'][i&3]});
+}
+function ecoTick(dt){
+  const windU=CUR.wind*0.010;
+  for(let i=leaves.length-1;i>=0;i--){
+    const l=leaves[i];
+    if(player.active&&l.z<=0){
+      const d=Math.hypot(l.u-player.u,l.v-player.v);
+      if(d<0.02){ const a=Math.atan2(l.v-player.v,l.u-player.u);
+        l.vu+=Math.cos(a)*0.02; l.vv+=Math.sin(a)*0.02; }
+    }
+    if(l.z>0){ l.vz-=dt*2.2; l.z+=l.vz*dt; l.ang+=l.va*dt;
+      l.vu+=windU*dt*3.0; if(l.z<=0){l.z=0;l.vz=0;l.va=0;} }
+    else { l.vu+=windU*dt*(0.4+0.6*Math.random()); const fr=Math.pow(0.5,dt/0.5);
+      l.vu*=fr; l.vv*=fr; }
+    l.u+=l.vu*dt*(l.z>0?3:1); l.v+=l.vv*dt*(l.z>0?3:1);
+    if(l.u<0)l.u+=1; if(l.u>1)l.u-=1; if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
+  }
+  for(let i=fruits.length-1;i>=0;i--){
+    const fr=fruits[i]; fr.age+=dt;
+    if(fr.z>0){ fr.vz-=dt*2.6; fr.z+=fr.vz*dt; fr.u+=fr.vu*dt; fr.v+=fr.vv*dt;
+      if(fr.z<=0){fr.z=0; if(Math.abs(fr.vz)>0.3){fr.vz=-fr.vz*0.35;fr.z=0.001;} else fr.vz=0;} }
+    if(fr.age>18) fruits.splice(i,1);
+  }
+  for(let i=smoke.length-1;i>=0;i--){
+    const s=smoke[i]; s.life-=dt*0.5;
+    if(s.life<=0){smoke.splice(i,1);continue;}
+    s.u+=s.vu*dt*3; s.v+=s.vv*dt*3; s.r+=dt*0.006; s.vu+=CUR.wind*0.004*dt;
+  }
+  for(let i=sparks.length-1;i>=0;i--){
+    const s=sparks[i]; s.life-=dt*1.3;
+    if(s.life<=0){sparks.splice(i,1);continue;}
+    s.u+=s.vu*dt; s.v+=s.vv*dt; s.vv+=dt*0.05;
+  }
+  for(let i=breaths.length-1;i>=0;i--){
+    const b=breaths[i]; b.life-=dt*1.1;
+    if(b.life<=0){breaths.splice(i,1);continue;}
+    b.u+=b.vu*dt; b.v+=b.vv*dt; b.r+=dt*0.008;
+  }
+}
+
+// --- Overlay-Rendering (deckungsgleich über dem GL-Canvas) ---
+function drawOverlay(dt){
+  const W=ov.width,H=ov.height;
+  ovx.clearRect(0,0,W,H);
+  if(!ready)return;
+  const S=W/1400;  // Größenreferenz
+  const night=CUR.dayNight;
+  // Laub nur, wenn Herbst es erzählt
+  if(CUR.autumn>0.06) leaves.forEach(l=>{
+    ovx.save(); ovx.translate(l.u*W,(l.v-l.z*0.04)*H); ovx.rotate(l.ang);
+    ovx.globalAlpha=0.85*Math.min(1,CUR.autumn*2)*(1-night*0.5);
+    ovx.fillStyle=l.col;
+    ovx.beginPath(); ovx.ellipse(0,0,7*S*l.s,3.5*S*l.s,0,0,6.283); ovx.fill();
+    ovx.restore();
+  });
+  fruits.forEach(f=>{
+    ovx.save(); ovx.translate(f.u*W,(f.v-f.z*0.05)*H);
+    ovx.globalAlpha=Math.min(1,(18-f.age)/3);
+    ovx.fillStyle='#c0262b'; ovx.beginPath(); ovx.arc(0,0,5.5*S,0,6.283); ovx.fill();
+    ovx.fillStyle='#5c3a13'; ovx.fillRect(-0.8*S,-7*S,1.6*S,3*S);
+    ovx.restore();
+  });
+  fires.forEach(f=>{
+    const p=Math.min(1,f.fuel/f.max), fx=f.u*W, fy=f.v*H;
+    for(let k=0;k<5;k++){
+      const hgt=(16+Math.sin(time*11+f.seed+k*2.2)*6)*S*p;
+      const wdt=(4+Math.sin(time*9+k)*1.5)*S*p;
+      const ox=Math.sin(time*7+k*1.9+f.seed)*4*S*p;
+      const g=ovx.createLinearGradient(fx+ox,fy,fx+ox,fy-hgt);
+      g.addColorStop(0,'rgba(255,120,20,0.9)');g.addColorStop(0.6,'rgba(255,60,30,0.75)');g.addColorStop(1,'rgba(255,220,90,0.15)');
+      ovx.fillStyle=g;
+      ovx.beginPath();
+      ovx.moveTo(fx+ox-wdt,fy); ovx.quadraticCurveTo(fx+ox,fy-hgt,fx+ox+wdt,fy);
+      ovx.fill();
+    }
+  });
+  smoke.forEach(s=>{
+    ovx.globalAlpha=s.life*0.3;
+    ovx.fillStyle= night>0.5?'rgba(120,125,140,1)':'rgba(90,90,96,1)';
+    ovx.beginPath(); ovx.arc(s.u*W,s.v*H,s.r*W,0,6.283); ovx.fill();
+  });
+  sparks.forEach(s=>{
+    ovx.globalAlpha=s.life;
+    ovx.fillStyle=Math.random()<0.5?'#ffb347':'#ff5533';
+    ovx.beginPath(); ovx.arc(s.u*W,s.v*H,1.6*S,0,6.283); ovx.fill();
+  });
+  breaths.forEach(b=>{
+    ovx.globalAlpha=b.life*0.35;
+    ovx.fillStyle='rgba(235,245,255,1)';
+    ovx.beginPath(); ovx.arc(b.u*W,b.v*H,b.r*W,0,6.283); ovx.fill();
+  });
+  ovx.globalAlpha=1;
+  if(player.active) drawPlayer(W,H,S,dt);
+}
+function drawPlayer(W,H,S,dt){
+  const tempC=CUR.temperature*50-20;
+  player.breathT+=dt*(1.7+player.exert*4.0);
+  const br=Math.sin(player.breathT)*(1+player.exert*1.6);
+  // Frost-Atem in Ausatemphase
+  const cyc=player.breathT%6.283;
+  if(tempC<5 && cyc>2.8 && cyc<4.6 && Math.random()<0.2)
+    breaths.push({u:player.u+0.004*(player.lookX||1),v:player.v-0.012,
+      vu:0.003*(player.lookX||1)+CUR.wind*0.006,vv:-0.002,r:0.0015,life:1});
+  const px=player.u*W, py=player.v*H;
+  const shiver=(tempC<0&&!player.dashT)?Math.sin(time*46)*Math.min(3,-tempC*0.2)*S:0;
+  ovx.save(); ovx.translate(px+shiver,py);
+  ovx.fillStyle='rgba(0,0,0,0.35)';
+  ovx.beginPath(); ovx.ellipse(0,4*S,10*S,4*S,0,0,6.283); ovx.fill();
+  // Körper (atmet)
+  let coat=player.wet>0.4?'#2c3e57':'#3b3b5c';
+  ovx.fillStyle=coat;
+  ovx.beginPath(); ovx.ellipse(0,-4*S,(8+br*0.5)*S,(9+br*0.7)*S,0,0,6.283); ovx.fill();
+  if(player.wet>0.15){ ovx.globalAlpha=Math.min(0.5,player.wet*0.5);
+    ovx.fillStyle='#48627f'; ovx.beginPath();
+    ovx.ellipse(0,(-1+br*0.2)*S,(8+br*0.5)*S,(5)*S,0,0,6.283); ovx.fill(); ovx.globalAlpha=1; }
+  // Kopf
+  ovx.fillStyle='#f3c99a';
+  ovx.beginPath(); ovx.arc(0,(-16+br*0.25)*S,6*S,0,6.283); ovx.fill();
+  // Haar (ergraut mit age)
+  const g=Math.round(30+player.age*180);
+  ovx.fillStyle=`rgb(${g},${g},${Math.round(40+player.age*175)})`;
+  ovx.beginPath(); ovx.arc(0,(-18.5+br*0.25)*S,6*S,Math.PI,6.283); ovx.fill();
+  // Augen (Blickrichtung)
+  ovx.fillStyle='#141414';
+  const lx=player.lookX*1.6*S, ly=(-16+br*0.25)*S+player.lookY*1.0*S;
+  ovx.beginPath(); ovx.arc(-2*S+lx,ly,1.3*S,0,6.283); ovx.arc(2*S+lx,ly,1.3*S,0,6.283); ovx.fill();
+  ovx.restore();
+}
+
+// --- Eingaben (Runde 4) ---
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){
+    keys[k]=true;
+    if(!player.active&&ready) spawnPlayer();
+    if(player.active) e.preventDefault();
+  }
+  if(k===' '&&player.active){ e.preventDefault(); dash(); }
+  if(k==='f'&&player.active){ igniteFire(player.u+0.012*(player.lookX||1), player.v); }
+});
+window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+
+document.getElementById('btn-fire').onclick=()=>{
+  fireToolActive=!fireToolActive;
+  ov.classList.toggle('firetool',fireToolActive);
+  const b=document.getElementById('btn-fire');
+  b.classList.toggle('active',fireToolActive);
+  b.textContent=fireToolActive?'🔥 Klicke in die Szene':'🔥 Feuer-Tool';
+};
+ov.addEventListener('click',e=>{
+  if(!fireToolActive||!ready)return;
+  const r=ov.getBoundingClientRect();       // CSS-Box -> UV (Prototyp-Bug Nr. 8!)
+  const u=(e.clientX-r.left)/r.width, v=(e.clientY-r.top)/r.height;
+  if(igniteFire(u,v)) setStatus('🔥 Feuer entzündet ('+(getMaterialTypeAt(u,v)||'?')+').');
+});
+document.getElementById('btn-clear-world').onclick=()=>{
+  trailClear(); fires.length=0; smoke.length=0; sparks.length=0;
+  setStatus('🧹 Spuren, Matsch und Brandflecken entfernt.');
+};
+
 // =========================== UI ===========================
 const setStatus=s=>document.getElementById('status').textContent=s;
 
 const slidersDiv=document.getElementById('sliders');
 PARAM_META.forEach(([key,label])=>{
+  if(key==='snow'){
+    const h=document.createElement('div');
+    h.style.cssText='font-size:9px;color:#7dd3fc;letter-spacing:1.5px;text-transform:uppercase;margin:10px 0 2px;border-top:1px solid #23233a;padding-top:8px';
+    h.textContent='Klima & Jahreszeit';
+    slidersDiv.appendChild(h);
+  }
   const d=document.createElement('div'); d.className='c';
   d.innerHTML=`<label>${label}<span class="v" id="v-${key}">${PARAMS[key].toFixed(2)}</span></label>
     <input type="range" id="s-${key}" min="0" max="100" value="${Math.round(PARAMS[key]*100)}">`;
@@ -788,6 +1535,7 @@ function loadImageFile(file,isMat){
     else{
       sceneImg=img;
       canvas.width=img.width; canvas.height=img.height;
+      ov.width=img.width; ov.height=img.height;
       gl.viewport(0,0,img.width,img.height);
       uploadTex(0,TEX.scene,0,0,img);
       gl.uniform2f(U.u_px,1/img.width,1/img.height);
@@ -822,7 +1570,10 @@ document.getElementById('btn-demo').onclick=async()=>{
 function erstellen(){
   if(!sceneImg){ setStatus('⚠️ Zuerst ein Bild laden!'); return false; }
   setStatus('🧠 Analysiere Materialien, Senken, Flussfeld, Lichtquellen …');
+  mossBoost=0;
+  trailClear(); fires.length=0; player.active=false;
   analyze();
+  initEco();
   defaultStoryboard();
   Object.assign(PARAMS,ACTS.tag.p); Object.assign(CUR,ACTS.tag.p); syncSliders();
   playStory();
@@ -840,17 +1591,24 @@ window.addEventListener('keydown',e=>{
   if(e.key==='Escape')document.body.classList.remove('cinema');
 });
 document.getElementById('btn-png').onclick=()=>{
-  canvas.toBlob(b=>{
+  const cap=document.createElement('canvas');
+  cap.width=canvas.width; cap.height=canvas.height;
+  const cc=cap.getContext('2d');
+  cc.drawImage(canvas,0,0); cc.drawImage(ov,0,0);   // Szene + Figur/Partikel
+  cap.toBlob(b=>{
     const a=document.createElement('a');
     a.href=URL.createObjectURL(b); a.download='SHADED_'+Date.now()+'.png'; a.click();
     URL.revokeObjectURL(a.href);
   },'image/png');
 };
-let recorder=null,chunks=[];
+let recorder=null,chunks=[],recCanvas=null,recCtx=null;
 document.getElementById('btn-rec').onclick=()=>{
   if(recorder){ recorder.stop(); return; }
   chunks=[];
-  const stream=canvas.captureStream(30);
+  recCanvas=document.createElement('canvas');
+  recCanvas.width=canvas.width; recCanvas.height=canvas.height;
+  recCtx=recCanvas.getContext('2d');
+  const stream=recCanvas.captureStream(30);
   let opt={mimeType:'video/webm; codecs=vp9'};
   if(!MediaRecorder.isTypeSupported(opt.mimeType))opt={mimeType:'video/webm'};
   recorder=new MediaRecorder(stream,opt);
@@ -875,24 +1633,56 @@ document.getElementById('btn-json').onclick=()=>{
   URL.revokeObjectURL(a.href);
 };
 document.getElementById('btn-play').onclick=()=>playing?stopStory():playStory();
+document.getElementById('btn-year').onclick=()=>{
+  yearStoryboard(); playStory(); setStatus('📅 Ein Jahr im Loop – Frühling bis Tauwetter.');
+};
+document.getElementById('btn-timelapse').onclick=()=>{
+  storyboard=[
+    {name:'Der letzte Tag',  dur:4,  p:{...ACTS.tag.p}},
+    {name:'Jahre vergehen',  dur:22, p:{...ACTS.verfall.p}, animate:{decay:{from:0,to:1}}},
+    {name:'Vergessen',       dur:6,  p:{...ACTS.verfall.p}}
+  ];
+  renderStory(); playStory();
+  setStatus('⏳ Zeitraffer: Das Dorf altert vor Deinen Augen (decay 0→1).');
+};
 document.getElementById('btn-add').onclick=()=>{
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
 };
 
 // =========================== Render-Loop ===========================
-let time=0,lastT=0;
-function frame(now){
-  const dt=Math.min(0.05,(now-lastT)/1000||0); lastT=now;
-  time+=dt;
+// Welt-Logik läuft in festen Substeps (max 50 ms): Die Weltzeit folgt der
+// Echtzeit auch bei niedriger Framerate (Headless, schwache GPU, Tab-Drossel).
+let time=0,lastT=0,mossBoost=0,timeFrozen=false;
+function tickWorld(dt){
+  if(!timeFrozen) time+=dt;
   tickStory(dt);
   tickActBlend(dt);
   if(!playing&&!actBlend) for(const key in PARAMS) CUR[key]+= (PARAMS[key]-CUR[key])*Math.min(1,dt*4);
+  if(ready){
+    // Feuchte-Patina: lange Nässe lässt Moos schneller kommen (persistiert über Akte)
+    mossBoost = Math.min(1, mossBoost + dt*Math.max(0, CUR.wet-0.5)*0.02);
+    playerTick(dt);
+    fireTick(dt);
+    ecoTick(dt);
+    trailTick(dt);
+  }
+}
+function frame(now){
+  let acc=Math.min(1.0,(now-lastT)/1000||0); lastT=now;
+  const frameDt=acc;
+  while(acc>0){ const s=Math.min(0.05,acc); tickWorld(s); acc-=s; }
+  const dt=frameDt;
+  if(ready) trailUpload();
 
   if(sceneImg){
     gl.uniform1f(U.u_time,time);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
+    gl.uniform1f(U.u_mossBoost, ready? mossBoost*0.3 : 0);
+    fireUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    drawOverlay(dt);
+    if(recorder&&recCtx){ recCtx.drawImage(canvas,0,0); recCtx.drawImage(ov,0,0); }
   }
   requestAnimationFrame(frame);
 }
@@ -900,16 +1690,31 @@ requestAnimationFrame(frame);
 
 // =========================== Agent-/Test-API (nicht entfernen!) ===========================
 window.SHADED = {
-  version:'1.0.0',
+  version:'1.2.0',
   erstellen,
   applyAct:(id)=>applyAct(id,true),
   setParams:(p)=>{ stopStory(); Object.assign(PARAMS,p); Object.assign(CUR,p); syncSliders(); },
   getParams:()=>({...CUR}),
-  setTime:(t)=>{ time=t; },
+  setTime:(t,freeze)=>{ time=t; timeFrozen=!!freeze; },  // freeze=true: deterministische Frames
   isReady:()=>ready,
   getMaterialTypeAt,
   story:{ play:playStory, stop:stopStory, board:()=>storyboard },
-  loadImageFile
+  loadImageFile,
+  // Runde 4
+  player:{ enable:spawnPlayer, pos:()=>({u:player.u,v:player.v,active:player.active,wet:player.wet}),
+           setAge:(a)=>{player.age=Math.max(0,Math.min(1,a));},
+           move:(du,dv)=>{                       // direkter Schritt inkl. Fußspuren (Tests/Agenten)
+             if(!player.active) spawnPlayer();
+             const steps=Math.max(1,Math.ceil(Math.hypot(du,dv)/0.012));
+             for(let s2=0;s2<steps;s2++){
+               player.u=Math.max(0.01,Math.min(0.99,player.u+du/steps));
+               player.v=Math.max(0.01,Math.min(0.99,player.v+dv/steps));
+               trailStamp(player.u,player.v+0.006,0.007,0,0.7);
+               trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
+             }
+           } },
+  fire:{ ignite:igniteFire, list:()=>fires.map(f=>({u:f.u,v:f.v,fuel:f.fuel})) },
+  trail:{ clear:trailClear, sample:trailSample }
 };
 </script>
 </body>

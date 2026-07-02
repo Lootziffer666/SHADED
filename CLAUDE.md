@@ -16,6 +16,9 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
    path `#DC2626`, wood `#854D0E`, window `#0F766E`, water `#06B6D4`, rock `#475569`.
    **`#F972E9` ist ein historischer Zahlendreher von `#F97316`** und wird nur als
    Legacy-Alias toleriert. Neue Farben werden in `PALETTE` ergänzt, nirgendwo hart codiert.
+   Zusätzlich versteht das Zweitbild ein **Fenster-Marker-Overlay**: eine Szenen-Kopie,
+   in der nur Fenster magenta-pink übermalt sind (auto-erkannt via Paletten-Abdeckung).
+   Marker sind eine Nutzer-Ansage – sie haben IMMER Vorrang vor Heuristik-Validierung.
 4. **Der Prototyp ist eingefroren.** `gaime_shader_editor_pro_v2_6_bio_physics_edition.html`
    dient nur als Ideen-Referenz. Nicht editieren, nicht fixen, nichts blind kopieren –
    seine dokumentierten Bugs (Paletten-Mismatch, `gl.TEXTURE2D+2`, `s-fol-*`-IDs,
@@ -27,8 +30,10 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
    9 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
    Akte/Storyboard integriert – keine Spezial-Codepfade an der Engine vorbei.
-7. **Texture-Unit 5 ist reserviert** für die Trail-/Störungstextur aus Runde 4.
-   Units: 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis.
+7. **Texture-Units:** 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis,
+   5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
+   B Trampelpfad permanent, A Hitze/Brand ~25 s). Trail-Decay wirkt IMMER direkt
+   auf den Pixeldaten – nie über Canvas-Composite-Tricks.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 
