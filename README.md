@@ -46,6 +46,7 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 | `gaime_shader_editor_pro_v2_6_bio_physics_edition.html` | **Eingefrorener Prototyp** – nur Referenz, nicht anfassen |
 | `index.html` | Die App (Runde 1: Wasser, Sturm, Atmosphäre) |
 | `tools/verify.js` | Headless-Verifikation (Playwright): Screenshots aller Akte |
+| `tools/register.js` | **Registrierung**: findet die Kameraprojektion eines Referenzbilds gegen ein GLB – Pflicht-Schritt VOR jeder Depth-/Normal-Ableitung, siehe [`docs/registrierung.md`](docs/registrierung.md) |
 
 ## Kanonische Material-Palette
 
