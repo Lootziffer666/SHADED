@@ -35,6 +35,11 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 | `1782823374309.png` | Physik-Referenz Nacht: Wasserflussnetz, Warmlichtreflexionen, Nebelschleier |
 | `1782824829119.png` | Selbstgemalte Material-Map (kanonische Palette, siehe unten) |
 | `1782826101420.png` | Verfalls-Referenz („Jahre später“, Akt-Preset `verfall`) |
+| `file_00000000c40471f4859a10d6bf3ac39b.png` | **Kanon-Dorf top-down** – Beleg für den Bildkanon (Fachwerk, Holzrahmen-Blauglas, Schiefer- & Terracotta-Dächer) |
+| `file_00000000723471f48a11eaa8371edfb7.png` | **Kanon-Dorf perspektivisch MIT Himmel** – Testfall für die Himmel-Regel (K7) |
+| `file_000000002b2871f4891c9f18768440ca.png` | **Marker-Overlay zum Kanon-Dorf top-down** (Fenster pink) – Ground Truth für den Rahmen-Fenster-Detektor |
+| `file_00000000d34071f49ef2a68356e1ac7d.png` | **Marker-Overlay zum Kanon-Dorf perspektivisch** (Fenster pink) – Ground Truth |
+| `Hitem3d-1783102077836-v1.glb` | **3D-Modell des Dorfes** (nicht perfekt) – Geometrie-Referenz für Runde 5+ und Quelle für künftige Tiefenkarten |
 | `gaime_shader_editor_pro_v2_6_bio_physics_edition.html` | **Eingefrorener Prototyp** – nur Referenz, nicht anfassen |
 | `index.html` | Die App (Runde 1: Wasser, Sturm, Atmosphäre) |
 | `tools/verify.js` | Headless-Verifikation (Playwright): Screenshots aller Akte |
@@ -54,7 +59,7 @@ Für selbstgemalte Material-Maps (zweiter Datei-Input). **Achtung, historischer 
 | water | `#06B6D4` | Wasserflächen – immer spiegelnd |
 | rock | `#475569` | Fels/Steine |
 
-Ohne Map segmentiert SHADED das Bild selbst (HSL-Heuristik + Majority-Filter + morphologische Fenster-Erkennung).
+Ohne Map segmentiert SHADED das Bild selbst: HSL-Heuristik + Majority-Filter + **Kanon-Detektoren** nach dem verbindlichen [Bildkanon](docs/bildkanon.md) – Rahmen-Fenster (Glas nur im geschlossenen Holzrahmen, K3/K4), Himmel-Regel (blau-dominante helle Oberkanten-Region wird inert, K7) und Struktur-Pass (Dach-/Bodenanker: begehbare Flächen müssen am Boden verankert sein).
 
 **Der Korrektur-Workflow – das Marker-Overlay:** Statt einer vollen Material-Map kannst Du als Zweitbild eine **Kopie der Szene** hochladen, in der Du nur dort übermalst, wo die Automatik danebenliegt. SHADED erkennt das Format automatisch (geringe Paletten-Abdeckung = Overlay) und wertet **ausschließlich die Pixel aus, die sich vom Original unterscheiden**:
 
@@ -62,6 +67,8 @@ Ohne Map segmentiert SHADED das Bild selbst (HSL-Heuristik + Majority-Filter + m
 - **Jede andere kanonische Palettenfarbe** = **lokale Klassen-Korrektur**: z. B. Dach-Orange über eine Terrasse malen, die fälschlich als Pfad erkannt wurde, oder Holz-Braun über eine falsch erkannte Fläche. Der Rest des Bildes bleibt vollautomatisch.
 
 So liefert der Workflow deterministisch Dorf-Qualität für jedes Bild – ohne KI, mit zwei Minuten Malaufwand nur an den Fehlstellen. Pink direkt im Szenenbild selbst funktioniert ebenfalls.
+
+**2.5D-Parallaxe (optional, dritter Datei-Input):** Eine Graustufen-**Tiefenkarte** (Weiß = nah, Schwarz = fern) macht die Szene räumlich – die Maus über der Bühne schwenkt die Kamera minimal (max. 3,5 %), Nahes verschiebt sich stärker als Fernes. Liegt neben `bild.png` eine `bild_depth.png` auf dem Server, wird sie automatisch geladen. Ohne Tiefenkarte bleibt alles exakt wie bisher (flach, deterministisch). Der UV-Versatz passiert VOR allen Textur-Lookups, damit Szene, Masken, Physik und Trails dieselbe verschobene Welt sehen. Test-API: `SHADED.parallax.set(x,y)` / `.hasDepth()`.
 
 ## Architektur (Kurzfassung)
 
@@ -82,7 +89,7 @@ Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipel
 
 Der verbindliche Fahrplan (Runde 1–4) ist komplett umgesetzt. Darauf aufbauend:
 
-- **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird – Inkrement 1 (Bodenanker: begehbare Flächen müssen am Boden verankert sein) ✅; als Nächstes Gebäudezonen aus Dach-Saat, Wand/Boden-Split, zonenbasierte Fenster-Validierung → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
+- **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird. Grundlage ist der **verbindliche [Bildkanon](docs/bildkanon.md)** (Häuser sind Fachwerk, Fenster sind IMMER holzgerahmt, Glas ohne Rahmen = kein Fenster, Himmel ist oben & inert). Umgesetzt: Bodenanker + Dach-Anker (Adjazenz-Ringe) ✅, Rahmen-Fenster-Detektor (K3/K4) ✅, Himmel-Regel (K7) ✅; als Nächstes die Fachwerk-Signatur (K1) → Gebäudezonen → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
 
 **Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze“-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
 
@@ -99,7 +106,9 @@ node tools/verify.js        # schreibt tools/verify-out/shot_<akt>.png
 # 2. Screenshots ANSCHAUEN (Bild-Tool) und gegen die Zielbilder vergleichen:
 #    shot_sturmnacht.png  vs. file_00000000b27471f4a8aeb27484b46720.png
 #    shot_danach.png      vs. file_00000000fbc472438dcc92aff24bed6e.png
-# 3. Konsole-Fehler in der verify-Ausgabe müssen leer sein (ein favicon-404 ist ok).
+# 3. Konsole-Fehler in der verify-Ausgabe müssen leer sein. Ausnahme: 404er
+#    vom favicon und von den automatischen `<bild>_depth.png`-Proben (2.5D)
+#    sind harmlos – jede Szene ohne Tiefenkarte erzeugt genau einen davon.
 ```
 
 Programmatischer Zugriff im Browser (Test-API, nicht entfernen):

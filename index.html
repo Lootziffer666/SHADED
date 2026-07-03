@@ -60,6 +60,8 @@ body.cinema #exit-cinema{display:block}
   <input type="file" id="f-scene" accept="image/*" title="Szenenbild laden">
   <input type="file" id="f-mat" accept="image/*" title="Optional: gemalte Material-Map">
   <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional – zwei Formate: volle Material-Map (kanonische Palette) ODER eine Kopie der Szene, in der nur die Fenster pink (#F972E9) übermalt sind. Ohne Zweitbild analysiert SHADED alles selbst.</div>
+  <input type="file" id="f-depth" accept="image/*" title="Optional: 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern)">
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Dritte Datei optional: Tiefenkarte (Weiß = nah) für 2.5D-Parallaxe – die Maus schwenkt dann die Kamera. Liegt neben <code>bild.png</code> eine <code>bild_depth.png</code> auf dem Server, wird sie automatisch geladen.</div>
   <button id="btn-demo" style="width:100%">🖼️ Demo-Dorf laden (aus Repo)</button>
 
   <h2>2 · Erstellen</h2>
@@ -185,6 +187,8 @@ uniform float u_mossBoost;  // Feuchte-Patina: akkumuliert bei langer Nässe (CP
 uniform sampler2D u_trail;  // Runde 4: r=Störung/Delle g=Impuls b=Trampelpfad a=Hitze/Brand
 uniform vec4 u_fires[8];    // Lagerfeuer: xy=uv z=Intensität w=Radius
 uniform float u_fireCount;
+uniform sampler2D u_depth;  // 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern); ohne Upload 1x1 schwarz = flach
+uniform vec2 u_parallax;    // Maus-/Kamera-Versatz (0,0 ohne Interaktion -> deterministische Frames)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -210,6 +214,13 @@ void main(){
   vec2 uv = v_uv;
   float t = u_time;
   float night = u_dayNight;
+
+  // --- 2.5D-Parallaxe: Nahes (weiß in u_depth) verschiebt sich stärker. ---
+  // Der Versatz passiert VOR allen Lookups, damit Szene, Masken, Physik und
+  // Trail dieselbe verschobene Welt sehen (eine Material-Wahrheit!).
+  float depthVal = texture2D(u_depth, uv).r;
+  uv += u_parallax * depthVal;
+  uv = clamp(uv, vec2(0.001), vec2(0.999));
 
   vec4 mA = texture2D(u_maskA,uv);   // r=grass g=foliage b=roof a=path
   vec4 mB = texture2D(u_maskB,uv);   // r=wood  g=window  b=water a=rock
@@ -575,7 +586,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
- 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]',
+ 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -589,9 +600,10 @@ function mkTex(unit){
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   return t;
 }
-const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5) };
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6) };
 gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
 gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);  gl.uniform1i(U.u_trail,5);
+gl.uniform1i(U.u_depth,6); gl.uniform2f(U.u_parallax,0,0);
 gl.uniform1f(U.u_fireCount,0);
 
 // === Runde 4: Trail-/Störungstextur (Unit 5) ===
@@ -670,7 +682,8 @@ function classifyScenePixel(r,g,b){
   if(h>=295&&h<=340&&s>0.7&&l>0.45&&l<0.85) return N;
   if(s<=0.14){ if(l<0.22) return W; if(l<0.52) return K; return P; }
   if(h>=270&&h<=345) return (l>0.28&&s>0.2)? F : W;  // helle Blütenbäume vs. dunkle Konturen
-  if(h>=60&&h<170)  return l>0.42? G : F;    // helles Gras vs. dunkle Kronen
+  if(h>=60&&h<170)                            // Wiese vs. Kronen: Helligkeit ODER
+    return (l>0.42 || (h<95&&s>0.5&&l>0.28)) ? G : F;  // satt-gelbgrüner Wiesenton
   if(h>=170&&h<205){                          // Teal: Türen/Fenster nur satt & mittelhell,
     if(s>0.28&&l>=0.14&&l<0.40) return N;     // dunkle Blaugrün-Schatten sind Laub
     return l<0.40? F : A;
@@ -761,8 +774,9 @@ function chamfer(mask,w,h){ // Distanz zum Maskenrand, innerhalb mask>0.5
 }
 
 function analyze(){
-  // Analyse-Auflösung: schnell, aber fein genug für Masken
-  AW = Math.min(512, sceneImg.width);
+  // Analyse-Auflösung: fein genug, dass Sprossenfenster-Scheiben (K3) bei
+  // 1440p-Bildern nicht unter das Raster fallen. Läuft einmalig bei Erstellen.
+  AW = Math.min(768, sceneImg.width);
   AH = Math.round(AW * sceneImg.height/sceneImg.width);
   const cv=document.createElement('canvas'); cv.width=AW; cv.height=AH;
   const cx=cv.getContext('2d',{willReadFrequently:true});
@@ -822,7 +836,7 @@ function analyze(){
   // Fenster-Plausibilität: ein Fenster ohne Gebäude drumherum ist ein Baumschatten.
   if(!useMap){
     const fixed=new Uint8Array(classGrid);
-    const RAD=4;
+    const RAD=Math.max(4,Math.round(AW/128));  // skaliert mit Analyseauflösung
     for(let y=0;y<AH;y++)for(let x=0;x<AW;x++){
       const j=y*AW+x;
       if(classGrid[j]!==N)continue;
@@ -841,121 +855,107 @@ function analyze(){
     }
     classGrid=fixed;
 
-    if(!markerMode){
-    // Tür-/Fensteröffnungen: dunkle KOMPAKTE Blobs in Fassaden. Morphologisches
-    // Opening (Erosion+Dilation) lässt dünne Fachwerkbalken verschwinden,
-    // Türen und Fensterhöhlen überleben – sie bekommen nachts das Warmlicht.
-    const darkM=new Uint8Array(AW*AH);
-    for(let j=0;j<AW*AH;j++) darkM[j]= classGrid[j]===W?1:0;
-    const erF=new Float32Array(darkM); boxBlur(erF,AW,AH,2,1);
-    const opened=new Uint8Array(AW*AH);
-    for(let j=0;j<AW*AH;j++) opened[j]= erF[j]>0.94?1:0;  // Erosion: Balken weg
-    const dil=new Float32Array(opened); boxBlur(dil,AW,AH,2,1);
-    const cand=new Uint8Array(AW*AH);
-    for(let j=0;j<AW*AH;j++) cand[j]= (dil[j]>0.06 && darkM[j])?1:0;
-
-    // Connected Components: nur kompakte Blobs in Fenstergröße werden Lichter,
-    // ganze dunkle Fassaden oder Riesenflächen bleiben, was sie sind.
-    const minArea=5, maxArea=Math.max(60, AW*AH*0.004);
-    const maxBW=AW*0.08, maxBH=AH*0.14;
-    const seen=new Uint8Array(AW*AH), stack=[];
-    for(let s0=0;s0<AW*AH;s0++){
-      if(!cand[s0]||seen[s0])continue;
-      stack.length=0; stack.push(s0); seen[s0]=1;
-      const blob=[];
-      while(stack.length){
-        const j=stack.pop(); blob.push(j);
-        const y=Math.floor(j/AW),x=j%AW;
-        if(x>0&&cand[j-1]&&!seen[j-1]){seen[j-1]=1;stack.push(j-1);}
-        if(x<AW-1&&cand[j+1]&&!seen[j+1]){seen[j+1]=1;stack.push(j+1);}
-        if(y>0&&cand[j-AW]&&!seen[j-AW]){seen[j-AW]=1;stack.push(j-AW);}
-        if(y<AH-1&&cand[j+AW]&&!seen[j+AW]){seen[j+AW]=1;stack.push(j+AW);}
+    // === BILDKANON K7: Himmel ist oben und inert ===
+    // Flood von der Oberkante über {Wasser,Wand,Fels}-Pixel. Nur wenn die
+    // Region groß, hell und BLAU-dominant ist, ist sie Himmel -> Fels-Klasse
+    // (inert: kein Pfützenspiegel, kein Flussnetz, kein Sway). Sandpfade, die
+    // die Oberkante berühren, sind rot-dominant und bleiben unangetastet.
+    {
+      const skyC=c=>c===A||c===P||c===K;
+      const inSky=new Uint8Array(AW*AH), stH=[];
+      for(let x=0;x<AW;x++)for(let y=0;y<2;y++){
+        const j=y*AW+x;
+        if(skyC(classGrid[j])&&!inSky[j]){inSky[j]=1;stH.push(j);}
       }
-      if(blob.length<minArea||blob.length>maxArea)continue;
-      // Fensterform: kompakt und ungefähr rechteckig – keine Schattenstreifen,
-      // keine First-/Traufen-Flecken
-      let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
-      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
-        if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0v)y0v=y; if(y>y1v)y1v=y;});
-      const bw=x1-x0+1, bh=y1v-y0v+1;
-      const boxAspect=bw/bh, fill=blob.length/(bw*bh);
-      if(boxAspect<0.3||boxAspect>3.2||fill<0.45) continue;
-      if(bw>maxBW||bh>maxBH) continue;
-      // Fassaden-Check am Blob-Schwerpunkt: Wand muss dominieren, Dach klar nicht
-      let cx=0,cy=0; blob.forEach(j=>{cx+=j%AW;cy+=Math.floor(j/AW);});
-      cx=Math.round(cx/blob.length); cy=Math.round(cy/blob.length);
-      let veg=0,wall=0,roof=0,wood=0;
-      for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){
-        const yy=cy+dy,xx=cx+dx;
-        if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
-        const c=classGrid[yy*AW+xx];
-        if(c===G||c===F)veg++;
-        else if(c===P||c===K)wall++;
-        else if(c===W)wood++;
-        else if(c===R)roof++;
+      const region=[];
+      let sr=0,sg=0,sb=0;
+      while(stH.length){
+        const j=stH.pop(); region.push(j);
+        sr+=px[j*4];sg+=px[j*4+1];sb+=px[j*4+2];
+        const y=(j/AW)|0,x=j%AW;
+        if(x>0&&skyC(classGrid[j-1])&&!inSky[j-1]){inSky[j-1]=1;stH.push(j-1);}
+        if(x<AW-1&&skyC(classGrid[j+1])&&!inSky[j+1]){inSky[j+1]=1;stH.push(j+1);}
+        if(y>0&&skyC(classGrid[j-AW])&&!inSky[j-AW]){inSky[j-AW]=1;stH.push(j-AW);}
+        if(y<AH-1&&skyC(classGrid[j+AW])&&!inSky[j+AW]){inSky[j+AW]=1;stH.push(j+AW);}
       }
-      const wallScore=wall+wood*0.7;   // dunkle Fachwerk-Fassaden sind auch Fassaden!
-      if(wallScore>veg*0.8 && wallScore>roof*1.2 && wallScore>=12){
-        // Die GANZE Box wird Fenster: nachts leuchtet ein sauberes Rechteck,
-        // wie in der Zielreferenz – nicht die ausgefranste Blob-Silhouette.
-        for(let y=y0v;y<=y1v;y++)for(let x=x0;x<=x1;x++){
-          const c=classGrid[y*AW+x];
-          if(c!==R&&c!==F) classGrid[y*AW+x]=N;
-        }
+      if(region.length>AW*AH*0.02){
+        sr/=region.length; sg/=region.length; sb/=region.length;
+        const lum=(sr*0.299+sg*0.587+sb*0.114);
+        if(sb>sr && lum>110) region.forEach(j=>classGrid[j]=K);
       }
     }
 
-    // Umgekehrte Polarität: helle Fensterscheiben in DUNKLEN Fachwerk-Fassaden –
-    // kleine, kompakte helle Inseln (Wand- ODER Fels-klassifiziert: graue Scheiben
-    // landen als K), deren Umfeld von Holz dominiert wird.
-    const isPane=c=>c===P||c===K;
-    const seenP=new Uint8Array(AW*AH), stP=[];
-    for(let s0=0;s0<AW*AH;s0++){
-      if(!isPane(classGrid[s0])||seenP[s0])continue;
-      stP.length=0; stP.push(s0); seenP[s0]=1;
-      const blob=[];
-      while(stP.length){
-        const j=stP.pop(); blob.push(j);
-        const y=(j/AW)|0,x=j%AW;
-        if(x>0&&isPane(classGrid[j-1])&&!seenP[j-1]){seenP[j-1]=1;stP.push(j-1);}
-        if(x<AW-1&&isPane(classGrid[j+1])&&!seenP[j+1]){seenP[j+1]=1;stP.push(j+1);}
-        if(y>0&&isPane(classGrid[j-AW])&&!seenP[j-AW]){seenP[j-AW]=1;stP.push(j-AW);}
-        if(y<AH-1&&isPane(classGrid[j+AW])&&!seenP[j+AW]){seenP[j+AW]=1;stP.push(j+AW);}
+    if(!markerMode){
+    // === BILDKANON K3/K4 (docs/bildkanon.md): Fenster = geschlossener Holzrahmen
+    // mit Nicht-Holz-Füllung. Die Füllung darf ALLES sein – Blauglas (Wasser-
+    // klassifiziert), Grauglas (Fels/Wand), warm erleuchtet (Dach-farbig) oder
+    // dunkel. Entscheidend ist allein der Holzring. Glas ohne Rahmen = nie
+    // Fenster (ersetzt Dunkel-Blob- und Scheiben-Detektor vollständig).
+    // minArea=2: Sprossenfenster (K3) zerfallen am Analyseraster in 2-3-px-
+    // Scheiben. Präzision liefern Farbtor + K1-Wandbeleg, nicht die Größe.
+    const minArea=2, maxArea=Math.max(60, AW*AH*0.004);
+    const maxBW=AW*0.08, maxBH=AH*0.14;
+    {
+      // Fensterglas ist im Kanon dunkles, sattes Blau – das klassifiziert die
+      // Farb-Heuristik als Laub/Holz und es ginge als Füllung verloren. Deshalb
+      // zählt zur Füllung auch jedes roh-blaue Pixel, egal welche Klasse.
+      const rawBlue=j=>{const r=px[j*4],g=px[j*4+1],b=px[j*4+2];
+        return b>g && b>r+15 && b-Math.min(r,g)>30;};
+      const FILLJ=j=>{const c=classGrid[j];
+        return c===K||c===P||c===A||c===R||((c===F||c===W)&&rawBlue(j));};
+      const seenFr=new Uint8Array(AW*AH), stFr=[];
+      for(let s0=0;s0<AW*AH;s0++){
+        if(!FILLJ(s0)||seenFr[s0])continue;
+        stFr.length=0; stFr.push(s0); seenFr[s0]=1;
+        const blob=[];
+        let touchBorder=false;
+        while(stFr.length){
+          const j=stFr.pop(); blob.push(j);
+          const y=(j/AW)|0,x=j%AW;
+          if(x===0||x===AW-1||y===0||y===AH-1)touchBorder=true;
+          if(x>0&&FILLJ(j-1)&&!seenFr[j-1]){seenFr[j-1]=1;stFr.push(j-1);}
+          if(x<AW-1&&FILLJ(j+1)&&!seenFr[j+1]){seenFr[j+1]=1;stFr.push(j+1);}
+          if(y>0&&FILLJ(j-AW)&&!seenFr[j-AW]){seenFr[j-AW]=1;stFr.push(j-AW);}
+          if(y<AH-1&&FILLJ(j+AW)&&!seenFr[j+AW]){seenFr[j+AW]=1;stFr.push(j+AW);}
+        }
+        if(touchBorder)continue;                       // Randflächen sind nie Fenster
+        if(blob.length<minArea||blob.length>maxArea)continue;
+        let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
+        blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
+          if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
+        const bw=x1-x0+1,bh=y1v-y0v+1;
+        if(bw/bh<0.28||bw/bh>3.5||blob.length/(bw*bh)<0.45)continue;
+        if(bw>maxBW||bh>maxBH)continue;
+        // Direktring (1 px um den Blob): Holzanteil entscheidet
+        const inBlob=new Set(blob);
+        let ring=0,wood=0;
+        for(const j of blob){
+          const y=(j/AW)|0,x=j%AW;
+          for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]){
+            const xx=x+dx,yy=y+dy;
+            if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+            const nj=yy*AW+xx;
+            if(inBlob.has(nj))continue;
+            ring++;
+            if(classGrid[nj]===W)wood++;
+          }
+        }
+        if(!(ring>0 && wood>=ring*0.55))continue;
+        // K3/K4-Farbtor gegen das Gefach-Paradox: Putzfelder sind ebenfalls
+        // holzgerahmt! Fensterfüllung ist sattes Blauglas ODER hell-sattes
+        // Warmlicht. Bewusst KEIN "einfach dunkel"-Tor: das griff jede
+        // Schattenritze zwischen Planken/Ziegeln und jedes Astloch ab –
+        // Putz (Sat ~90), Terracotta (Lum ~110) und Steine (Sat <35) liegen
+        // alle außerhalb dieser beiden Tore.
+        let fr2=0,fg2=0,fb2=0;
+        blob.forEach(j=>{fr2+=px[j*4];fg2+=px[j*4+1];fb2+=px[j*4+2];});
+        fr2/=blob.length;fg2/=blob.length;fb2/=blob.length;
+        const fLum=fr2*0.299+fg2*0.587+fb2*0.114;
+        const fSat=Math.max(fr2,fg2,fb2)-Math.min(fr2,fg2,fb2);
+        const windowLike=(fb2>fg2 && fb2>fr2+15 && fSat>35)       // Blauglas
+                      || (fr2>fb2 && fSat>120 && fLum>120);       // warm erleuchtet
+        if(windowLike) blob.forEach(j=>classGrid[j]=N);
       }
-      if(blob.length<4||blob.length>maxArea)continue;   // Riesenflächen = Wände+Boden
-      let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
-      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
-        if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
-      const bw=x1-x0+1,bh=y1v-y0v+1;
-      if(bw/bh<0.3||bw/bh>3.2||blob.length/(bw*bh)<0.45)continue;
-      if(bw>maxBW||bh>maxBH)continue;
-      // Farbe: Scheiben sind neutral/bläulich – warme Cremewände sind KEINE Fenster
-      let mr=0,mb=0;
-      blob.forEach(j=>{mr+=px[j*4];mb+=px[j*4+2];});
-      mr/=blob.length;mb/=blob.length;
-      if(mr-mb>25)continue;
-      // Ring UM die Scheibe (nicht ihr Inneres) muss holzdominiert UND dunkel sein:
-      // Fenster leuchten aus dunklen Fassaden – hellgraue Ziegel-Umgebung ist Dach.
-      let veg=0,wall=0,roof=0,wood=0,ring=0,ringLum=0;
-      for(let y=Math.max(0,y0v-4);y<=Math.min(AH-1,y1v+4);y++)
-      for(let x=Math.max(0,x0-4);x<=Math.min(AW-1,x1+4);x++){
-        if(x>=x0&&x<=x1&&y>=y0v&&y<=y1v)continue;
-        const c=classGrid[y*AW+x]; ring++;
-        const jj=(y*AW+x)*4;
-        ringLum += px[jj]*0.299+px[jj+1]*0.587+px[jj+2]*0.114;
-        if(c===G||c===F)veg++;
-        else if(c===P||c===K)wall++;
-        else if(c===W)wood++;
-        else if(c===R)roof++;
-      }
-      ringLum/=Math.max(1,ring);
-      // konservativ: lieber KEIN Fenster als falsche (Korrektur geht per Overlay)
-      let blobLum=0;
-      blob.forEach(j=>{blobLum+=px[j*4]*0.299+px[j*4+1]*0.587+px[j*4+2]*0.114;});
-      blobLum/=blob.length;
-      if(wood>ring*0.35 && wood>veg && wood>roof && roof<ring*0.15 && wood>=14
-         && ringLum<68 && blob.length>=6 && blobLum>ringLum+45)
-        blob.forEach(j=>classGrid[j]=N);
     }
 
     // Finale Fenster-Validierung: JEDES Licht (auch aus der Teal-Regel) muss wie
@@ -978,14 +978,20 @@ function analyze(){
         if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
       cx=Math.round(cx/blob.length);cy=Math.round(cy/blob.length);
       const bw=x1-x0+1,bh=y1v-y0v+1;
-      const okShape = blob.length>=4 && blob.length<=maxArea &&
+      const okShape = blob.length>=2 && blob.length<=maxArea &&
         bw/bh>=0.3 && bw/bh<=3.2 && blob.length/(bw*bh)>=0.4 &&
         bw<=maxBW && bh<=maxBH;
-      let veg=0,wall=0,roof=0,wood=0;
-      for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){
+      // Umfeldradius skaliert mit Analyseauflösung UND Blobgröße: bei großen
+      // Perspektiv-Fenstern muss das Prüffenster über den Rahmen hinausreichen,
+      // sonst sieht es nur Glas und Holz. Fensterzellen zählen nicht als Umfeld.
+      const RADV=Math.max(6,Math.round(AW/85))+(Math.max(bw,bh)>>1);
+      let veg=0,wall=0,roof=0,wood=0,cells=0;
+      for(let dy=-RADV;dy<=RADV;dy++)for(let dx=-RADV;dx<=RADV;dx++){
         const yy=cy+dy,xx=cx+dx;
         if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
         const c=classGrid[yy*AW+xx];
+        if(c===N)continue;
+        cells++;
         if(c===G||c===F)veg++;
         else if(c===P||c===K)wall++;
         else if(c===W)wood++;
@@ -997,8 +1003,14 @@ function analyze(){
       let pinkN=0;
       blob.forEach(j=>{ if(px[j*4]>190&&px[j*4+2]>170&&px[j*4+1]<160) pinkN++; });
       const explicitPink = pinkN > blob.length*0.25;
+      // K1-Beleg: Fenster sitzen in Fachwerk-Fassaden, also gibt es im Umfeld
+      // immer Putz/Wandflächen (P/K). Astlöcher in Kronen und Ritzen in
+      // Plankendecks haben nur Holz um sich – die fliegen hier raus.
+      // Verhältnis-Tore bewusst locker (Perspektive: Fenster unter Traufkanten,
+      // Gauben vor Baumkulisse) – die Präzision liefert das K3/K4-Farbtor.
       const wsc=wall+wood*0.7;
-      if(!explicitPink && !(okShape && wsc>veg*0.8 && wsc>roof*1.2 && wsc>=12))
+      if(!explicitPink &&
+         !(okShape && wall>=cells*0.06 && wsc>veg*0.4 && wsc>roof*0.6 && wsc>=cells*0.07))
         blob.forEach(j=>classGrid[j]=K);
     }
     } // Ende !markerMode (Heuristik-Fensterdetektoren)
@@ -1009,7 +1021,63 @@ function analyze(){
     // kaum Gras-/Wasserkontakt hat, ist eine Gebäudeoberfläche (Terrasse,
     // Balkon, Vordach) -> Fels. Erst dadurch bleiben Pfützen-Chamfer,
     // Flussfeld und Bleed dem ECHTEN Boden vorbehalten.
-    structDiag = {pathComponents:0, pathToRock:0, pathToRockPx:0};
+    structDiag = {pathComponents:0, pathToRock:0, pathToRockPx:0, roofToPath:0, roofToPathPx:0};
+    // Mindest-Komponentengröße: die Anker beurteilen FLÄCHEN (Terrassen,
+    // Terracotta-Wege), keine Sprenkel. Bei feinem Raster zerhacken Konturen
+    // den Boden in hunderte Mini-Fragmente, deren Adjazenzringe von lokalen
+    // Sprenkeln dominiert werden – die kaskadierten sonst zu Fels.
+    const minStruct = Math.max(24, Math.round(AW*AH*0.0002));
+
+    // Dach-Anker (Kanon K2/K7): Eine "Dach"-Komponente, deren Umfeld gras-
+    // dominiert und fensterlos ist, hängt an keinem Gebäude – das ist Boden
+    // (Terracotta-Pfad, der farblich in die Dachregel fiel). Bäume (F) zählen
+    // NICHT als Bodenbeweis: Wälder überhängen echte Dächer.
+    {
+      const seenR=new Uint8Array(AW*AH), stR=[];
+      for(let s0=0;s0<AW*AH;s0++){
+        if(classGrid[s0]!==R||seenR[s0])continue;
+        stR.length=0; stR.push(s0); seenR[s0]=1;
+        const blob=[];
+        while(stR.length){
+          const j=stR.pop(); blob.push(j);
+          const y=(j/AW)|0,x=j%AW;
+          if(x>0&&classGrid[j-1]===R&&!seenR[j-1]){seenR[j-1]=1;stR.push(j-1);}
+          if(x<AW-1&&classGrid[j+1]===R&&!seenR[j+1]){seenR[j+1]=1;stR.push(j+1);}
+          if(y>0&&classGrid[j-AW]===R&&!seenR[j-AW]){seenR[j-AW]=1;stR.push(j-AW);}
+          if(y<AH-1&&classGrid[j+AW]===R&&!seenR[j+AW]){seenR[j+AW]=1;stR.push(j+AW);}
+        }
+        // Adjazenz-Ring: nur DIREKTE Nachbarn zählen (BBox-Ringe lügen bei
+        // langgestreckten Formen). Konturen (W) sind neutral, 2 px tief schauen.
+        const inB=new Set(blob);
+        let ground=0,winC=0,pfad=0,nonW=0;
+        for(const j of blob){
+          const y=(j/AW)|0,x=j%AW;
+          for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]]){
+            const xx=x+dx,yy=y+dy;
+            if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+            const nj=yy*AW+xx;
+            if(inB.has(nj))continue;
+            const c=classGrid[nj];
+            if(c===W||c===R)continue;
+            nonW++;
+            if(c===G||c===A)ground++;
+            else if(c===N)winC++;
+            else if(c===P)pfad++;
+          }
+        }
+        // Große Komponente: gras-geerdet & fensterlos -> Boden. Sprenkel
+        // (< minStruct) IM Pfad werden vom Pfad absorbiert, damit sie dem
+        // Bodenanker nicht als "Gebäude"-Beweis erscheinen.
+        const grounded = blob.length>=minStruct
+          ? (nonW>10 && ground>nonW*0.45 && winC===0)
+          : (nonW>4 && ground+pfad>nonW*0.6 && winC===0);
+        if(grounded){
+          blob.forEach(j=>classGrid[j]=P);
+          structDiag.roofToPath++;
+          structDiag.roofToPathPx+=blob.length;
+        }
+      }
+    }
     {
       const seenS=new Uint8Array(AW*AH), stS=[];
       for(let s0=0;s0<AW*AH;s0++){
@@ -1025,20 +1093,25 @@ function analyze(){
           if(y<AH-1&&classGrid[j+AW]===P&&!seenS[j+AW]){seenS[j+AW]=1;stS.push(j+AW);}
         }
         structDiag.pathComponents++;
-        let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
-        blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
-          if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
+        const inBp=new Set(blob);
         let ground=0,building=0,nonW=0;
-        for(let y=Math.max(0,y0v-3);y<=Math.min(AH-1,y1v+3);y++)
-        for(let x=Math.max(0,x0-3);x<=Math.min(AW-1,x1+3);x++){
-          if(x>=x0&&x<=x1&&y>=y0v&&y<=y1v)continue;
-          const c=classGrid[y*AW+x];
-          if(c===W)continue;                       // Konturen sind neutral
-          nonW++;
-          if(c===G||c===A)ground++;
-          else if(c===R)building++;
+        for(const j of blob){
+          const y=(j/AW)|0,x=j%AW;
+          for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]]){
+            const xx=x+dx,yy=y+dy;
+            if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+            const nj=yy*AW+xx;
+            if(inBp.has(nj))continue;
+            const c=classGrid[nj];
+            if(c===W||c===P)continue;              // Konturen neutral, P eigene Klasse
+            nonW++;
+            if(c===G||c===A)ground++;
+            else if(c===R)building++;
+          }
         }
-        if(nonW>8 && building>nonW*0.30 && ground<nonW*0.20){
+        // Terrassen-Semantik: dach-dominiert und praktisch OHNE Bodenkontakt.
+        // Nur echte Flächen beurteilen – Mini-Fragmente nie zu Fels kaskadieren.
+        if(blob.length>=minStruct && nonW>8 && building>nonW*0.40 && ground<nonW*0.08){
           blob.forEach(j=>classGrid[j]=K);
           structDiag.pathToRock++;
           structDiag.pathToRockPx+=blob.length;
@@ -1600,9 +1673,10 @@ function loadImageFile(file,isMat){
     if(isMat){ matImg=img; setStatus('Material-Map geladen ('+img.width+'×'+img.height+'). Jetzt „Erstellen“.'); }
     else{
       sceneImg=img;
-      // Ein Zweitbild gehört IMMER zur Szene: neue Szene -> altes Overlay/Map weg
-      // (sonst wird Bild B mit der Map von Bild A analysiert!)
+      // Ein Zweitbild gehört IMMER zur Szene: neue Szene -> altes Overlay/Map
+      // UND alte Tiefenkarte weg (sonst wird Bild B mit Daten von Bild A gerendert!)
       if(matImg){ matImg=null; const fm=document.getElementById('f-mat'); if(fm) fm.value=''; }
+      clearDepth();
       canvas.width=img.width; canvas.height=img.height;
       ov.width=img.width; ov.height=img.height;
       gl.viewport(0,0,img.width,img.height);
@@ -1612,6 +1686,15 @@ function loadImageFile(file,isMat){
       document.getElementById('drop-hint').style.display='none';
       ready=false;
       setStatus('Szene geladen ('+img.width+'×'+img.height+'). Drücke „✨ Erstellen“.');
+      // Auto-Suche: liegt neben "dorf.png" eine "dorf_depth.png" auf dem Server,
+      // wird sie geladen (2.5D an). Findet nichts -> Szene bleibt einfach flach.
+      if(file.name&&/\.\w+$/.test(file.name)){
+        const depthName=file.name.replace(/(\.\w+)$/,'_depth$1');
+        const dImg=new Image();
+        dImg.onload=()=>setDepth(dImg,depthName+' (auto)');
+        dImg.onerror=()=>{};
+        dImg.src=depthName;
+      }
     }
     URL.revokeObjectURL(img.src);
   };
@@ -1620,7 +1703,36 @@ function loadImageFile(file,isMat){
 document.getElementById('f-scene').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],false);
 document.getElementById('f-mat').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],true);
 
+// === 2.5D-Tiefenkarte (Unit 6) ===
+function setDepth(img,label){
+  uploadTex(6,TEX.depth,0,0,img);
+  hasDepth=true;
+  setStatus('Tiefenkarte geladen: '+(label||img.width+'×'+img.height)+' – Maus über der Szene schwenkt die Kamera.');
+}
+function clearDepth(){
+  if(!hasDepth)return;
+  gl.activeTexture(gl.TEXTURE0+6); gl.bindTexture(gl.TEXTURE_2D,TEX.depth);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+  hasDepth=false; parallaxTarget.x=0; parallaxTarget.y=0;
+  const fd=document.getElementById('f-depth'); if(fd) fd.value='';
+}
+document.getElementById('f-depth').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const img=new Image();
+  img.onload=()=>{ setDepth(img,f.name); URL.revokeObjectURL(img.src); };
+  img.src=URL.createObjectURL(f);
+};
+
 const stage=document.getElementById('stage');
+// 2.5D: Maus über der Bühne schwenkt die Kamera minimal (max. 3.5 %),
+// negativ für natürlichen Tiefeneffekt. Ohne Tiefenkarte wirkungslos.
+stage.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const mx=((e.clientX-rect.left)/rect.width-0.5)*2.0;
+  const my=((e.clientY-rect.top)/rect.height-0.5)*2.0;
+  parallaxTarget.x=-mx*0.035; parallaxTarget.y=-my*0.035;
+});
+stage.addEventListener('mouseleave',()=>{ parallaxTarget.x=0; parallaxTarget.y=0; });
 stage.addEventListener('dragover',e=>e.preventDefault());
 stage.addEventListener('drop',e=>{
   e.preventDefault();
@@ -1725,6 +1837,11 @@ document.getElementById('btn-add').onclick=()=>{
 // Welt-Logik läuft in festen Substeps (max 50 ms): Die Weltzeit folgt der
 // Echtzeit auch bei niedriger Framerate (Headless, schwache GPU, Tab-Drossel).
 let time=0,lastT=0,mossBoost=0,timeFrozen=false;
+// 2.5D-Parallaxe: Ziel folgt der Maus, Ist wird im Frame sanft nachgezogen.
+// hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
+// sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
+let parallaxTarget={x:0,y:0}, parallaxCurrent={x:0,y:0}, hasDepth=false;
+const OV_DEPTH=0.5;  // Bodenebene ~ mittlere Tiefe: so weit schiebt das Overlay mit
 function tickWorld(dt){
   if(!timeFrozen) time+=dt;
   tickStory(dt);
@@ -1746,15 +1863,24 @@ function frame(now){
   const dt=frameDt;
   if(ready) trailUpload();
 
+  // Parallaxe glatt interpolieren; Overlay (Figur/Feuer) folgt der Bodenebene.
+  parallaxCurrent.x += (parallaxTarget.x-parallaxCurrent.x)*0.06;
+  parallaxCurrent.y += (parallaxTarget.y-parallaxCurrent.y)*0.06;
+  const pxShift = hasDepth ? parallaxCurrent : {x:0,y:0};
+  const fx = pxShift.x*OV_DEPTH, fy = pxShift.y*OV_DEPTH;   // UV-Bruchteile
+  ov.style.transform = hasDepth ? `translate(${fx*ov.clientWidth}px, ${fy*ov.clientHeight}px)` : '';
+
   if(sceneImg){
     gl.uniform1f(U.u_time,time);
+    gl.uniform2f(U.u_parallax, pxShift.x, pxShift.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
     gl.uniform1f(U.u_mossBoost, ready? mossBoost*0.3 : 0);
     fireUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     drawOverlay(dt);
-    if(recorder&&recCtx){ recCtx.drawImage(canvas,0,0); recCtx.drawImage(ov,0,0); }
+    // CSS-Transforms landen nicht in der Aufnahme -> Versatz als Pixel-Offset
+    if(recorder&&recCtx){ recCtx.drawImage(canvas,0,0); recCtx.drawImage(ov,fx*canvas.width,fy*canvas.height); }
   }
   requestAnimationFrame(frame);
 }
@@ -1787,7 +1913,13 @@ window.SHADED = {
            } },
   fire:{ ignite:igniteFire, list:()=>fires.map(f=>({u:f.u,v:f.v,fuel:f.fuel})) },
   trail:{ clear:trailClear, sample:trailSample },
-  structure:()=>structDiag   // Runde 5: Struktur-Pass-Diagnose
+  structure:()=>structDiag,  // Runde 5: Struktur-Pass-Diagnose
+  // 2.5D: Tiefenkarte + Parallaxe (deterministisch für Tests steuerbar)
+  parallax:{ set:(x,y)=>{ parallaxTarget.x=x; parallaxTarget.y=y;
+                          parallaxCurrent.x=x; parallaxCurrent.y=y; },
+             get:()=>({...parallaxCurrent}),
+             hasDepth:()=>hasDepth,
+             setDepthImage:setDepth, clearDepth }
 };
 </script>
 </body>

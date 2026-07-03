@@ -19,6 +19,10 @@ Szene (Vollauflösung)                                        → Unit 0
 Trail-Map (512², CPU-Uint8Array, dirty-Upload)               → Unit 5
   R Delle (HWZ 1.5 s) · G Impuls (0.4 s) · B Trampelpfad (permanent) · A Hitze/Brand (~25 s)
   Decay direkt auf den Pixeldaten (trailTick), Stempel via trailStamp(u,v,rad,ch,strength)
+Tiefenkarte 2.5D (optional; Weiß=nah; 1×1 schwarz = flach)   → Unit 6
+  UV-Versatz `uv += u_parallax * depth` GANZ AM ANFANG von main(), vor allen
+  Lookups (eine Material-Wahrheit!). Overlay folgt der Bodenebene (OV_DEPTH),
+  nur wenn hasDepth. API: SHADED.parallax{set,get,hasDepth,setDepthImage,clearDepth}.
 ```
 
 Runde-4-Laufzeitwelt (CPU + Overlay-Canvas `#ov`, deckungsgleich über `#gl`):
@@ -37,16 +41,27 @@ Klassen-Indizes: G=0 grass, F=1 foliage, R=2 roof, P=3 path, W=4 wood, N=5 windo
 
 - Mit gemalter Map: Nearest-Neighbor in RGB gegen `PALETTE` (enthält Legacy-Aliase,
   u. a. den Zahlendreher `#F972E9`→roof und Schwarz→grass).
-- Ohne Map: `classifyScenePixel()` (HSL-Heuristik) → 2× Majority-Filter →
-  zwei Plausibilitäts-Pässe: (a) „Fenster“ im Grünen wird Laub, auf Dächern Dach;
-  (b) Tür-/Fenster-Erkennung: dunkle Holz-Blobs → morphologisches Opening (Balken
-  verschwinden) → Connected Components mit Flächenlimit (`minArea..maxArea`) →
-  Fassaden-Check (Wandanteil am Schwerpunkt) → Klasse N.
-- **Struktur-Pass (Runde 5, nach den Fensterdetektoren):** Bodenanker-Regel –
-  P-Komponenten mit dachdominiertem Ring (>30 % R) und ohne Bodenkontakt
-  (<20 % G+A; Kontur-W neutral) werden Gebäudeoberfläche (K). Diagnose via
-  `SHADED.structure()`. Zweitbild-Semantik: neue Szene verwirft das alte
-  Overlay/Map automatisch (Bild B nie mit Map von Bild A analysieren!).
+- Ohne Map: `classifyScenePixel()` (HSL-Heuristik, Raster `AW`=768) → 2× Majority-
+  Filter → Kanon-Detektoren nach `docs/bildkanon.md`:
+  (a) Teal-Plausibilität: „Fenster“ im Grünen wird Laub, auf Dächern Dach;
+  (b) **Himmel-Regel (K7):** Flood von der Oberkante über {A,P,K}; Region >2 %,
+  blau-dominant & hell → inerte Klasse K (kein Wasser, keine Pfützen);
+  (c) **Rahmen-Fenster (K3/K4):** Füllungs-Blobs (K/P/A/R **oder roh-blaues
+  Glas**, das die Heuristik als F/W einsortiert hätte) im geschlossenen Holzring
+  (≥55 % W im Direktring) + Farbtor: sattes Blauglas (`b>g && b>r+15 && sat>35`)
+  ODER hell-sattes Warmlicht (`sat>120 && lum>120`). Bewusst KEIN
+  „dunkel = Fenster“-Tor. `minArea=2` (Sprossen-Scheiben!).
+  (d) Finale N-Validierung: Form + **K1-Wandbeleg** (`wall ≥ 6 %` des Umfelds);
+  Umfeldradius skaliert mit `AW` UND Blobgröße; Pink-Marker sind unantastbar.
+- **Struktur-Pass (Runde 5, nach den Fensterdetektoren), Adjazenz-Ringe
+  (BBox-Ringe lügen bei langgestreckten Formen), `minStruct`-Mindestfläche
+  gegen Fragment-Kaskaden:**
+  Dach-Anker – R-Komponenten mit grasdominiertem Umfeld (>45 % G+A, keine
+  Fenster) sind Boden → P; R-Sprenkel im Pfad werden absorbiert.
+  Bodenanker – P-Komponenten mit Dach-Umfeld (>40 % R) und praktisch ohne
+  Bodenkontakt (<8 % G+A; Kontur-W neutral) sind Gebäudeoberfläche → K.
+  Diagnose via `SHADED.structure()`. Zweitbild-Semantik: neue Szene verwirft
+  das alte Overlay/Map automatisch (Bild B nie mit Map von Bild A analysieren!).
 - Abgeleitet: Chamfer-Distanz im Pfad (`dPath`) → Pfützentiefe `(dPath/scale)^0.8`;
   geblurrte Pfadmaske → Gradient → Flussfeld (Tangente, y≥0 = „hangabwärts“);
   `blur(path)-path` → Bleed-Halo ins Gras.
