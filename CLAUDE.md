@@ -43,7 +43,9 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
    Akte/Storyboard integriert – keine Spezial-Codepfade an der Engine vorbei.
 7. **Texture-Units:** 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis,
    5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
-   B Trampelpfad permanent, A Hitze/Brand ~25 s). Trail-Decay wirkt IMMER direkt
+   B Trampelpfad permanent, A Hitze/Brand ~25 s), 6 Tiefenkarte (2.5D-Parallaxe;
+   ohne Upload 1×1 schwarz = flach; `u_parallax` ist ohne Mausbewegung (0,0) –
+   verify-Frames bleiben deterministisch). Trail-Decay wirkt IMMER direkt
    auf den Pixeldaten – nie über Canvas-Composite-Tricks.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)

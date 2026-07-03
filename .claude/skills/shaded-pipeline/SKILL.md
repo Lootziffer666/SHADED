@@ -23,6 +23,10 @@ Szene (Vollauflösung)                                        → Unit 0
 Trail-Map (512², CPU-Uint8Array, dirty-Upload)               → Unit 5
   R Delle (HWZ 1.5 s) · G Impuls (0.4 s) · B Trampelpfad (permanent) · A Hitze/Brand (~25 s)
   Decay direkt auf den Pixeldaten (trailTick), Stempel via trailStamp(u,v,rad,ch,strength)
+Tiefenkarte 2.5D (optional; Weiß=nah; 1×1 schwarz = flach)   → Unit 6
+  UV-Versatz `uv += u_parallax * depth` GANZ AM ANFANG von main(), vor allen
+  Lookups (eine Material-Wahrheit!). Overlay folgt der Bodenebene (OV_DEPTH),
+  nur wenn hasDepth. API: SHADED.parallax{set,get,hasDepth,setDepthImage,clearDepth}.
 ```
 
 Runde-4-Laufzeitwelt (CPU + Overlay-Canvas `#ov`, deckungsgleich über `#gl`):
