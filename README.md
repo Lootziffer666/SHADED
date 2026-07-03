@@ -80,7 +80,9 @@ Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipel
 - **Runde 3 – Material Fatigue & Verfall** ✅: Alterung als kontinuierlicher, materialabhängiger Zeitprozess: Moos, Überwucherung, Rost, Risse, morsches vs. feuchtes Holz → Spec: [`.kiro/specs/round-3-material-fatigue/`](.kiro/specs/round-3-material-fatigue/requirements.md)
 - **Runde 4 – Interaktion & Ökosystem** ✅: Spieler (WASD/Dash, Trampelpfade mit echtem Decay), Lagerfeuer + Brandausbreitung, Laub-/Frucht-Partikel, Bio-Charakter (Atmung, Frostatem, Nässe) → Spec: [`.kiro/specs/round-4-interaction-ecosystem/`](.kiro/specs/round-4-interaction-ecosystem/requirements.md)
 
-Der verbindliche Fahrplan (Runde 1–4) ist damit komplett umgesetzt.
+Der verbindliche Fahrplan (Runde 1–4) ist komplett umgesetzt. Darauf aufbauend:
+
+- **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird – Inkrement 1 (Bodenanker: begehbare Flächen müssen am Boden verankert sein) ✅; als Nächstes Gebäudezonen aus Dach-Saat, Wand/Boden-Split, zonenbasierte Fenster-Validierung → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
 
 **Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze“-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
 

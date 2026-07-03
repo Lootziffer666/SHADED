@@ -42,6 +42,11 @@ Klassen-Indizes: G=0 grass, F=1 foliage, R=2 roof, P=3 path, W=4 wood, N=5 windo
   (b) Tür-/Fenster-Erkennung: dunkle Holz-Blobs → morphologisches Opening (Balken
   verschwinden) → Connected Components mit Flächenlimit (`minArea..maxArea`) →
   Fassaden-Check (Wandanteil am Schwerpunkt) → Klasse N.
+- **Struktur-Pass (Runde 5, nach den Fensterdetektoren):** Bodenanker-Regel –
+  P-Komponenten mit dachdominiertem Ring (>30 % R) und ohne Bodenkontakt
+  (<20 % G+A; Kontur-W neutral) werden Gebäudeoberfläche (K). Diagnose via
+  `SHADED.structure()`. Zweitbild-Semantik: neue Szene verwirft das alte
+  Overlay/Map automatisch (Bild B nie mit Map von Bild A analysieren!).
 - Abgeleitet: Chamfer-Distanz im Pfad (`dPath`) → Pfützentiefe `(dPath/scale)^0.8`;
   geblurrte Pfadmaske → Gradient → Flussfeld (Tangente, y≥0 = „hangabwärts“);
   `blur(path)-path` → Bleed-Halo ins Gras.

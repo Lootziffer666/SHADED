@@ -36,6 +36,31 @@ const server = http.createServer((req, res) => {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 
+  // Klassenzählung + Regression gegen tools/expected-classes.json (±10 %)
+  async function logClasses(label) {
+    const c = await page.evaluate(() => {
+      const c = {}, W = 192, H = 108;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const m = window.SHADED.getMaterialTypeAt((x + 0.5) / W, (y + 0.5) / H);
+        c[m] = (c[m] || 0) + 1;
+      } return c;
+    });
+    console.log(`Klassen[${label}]:`, JSON.stringify(c));
+    const expPath = path.join(__dirname, 'expected-classes.json');
+    if (fs.existsSync(expPath)) {
+      const exp = JSON.parse(fs.readFileSync(expPath, 'utf8'))[label];
+      if (exp) {
+        let ok = true;
+        for (const k of new Set([...Object.keys(exp), ...Object.keys(c)])) {
+          const e = exp[k] || 0, a = c[k] || 0;
+          if (Math.abs(a - e) > Math.max(40, e * 0.10)) { ok = false;
+            console.log(`  Abweichung ${k}: erwartet ~${e}, ist ${a}`); }
+        }
+        console.log(`Klassen-Regression[${label}]:`, ok ? 'PASS' : 'FAIL');
+      }
+    }
+  }
+
   await page.goto('http://localhost:8931/index.html');
   await page.setInputFiles('#f-scene', BASE_IMG);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('Szene geladen'));
@@ -44,6 +69,7 @@ const server = http.createServer((req, res) => {
   await page.click('#btn-create');
   await page.waitForFunction(() => window.SHADED.isReady());
   await page.waitForTimeout(400);
+  await logClasses('dorf-marker');
 
   const shots = [['tag', 3.0], ['aufzug', 10.0], ['sturmnacht', 21.7], ['morgen', 5.0], ['danach', 7.0], ['verfall', 4.0],
                  ['fruehling', 2.5], ['herbst', 6.0], ['schnee', 9.3]];
@@ -100,6 +126,7 @@ const server = http.createServer((req, res) => {
     window.SHADED.getMaterialTypeAt(0.05, 0.05)  // Baum oben links
   ]);
   console.log('Materialproben Legacy-Map (Pfad/Dach/Baum):', mats.join(', '));
+  await logClasses('legacy-map');
 
   // Dritter Durchlauf: Taverne (andere Auflösung, anderer Stil, ohne Zweitbild)
   // Vergleichen mit ResizedImage_2026-06-30_23-13-00_0185[1].png (Regen-Target)
@@ -114,6 +141,8 @@ const server = http.createServer((req, res) => {
   });
   await page.waitForTimeout(250);
   await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_taverne_regen.png') });
+  await logClasses('taverne');
+  console.log('Struktur-Pass Taverne:', JSON.stringify(await page.evaluate(() => window.SHADED.structure())));
   console.log('Konsole-Fehler:', errors.length ? errors.join(' | ') : 'keine');
   await browser.close();
   server.close();
