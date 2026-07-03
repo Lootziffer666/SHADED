@@ -1,5 +1,15 @@
 # Runde 5 – Strukturelle Segmentierung: Design
 
+> **Überarbeitung (Owner-Entscheid):** Der verbindliche Bildkanon
+> (`docs/bildkanon.md`) ersetzt die riskanteren Heuristik-Inkremente durch
+> Kanon-Detektoren: **Rahmen-Fenster** (K3/K4: Nicht-Holz-Füllung im
+> geschlossenen Holzring – vereinheitlicht Blauglas, Grauglas, Amber und
+> ersetzt Dunkel-Blob- + Scheiben-Detektor), **Himmel-Regel** (K7: blau-
+> dominante, helle Region mit Oberkanten-Kontakt → inert) und als nächstes
+> die **Fachwerk-Signatur** (K1: Balken-auf-Putz-Dichte → Gebäudezonen,
+> ersetzt die reine Dach-Dilation aus Inkrement 2). Bodenanker (Inkrement 1)
+> bleibt als geometrisches Sicherheitsnetz darunter.
+
 ## Einordnung in die Pipeline
 
 Neuer **Struktur-Pass** in `analyze()` NACH den Fensterdetektoren und VOR

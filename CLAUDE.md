@@ -23,6 +23,13 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
    sie haben IMMER Vorrang vor Heuristik-Validierung. Heuristik-Fensterdetektoren sind
    bewusst KONSERVATIV kalibriert: lieber ein fehlendes Fenster (per Overlay nachrüstbar)
    als falsche Glasflecken auf Gebäuden.
+   **Der Bildkanon (`docs/bildkanon.md`) ist verbindlich** (K1–K8: Häuser sind Fachwerk,
+   Fenster IMMER holzgerahmt, Glas ohne Rahmen = kein Fenster, Himmel oben & inert …).
+   Die Kanon-Detektoren in `analyze()` (Rahmen-Fenster mit Blauglas-/Warmlicht-Farbtor,
+   Himmel-Regel, Dach-/Bodenanker mit Adjazenz-Ringen) setzen ihn um. Es gibt bewusst
+   KEIN „einfach dunkel = Fenster“-Tor – das griff jede Schattenritze ab. Alle
+   Umfeld-Prüfungen müssen mit Analyseauflösung UND Blobgröße skalieren
+   (nichts an feste Rastergrößen binden; Zielbilder sind ~1440p, `AW` = 768).
 4. **Der Prototyp ist eingefroren.** `gaime_shader_editor_pro_v2_6_bio_physics_edition.html`
    dient nur als Ideen-Referenz. Nicht editieren, nicht fixen, nichts blind kopieren –
    seine dokumentierten Bugs (Paletten-Mismatch, `gl.TEXTURE2D+2`, `s-fol-*`-IDs,
@@ -50,17 +57,24 @@ Danach die Screenshots mit dem Bild-Tool ANSEHEN und vergleichen:
 - `shot_sturmnacht.png` gegen Zielbild `file_00000000b27471f4a8aeb27484b46720.png`
 - `shot_danach.png` gegen Zielbild `file_00000000fbc472438dcc92aff24bed6e.png`
 - Physik-Referenzen: `1782823262240.png` (Tag), `1782823374309.png` (Nacht)
+- `shot_kanon_sturmnacht.png` / `shot_himmel_sturmnacht.png`: Fensterlicht sitzt
+  IN den Rahmen (keine Glühflecken auf Dächern/Bäumen), Himmel bleibt Himmel.
 
 Kriterien: keine Konsole-/GL-Fehler; Nässe dunkelt poröse Materialien deutlich ab;
 Pfützen in Pfad-Senken mit Warmlicht-Spiegelung bei Nacht; Flussnetz auf Pfaden bei Regen;
 Nebel diffus zu den Rändern; Szene wirkt in Bewegung nie statisch. Beide Modi testen:
 ohne Map (Heuristik) UND mit gemalter Map (`1782824829119.png`).
+verify.js vergleicht außerdem die Klassenzählung aller fünf Szenen gegen
+`tools/expected-classes.json` (±10 %) – bei GEWOLLTEN Verschiebungen die Baseline
+bewusst aktualisieren (nach visueller Prüfung!), nie blind.
 
 ## Fahrplan (verbindlich, siehe .kiro/specs/)
 
-- Runde 2: Jahreszeiten & Klima (`round-2-seasons-climate`)
-- Runde 3: Material Fatigue & Verfall (`round-3-material-fatigue`)
-- Runde 4: Interaktion & Ökosystem (`round-4-interaction-ecosystem`)
+- Runde 2: Jahreszeiten & Klima (`round-2-seasons-climate`) ✅
+- Runde 3: Material Fatigue & Verfall (`round-3-material-fatigue`) ✅
+- Runde 4: Interaktion & Ökosystem (`round-4-interaction-ecosystem`) ✅
+- Runde 5: Strukturelle Segmentierung / Bildkanon (`round-5-structural-segmentation`)
+  – in Arbeit; nächster Schritt Fachwerk-Signatur (K1) → Gebäudezonen
 
 Jede Runde arbeitet ihre Spec ab: `requirements.md` → `design.md` → `tasks.md`.
 

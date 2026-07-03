@@ -143,6 +143,30 @@ const server = http.createServer((req, res) => {
   await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_taverne_regen.png') });
   await logClasses('taverne');
   console.log('Struktur-Pass Taverne:', JSON.stringify(await page.evaluate(() => window.SHADED.structure())));
+
+  // Vierter Durchlauf: Kanon-Dorf top-down (Bildkanon: Rahmen-Fenster, Blauglas)
+  await page.setInputFiles('#f-scene', path.join(REPO, 'file_00000000c40471f4859a10d6bf3ac39b.png'));
+  await page.waitForTimeout(300);
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await logClasses('dorf-kanon');
+  await page.evaluate(() => { window.SHADED.applyAct('sturmnacht');
+    window.SHADED.setParams({ ...window.SHADED.getParams(), rain: 0.3 });
+    window.SHADED.setTime(21.7, true); });
+  await page.waitForTimeout(250);
+  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_kanon_sturmnacht.png') });
+
+  // Fünfter Durchlauf: Kanon-Dorf perspektivisch MIT Himmel (Bildkanon K7)
+  await page.setInputFiles('#f-scene', path.join(REPO, 'file_00000000723471f48a11eaa8371edfb7.png'));
+  await page.waitForTimeout(300);
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await logClasses('dorf-himmel');
+  await page.evaluate(() => { window.SHADED.applyAct('sturmnacht');
+    window.SHADED.setParams({ ...window.SHADED.getParams(), rain: 0.3 });
+    window.SHADED.setTime(21.7, true); });
+  await page.waitForTimeout(250);
+  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_himmel_sturmnacht.png') });
   console.log('Konsole-Fehler:', errors.length ? errors.join(' | ') : 'keine');
   await browser.close();
   server.close();
