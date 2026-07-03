@@ -1741,11 +1741,13 @@ stage.addEventListener('drop',e=>{
 
 document.getElementById('btn-demo').onclick=async()=>{
   try{
-    // Kanonisches Demo-Paar: Szene + Fenster-Marker-Overlay
+    // Kanonisches Demo-Paar: Szene + Fenster-Marker-Overlay. Der Blob bekommt
+    // den Dateinamen, damit die _depth-Auto-Suche greift (2.5D fürs Demo).
     const scene='file_00000000974871f49fe71f6b456f9579.png';
     const marker='file_00000000c84071f4bcd6ff9afdba7246.png';
     const r1=await fetch(scene); if(!r1.ok)throw 0;
-    loadImageFile(await r1.blob(),false);
+    const b1=await r1.blob(); b1.name=scene;
+    loadImageFile(b1,false);
     const r2=await fetch(marker);
     if(r2.ok) loadImageFile(await r2.blob(),true);
   }catch(_){ setStatus('Demo nur über einen lokalen Server verfügbar (python3 -m http.server).'); }

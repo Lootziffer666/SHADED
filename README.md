@@ -39,10 +39,14 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 | `file_00000000723471f48a11eaa8371edfb7.png` | **Kanon-Dorf perspektivisch MIT Himmel** – Testfall für die Himmel-Regel (K7) |
 | `file_000000002b2871f4891c9f18768440ca.png` | **Marker-Overlay zum Kanon-Dorf top-down** (Fenster pink) – Ground Truth für den Rahmen-Fenster-Detektor |
 | `file_00000000d34071f49ef2a68356e1ac7d.png` | **Marker-Overlay zum Kanon-Dorf perspektivisch** (Fenster pink) – Ground Truth |
-| `Hitem3d-1783102077836-v1.glb` | **3D-Modell des Dorfes** (nicht perfekt) – Geometrie-Referenz für Runde 5+ und Quelle für künftige Tiefenkarten |
+| `Hitem3d-1783102077836-v1.glb` | **3D-Modell des Dorfes** (nicht perfekt) – Geometrie-Referenz für Runde 5+ |
+| `file_00000000cb1c71f48dac6183a809fab7.png` | Graustufen-Render des Demo-Dorfs (Referenz zur Tiefenkarte) |
+| `file_0000000098bc71f49c057d54182386e6.png` | **Handgemachte Tiefenkarte** zum Demo-Dorf (Weiß = nah) – Quelle für die 2.5D-Demo |
+| `file_00000000974871f49fe71f6b456f9579_depth.png` | Demo-Tiefenkarte (aus obiger Karte auf Demo-Auflösung gebracht) – wird vom Demo-Button automatisch geladen |
 | `gaime_shader_editor_pro_v2_6_bio_physics_edition.html` | **Eingefrorener Prototyp** – nur Referenz, nicht anfassen |
 | `index.html` | Die App (Runde 1: Wasser, Sturm, Atmosphäre) |
 | `tools/verify.js` | Headless-Verifikation (Playwright): Screenshots aller Akte |
+| `tools/register.js` | **Registrierung**: findet die Kameraprojektion eines Referenzbilds gegen ein GLB – Pflicht-Schritt VOR jeder Depth-/Normal-Ableitung, siehe [`docs/registrierung.md`](docs/registrierung.md) |
 
 ## Kanonische Material-Palette
 
@@ -68,7 +72,7 @@ Ohne Map segmentiert SHADED das Bild selbst: HSL-Heuristik + Majority-Filter + *
 
 So liefert der Workflow deterministisch Dorf-Qualität für jedes Bild – ohne KI, mit zwei Minuten Malaufwand nur an den Fehlstellen. Pink direkt im Szenenbild selbst funktioniert ebenfalls.
 
-**2.5D-Parallaxe (optional, dritter Datei-Input):** Eine Graustufen-**Tiefenkarte** (Weiß = nah, Schwarz = fern) macht die Szene räumlich – die Maus über der Bühne schwenkt die Kamera minimal (max. 3,5 %), Nahes verschiebt sich stärker als Fernes. Liegt neben `bild.png` eine `bild_depth.png` auf dem Server, wird sie automatisch geladen. Ohne Tiefenkarte bleibt alles exakt wie bisher (flach, deterministisch). Der UV-Versatz passiert VOR allen Textur-Lookups, damit Szene, Masken, Physik und Trails dieselbe verschobene Welt sehen. Test-API: `SHADED.parallax.set(x,y)` / `.hasDepth()`.
+**2.5D-Parallaxe (optional, dritter Datei-Input):** Eine Graustufen-**Tiefenkarte** (Weiß = nah, Schwarz = fern) macht die Szene räumlich – die Maus über der Bühne schwenkt die Kamera minimal (max. 3,5 %), Nahes verschiebt sich stärker als Fernes. Liegt neben `bild.png` eine `bild_depth.png` auf dem Server, wird sie automatisch geladen – das Demo-Dorf bringt eine handgemachte Tiefenkarte mit und ist damit ab dem ersten Klick räumlich. Ohne Tiefenkarte bleibt alles exakt wie bisher (flach, deterministisch). Der UV-Versatz passiert VOR allen Textur-Lookups, damit Szene, Masken, Physik und Trails dieselbe verschobene Welt sehen. Test-API: `SHADED.parallax.set(x,y)` / `.hasDepth()`.
 
 ## Architektur (Kurzfassung)
 
