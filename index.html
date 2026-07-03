@@ -650,6 +650,7 @@ function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canva
 // =========================== Analyse-Pipeline ===========================
 let sceneImg=null, matImg=null, ready=false;
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
+let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
 
 function rgbToHsl(r,g,b){
   r/=255;g/=255;b/=255;
@@ -1001,6 +1002,49 @@ function analyze(){
         blob.forEach(j=>classGrid[j]=K);
     }
     } // Ende !markerMode (Heuristik-Fensterdetektoren)
+
+    // === STRUKTUR-PASS (Runde 5, Inkrement 1): Bodenanker ===
+    // Begehbare Flächen müssen am Boden verankert sein. Eine Pfad-Komponente,
+    // deren Umfeld (Ring, Konturholz neutral) von Dach dominiert wird und die
+    // kaum Gras-/Wasserkontakt hat, ist eine Gebäudeoberfläche (Terrasse,
+    // Balkon, Vordach) -> Fels. Erst dadurch bleiben Pfützen-Chamfer,
+    // Flussfeld und Bleed dem ECHTEN Boden vorbehalten.
+    structDiag = {pathComponents:0, pathToRock:0, pathToRockPx:0};
+    {
+      const seenS=new Uint8Array(AW*AH), stS=[];
+      for(let s0=0;s0<AW*AH;s0++){
+        if(classGrid[s0]!==P||seenS[s0])continue;
+        stS.length=0; stS.push(s0); seenS[s0]=1;
+        const blob=[];
+        while(stS.length){
+          const j=stS.pop(); blob.push(j);
+          const y=(j/AW)|0,x=j%AW;
+          if(x>0&&classGrid[j-1]===P&&!seenS[j-1]){seenS[j-1]=1;stS.push(j-1);}
+          if(x<AW-1&&classGrid[j+1]===P&&!seenS[j+1]){seenS[j+1]=1;stS.push(j+1);}
+          if(y>0&&classGrid[j-AW]===P&&!seenS[j-AW]){seenS[j-AW]=1;stS.push(j-AW);}
+          if(y<AH-1&&classGrid[j+AW]===P&&!seenS[j+AW]){seenS[j+AW]=1;stS.push(j+AW);}
+        }
+        structDiag.pathComponents++;
+        let x0=1e9,x1=-1,y0v=1e9,y1v=-1;
+        blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;
+          if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
+        let ground=0,building=0,nonW=0;
+        for(let y=Math.max(0,y0v-3);y<=Math.min(AH-1,y1v+3);y++)
+        for(let x=Math.max(0,x0-3);x<=Math.min(AW-1,x1+3);x++){
+          if(x>=x0&&x<=x1&&y>=y0v&&y<=y1v)continue;
+          const c=classGrid[y*AW+x];
+          if(c===W)continue;                       // Konturen sind neutral
+          nonW++;
+          if(c===G||c===A)ground++;
+          else if(c===R)building++;
+        }
+        if(nonW>8 && building>nonW*0.30 && ground<nonW*0.20){
+          blob.forEach(j=>classGrid[j]=K);
+          structDiag.pathToRock++;
+          structDiag.pathToRockPx+=blob.length;
+        }
+      }
+    }
 
     // Marker-Overlay: Pink SIND die Fenster – exakt, ohne Heuristik-Veto;
     // andere Palettenfarben korrigieren die Klasse lokal. Heuristik-Fenster
@@ -1556,6 +1600,9 @@ function loadImageFile(file,isMat){
     if(isMat){ matImg=img; setStatus('Material-Map geladen ('+img.width+'×'+img.height+'). Jetzt „Erstellen“.'); }
     else{
       sceneImg=img;
+      // Ein Zweitbild gehört IMMER zur Szene: neue Szene -> altes Overlay/Map weg
+      // (sonst wird Bild B mit der Map von Bild A analysiert!)
+      if(matImg){ matImg=null; const fm=document.getElementById('f-mat'); if(fm) fm.value=''; }
       canvas.width=img.width; canvas.height=img.height;
       ov.width=img.width; ov.height=img.height;
       gl.viewport(0,0,img.width,img.height);
@@ -1739,7 +1786,8 @@ window.SHADED = {
              }
            } },
   fire:{ ignite:igniteFire, list:()=>fires.map(f=>({u:f.u,v:f.v,fuel:f.fuel})) },
-  trail:{ clear:trailClear, sample:trailSample }
+  trail:{ clear:trailClear, sample:trailSample },
+  structure:()=>structDiag   // Runde 5: Struktur-Pass-Diagnose
 };
 </script>
 </body>
