@@ -189,6 +189,7 @@ uniform vec4 u_fires[8];    // Lagerfeuer: xy=uv z=Intensität w=Radius
 uniform float u_fireCount;
 uniform sampler2D u_depth;  // 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern); ohne Upload 1x1 schwarz = flach
 uniform vec2 u_parallax;    // Maus-/Kamera-Versatz (0,0 ohne Interaktion -> deterministische Frames)
+uniform sampler2D u_zone;   // K1: Gebäudezonen (R; 1 = Fachwerk-Gebäude) – maskiert Bodeneffekte
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -228,6 +229,8 @@ void main(){
   float mWood=mB.r,  mWin=mB.g,  mWater=mB.b, mRock=mB.a;
   vec4 phys = texture2D(u_phys,uv);  // r=Pfützentiefe g=Flusswinkel b=Bleed a=Pfad-Distanz
   vec4 trail = texture2D(u_trail,uv);// r=Delle g=Impuls b=Trampelpfad a=Hitze/Brand
+  float zone = texture2D(u_zone,uv).r; // K1: 1 = Gebäude -> Bodeneffekte hier verboten
+  float noZone = 1.0 - zone;
   float veg = clamp(mGrass+mFol,0.0,1.0);
   float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
 
@@ -313,7 +316,7 @@ void main(){
   col = mix(vec3(lum(col)), col, 1.0 + 0.35*u_wet);
 
   // --- Trampelpfade (Runde 4): wiederholtes Begehen macht Gras zu Matsch ---
-  float mud = smoothstep(0.10,0.72, trail.b) * mGrass;
+  float mud = smoothstep(0.10,0.72, trail.b) * mGrass * noZone;
   if(mud>0.003){
     vec3 mudCol = mix(u_grassAvg*0.55, vec3(0.32,0.23,0.14), 0.7)*(0.45+0.85*lum(base));
     col = mix(col, mudCol, mud*0.85);
@@ -358,7 +361,7 @@ void main(){
     // Pfad: Überwucherung von den Rändern (Distanzfront) im Graston DIESER Szene
     float creep = smoothstep(phys.a, phys.a+0.18, dPath*0.95);
     vec3 growCol = u_grassAvg*(0.55+0.75*lumB3);
-    col = mix(col, growCol, mPath*creep*smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0)))*0.92);
+    col = mix(col, growCol, mPath*creep*noZone*smoothstep(0.25,0.6,fbm(uv*vec2(40.0*u_aspect,40.0)))*0.92);
 
     // Ranken/Moosschleier: vertikale Strähnen auf Mauerwerk & Holz (spät)
     float vine = smoothstep(0.60,0.82, fbm(vec2(uv.x*70.0*u_aspect, uv.y*10.0)));
@@ -427,7 +430,7 @@ void main(){
     float along = dot(pc,dir), across = dot(pc,vec2(-dir.y,dir.x));
     float riv  = smoothstep(0.60,0.78, fbm(vec2(across*1.4,       along*0.35 - t*2.6)));
     float riv2 = smoothstep(0.66,0.80, fbm(vec2(across*3.1 + 7.0, along*0.55 - t*3.4)))*0.8;
-    float net = max(riv,riv2) * mPath * rainy;
+    float net = max(riv,riv2) * mPath * rainy * noZone;
     vec3 rivCol = mix(vec3(0.70,0.80,0.95), sky+0.3, 0.35);
     col = mix(col, col*0.72 + rivCol*0.5, net);
     col += erefG.rgb * net * night * u_glow * 0.9;   // Warmlicht glitzert im Flussnetz
@@ -435,7 +438,7 @@ void main(){
 
   // --- Pfützen: sammeln sich in Senken, spiegeln Himmel & Warmlicht ---
   float pnz = fbm(uv*vec2(9.0*u_aspect,9.0));
-  float depth = max(phys.r*(mPath+mRock), phys.b*mGrass*0.6) * (0.55+0.45*pnz);
+  float depth = max(phys.r*(mPath+mRock)*noZone, phys.b*mGrass*0.6) * (0.55+0.45*pnz);
   depth = max(depth, mWater);                       // echtes Wasser ist immer voll
   depth = max(depth, smoothstep(0.5,0.95,trail.b)*mGrass*0.65); // Matschsenken sammeln Wasser
   float th = 0.95 - u_puddle*0.78;
@@ -586,7 +589,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
- 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax',
+ 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -600,10 +603,11 @@ function mkTex(unit){
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   return t;
 }
-const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6) };
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7) };
 gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
 gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);  gl.uniform1i(U.u_trail,5);
 gl.uniform1i(U.u_depth,6); gl.uniform2f(U.u_parallax,0,0);
+gl.uniform1i(U.u_zone,7);
 gl.uniform1f(U.u_fireCount,0);
 
 // === Runde 4: Trail-/Störungstextur (Unit 5) ===
@@ -663,6 +667,7 @@ function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canva
 let sceneImg=null, matImg=null, ready=false;
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
 let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
+let zoneGrid=null;                // K1: Gebäudezonen (1 = Fachwerk-Gebäude)
 
 function rgbToHsl(r,g,b){
   r/=255;g/=255;b/=255;
@@ -778,6 +783,7 @@ function analyze(){
   // 1440p-Bildern nicht unter das Raster fallen. Läuft einmalig bei Erstellen.
   AW = Math.min(768, sceneImg.width);
   AH = Math.round(AW * sceneImg.height/sceneImg.width);
+  zoneGrid = new Uint8Array(AW*AH);   // K1-Zonen; bleibt 0 bei Map-Modus/Landschaften
   const cv=document.createElement('canvas'); cv.width=AW; cv.height=AH;
   const cx=cv.getContext('2d',{willReadFrequently:true});
 
@@ -885,16 +891,18 @@ function analyze(){
       }
     }
 
+    // Fenster-Formlimits: gelten für Detektor UND finale Validierung (nach den Zonen).
+    // minArea=2: Sprossenfenster (K3) zerfallen am Analyseraster in 2-3-px-
+    // Scheiben. Präzision liefern Farbtor + K1-Zonenbeleg, nicht die Größe.
+    const minArea=2, maxArea=Math.max(60, AW*AH*0.004);
+    const maxBW=AW*0.08, maxBH=AH*0.14;
+
     if(!markerMode){
     // === BILDKANON K3/K4 (docs/bildkanon.md): Fenster = geschlossener Holzrahmen
     // mit Nicht-Holz-Füllung. Die Füllung darf ALLES sein – Blauglas (Wasser-
     // klassifiziert), Grauglas (Fels/Wand), warm erleuchtet (Dach-farbig) oder
     // dunkel. Entscheidend ist allein der Holzring. Glas ohne Rahmen = nie
     // Fenster (ersetzt Dunkel-Blob- und Scheiben-Detektor vollständig).
-    // minArea=2: Sprossenfenster (K3) zerfallen am Analyseraster in 2-3-px-
-    // Scheiben. Präzision liefern Farbtor + K1-Wandbeleg, nicht die Größe.
-    const minArea=2, maxArea=Math.max(60, AW*AH*0.004);
-    const maxBW=AW*0.08, maxBH=AH*0.14;
     {
       // Fensterglas ist im Kanon dunkles, sattes Blau – das klassifiziert die
       // Farb-Heuristik als Laub/Holz und es ginge als Füllung verloren. Deshalb
@@ -958,61 +966,8 @@ function analyze(){
       }
     }
 
-    // Finale Fenster-Validierung: JEDES Licht (auch aus der Teal-Regel) muss wie
-    // ein Fenster geformt sein und in einer Fassade sitzen – sonst wird es Stein.
-    const seenN=new Uint8Array(AW*AH), st=[];
-    for(let s0=0;s0<AW*AH;s0++){
-      if(classGrid[s0]!==N||seenN[s0])continue;
-      st.length=0; st.push(s0); seenN[s0]=1;
-      const blob=[];
-      while(st.length){
-        const j=st.pop(); blob.push(j);
-        const y=(j/AW)|0,x=j%AW;
-        if(x>0&&classGrid[j-1]===N&&!seenN[j-1]){seenN[j-1]=1;st.push(j-1);}
-        if(x<AW-1&&classGrid[j+1]===N&&!seenN[j+1]){seenN[j+1]=1;st.push(j+1);}
-        if(y>0&&classGrid[j-AW]===N&&!seenN[j-AW]){seenN[j-AW]=1;st.push(j-AW);}
-        if(y<AH-1&&classGrid[j+AW]===N&&!seenN[j+AW]){seenN[j+AW]=1;st.push(j+AW);}
-      }
-      let x0=1e9,x1=-1,y0v=1e9,y1v=-1,cx=0,cy=0;
-      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;cx+=x;cy+=y;
-        if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
-      cx=Math.round(cx/blob.length);cy=Math.round(cy/blob.length);
-      const bw=x1-x0+1,bh=y1v-y0v+1;
-      const okShape = blob.length>=2 && blob.length<=maxArea &&
-        bw/bh>=0.3 && bw/bh<=3.2 && blob.length/(bw*bh)>=0.4 &&
-        bw<=maxBW && bh<=maxBH;
-      // Umfeldradius skaliert mit Analyseauflösung UND Blobgröße: bei großen
-      // Perspektiv-Fenstern muss das Prüffenster über den Rahmen hinausreichen,
-      // sonst sieht es nur Glas und Holz. Fensterzellen zählen nicht als Umfeld.
-      const RADV=Math.max(6,Math.round(AW/85))+(Math.max(bw,bh)>>1);
-      let veg=0,wall=0,roof=0,wood=0,cells=0;
-      for(let dy=-RADV;dy<=RADV;dy++)for(let dx=-RADV;dx<=RADV;dx++){
-        const yy=cy+dy,xx=cx+dx;
-        if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
-        const c=classGrid[yy*AW+xx];
-        if(c===N)continue;
-        cells++;
-        if(c===G||c===F)veg++;
-        else if(c===P||c===K)wall++;
-        else if(c===W)wood++;
-        else if(c===R)roof++;
-      }
-      // Explizite Pink-Marker (#F972E9-artig) sind eine Nutzer-Ansage –
-      // die Heuristik-Validierung hat hier kein Veto. Anteil reicht: auch wenn
-      // der Marker mit einem erkannten Dunkel-Fenster zu EINEM Blob verschmilzt.
-      let pinkN=0;
-      blob.forEach(j=>{ if(px[j*4]>190&&px[j*4+2]>170&&px[j*4+1]<160) pinkN++; });
-      const explicitPink = pinkN > blob.length*0.25;
-      // K1-Beleg: Fenster sitzen in Fachwerk-Fassaden, also gibt es im Umfeld
-      // immer Putz/Wandflächen (P/K). Astlöcher in Kronen und Ritzen in
-      // Plankendecks haben nur Holz um sich – die fliegen hier raus.
-      // Verhältnis-Tore bewusst locker (Perspektive: Fenster unter Traufkanten,
-      // Gauben vor Baumkulisse) – die Präzision liefert das K3/K4-Farbtor.
-      const wsc=wall+wood*0.7;
-      if(!explicitPink &&
-         !(okShape && wall>=cells*0.06 && wsc>veg*0.4 && wsc>roof*0.6 && wsc>=cells*0.07))
-        blob.forEach(j=>classGrid[j]=K);
-    }
+    // (Die finale Fenster-Validierung läuft NACH Struktur-Pass und Zonen-Pass –
+    //  sie braucht die Gebäudezonen als K1-Beleg.)
     } // Ende !markerMode (Heuristik-Fensterdetektoren)
 
     // === STRUKTUR-PASS (Runde 5, Inkrement 1): Bodenanker ===
@@ -1021,7 +976,8 @@ function analyze(){
     // kaum Gras-/Wasserkontakt hat, ist eine Gebäudeoberfläche (Terrasse,
     // Balkon, Vordach) -> Fels. Erst dadurch bleiben Pfützen-Chamfer,
     // Flussfeld und Bleed dem ECHTEN Boden vorbehalten.
-    structDiag = {pathComponents:0, pathToRock:0, pathToRockPx:0, roofToPath:0, roofToPathPx:0};
+    structDiag = {pathComponents:0, pathToRock:0, pathToRockPx:0, roofToPath:0, roofToPathPx:0,
+                  zones:0, zonePx:0};
     // Mindest-Komponentengröße: die Anker beurteilen FLÄCHEN (Terrassen,
     // Terracotta-Wege), keine Sprenkel. Bei feinem Raster zerhacken Konturen
     // den Boden in hunderte Mini-Fragmente, deren Adjazenzringe von lokalen
@@ -1119,6 +1075,190 @@ function analyze(){
       }
     }
 
+    // === BILDKANON K1: Fachwerk-Signatur -> Gebäudezonen ===
+    // Saat = echte Dachkomponenten (nach den Ankern!). Die Zone wächst per
+    // beschränkter Dilation die Fassade hinunter: über Holz/Fels/Fenster frei,
+    // über P-Flächen nur mit Balken-Beleg (Fachwerk = Balken AUF Putz, K1) –
+    // sonst liefe die Zone den grasgesäumten Bodenpfad entlang. Gras/Wasser/
+    // Laub stoppen. Wachstumsbudget ~ 1.5x Dachhöhe (Perspektive: Fassade
+    // unter dem Dach), skaliert mit der Auflösung.
+    {
+      const wInd=new Float32Array(AW*AH);
+      for(let j=0;j<AW*AH;j++) wInd[j]=classGrid[j]===W?1:0;
+      boxBlur(wInd,AW,AH,2,1);                 // Balken-Dichte im 5x5-Umfeld
+      // K7-Schutz: BODENVERANKERTE P-Komponenten (Gras-/Wasserkontakt) sind
+      // tabu für Zonen – sonst wandert die Zone an Zäunen/Konturen entlang
+      // den Dorfpfad und seine Steinfragmente hinunter und maskiert dort
+      // Pfützen und Flussnetz weg. Decks/Putzfelder haben keinen Graskontakt
+      // und bleiben zonierbar (dieselbe Semantik wie der Bodenanker).
+      const mainPath=new Uint8Array(AW*AH);
+      {
+        const seenP=new Uint8Array(AW*AH), stP=[];
+        for(let s0=0;s0<AW*AH;s0++){
+          if(classGrid[s0]!==P||seenP[s0])continue;
+          stP.length=0; stP.push(s0); seenP[s0]=1;
+          const comp=[];
+          let groundAdj=0;
+          while(stP.length){
+            const j=stP.pop(); comp.push(j);
+            const y=(j/AW)|0,x=j%AW;
+            for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
+              const xx=x+d[0],yy=y+d[1];
+              if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+              const nj=yy*AW+xx;
+              const c=classGrid[nj];
+              if(c===P){ if(!seenP[nj]){seenP[nj]=1;stP.push(nj);} }
+              else if(c===G||c===A)groundAdj++;
+            }
+          }
+          if(groundAdj>=3 && groundAdj>=comp.length*0.08)
+            comp.forEach(j=>mainPath[j]=1);
+        }
+        // Dasselbe für Fels: Steine IM Boden (Kontakt zu Gras/Wasser/geschütztem
+        // Pfad) sind Trittsteine, keine Gebäude – ohne diesen Schutz kriecht die
+        // Zone von Stein zu Stein den Dorfpfad entlang. Gebäude-Steinwände haben
+        // relativ zur Fläche kaum Bodenkontakt und bleiben zonierbar.
+        const seenK=new Uint8Array(AW*AH);
+        for(let s0=0;s0<AW*AH;s0++){
+          if(classGrid[s0]!==K||seenK[s0])continue;
+          stP.length=0; stP.push(s0); seenK[s0]=1;
+          const comp=[];
+          let groundAdj=0;
+          while(stP.length){
+            const j=stP.pop(); comp.push(j);
+            const y=(j/AW)|0,x=j%AW;
+            for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
+              const xx=x+d[0],yy=y+d[1];
+              if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+              const nj=yy*AW+xx;
+              const c=classGrid[nj];
+              if(c===K){ if(!seenK[nj]){seenK[nj]=1;stP.push(nj);} }
+              else if(c===G||c===A||(c===P&&mainPath[nj]))groundAdj++;
+            }
+          }
+          if(groundAdj>=3 && groundAdj>=comp.length*0.08)
+            comp.forEach(j=>mainPath[j]=1);   // mainPath = "geschützter Boden"
+        }
+      }
+      const seenZ=new Uint8Array(AW*AH), stZ=[];
+      for(let s0=0;s0<AW*AH;s0++){
+        if(classGrid[s0]!==R||seenZ[s0])continue;
+        stZ.length=0; stZ.push(s0); seenZ[s0]=1;
+        const blob=[];
+        let zy0=1e9,zy1=-1;
+        while(stZ.length){
+          const j=stZ.pop(); blob.push(j);
+          const y=(j/AW)|0,x=j%AW;
+          if(y<zy0)zy0=y; if(y>zy1)zy1=y;
+          if(x>0&&classGrid[j-1]===R&&!seenZ[j-1]){seenZ[j-1]=1;stZ.push(j-1);}
+          if(x<AW-1&&classGrid[j+1]===R&&!seenZ[j+1]){seenZ[j+1]=1;stZ.push(j+1);}
+          if(y>0&&classGrid[j-AW]===R&&!seenZ[j-AW]){seenZ[j-AW]=1;stZ.push(j-AW);}
+          if(y<AH-1&&classGrid[j+AW]===R&&!seenZ[j+AW]){seenZ[j+AW]=1;stZ.push(j+AW);}
+        }
+        if(blob.length<minStruct)continue;      // Sprenkel bilden keine Gebäude
+        // Terracotta-Steine IM Pfad sind dach-farbig, aber kein Gebäude:
+        // wenn der Ring von geschütztem Boden dominiert wird, nicht säen.
+        {
+          const inS=new Set(blob);
+          let ring=0,mp=0;
+          for(const j of blob){
+            const y=(j/AW)|0,x=j%AW;
+            for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
+              const xx=x+d[0],yy=y+d[1];
+              if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+              const nj=yy*AW+xx;
+              if(inS.has(nj)||classGrid[nj]===W)continue;
+              ring++; if(mainPath[nj])mp++;
+            }
+          }
+          if(ring>0 && mp>ring*0.4)continue;
+        }
+        structDiag.zones++;
+        const grow=Math.max(Math.round(AH*0.03), Math.round((zy1-zy0+1)*1.5));
+        let frontier=[];
+        for(const j of blob){ if(!zoneGrid[j]){zoneGrid[j]=1; frontier.push(j);} }
+        for(let step=0; step<grow && frontier.length; step++){
+          const next=[];
+          for(const j of frontier){
+            const y=(j/AW)|0,x=j%AW;
+            for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
+              const xx=x+d[0],yy=y+d[1];
+              if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+              const nj=yy*AW+xx;
+              if(zoneGrid[nj])continue;
+              const c=classGrid[nj];
+              if(mainPath[nj])continue;        // geschützter Boden ist nie Gebäude
+              if(!(c===W||c===K||c===N||c===R||(c===P&&wInd[nj]>=0.18)))continue;
+              zoneGrid[nj]=1; next.push(nj);
+            }
+          }
+          frontier=next;
+        }
+      }
+      for(let j=0;j<AW*AH;j++) structDiag.zonePx+=zoneGrid[j];
+    }
+
+    // Finale Fenster-Validierung (nur Heuristik-Modus): JEDES Licht muss wie
+    // ein Fenster geformt sein. Wo Gebäudezonen existieren, ist der Zonen-
+    // Beleg das Kriterium (K1: Fenster sitzen in Fachwerk-Fassaden) und
+    // ersetzt die Klassen-Votings; ohne Zonen (reine Landschaften) bleibt
+    // das bisherige Wand-Voting als Fallback.
+    if(!markerMode){
+    const zonesExist = structDiag.zonePx > AW*AH*0.01;
+    const seenN=new Uint8Array(AW*AH), st=[];
+    for(let s0=0;s0<AW*AH;s0++){
+      if(classGrid[s0]!==N||seenN[s0])continue;
+      st.length=0; st.push(s0); seenN[s0]=1;
+      const blob=[];
+      while(st.length){
+        const j=st.pop(); blob.push(j);
+        const y=(j/AW)|0,x=j%AW;
+        if(x>0&&classGrid[j-1]===N&&!seenN[j-1]){seenN[j-1]=1;st.push(j-1);}
+        if(x<AW-1&&classGrid[j+1]===N&&!seenN[j+1]){seenN[j+1]=1;st.push(j+1);}
+        if(y>0&&classGrid[j-AW]===N&&!seenN[j-AW]){seenN[j-AW]=1;st.push(j-AW);}
+        if(y<AH-1&&classGrid[j+AW]===N&&!seenN[j+AW]){seenN[j+AW]=1;st.push(j+AW);}
+      }
+      let x0=1e9,x1=-1,y0v=1e9,y1v=-1,cx=0,cy=0;
+      blob.forEach(j=>{const y=(j/AW)|0,x=j%AW;cx+=x;cy+=y;
+        if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0v)y0v=y;if(y>y1v)y1v=y;});
+      cx=Math.round(cx/blob.length);cy=Math.round(cy/blob.length);
+      const bw=x1-x0+1,bh=y1v-y0v+1;
+      const okShape = blob.length>=2 && blob.length<=maxArea &&
+        bw/bh>=0.3 && bw/bh<=3.2 && blob.length/(bw*bh)>=0.4 &&
+        bw<=maxBW && bh<=maxBH;
+      // Umfeldradius skaliert mit Analyseauflösung UND Blobgröße: bei großen
+      // Perspektiv-Fenstern muss das Prüffenster über den Rahmen hinausreichen,
+      // sonst sieht es nur Glas und Holz. Fensterzellen zählen nicht als Umfeld.
+      const RADV=Math.max(6,Math.round(AW/85))+(Math.max(bw,bh)>>1);
+      let veg=0,wall=0,roof=0,wood=0,cells=0,zn=0,cellsZ=0;
+      for(let dy=-RADV;dy<=RADV;dy++)for(let dx=-RADV;dx<=RADV;dx++){
+        const yy=cy+dy,xx=cx+dx;
+        if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
+        const j2=yy*AW+xx;
+        cellsZ++; if(zoneGrid[j2])zn++;
+        const c=classGrid[j2];
+        if(c===N)continue;
+        cells++;
+        if(c===G||c===F)veg++;
+        else if(c===P||c===K)wall++;
+        else if(c===W)wood++;
+        else if(c===R)roof++;
+      }
+      // Explizite Pink-Marker (#F972E9-artig) sind eine Nutzer-Ansage –
+      // die Heuristik-Validierung hat hier kein Veto. Anteil reicht: auch wenn
+      // der Marker mit einem erkannten Dunkel-Fenster zu EINEM Blob verschmilzt.
+      let pinkN=0;
+      blob.forEach(j=>{ if(px[j*4]>190&&px[j*4+2]>170&&px[j*4+1]<160) pinkN++; });
+      const explicitPink = pinkN > blob.length*0.25;
+      const wsc=wall+wood*0.7;
+      const belegt = zonesExist
+        ? zn > cellsZ*0.4                                   // K1-Zonen-Beleg
+        : (wall>=cells*0.06 && wsc>veg*0.4 && wsc>roof*0.6 && wsc>=cells*0.07);
+      if(!explicitPink && !(okShape && belegt))
+        blob.forEach(j=>classGrid[j]=K);
+    }
+    }
+
     // Marker-Overlay: Pink SIND die Fenster – exakt, ohne Heuristik-Veto;
     // andere Palettenfarben korrigieren die Klasse lokal. Heuristik-Fenster
     // ohne Marker fliegen (der Nutzer hat die Fenster ja vollständig markiert).
@@ -1193,9 +1333,15 @@ function analyze(){
   }
   boxBlur(sharpWin,AW,AH,1,1);
 
+  // K1-Zonen weich (Blur = sanfter Übergang an der Traufkante)
+  const zoneSoft=new Float32Array(AW*AH);
+  for(let j=0;j<AW*AH;j++) zoneSoft[j]=zoneGrid[j];
+  boxBlur(zoneSoft,AW,AH,2,2);
+
   // 5) In Texturen packen
   const tA=new Uint8Array(AW*AH*4), tB=new Uint8Array(AW*AH*4),
-        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4);
+        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4),
+        tZ=new Uint8Array(AW*AH*4);
   const q=v=>Math.max(0,Math.min(255,Math.round(v*255)));
   for(let j=0;j<AW*AH;j++){
     tA[j*4]=q(m[G][j]); tA[j*4+1]=q(m[F][j]); tA[j*4+2]=q(m[R][j]); tA[j*4+3]=q(m[P][j]);
@@ -1203,11 +1349,13 @@ function analyze(){
     tP[j*4]=q(depthMap[j]); tP[j*4+1]=q(flow[j]); tP[j*4+2]=q(bleed[j]); tP[j*4+3]=q(Math.min(1,dPath[j]/scale));
     tE[j*4]=q(gR1[j]*0.85+eR[j]*0.6); tE[j*4+1]=q(gG1[j]*0.85+eG[j]*0.6);
     tE[j*4+2]=q(gB1[j]*0.85+eB[j]*0.6); tE[j*4+3]=q(sharpWin[j]);
+    tZ[j*4]=q(zoneSoft[j]); tZ[j*4+3]=255;
   }
   uploadTex(1,TEX.maskA,AW,AH,tA);
   uploadTex(2,TEX.maskB,AW,AH,tB);
   uploadTex(3,TEX.phys,AW,AH,tP);
   uploadTex(4,TEX.emis,AW,AH,tE);
+  uploadTex(7,TEX.zone,AW,AH,tZ);
   ready=true;
 }
 
@@ -1916,6 +2064,12 @@ window.SHADED = {
   fire:{ ignite:igniteFire, list:()=>fires.map(f=>({u:f.u,v:f.v,fuel:f.fuel})) },
   trail:{ clear:trailClear, sample:trailSample },
   structure:()=>structDiag,  // Runde 5: Struktur-Pass-Diagnose
+  zoneAt:(u,v)=>{            // K1: Gebäudezone an UV-Position (0|1)
+    if(!zoneGrid) return 0;
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    return zoneGrid[y*AW+x];
+  },
   // 2.5D: Tiefenkarte + Parallaxe (deterministisch für Tests steuerbar)
   parallax:{ set:(x,y)=>{ parallaxTarget.x=x; parallaxTarget.y=y;
                           parallaxCurrent.x=x; parallaxCurrent.y=y; },

@@ -17,9 +17,16 @@
 - [x] 6. Kanon-Inkrement B (K7): Himmel-Regel – Flood von der Oberkante über
       {A,P,K}, nur wenn blau-dominant & hell → inerte Klasse; verhindert
       Wasser-/Pfützen-Interpretation des Himmels.
-- [ ] 7. Kanon-Inkrement C (K1): Fachwerk-Signatur (Balken-auf-Putz-Dichte)
-      → Gebäudezonen-Maske; Shader maskiert puddle/riv/creep/mud;
-      hebt auch die Fenster-Ausbeute in Perspektiv-Szenen (dorf-himmel).
+- [x] 7. Kanon-Inkrement C (K1): Fachwerk-Signatur → Gebäudezonen-Maske
+      (Saat = echte Dachkomponenten nach den Ankern; Wachstum über W/K/N/R
+      und P-mit-Balken-Beleg; bodenverankerte P-/K-Komponenten und
+      pfad-eingebettete R-Flächen sind tabu); Textur-Unit 7; Shader
+      maskiert puddle/riv/creep/mud mit (1-zone); finale Fenster-
+      Validierung nutzt den Zonen-Beleg statt Klassen-Votings, wo Zonen
+      existieren (Fenster-Ausbeute dorf-himmel 21→26). Bekannte Schuld:
+      terracotta-farbige Pfadsegmente klassifizieren als Dach (eigenes
+      Inkrement; visuell heute fast folgenlos, da Chamfer/Flussnetz
+      P-gebunden sind).
 - [x] 8. Kanon-Belege (2 neue Dorfbilder) in verify.js: Klassenzählung +
       Sturmnacht-Shot top-down; expected-classes erweitern (5 Szenen).
       Dach-/Bodenanker auf Adjazenz-Ringe umgestellt (BBox-Ringe lügen bei

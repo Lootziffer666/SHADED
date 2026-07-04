@@ -45,7 +45,9 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
    5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
    B Trampelpfad permanent, A Hitze/Brand ~25 s), 6 Tiefenkarte (2.5D-Parallaxe;
    ohne Upload 1×1 schwarz = flach; `u_parallax` ist ohne Mausbewegung (0,0) –
-   verify-Frames bleiben deterministisch). Trail-Decay wirkt IMMER direkt
+   verify-Frames bleiben deterministisch), 7 Gebäudezonen (K1: R-Kanal 1 =
+   Fachwerk-Gebäude; maskiert puddle/riv/creep/mud; bodenverankerte Pfad-/
+   Fels-Komponenten sind für Zonen tabu). Trail-Decay wirkt IMMER direkt
    auf den Pixeldaten – nie über Canvas-Composite-Tricks.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)

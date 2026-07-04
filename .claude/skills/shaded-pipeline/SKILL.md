@@ -23,6 +23,9 @@ Szene (Vollauflösung)                                        → Unit 0
 Trail-Map (512², CPU-Uint8Array, dirty-Upload)               → Unit 5
   R Delle (HWZ 1.5 s) · G Impuls (0.4 s) · B Trampelpfad (permanent) · A Hitze/Brand (~25 s)
   Decay direkt auf den Pixeldaten (trailTick), Stempel via trailStamp(u,v,rad,ch,strength)
+Gebäudezonen K1 (R: 1=Fachwerk-Gebäude; Saat=Dächer nach Ankern,
+  Wachstum W/K/N/R + P-mit-Balken-Beleg; bodenverankerte Komponenten tabu;
+  maskiert puddle/riv/creep/mud; Fenster-Validierung via Zonen-Beleg) → Unit 7
 Tiefenkarte 2.5D (optional; Weiß=nah; 1×1 schwarz = flach)   → Unit 6
   UV-Versatz `uv += u_parallax * depth` GANZ AM ANFANG von main(), vor allen
   Lookups (eine Material-Wahrheit!). Overlay folgt der Bodenebene (OV_DEPTH),
@@ -55,8 +58,10 @@ Klassen-Indizes: G=0 grass, F=1 foliage, R=2 roof, P=3 path, W=4 wood, N=5 windo
   (≥55 % W im Direktring) + Farbtor: sattes Blauglas (`b>g && b>r+15 && sat>35`)
   ODER hell-sattes Warmlicht (`sat>120 && lum>120`). Bewusst KEIN
   „dunkel = Fenster“-Tor. `minArea=2` (Sprossen-Scheiben!).
-  (d) Finale N-Validierung: Form + **K1-Wandbeleg** (`wall ≥ 6 %` des Umfelds);
-  Umfeldradius skaliert mit `AW` UND Blobgröße; Pink-Marker sind unantastbar.
+  (d) Finale N-Validierung (läuft NACH Struktur- und Zonen-Pass): Form +
+  **K1-Zonenbeleg** (Zonenanteil > 40 % des Umfelds), wo Zonen existieren;
+  Fallback ohne Zonen: Wand-Voting (`wall ≥ 6 %`). Umfeldradius skaliert mit
+  `AW` UND Blobgröße; Pink-Marker sind unantastbar.
 - **Struktur-Pass (Runde 5, nach den Fensterdetektoren), Adjazenz-Ringe
   (BBox-Ringe lügen bei langgestreckten Formen), `minStruct`-Mindestfläche
   gegen Fragment-Kaskaden:**
