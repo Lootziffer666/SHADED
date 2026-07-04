@@ -2,6 +2,6 @@
   "dorf-marker": {"foliage":5872,"grass":4885,"wood":3636,"rock":1218,"roof":2927,"window":197,"path":2001},
   "legacy-map":  {"foliage":3916,"roof":4753,"path":2080,"wood":1921,"rock":1175,"grass":6024,"water":345,"window":522},
   "taverne":     {"foliage":6279,"grass":3284,"wood":4366,"rock":2713,"window":0,"path":1930,"roof":2164},
-  "dorf-kanon":  {"foliage":7246,"grass":5575,"path":1618,"wood":2356,"rock":1167,"roof":2754,"window":19,"water":1},
-  "dorf-himmel": {"rock":4114,"grass":4670,"path":1109,"roof":2516,"foliage":5443,"water":15,"wood":2848,"window":21}
+  "dorf-kanon":  {"foliage":7246,"grass":5575,"path":1618,"wood":2356,"rock":1166,"roof":2754,"window":20,"water":1},
+  "dorf-himmel": {"rock":4109,"grass":4670,"path":1109,"roof":2516,"foliage":5443,"water":15,"wood":2848,"window":26}
 }

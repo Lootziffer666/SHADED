@@ -26,7 +26,7 @@ const GLB = process.argv[3] || 'Hitem3d-1783102077836-v1.glb';
 // three.js aus node_modules servieren (Pfad wie bei Playwright per NODE_PATH)
 function findThree() {
   for (const base of [path.join(REPO, 'node_modules'),
-                      ...(process.env.NODE_PATH ? process.env.NODE_PATH.split(':') : [])]) {
+                      ...(process.env.NODE_PATH ? process.env.NODE_PATH.split(path.delimiter) : [])]) {
     if (base && fs.existsSync(path.join(base, 'three'))) return path.join(base, 'three');
   }
   console.error('three nicht gefunden – npm i three'); process.exit(1);
@@ -133,9 +133,9 @@ window.score=function(o){
   for(let dy=-14;dy<=14;dy+=2)for(let dx=-14;dx<=14;dx+=2){
     let sum=0,n=0;
     for(let y=Math.max(0,-dy);y<SH-Math.max(0,dy);y+=1){
-      const ry=y+dy;
+      const yOff=y*SW, ryOff=(y+dy)*SW;
       for(let x=Math.max(0,-dx);x<SW-Math.max(0,dx);x+=2){
-        sum+=refEdge[y*SW+x]*e[(ry)*SW+(x+dx)]; n++;
+        sum+=refEdge[yOff+x]*e[ryOff+x+dx]; n++;
       }
     }
     const sc=sum/n;
@@ -170,6 +170,7 @@ window.finalRender=function(o){
   for(let i=0;i<w*h;i++){const v=D[i*4]; if(v>8)vals.push(v);}
   vals.sort((a,b)=>a-b);
   const lo=vals[Math.floor(vals.length*0.02)]||0, hi=vals[Math.floor(vals.length*0.995)]||255;
+  const range=(hi-lo)||1;              // flache Karte: nie durch 0 teilen
   const rowFill=new Array(h); let prev=lo;
   for(let y=0;y<h;y++){
     const row=[];
@@ -181,20 +182,26 @@ window.finalRender=function(o){
   const gray=new Float32Array(w*h);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
     let v=D[(y*w+x)*4]; if(v<=8)v=rowFill[y];
-    gray[y*w+x]=Math.max(0,Math.min(255,(v-lo)/(hi-lo)*255));
+    gray[y*w+x]=Math.max(0,Math.min(255,(v-lo)/range*255));
   }
-  // 3x Boxblur ~ Gauss
+  // 3x Boxblur ~ Gauss (Zeilen-Offsets vorberechnet)
+  const rowOff=new Int32Array(h);
+  for(let y=0;y<h;y++)rowOff[y]=y*w;
   const tmp=new Float32Array(w*h); const R=5;
   for(let p=0;p<3;p++){
-    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-      let s=0,n=0;
-      for(let k=-R;k<=R;k++){const xx=x+k; if(xx>=0&&xx<w){s+=gray[y*w+xx];n++;}}
-      tmp[y*w+x]=s/n;
+    for(let y=0;y<h;y++){const yw=rowOff[y];
+      for(let x=0;x<w;x++){
+        let s=0,n=0;
+        for(let k=-R;k<=R;k++){const xx=x+k; if(xx>=0&&xx<w){s+=gray[yw+xx];n++;}}
+        tmp[yw+x]=s/n;
+      }
     }
-    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-      let s=0,n=0;
-      for(let k=-R;k<=R;k++){const yy=y+k; if(yy>=0&&yy<h){s+=tmp[yy*w+x];n++;}}
-      gray[y*w+x]=s/n;
+    for(let y=0;y<h;y++){const yw=rowOff[y];
+      for(let x=0;x<w;x++){
+        let s=0,n=0;
+        for(let k=-R;k<=R;k++){const yy=y+k; if(yy>=0&&yy<h){s+=tmp[rowOff[yy]+x];n++;}}
+        gray[yw+x]=s/n;
+      }
     }
   }
   for(let i=0;i<w*h;i++){const v=gray[i]|0; D[i*4]=v; D[i*4+1]=v; D[i*4+2]=v; D[i*4+3]=255;}

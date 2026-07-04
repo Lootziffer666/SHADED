@@ -93,7 +93,7 @@ Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipel
 
 Der verbindliche Fahrplan (Runde 1–4) ist komplett umgesetzt. Darauf aufbauend:
 
-- **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird. Grundlage ist der **verbindliche [Bildkanon](docs/bildkanon.md)** (Häuser sind Fachwerk, Fenster sind IMMER holzgerahmt, Glas ohne Rahmen = kein Fenster, Himmel ist oben & inert). Umgesetzt: Bodenanker + Dach-Anker (Adjazenz-Ringe) ✅, Rahmen-Fenster-Detektor (K3/K4) ✅, Himmel-Regel (K7) ✅; als Nächstes die Fachwerk-Signatur (K1) → Gebäudezonen → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
+- **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird. Grundlage ist der **verbindliche [Bildkanon](docs/bildkanon.md)** (Häuser sind Fachwerk, Fenster sind IMMER holzgerahmt, Glas ohne Rahmen = kein Fenster, Himmel ist oben & inert). Umgesetzt: Bodenanker + Dach-Anker (Adjazenz-Ringe) ✅, Rahmen-Fenster-Detektor (K3/K4) ✅, Himmel-Regel (K7) ✅, Fachwerk-Signatur (K1) → Gebäudezonen ✅ (Pfützen/Flussnetz/Überwucherung sind jetzt strukturell vom Gebäude ausgesperrt, Fenster-Validierung läuft über den Zonen-Beleg) → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
 
 **Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze“-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
 
