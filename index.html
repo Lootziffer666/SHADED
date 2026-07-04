@@ -1120,9 +1120,9 @@ function analyze(){
         //   bebalktem Putz erreichen die 35% nicht (gemessen: 29% vs. 43%).
         const grounded = blob.length>=minStruct
           ? (nonW>10 && winC===0 && ground>=nonW*0.05 && pfad<nonW*0.10 &&
-             ( (ground>nonW*0.45 && prot+pfadFrei+pfad>=nonW*0.15) ||
+             ( (ground>nonW*0.45 && prot+pfadFrei>=nonW*0.15) ||
                (prot+pfadFrei>nonW*0.35 && ground+prot+pfadFrei>nonW*0.55) ))
-          : (nonW>4 && ground+pfad+pfadFrei+prot>nonW*0.6 && winC===0);
+          : (nonW>4 && ground+pfadFrei+prot>nonW*0.6 && winC===0);
         if(grounded){
           blob.forEach(j=>{classGrid[j]=P; mainPath[j]=1;}); // konvertiert = Boden
           structDiag.roofToPath++;
