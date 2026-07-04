@@ -97,4 +97,9 @@ in `tickLightning()`). Alle 0..1. CUR (geblendet) wird gerendert, PARAMS ist der
 2. In relevante `ACTS` und Default-Storyboard-Schritte eintragen.
 3. Effekt an der stimmigen Stelle der Shader-Reihenfolge einbauen; Materialbezug immer
    über die Masken, nie über Farbvergleiche im Shader.
-4. `node tools/verify.js` + Screenshots ansehen (siehe Skill shaded-visual-verify).
+4. Bewegungsphasen: Intensitäten (wind/rain/…) NIE in den Phasenterm `t*f(intensität)`
+   multiplizieren – beim Abklingen liefe die Phase rückwärts („Regen-Rewind“).
+   Stattdessen Phase auf der CPU aufsummieren (`u_rainPhase`, `u_windDrift` in
+   `tickWorld`; `setTime` setzt sie deterministisch). Intensität steuert nur
+   Amplitude/Dichte/Deckkraft.
+5. `node tools/verify.js` + Screenshots ansehen (siehe Skill shaded-visual-verify).
