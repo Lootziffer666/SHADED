@@ -999,6 +999,66 @@ function analyze(){
     // Sprenkeln dominiert werden – die kaskadierten sonst zu Fels.
     const minStruct = Math.max(24, Math.round(AW*AH*0.0002));
 
+    // Balken-Dichte (K1) früh berechnen: W wird von den Ankern nie verändert.
+    // Unterscheidet Fassaden-Putz (balkengerahmt, wInd hoch) von freiem
+    // Pfad (wInd niedrig) – für Dach-Anker UND Zonen-Wachstum.
+    const wInd=new Float32Array(AW*AH);
+    for(let j=0;j<AW*AH;j++) wInd[j]=classGrid[j]===W?1:0;
+    boxBlur(wInd,AW,AH,2,1);
+
+    // === Geschützter Boden (K7), VOR den Ankern ===
+    // Bodenverankerte P-/K-Komponenten (Gras-/Wasserkontakt) sind Boden-
+    // Wahrheit: Dach-Anker nutzt sie als Bodenbeweis (Terracotta-Pfadstücke
+    // mitten im Weg!), der Zonen-Pass als Tabu-Fläche.
+    const mainPath=new Uint8Array(AW*AH);
+    {
+      const seenP=new Uint8Array(AW*AH), stP=[];
+      for(let s0=0;s0<AW*AH;s0++){
+        if(classGrid[s0]!==P||seenP[s0])continue;
+        stP.length=0; stP.push(s0); seenP[s0]=1;
+        const comp=[];
+        let groundAdj=0;
+        while(stP.length){
+          const j=stP.pop(); comp.push(j);
+          const y=(j/AW)|0,x=j%AW;
+          for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
+            const xx=x+d[0],yy=y+d[1];
+            if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+            const nj=yy*AW+xx;
+            const c=classGrid[nj];
+            if(c===P){ if(!seenP[nj]){seenP[nj]=1;stP.push(nj);} }
+            else if(c===G||c===A)groundAdj++;
+          }
+        }
+        if(groundAdj>=3 && groundAdj>=comp.length*0.08)
+          comp.forEach(j=>mainPath[j]=1);
+      }
+      // Fels: Steine IM Boden (Kontakt zu Gras/Wasser/geschütztem Pfad) sind
+      // Trittsteine, keine Gebäude. Gebäude-Steinwände haben relativ zur
+      // Fläche kaum Bodenkontakt und bleiben unmarkiert.
+      const seenK=new Uint8Array(AW*AH);
+      for(let s0=0;s0<AW*AH;s0++){
+        if(classGrid[s0]!==K||seenK[s0])continue;
+        stP.length=0; stP.push(s0); seenK[s0]=1;
+        const comp=[];
+        let groundAdj=0;
+        while(stP.length){
+          const j=stP.pop(); comp.push(j);
+          const y=(j/AW)|0,x=j%AW;
+          for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
+            const xx=x+d[0],yy=y+d[1];
+            if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
+            const nj=yy*AW+xx;
+            const c=classGrid[nj];
+            if(c===K){ if(!seenK[nj]){seenK[nj]=1;stP.push(nj);} }
+            else if(c===G||c===A||(c===P&&mainPath[nj]))groundAdj++;
+          }
+        }
+        if(groundAdj>=3 && groundAdj>=comp.length*0.08)
+          comp.forEach(j=>mainPath[j]=1);   // mainPath = "geschützter Boden"
+      }
+    }
+
     // Dach-Anker (Kanon K2/K7): Eine "Dach"-Komponente, deren Umfeld gras-
     // dominiert und fensterlos ist, hängt an keinem Gebäude – das ist Boden
     // (Terracotta-Pfad, der farblich in die Dachregel fiel). Bäume (F) zählen
@@ -1020,7 +1080,7 @@ function analyze(){
         // Adjazenz-Ring: nur DIREKTE Nachbarn zählen (BBox-Ringe lügen bei
         // langgestreckten Formen). Konturen (W) sind neutral, 2 px tief schauen.
         const inB=new Set(blob);
-        let ground=0,winC=0,pfad=0,nonW=0;
+        let ground=0,winC=0,pfad=0,prot=0,pfadFrei=0,nonW=0;
         for(const j of blob){
           const y=(j/AW)|0,x=j%AW;
           for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]]){
@@ -1033,17 +1093,34 @@ function analyze(){
             nonW++;
             if(c===G||c===A)ground++;
             else if(c===N)winC++;
-            else if(c===P)pfad++;
+            else if(mainPath[nj])prot++;           // geschützter Boden (P UND K)
+            else if(c===P){ if(wInd[nj]<0.18)pfadFrei++; else pfad++; }
           }
         }
-        // Große Komponente: gras-geerdet & fensterlos -> Boden. Sprenkel
-        // (< minStruct) IM Pfad werden vom Pfad absorbiert, damit sie dem
-        // Bodenanker nicht als "Gebäude"-Beweis erscheinen.
+        // Große Komponente: gras-geerdet ODER von geschütztem Boden dominiert
+        // (Terracotta-Pfadstücke MITTEN im Weg sehen kein Gras, aber lauter
+        // bodenverankerten Pfad) -> Boden. Sprenkel (< minStruct) IM Pfad
+        // werden absorbiert, damit sie dem Bodenanker nicht als "Gebäude"-
+        // Beweis erscheinen.
+        // Bodenbeweis: Gras/Wasser direkt, geschützter Boden, oder balkenFREIE
+        // P-Flächen (offener Pfad; Fassaden-Putz ist balkengerahmt und zählt
+        // NICHT). Fenster-Nullregel (K1/K8): Dach mit Fenstern = IMMER Gebäude.
+        // Putz-Veto (K1): grenzt das "Dach" an balkengerahmten Putz, steht
+        // darunter eine Fachwerk-Fassade - das ist ein Haus, kein Pfad.
+        // Zwei Konvertierungs-Äste:
+        // - Gras-Ast (>45% Gras/Wasser) mit Pfad-Kontext-Pflicht (>=15%),
+        //   sonst fielen freistehende Schuppen/Pavillons im Gras.
+        // - Pfad-Kontext-Ast: Terracotta-Stücke MITTEN im Weg sehen wenig
+        //   Gras, aber ihr Umfeld ist SELBST dominant Boden/offener Pfad
+        //   (>=35% allein, >=55% mit Gras). Hausdächer über sparsam
+        //   bebalktem Putz erreichen die 35% nicht (gemessen: 29% vs. 43%).
         const grounded = blob.length>=minStruct
-          ? (nonW>10 && ground>nonW*0.45 && winC===0)
-          : (nonW>4 && ground+pfad>nonW*0.6 && winC===0);
+          ? (nonW>10 && winC===0 && ground>=nonW*0.05 && pfad<nonW*0.10 &&
+             ( (ground>nonW*0.45 && prot+pfadFrei+pfad>=nonW*0.15) ||
+               (prot+pfadFrei>nonW*0.35 && ground+prot+pfadFrei>nonW*0.55) ))
+          : (nonW>4 && ground+pfad+pfadFrei+prot>nonW*0.6 && winC===0);
         if(grounded){
-          blob.forEach(j=>classGrid[j]=P);
+          blob.forEach(j=>{classGrid[j]=P; mainPath[j]=1;}); // konvertiert = Boden
           structDiag.roofToPath++;
           structDiag.roofToPathPx+=blob.length;
         }
@@ -1098,63 +1175,11 @@ function analyze(){
     // Laub stoppen. Wachstumsbudget ~ 1.5x Dachhöhe (Perspektive: Fassade
     // unter dem Dach), skaliert mit der Auflösung.
     {
-      const wInd=new Float32Array(AW*AH);
-      for(let j=0;j<AW*AH;j++) wInd[j]=classGrid[j]===W?1:0;
-      boxBlur(wInd,AW,AH,2,1);                 // Balken-Dichte im 5x5-Umfeld
-      // K7-Schutz: BODENVERANKERTE P-Komponenten (Gras-/Wasserkontakt) sind
-      // tabu für Zonen – sonst wandert die Zone an Zäunen/Konturen entlang
-      // den Dorfpfad und seine Steinfragmente hinunter und maskiert dort
-      // Pfützen und Flussnetz weg. Decks/Putzfelder haben keinen Graskontakt
-      // und bleiben zonierbar (dieselbe Semantik wie der Bodenanker).
-      const mainPath=new Uint8Array(AW*AH);
-      {
-        const seenP=new Uint8Array(AW*AH), stP=[];
-        for(let s0=0;s0<AW*AH;s0++){
-          if(classGrid[s0]!==P||seenP[s0])continue;
-          stP.length=0; stP.push(s0); seenP[s0]=1;
-          const comp=[];
-          let groundAdj=0;
-          while(stP.length){
-            const j=stP.pop(); comp.push(j);
-            const y=(j/AW)|0,x=j%AW;
-            for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
-              const xx=x+d[0],yy=y+d[1];
-              if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
-              const nj=yy*AW+xx;
-              const c=classGrid[nj];
-              if(c===P){ if(!seenP[nj]){seenP[nj]=1;stP.push(nj);} }
-              else if(c===G||c===A)groundAdj++;
-            }
-          }
-          if(groundAdj>=3 && groundAdj>=comp.length*0.08)
-            comp.forEach(j=>mainPath[j]=1);
-        }
-        // Dasselbe für Fels: Steine IM Boden (Kontakt zu Gras/Wasser/geschütztem
-        // Pfad) sind Trittsteine, keine Gebäude – ohne diesen Schutz kriecht die
-        // Zone von Stein zu Stein den Dorfpfad entlang. Gebäude-Steinwände haben
-        // relativ zur Fläche kaum Bodenkontakt und bleiben zonierbar.
-        const seenK=new Uint8Array(AW*AH);
-        for(let s0=0;s0<AW*AH;s0++){
-          if(classGrid[s0]!==K||seenK[s0])continue;
-          stP.length=0; stP.push(s0); seenK[s0]=1;
-          const comp=[];
-          let groundAdj=0;
-          while(stP.length){
-            const j=stP.pop(); comp.push(j);
-            const y=(j/AW)|0,x=j%AW;
-            for(const d of [[-1,0],[1,0],[0,-1],[0,1]]){
-              const xx=x+d[0],yy=y+d[1];
-              if(xx<0||xx>=AW||yy<0||yy>=AH)continue;
-              const nj=yy*AW+xx;
-              const c=classGrid[nj];
-              if(c===K){ if(!seenK[nj]){seenK[nj]=1;stP.push(nj);} }
-              else if(c===G||c===A||(c===P&&mainPath[nj]))groundAdj++;
-            }
-          }
-          if(groundAdj>=3 && groundAdj>=comp.length*0.08)
-            comp.forEach(j=>mainPath[j]=1);   // mainPath = "geschützter Boden"
-        }
-      }
+      // (wInd = Balken-Dichte wurde vor den Ankern berechnet)
+      // K7-Schutz: das vor den Ankern berechnete mainPath ("geschützter
+      // Boden", inkl. der vom Dach-Anker konvertierten Flächen) ist tabu –
+      // sonst wandert die Zone an Zäunen/Trittsteinen entlang den Dorfpfad
+      // hinunter. Decks/Putzfelder sind nicht geschützt und bleiben zonierbar.
       const seenZ=new Uint8Array(AW*AH), stZ=[];
       for(let s0=0;s0<AW*AH;s0++){
         if(classGrid[s0]!==R||seenZ[s0])continue;
@@ -1245,7 +1270,7 @@ function analyze(){
       // Perspektiv-Fenstern muss das Prüffenster über den Rahmen hinausreichen,
       // sonst sieht es nur Glas und Holz. Fensterzellen zählen nicht als Umfeld.
       const RADV=Math.max(6,Math.round(AW/85))+(Math.max(bw,bh)>>1);
-      let veg=0,wall=0,roof=0,wood=0,cells=0,zn=0,cellsZ=0;
+      let veg=0,wall=0,roof=0,wood=0,wat=0,cells=0,zn=0,cellsZ=0;
       for(let dy=-RADV;dy<=RADV;dy++)for(let dx=-RADV;dx<=RADV;dx++){
         const yy=cy+dy,xx=cx+dx;
         if(yy<0||yy>=AH||xx<0||xx>=AW)continue;
@@ -1258,6 +1283,7 @@ function analyze(){
         else if(c===P||c===K)wall++;
         else if(c===W)wood++;
         else if(c===R)roof++;
+        else if(c===A)wat++;
       }
       // Explizite Pink-Marker (#F972E9-artig) sind eine Nutzer-Ansage –
       // die Heuristik-Validierung hat hier kein Veto. Anteil reicht: auch wenn
@@ -1266,9 +1292,11 @@ function analyze(){
       blob.forEach(j=>{ if(px[j*4]>190&&px[j*4+2]>170&&px[j*4+1]<160) pinkN++; });
       const explicitPink = pinkN > blob.length*0.25;
       const wsc=wall+wood*0.7;
-      const belegt = zonesExist
+      // Wasser-Veto: Fenster sitzen in Fassaden, nie im Fluss – Sonnenglitzer
+      // auf Wasser sind kein Warmlicht (K4 sinngemäß).
+      const belegt = wat<cells*0.1 && (zonesExist
         ? zn > cellsZ*0.4                                   // K1-Zonen-Beleg
-        : (wall>=cells*0.06 && wsc>veg*0.4 && wsc>roof*0.6 && wsc>=cells*0.07);
+        : (wall>=cells*0.06 && wsc>veg*0.4 && wsc>roof*0.6 && wsc>=cells*0.07));
       if(!explicitPink && !(okShape && belegt))
         blob.forEach(j=>classGrid[j]=K);
     }
