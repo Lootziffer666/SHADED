@@ -951,7 +951,7 @@ function analyze(){
         if(bw>maxBW||bh>maxBH)continue;
         // Direktring (1 px um den Blob): Holzanteil entscheidet
         const inBlob=new Set(blob);
-        let ring=0,wood=0;
+        let ring=0,wood=0,ringLum=0;
         for(const j of blob){
           const y=(j/AW)|0,x=j%AW;
           for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]){
@@ -960,10 +960,14 @@ function analyze(){
             const nj=yy*AW+xx;
             if(inBlob.has(nj))continue;
             ring++;
-            if(classGrid[nj]===W)wood++;
+            if(classGrid[nj]===W){wood++;
+              ringLum+=px[nj*4]*0.299+px[nj*4+1]*0.587+px[nj*4+2]*0.114;}
           }
         }
         if(!(ring>0 && wood>=ring*0.55))continue;
+        // K3/K6: Ein HOLZrahmen ist braun (mittelhell) – fast schwarze Ringe
+        // sind Stil-Konturen (um Felsreflexe, Astlöcher), keine Rahmen.
+        if(ringLum/wood < 45)continue;
         // K3/K4-Farbtor gegen das Gefach-Paradox: Putzfelder sind ebenfalls
         // holzgerahmt! Fensterfüllung ist sattes Blauglas ODER hell-sattes
         // Warmlicht. Bewusst KEIN "einfach dunkel"-Tor: das griff jede
