@@ -84,7 +84,7 @@ in `tickLightning()`). Alle 0..1. CUR (geblendet) wird gerendert, PARAMS ist der
 3. Specular-Sheen (Luminanz-Gradient)
 4. Verfall (Runde 3: Verfallskurven `dWood 0.05–0.55 → dRoof 0.20–0.75 → dPath 0.35–0.90 → dRock 0.60–1.0`; Holz versilbert + Splitter, Dach-Moos + fehlende-Ziegel-Löcher, Pfad-Überwucherung via `phys.a`-Distanzfront im Szenen-Graston `u_grassAvg`, Ranken, Flechten, Risse + Dach-Sag ab decay>0.75; `u_mossBoost` = CPU-Feuchte-Patina, `u_bleach` schaltet Moos→Ausbleichen; Fensterlicht erlischt ab decay 0.6)
 5. Wolkenschatten → `grade()` (Tag/Nacht/Sturm; wird AUCH auf Pfützen-Reflexionen angewandt!)
-6. Rinnsal-Netz (fbm entlang Flussfeld, nur `mPath*rain*wet`)
+6. Rinnsal-Netz (fbm entlang Flussfeld, nur `mPath*rain*wet*(1-zone)`) + Dach-Ablauf (K2: abwärts wandernde Glanzbahnen, nur `mRoof*rainy` – Dächer schütten ab, sammeln nie)
 7. Pfützen (Tiefe+Noise vs. Schwelle `0.95-0.78*puddle`; Reflexion = Szene↑ + Himmel + `u_emis`-Warmlicht)
 8. Regenringe, Tropfkanten, Fensterlicht (Kern + Glow + diffuser Schein auf Nässe)
 9. Nebel (2×fbm, Rand-gewichtet) → Regenschlieren (3 Parallax-Schichten) → Blitz
@@ -97,4 +97,9 @@ in `tickLightning()`). Alle 0..1. CUR (geblendet) wird gerendert, PARAMS ist der
 2. In relevante `ACTS` und Default-Storyboard-Schritte eintragen.
 3. Effekt an der stimmigen Stelle der Shader-Reihenfolge einbauen; Materialbezug immer
    über die Masken, nie über Farbvergleiche im Shader.
-4. `node tools/verify.js` + Screenshots ansehen (siehe Skill shaded-visual-verify).
+4. Bewegungsphasen: Intensitäten (wind/rain/…) NIE in den Phasenterm `t*f(intensität)`
+   multiplizieren – beim Abklingen liefe die Phase rückwärts („Regen-Rewind“).
+   Stattdessen Phase auf der CPU aufsummieren (`u_rainPhase`, `u_windDrift` in
+   `tickWorld`; `setTime` setzt sie deterministisch). Intensität steuert nur
+   Amplitude/Dichte/Deckkraft.
+5. `node tools/verify.js` + Screenshots ansehen (siehe Skill shaded-visual-verify).
