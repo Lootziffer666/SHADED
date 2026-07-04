@@ -434,6 +434,16 @@ void main(){
     vec3 rivCol = mix(vec3(0.70,0.80,0.95), sky+0.3, 0.35);
     col = mix(col, col*0.72 + rivCol*0.5, net);
     col += erefG.rgb * net * night * u_glow * 0.9;   // Warmlicht glitzert im Flussnetz
+
+    // --- Dach-Ablauf (K2): Dächer sammeln nie Wasser, sie SCHÜTTEN ab. ---
+    // Dünne Ablaufbahnen rinnen die Schrägen hinunter zu den Tropfkanten:
+    // vertikal gestreckte, abwärts wandernde Glanzstreifen, nur auf Dach.
+    float rr1 = smoothstep(0.60,0.84, fbm(vec2(uv.x*150.0*u_aspect,       uv.y*16.0 - t*2.3)));
+    float rr2 = smoothstep(0.66,0.88, fbm(vec2(uv.x*260.0*u_aspect + 9.0, uv.y*24.0 - t*3.3)))*0.75;
+    float roofRun = max(rr1,rr2) * mRoof * rainy;
+    vec3 runCol = mix(vec3(0.72,0.80,0.94), sky+0.25, 0.35);
+    col = mix(col, col*0.78 + runCol*0.42, roofRun*0.85);
+    col += erefG.rgb * roofRun * night * u_glow * 0.35; // Fensterlicht glänzt im Ablauf
   }
 
   // --- Pfützen: sammeln sich in Senken, spiegeln Himmel & Warmlicht ---
