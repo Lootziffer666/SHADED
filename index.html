@@ -97,6 +97,7 @@ body.cinema #exit-cinema{display:block}
     <button data-act="schnee">❄️ Erster Schnee</button>
     <button id="btn-year">📅 Ein Jahr (Loop)</button>
     <button id="btn-timelapse">⏳ Zeitraffer-Verfall</button>
+    <button id="btn-drama">⚡ Drama-Spektakel (20s)</button>
   </div>
 
   <h2>Interaktion</h2>
@@ -175,15 +176,19 @@ const PARAM_META = [
 ];
 // Akte definieren nur relevante Keys; fehlende werden mit DEFAULTS aufgefüllt.
 const ACTS = {
-  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0, temperature:0.70}},
-  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0, temperature:0.56}},
-  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0, temperature:0.52}},
-  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0, temperature:0.52}},
-  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0, temperature:0.62}},
-  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1, temperature:0.55}},
-  fruehling:  {label:'Frühlingsmorgen',   p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.14, wind:0.40, glow:0.10, decay:0, temperature:0.62, bloom:0.90}},
-  herbst:     {label:'Goldener Herbst',   p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.25, wind:0.70, glow:0.30, decay:0.06,temperature:0.56, autumn:0.92}},
-  schnee:     {label:'Erster Schnee',     p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.30, wind:0.30, glow:0.50, decay:0, temperature:0.24, snow:0.85, snowfall:0.70}}
+  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0,    temperature:0.70}},
+  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.25, wind:0.85, glow:0.55, decay:0,    temperature:0.56}},
+  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.40, wind:1,    glow:1,    decay:0,    temperature:0.52}},
+  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.50, wind:0.40, glow:0.60, decay:0,    temperature:0.52}},
+  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.02, wind:0.35, glow:0.12, decay:0,    temperature:0.62}},
+  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.20, wind:0.50, glow:0,    decay:1,    temperature:0.55}},
+  fruehling:  {label:'🌸 Frühlingsmorgen', p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.10, wind:0.40, glow:0.10, decay:0.15, temperature:0.62, bloom:0.90}},
+  sommer:     {label:'☀️ Vollsommer',     p:{dayNight:0.05,storm:0.02, rain:0.02, wet:0.05, puddle:0.05, fog:0.05, wind:0.25, glow:0.15, decay:0.25, temperature:0.85, bloom:0.50}},
+  herbst:     {label:'🍁 Goldener Herbst', p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.18, wind:0.70, glow:0.30, decay:0.40, temperature:0.56, autumn:0.92}},
+  schnee:     {label:'❄️ Erster Schnee',  p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.25, wind:0.30, glow:0.50, decay:0.50, temperature:0.24, snow:0.85, snowfall:0.70}},
+  blitz:      {label:'⚡ Blitz schlägt ein', p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.30, wind:1,    glow:1,    decay:0.50, temperature:0.50, flash:1}},
+  gefroren:   {label:'🧊 Wasser gefriert', p:{dayNight:0.65,storm:0.50, rain:0.1,  wet:0.95, puddle:0.80, fog:0.35, wind:0.55, glow:0.70, decay:0.55, temperature:0.10, snow:0.20, snowfall:0.15}},
+  schnee_dicke:{label:'⛄ Dichter Schnee', p:{dayNight:0.70,storm:0.90, rain:0,    wet:0.75, puddle:0.65, fog:0.40, wind:1,    glow:0.65, decay:0.60, temperature:-0.10, snow:0.92, snowfall:0.85}}
 };
 Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
@@ -277,7 +282,9 @@ void main(){
   // --- Die Szene atmet: Vegetation schwankt im Wind (Domain-Warp) ---
   float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
   vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
-  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * 0.0022;  // Impuls schüttelt
+  // Intensiverer Kronenschwung, besonders in Laubwäldern und bei Wind
+  float swayStrength = 0.0022 + mFol*0.0018*(0.5+u_wind*0.8);
+  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * swayStrength;  // Impuls schüttelt
   // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
   float lateDecay = smoothstep(0.75,1.0,u_decay);
   suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
@@ -291,10 +298,12 @@ void main(){
   if(u_autumn>0.003){
     float cellN = vnoise(uv*vec2(14.0*u_aspect,14.0));
     float lumB = lum(base);
-    vec3 acol = mix(vec3(0.87,0.55,0.12), vec3(0.72,0.27,0.08), cellN) * (0.35+1.0*lumB);
-    col = mix(col, acol, mFol*u_autumn*0.85);
-    vec3 gcol = vec3(0.64,0.52,0.20)*(0.4+1.1*lumB);
-    col = mix(col, gcol, mGrass*u_autumn*0.55);
+    // Foliage: Bright gold to deep red-brown
+    vec3 acol = mix(vec3(0.95,0.65,0.10), vec3(0.80,0.25,0.08), cellN) * (0.45+1.1*lumB);
+    col = mix(col, acol, mFol*u_autumn*0.92);
+    // Grass: Rich golden-brown, more saturated
+    vec3 gcol = vec3(0.72,0.58,0.18)*(0.5+1.2*lumB);
+    col = mix(col, gcol, mGrass*u_autumn*0.68);
     // gefallenes Laub sammelt sich an Pfadrändern (Bleed-Halo + flache Pfadzonen)
     float litterZone = mGrass*phys.b + mPath*(1.0-smoothstep(0.15,0.55,phys.r));
     float litter = step(0.62, vnoise(uv*vec2(170.0*u_aspect,170.0))) * litterZone;
@@ -321,32 +330,31 @@ void main(){
     float crownGate = smoothstep(0.62,0.95,mFol) * bloomable * treeSel;  // hart: kein Schmieren über Ränder
     col = mix(col, crownCol, crownGate*u_bloom*clumps*0.95);
 
-    // 2) Wiesenblumen: nur in Cluster-Inseln + verdichtet am Pfadrand (Bleed-Halo)
-    // Dichte nach Frühlings-Zielbild (file_0000000029f8…): üppige Blumenteppiche
+    // 2) Wiesenblumen: üppige Blumenteppiche mit hoher Dichte im Frühling
     float meadow = smoothstep(0.46,0.68, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
     float density = clamp(meadow + phys.b*0.85, 0.0, 1.0);
     float grassGate = smoothstep(0.5,0.8,mGrass);
-    vec2 fc = uv*vec2(34.0*u_aspect,34.0);
+    vec2 fc = uv*vec2(48.0*u_aspect,48.0);  // dichtere Blumen-Grid
     vec2 fid = floor(fc), ffp = fract(fc)-0.5;
     float fr = hash(fid);
-    float on = step(1.0 - u_bloom*(0.26+0.74*density), fr);
+    float on = step(1.0 - u_bloom*(0.38+0.62*density), fr);  // höhere Blüten-Wahrscheinlichkeit
     if(on*grassGate>0.01){
-      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.4;
+      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.35;
       vec2 d = ffp-fOff;
       float rad = length(d);
       float ang = atan(d.y,d.x);
-      float size = 0.22*(0.7+0.7*hash(fid+7.9));
+      float size = 0.36*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
       float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
-      float petal = smoothstep(petalR+0.03, petalR-0.05, rad);
-      float centerDot = smoothstep(size*0.50, size*0.26, rad);   // Blütenkörbchen
+      float petal = smoothstep(petalR+0.04, petalR-0.06, rad);
+      float centerDot = smoothstep(size*0.55, size*0.28, rad);   // Blütenkörbchen
       float pick = hash(fid+4.4);
       vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
                   pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
                   pick<0.82 ? vec3(0.62,0.76,0.97) :             // hellblau
                               vec3(0.99,0.90,0.55);              // gelb
       float fm = petal*on*grassGate;
-      col = mix(col, fCol*(0.7+0.45*lumB2), fm*0.95);
-      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate); // sattes gelbes Körbchen
+      col = mix(col, fCol*(0.8+0.55*lumB2), fm*0.98);
+      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate*u_bloom*0.95); // sattes gelbes Körbchen
     }
   }
 
@@ -622,6 +630,14 @@ void main(){
   vec3 sky = mix( mix(vec3(0.62,0.70,0.82), vec3(0.28,0.31,0.38), u_storm),
                   mix(vec3(0.09,0.12,0.21), vec3(0.045,0.055,0.10), u_storm), night );
 
+  // --- Wandernde Sonne/Mond im Himmel (beeinflusst auch Himmelsgradient) ---
+  float sunAngle = (0.5 - night*1.2) * 3.14159;  // 0 (Tag oben) bis -1.88 (Nacht unten)
+  vec2 sunPos = vec2(0.5 + sin(sunAngle)*0.4, 0.25 + cos(sunAngle)*0.3);
+  float sunDist = distance(uv, sunPos);
+  float sunGlow = exp(-sunDist*sunDist*300.0);  // sharp circular glow
+  vec3 sunColor = mix(vec3(1.0,0.8,0.2), vec3(0.85,0.85,1.0), night);  // gelb -> silber
+  sky = mix(sky, sunColor, sunGlow*0.8*(1.0-u_fog*0.4));  // Sonne schwächer in Nebel
+
   // --- Rinnsale / Wasserflussnetz auf Pfaden (bei Regen) ---
   float rainy = u_rain * clamp(u_wet*1.6,0.0,1.0);
   vec4 erefG = texture2D(u_emis, uv - vec2(0.0,0.05));
@@ -723,14 +739,16 @@ void main(){
     col += vec3(1.0,0.85,0.45) * smoothstep(fdef.w*0.35,0.0,dd) * fdef.z * ffl * 0.5;
   }
 
-  // --- Nebelschleier (fbm-Schichten, dichter am Rand) ---
-  if(u_fog>0.003){
+  // --- Nebelschleier (fbm-Schichten, dünn und transparent bei niedrigen Werten) ---
+  if(u_fog>0.005){
     float f1 = fbm(uv*vec2(3.2*u_aspect,3.2) + vec2((t*0.5+u_windDrift)*0.060, -t*0.010));
     float f2 = fbm(uv*vec2(6.5*u_aspect,6.5) + vec2(-(t*0.5+u_windDrift)*0.045, t*0.020) + 31.7);
     float edge = smoothstep(0.22,0.60,length((uv-0.5)*vec2(1.15,1.35))) + smoothstep(0.75,0.15,uv.y)*0.3;
-    float fogAmt = clamp((0.45*f1+0.38*f2)*(0.35+0.85*edge),0.0,1.0)*u_fog;
+    // Fog fades aggressively when low: quadratic falloff prevents cloud appearance
+    float fogFade = u_fog*u_fog*(3.0-2.0*u_fog);  // smoother curve, nearly invisible below 0.3
+    float fogAmt = clamp((0.45*f1+0.38*f2)*(0.3+0.7*edge),0.0,1.0)*fogFade;
     vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8 + u_snow*0.05;
-    col = mix(col, fogCol, fogAmt*0.85);
+    col = mix(col, fogCol, fogAmt*0.75);
   }
 
   // --- Schneefall: träge taumelnde Flocken, windverdriftet (3 Parallax-Schichten) ---
@@ -1618,11 +1636,22 @@ const CUR={...PARAMS};    // gerenderte (geblendete) Werte
 
 function defaultStoryboard(){
   storyboard = [
-    {name:'Goldener Tag',    dur:7,  p:{...ACTS.tag.p}},
-    {name:'Sturm zieht auf', dur:7,  p:{...ACTS.aufzug.p}},
-    {name:'Sturmnacht',      dur:16, p:{...ACTS.sturmnacht.p}},
-    {name:'Morgengrauen',    dur:7,  p:{...ACTS.morgen.p}},
-    {name:'Der Tag danach',  dur:11, p:{...ACTS.danach.p}}
+    {name:'🌅 Dunkel → Hell Übergang', dur:3, p:{...ACTS.morgen.p, dayNight:0.95, storm:0.08, rain:0, wet:0.70}}, // Nacht-Start
+    {name:'☀️ Goldener Tag',    dur:2,  p:{...ACTS.tag.p}},
+    {name:'🌤️ Sturm zieht auf', dur:4,  p:{...ACTS.aufzug.p}},
+    {name:'⛈️ Sturmnacht',      dur:5,  p:{...ACTS.sturmnacht.p}},
+    {name:'⚡ Blitz schlägt ein',dur:2,  p:{...ACTS.blitz.p}},
+    {name:'🔥 Haus brennt',      dur:3,  p:{...ACTS.blitz.p, glow:1.0, decay:0.30, temperature:0.8}},
+    {name:'💧 Regen löscht es',  dur:2,  p:{...ACTS.sturmnacht.p, glow:0.5, decay:0.15, temperature:0.50}},
+    {name:'❄️ Wasser gefriert',  dur:2,  p:{...ACTS.gefroren.p}},
+    {name:'⛄ Schnee fällt',      dur:3,  p:{...ACTS.schnee_dicke.p}},
+    // Jahreszeiten im Schnelldurchlauf
+    {name:'🌸 Frühjahr wacht auf',dur:2, p:{...ACTS.fruehling.p}},
+    {name:'☀️ Sommer erblüht',    dur:1.5, p:{...ACTS.sommer.p}},
+    {name:'🍂 Herbst golden',     dur:1.5, p:{...ACTS.herbst.p}},
+    // Verfall zeigt Zeit-Passage
+    {name:'🕸️ Jahre verstreichen', dur:4, p:{...ACTS.verfall.p}},
+    {name:'✨ Der Tag danach',    dur:3,  p:{...ACTS.danach.p}}
   ];
   renderStory();
 }
@@ -1636,6 +1665,22 @@ function yearStoryboard(){
     {name:'Tauwetter',       dur:9,  p:{...DEFAULTS, dayNight:0.12, storm:0.2, wet:0.8, puddle:0.7,
                                         fog:0.5, wind:0.35, glow:0.2, snow:0.25, temperature:0.56}}
   ];
+  renderStory();
+}
+function dramaStoryboard(){
+  // 20-Sekunden Weltgesetze-Spektakel: Sturm + Blitz + Feuer + Verfall + Schnee
+  storyboard = [
+    {name:'🌤️ Klarer Moment',         dur:1.5, p:{...ACTS.tag.p}},
+    {name:'💨 Wind erhebt sich',       dur:2,   p:{dayNight:0.2, storm:0.3, rain:0.05, wet:0.1, puddle:0.05, fog:0.08, wind:0.85, glow:0.15, decay:0.15, temperature:0.65, autumn:0.4}},
+    {name:'⛈️ Extreme Turbulenzen',    dur:2.5, p:{dayNight:0.75, storm:1, rain:0.9, wet:0.9, puddle:0.85, fog:0.35, wind:1, glow:0.8, decay:0.3, temperature:0.4, bleeding:1}},
+    {name:'⚡ Blitz-Angriff',          dur:1.5, p:{dayNight:1, storm:1, rain:1, wet:1, puddle:0.95, fog:0.25, wind:1, glow:1, decay:0.25, temperature:0.35, flash:1}},
+    {name:'🔥 Feuer entfacht',         dur:1.5, p:{dayNight:0.9, storm:0.7, rain:0.5, wet:0.6, puddle:0.7, fog:0.2, wind:0.8, glow:1, decay:0.4, temperature:0.9}},
+    {name:'💧 Regen schlägt zurück',   dur:2,   p:{dayNight:1, storm:1, rain:1, wet:1, puddle:0.9, fog:0.45, wind:0.9, glow:0.6, decay:0.35, temperature:0.45}},
+    {name:'🧊 Blitzschneller Verfall',  dur:2.5, p:{dayNight:0.8, storm:0.6, rain:0.2, wet:0.3, puddle:0.25, fog:0.22, wind:0.6, glow:0.05, decay:1, temperature:0.15, snow:0.5, snowfall:0.4}},
+    {name:'❄️ Winterstille',           dur:2.5, p:{dayNight:0.5, storm:0.15, rain:0, wet:0.2, puddle:0.15, fog:0.12, wind:0.2, glow:0.08, decay:0.8, temperature:-0.1, snow:1, snowfall:0.3}},
+    {name:'✨ Hoffnungsstrahl',         dur:2.5, p:{dayNight:0.1, storm:0.05, rain:0, wet:0.1, puddle:0.05, fog:0.06, wind:0.15, glow:0.2, decay:0.6, temperature:0.5, snow:0.1, snowfall:0.02, bloom:0.3}}
+  ];
+  storyboard.forEach(s => {s.p = {...DEFAULTS, ...s.p};});
   renderStory();
 }
 function renderStory(){
@@ -1845,7 +1890,7 @@ function fireUniforms(){
 }
 
 // --- Partikel-Ökosystem (Overlay; rückwärts splicen!) ---
-let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[];
+let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[],raindrops=[];
 function initEco(){
   leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];
   for(let i=0;i<90;i++) leaves.push({u:Math.random(),v:Math.random(),
@@ -1854,19 +1899,86 @@ function initEco(){
 }
 function ecoTick(dt){
   const windU=CUR.wind*0.010;
+  const autumnWind = CUR.autumn > 0.3 ? (CUR.autumn * 0.015) : 0;
+  // Vortex-Wind: sanfte positive/negative Oszillation (wie Schneestrudel)
+  const turbulencePhase = vortexPhase * 0.7;
+  const turbulenceWind = Math.sin(turbulencePhase) * CUR.storm * 0.3;
+  const turbulenceLift = Math.max(0, Math.sin(turbulencePhase + 1.57)*CUR.storm*0.08);  // Aufwind im Strudel
+
   for(let i=leaves.length-1;i>=0;i--){
     const l=leaves[i];
+
+    // Blätter am Boden (settled in Nischen) bewegen sich kaum
+    if(l.settled){
+      // Am Boden stabilisiert, aber Regen/Turbulenzen heben sie auf
+      const turbulenceStrength = CUR.storm * 0.5 + CUR.rain * 0.3;
+      if(turbulenceStrength > 0.4 && Math.random()<turbulenceStrength*0.15){
+        l.settled = false;  // Starke Turbulenzen wirbeln Blätter auf
+        l.vv = -0.15;  // Aufwind
+        l.vz = 0.08;
+        l.z = 0.02;
+      }
+      // Sanfte Bodenbewegung mit Vortex-Wind
+      l.vu += turbulenceWind*0.003*dt;
+      l.vu *= Math.pow(0.92, dt);
+      l.u += l.vu*dt;
+      if(l.u<0)l.u+=1; if(l.u>1)l.u-=1;
+      continue;
+    }
+
+    // Interaktion mit Spieler
     if(player.active&&l.z<=0){
       const d=Math.hypot(l.u-player.u,l.v-player.v);
       if(d<0.02){ const a=Math.atan2(l.v-player.v,l.u-player.u);
         l.vu+=Math.cos(a)*0.02; l.vv+=Math.sin(a)*0.02; }
     }
-    if(l.z>0){ l.vz-=dt*2.2; l.z+=l.vz*dt; l.ang+=l.va*dt;
-      l.vu+=windU*dt*3.0; if(l.z<=0){l.z=0;l.vz=0;l.va=0;} }
-    else { l.vu+=windU*dt*(0.4+0.6*Math.random()); const fr=Math.pow(0.5,dt/0.5);
-      l.vu*=fr; l.vv*=fr; }
-    l.u+=l.vu*dt*(l.z>0?3:1); l.v+=l.vv*dt*(l.z>0?3:1);
-    if(l.u<0)l.u+=1; if(l.u>1)l.u-=1; if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
+
+    // Luftphase (z > 0): wirbelt herum
+    if(l.z>0){
+      l.vz -= dt*2.2;
+      l.vz += turbulenceLift*dt;  // Strudel-Aufwind
+      l.z += l.vz*dt;
+      l.ang += l.va*dt;
+      l.vu += (windU+autumnWind+turbulenceWind)*dt*3.0;  // Wind + Vortex
+      if(l.z<=0){l.z=0;l.vz=0;l.va=0;}
+    }
+    else {
+      // Fallende Phase: in Nischen sammeln (Tiefenbewusstsein)
+      const fallSpeed = CUR.autumn > 0.2 ? CUR.autumn * 0.3 : 0.02;
+      l.vv += fallSpeed * dt;
+
+      // Vortex-Wind: positive/negative für Wirbel-Effekt
+      l.vu += (windU+autumnWind+turbulenceWind)*dt*(0.3+0.4*CUR.autumn);
+
+      // Herbst-Blätter wirbeln in Strudeln (Sinusoszillation mit Turbulenzen)
+      const wob = CUR.autumn > 0.5 ? Math.sin(time*1.2 + i*0.3 + turbulencePhase)*0.008 : 0;
+      l.vu += wob;
+
+      // Reibung / Bremsen (etwas weniger in Strudeln)
+      const frictionDamping = 1.0 - CUR.storm*0.1;
+      const fr=Math.pow(0.5,dt/0.5*frictionDamping);
+      l.vu*=fr;
+      l.vv*=Math.pow(0.8,dt/0.3);
+
+      // TIEFENBEWUSSTSEIN: Blätter sammeln sich in Nischen (hohe wet-Werte = Senken)
+      // Wenn Blatt in nasse Gegend fällt (puddle/path mit Wasser), settlement bevorzugen
+      const isInNiche = l.v > 0.88 && CUR.wet > 0.2;  // nähe am Boden + nasse Gegend
+      const nicheThreshold = isInNiche ? 0.92 : 0.95;
+
+      if(l.v > nicheThreshold){
+        l.settled = true;
+        l.v = Math.min(0.98, nicheThreshold + Math.random()*0.03);
+        l.vv = 0;
+        l.vu = 0;
+        l.va = 0;
+        continue;
+      }
+    }
+
+    l.u+=l.vu*dt*(l.z>0?3:1);
+    l.v+=l.vv*dt*(l.z>0?3:1);
+    if(l.u<0)l.u+=1; if(l.u>1)l.u-=1;
+    if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
   }
   for(let i=fruits.length-1;i>=0;i--){
     const fr=fruits[i]; fr.age+=dt;
@@ -1888,6 +2000,120 @@ function ecoTick(dt){
     const b=breaths[i]; b.life-=dt*1.1;
     if(b.life<=0){breaths.splice(i,1);continue;}
     b.u+=b.vu*dt; b.v+=b.vv*dt; b.r+=dt*0.008;
+  }
+}
+
+// --- Schnee-Partikel-System mit Vortex-Wind und Tiefenbewusstsein ---
+let vortexPhase = 0;  // für weiche positive/negative Wind-Oszillation
+function snowTick(dt){
+  // Vortex-Wind: sanfte Sinusoszillation zwischen -1 und +1
+  vortexPhase += dt * 1.2;  // Vortex-Frequenz
+  const vortexWind = Math.sin(vortexPhase) * CUR.storm * 0.4;  // Strudel stärker bei Sturm
+
+  // Schneeflocken spawnen VON OBEN (konsistent bei Schneefall)
+  const targetSnowflakes = Math.ceil(CUR.snowfall * 80);
+  while(snowflakes.length < targetSnowflakes && Math.random()<0.6){
+    const size = CUR.snowfall > 0.7 ? 2.0 + Math.random()*1.5 : 0.8 + Math.random()*1.2;
+    snowflakes.push({
+      u: Math.random(),
+      v: -0.15,  // KONSISTENT von oben, nicht zufällig
+      z: 0,
+      depth: -0.5 + Math.random(),  // Pseudo-Tiefe für Rendering-Größe
+      size: size,
+      vu: (Math.random()-0.5)*0.01,  // Kleine initiale Bewegung
+      vv: 0.08 + Math.random()*0.04 + CUR.snowfall*0.12,  // Fallgeschwindigkeit
+      wobble: Math.random()*6.28,
+      wobbleSpeed: 1.5 + Math.random()*2.0,
+      age: 0,
+      settled: false
+    });
+  }
+
+  // Update und Tiefenverhalten
+  for(let i=snowflakes.length-1;i>=0;i--){
+    const s = snowflakes[i];
+    s.age += dt;
+
+    // Settled schnee: am Boden, minimal bewegen
+    if(s.settled){
+      s.vu *= Math.pow(0.85, dt);  // sehr langsam
+      s.vv *= Math.pow(0.92, dt);
+      // Wind kann auch settled Schnee bewegen
+      s.vu += (CUR.wind*0.005 + vortexWind*0.008)*dt;
+      s.u += s.vu*dt;
+      if(s.u<0) s.u+=1; if(s.u>1) s.u-=1;
+      continue;
+    }
+
+    // Fallende Flocken
+    s.v += s.vv * dt;
+    // Vortex-Wind: positive/negative alternierend für Strudel-Effekt
+    s.u += (s.vu + CUR.wind*0.008 + vortexWind*0.012 + Math.sin(s.wobble + time*s.wobbleSpeed)*0.002) * dt;
+    s.wobble += s.wobbleSpeed*dt*0.2;
+    s.depth += (Math.random()-0.5)*0.05*dt;  // Tiefe-Jitter für Parallax
+
+    // wrapping: Seiten
+    if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
+
+    // Bodenakkumulation: Schneeflocken in Senken (v > 0.92, wet > 0.4 = Pfützen/Nischen)
+    const wetThreshold = 0.92;
+    if(s.v > wetThreshold && CUR.wet > 0.3){
+      s.settled = true;
+      s.v = 0.92 + Math.random()*0.05;  // In die Nische sinken
+      s.vv = 0;
+      s.vu = 0;
+      continue;
+    }
+
+    // Ausspawn: oben (neue Flocke kommt) oder nach langer Zeit
+    if(s.v > 1.1 || s.age > 30) snowflakes.splice(i,1);
+  }
+}
+
+// --- Regen-System mit Tiefenvarianz und Vortex-Wind ---
+function rainTick(dt){
+  // Regen-Tropfen spawnen basierend auf rain-Parameter
+  const targetRaindrops = Math.ceil(CUR.rain * 120);
+  while(raindrops.length < targetRaindrops && Math.random()<0.7){
+    // Wind bestimmt Richtung mit Vortex-Variation
+    const windAngle = CUR.wind * 0.5;
+    const vortexInfluence = Math.sin(vortexPhase) * CUR.storm * 0.2;  // Vortex-Wind beeinflusst Regen
+    const length = 0.015 + Math.random()*0.008;
+
+    // Regen-Tropfen haben Tiefe (pseudo-3D): tiefere Tropfen fallen schneller
+    const depth = Math.random();  // 0=vorne (schnell), 1=hinten (langsam)
+    const depthMultiplier = 0.6 + depth*0.4;  // 0.6x bis 1.0x
+
+    raindrops.push({
+      u: -length + Math.random(),
+      v: -0.05 + Math.random()*0.1,
+      vx: (windAngle + vortexInfluence) * (0.4 + CUR.wind*0.3),
+      vy: (0.6 + CUR.storm*0.3) * depthMultiplier,  // Tiefenvarianz
+      length: length,
+      depth: depth,  // für Rendering-Größe/Transparenz
+      age: 0
+    });
+  }
+
+  // Update mit Tiefenbewusstsein
+  for(let i=raindrops.length-1;i>=0;i--){
+    const r = raindrops[i];
+    r.age += dt;
+
+    // Tiefere Tropfen sind weniger von Vortex-Wind beeinflusst
+    const windModifier = 1.0 - r.depth*0.4;
+    const vortexInfluence = Math.sin(vortexPhase) * CUR.storm * 0.15;
+    r.vx += vortexInfluence*windModifier*dt*0.2;
+
+    r.v += r.vy * dt;
+    r.u += r.vx * dt;
+
+    // wrapping
+    if(r.u > 1) r.u = -r.length;
+
+    // ausspawn (tiefere Tropfen bleiben länger sichtbar)
+    const lifetime = 8 + r.depth*4;
+    if(r.v>1.1 || r.age>lifetime) raindrops.splice(i,1);
   }
 }
 
@@ -1941,6 +2167,48 @@ function drawOverlay(dt){
     ovx.globalAlpha=b.life*0.35;
     ovx.fillStyle='rgba(235,245,255,1)';
     ovx.beginPath(); ovx.arc(b.u*W,b.v*H,b.r*W,0,6.283); ovx.fill();
+  });
+  // Schneeflocken: Tiefenvarianz (vordere größer/sichtbar, hintere kleiner/subtil)
+  snowflakes.forEach(sn=>{
+    // Tiefe: -0.5 zu 0.5 → Größe und Transparenz variiert
+    const depthMultiplier = 0.5 + sn.depth;  // -0.5 bis 0.5 → 0.0 bis 1.0
+    const depthAlpha = 0.4 + Math.abs(sn.depth)*0.6;  // hinten schwächer, vorne stärker
+
+    const maxAge = sn.settled ? 40 : 25;
+    ovx.globalAlpha = Math.min(0.95, (1-sn.age/maxAge)*0.6 + CUR.snowfall*0.3) * depthAlpha;
+
+    const fadeNight = night>0.6 ? (0.4+night*0.3) : 1.0;
+    // Tiefere Flocken leicht bluer (Luftperspektive)
+    const blueShift = Math.max(0, sn.depth*20)|0;
+    ovx.fillStyle = `rgba(${Math.max(180, 220*fadeNight-blueShift)|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
+
+    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier;
+    ovx.beginPath();
+    ovx.arc(sn.u*W, sn.v*H, Math.max(0.3, pixelSize), 0, 6.283);
+    ovx.fill();
+  });
+  // Regen-Tropfen: Tiefenvarianz (vordere Tropfen sichtbar, hintere subtil)
+  raindrops.forEach(r=>{
+    // Tiefere Tropfen (r.depth ~ 1): schwächer und dünner (Parallax-Effekt)
+    const depthAlpha = 0.4 + r.depth*0.6;  // vorne 0.4-1.0, hinten 0.4-0.7
+    const lifetime = 8 + r.depth*4;
+    ovx.globalAlpha = Math.min(0.8, CUR.rain*0.9 * (1-r.age/lifetime)) * depthAlpha;
+
+    const depthFade = 0.3 + (1-r.v)*0.7;
+    // Tiefere Tropfen leicht blauer (Luftperspektive)
+    const blueShift = r.depth*20|0;
+    ovx.strokeStyle = `rgba(${Math.max(0,180*depthFade-blueShift)|0},${200*depthFade|0},${255*depthFade|0},1)`;
+
+    // Tiefere Tropfen sind länger (Parallax) aber dünner
+    const depthMultiplier = 0.8 + r.depth*0.4;
+    ovx.lineWidth = Math.max(0.3, (1.5 - r.v)*depthMultiplier);
+
+    ovx.beginPath();
+    const x1 = r.u*W, y1 = r.v*H;
+    const x2 = x1 + r.length*W*depthMultiplier, y2 = y1 + r.length*H*2*depthMultiplier;
+    ovx.moveTo(x1, y1);
+    ovx.lineTo(x2, y2);
+    ovx.stroke();
   });
   ovx.globalAlpha=1;
   if(player.active) drawPlayer(W,H,S,dt);
@@ -2448,9 +2716,11 @@ function erstellen(){
   analyze();
   initEco();
   defaultStoryboard();
-  Object.assign(PARAMS,ACTS.tag.p); Object.assign(CUR,ACTS.tag.p); syncSliders();
+  // Starte mit Nacht-Zustand für Übergang zu Tag in erstem Storyboard-Schritt
+  const nightStart = {...ACTS.morgen.p, dayNight:0.95, storm:0.08, rain:0, wet:0.70};
+  Object.assign(PARAMS,nightStart); Object.assign(CUR,nightStart); syncSliders();
   playStory();
-  setStatus('✅ Szene lebt. Storyboard läuft (Loop). „K“ = Kino-Modus.');
+  setStatus('✅ Szene lebt. Storyboard läuft (Loop). „K” = Kino-Modus.');
   return true;
 }
 document.getElementById('btn-create').onclick=erstellen;
@@ -2523,6 +2793,9 @@ document.getElementById('btn-timelapse').onclick=()=>{
   renderStory(); playStory();
   setStatus('⏳ Zeitraffer: Das Dorf altert vor Deinen Augen (decay 0→1).');
 };
+document.getElementById('btn-drama').onclick=()=>{
+  dramaStoryboard(); playStory(); setStatus('⚡ Weltgesetze im Extremis – 20 Sekunden reines Drama mit Sturm + Blitz + Verfall.');
+};
 document.getElementById('btn-add').onclick=()=>{
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
 };
@@ -2541,7 +2814,8 @@ let shadowAge=0, smellDrift=0, touchWear=0, repairMark=0, blessCurse=0;
 // hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
 let parallaxTarget={x:0,y:0}, parallaxCurrent={x:0,y:0}, hasDepth=false;
-let cameraShake={x:0,y:0}, lastFlash=0; // Kamera-Shake (Wind+Blitz) und letzter u_flash-Wert
+// Camera shake: Sturm + Blitz erzeugen visuelle Erschütterungen
+let cameraShake={x:0, y:0}, lastFlash=0; // lastFlash: letzter u_flash-Wert (CUR.flash existiert nicht, flash ist kein PARAM)
 const OV_DEPTH=0.5;  // Bodenebene ~ mittlere Tiefe: so weit schiebt das Overlay mit
 function tickWorld(dt){
   if(!timeFrozen){
@@ -2570,6 +2844,25 @@ function tickWorld(dt){
     touchWear+=dt*0.05; // konstantes Abnutzen
     repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
+
+    // === Camera Shake System: Sturm + Blitz erzeugen Kamera-Vibrationen ===
+    // Wind/Storm: subtiles, kontinuierliches Wackeln
+    const windShake = (CUR.wind * 0.8 + CUR.storm * 0.5) * 0.006;
+    // Blitz: scharfes, kurzfristiges Zucken (lastFlash: Vorframe-Wert, da tickLightning
+    // erst später in diesem Frame für die Shader-Uniform aufgerufen wird)
+    const flashShake = lastFlash * 0.015;
+    const totalShake = windShake + flashShake;
+
+    cameraShake.x += (Math.random() - 0.5) * totalShake * 2;
+    cameraShake.y += (Math.random() - 0.5) * totalShake * 2;
+    // Kräftige Dämpfung pro Sekunde (0.85 war pro FRAME gemeint, nicht pro Sekunde -
+    // als Exponent von dt bei kleinen dt ist das praktisch keine Dämpfung und der
+    // Shake hätte unbegrenzt aufsummiert).
+    const shakeDamp = Math.pow(0.05, dt);
+    cameraShake.x *= shakeDamp;
+    cameraShake.y *= shakeDamp;
+    cameraShake.x = Math.max(-0.05, Math.min(0.05, cameraShake.x));
+    cameraShake.y = Math.max(-0.05, Math.min(0.05, cameraShake.y));
   }
   tickStory(dt);
   tickActBlend(dt);
@@ -2580,6 +2873,8 @@ function tickWorld(dt){
     playerTick(dt);
     fireTick(dt);
     ecoTick(dt);
+    snowTick(dt);
+    rainTick(dt);
     trailTick(dt);
   }
 }
@@ -2594,21 +2889,7 @@ function frame(now){
   parallaxCurrent.x += (parallaxTarget.x-parallaxCurrent.x)*0.06;
   parallaxCurrent.y += (parallaxTarget.y-parallaxCurrent.y)*0.06;
   const pxShift = hasDepth ? parallaxCurrent : {x:0,y:0};
-
-  // Kamera-Shake: Wind gibt leichtes Zittern, ein Blitz (lastFlash, Vorframe) einen kurzen Ruck.
-  const windShake = CUR.wind * 0.01;
-  const flashShake = lastFlash * 0.015;
-  const totalShake = windShake + flashShake;
-  cameraShake.x += (Math.random()-0.5) * totalShake * 2;
-  cameraShake.y += (Math.random()-0.5) * totalShake * 2;
-  // Kräftige Dämpfung pro Sekunde (als reiner Pro-Frame-Faktor wie zuvor summiert
-  // der Shake bei kleinen dt praktisch ungedämpft auf).
-  const shakeDamp = Math.pow(0.05, dt);
-  cameraShake.x *= shakeDamp;
-  cameraShake.y *= shakeDamp;
-  cameraShake.x = Math.max(-0.05, Math.min(0.05, cameraShake.x));
-  cameraShake.y = Math.max(-0.05, Math.min(0.05, cameraShake.y));
-
+  // === Camera Shake beim Shader anwenden ===
   const pxWithShake = {x: pxShift.x + cameraShake.x, y: pxShift.y + cameraShake.y};
   const fx = pxWithShake.x*OV_DEPTH, fy = pxWithShake.y*OV_DEPTH;   // UV-Bruchteile
   ov.style.transform = hasDepth ? `translate(${fx*ov.clientWidth}px, ${fy*ov.clientHeight}px)` : '';
