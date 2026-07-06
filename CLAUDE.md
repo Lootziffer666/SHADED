@@ -37,6 +37,14 @@ SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
 5. **`window.SHADED` ist API-Vertrag** für Tests und Agenten (erstellen, applyAct,
    setParams, setTime, isReady, getMaterialTypeAt, story). Nie entfernen oder umbenennen,
    nur erweitern.
+   Seit v1.3.0: `addActor({image, manifest, x, y, scale, anim})` – lädt animierte,
+   transparente Sprite-Sheets als rein optische Akteure auf dem Overlay-Canvas `#ov`
+   (gleiche Ebene wie die Spielfigur). Das Manifest-JSON-Schema (`sourceImage`,
+   `frameRects`/`grid`, `frames`, `animations`) ist identisch zu SWIFTs
+   `core.sprite_sheet.SpriteSheetManifest` – ein `python main.py render ... --format
+   sprite_sheet`-Lauf im SWIFT-Repo erzeugt Sheet + Manifest direkt passend. Auch per
+   UI ladbar (`#f-actor-sheet` + `#f-actor-manifest`). Akteure sind reine Optik ohne
+   Rückwirkung auf `classGrid`/`getMaterialTypeAt` – Invariante 2 bleibt unberührt.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    9 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
