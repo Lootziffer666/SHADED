@@ -199,6 +199,11 @@ uniform sampler2D u_zone;   // K1: Gebäudezonen (R; 1 = Fachwerk-Gebäude) – 
 // stehen – sinkt der Wind, liefe die Phase rückwärts (Regen-"Rewind").
 uniform float u_rainPhase;  // ∫(1 + 0.4*wind) dt
 uniform float u_windDrift;  // ∫wind dt
+// Phase C: Weltgesetze-Erweiterung (Runde 5+)
+uniform float u_dryPhase;   // ∫max(0, 0.8 - u_wet) dt (Trocknung: #42)
+uniform float u_heatWarp;   // u_temperature * u_fireCount (Hitzeverzug: #41)
+uniform float u_rustAccum;  // akkumuliert bei Nässe + Zeit (Rost: #9)
+uniform float u_smokeAmount;// u_fog * (u_storm + u_fireCount*0.5) (Rauchschichtung: #43)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -391,6 +396,70 @@ void main(){
     }
 
     col = mix(col, vec3(lum(col)), u_decay*0.22);
+  }
+
+  // === Phase C: World Laws Extension (Runde 5+) ===
+
+  // --- #42 Trocknung: Übergänge von nass→damp→trocken über Zeit ---
+  // Nasse Oberflächen glänzen, trocknende bekommen matte Ränder, ganz trockene sehen körnig aus
+  if(u_dryPhase>0.1){
+    float dryState = smoothstep(0.0, 1.0, u_dryPhase*0.3);  // 0=soaking, 1=bone dry
+    float wetSheen = u_wet * (1.0 - dryState*0.8);  // gloss fades as it dries
+    col += sheen * vec3(0.85,0.92,1.0) * (mRoof+mPath+mRock+mWood) * (0.15 - 0.08*night) * wetSheen;
+    // Matte edges on drying surfaces (dampness ring)
+    float dampRing = smoothstep(0.3, 0.7, dryState) * (1.0 - smoothstep(0.7, 1.0, dryState));
+    float dryEdge = fbm(uv*vec2(40.0*u_aspect, 40.0) + vec2(u_dryPhase*0.1, 0.0));
+    col = mix(col, col*0.88, dampRing * (mPath+mRock+mGrass) * smoothstep(0.3, 0.7, dryEdge) * 0.3);
+  }
+
+  // --- #41 Hitzeverzug: Luftflimmern über Feuer/Hitze, visuelle Verzerrung ---
+  // Über heißen Flächen flimmert die Luft (Domain-Warp mit hoher Frequenz)
+  if(u_heatWarp>0.01){
+    float heatFlicker = sin(t*8.3 + uv.x*100.0)*0.5 + 0.5;
+    vec2 heatUV = uv + (heatFlicker-0.5)*u_heatWarp*0.008*vec2(sin(t*5.1), cos(t*4.7));
+    vec3 heatCol = texture2D(u_scene, clamp(heatUV, vec2(0.001), vec2(0.999))).rgb;
+    float heatZone = (trail.a + CUR.fireCount) * smoothstep(0.0, 0.3, u_heatWarp);  // nur über Hitze
+    col = mix(col, heatCol, heatZone*0.15);
+  }
+
+  // --- #9 Rost: Oxidation auf Metall/Holz unter Nässe und Zeit ---
+  // Rostflecken entstehen unter länger andauernder Nässe, orange-braune Verfärbung
+  if(u_rustAccum>0.05){
+    float rustPattern = fbm(uv*vec2(60.0*u_aspect, 60.0) + u_rustAccum*0.05);
+    float rustBlobs = smoothstep(0.4, 0.8, rustPattern);
+    float rustGrowth = clamp(u_rustAccum*0.8, 0.0, 1.0);
+    vec3 rustCol = mix(vec3(0.65, 0.35, 0.15), vec3(0.8, 0.45, 0.20), 0.5);  // orange-brown
+    col = mix(col, rustCol, mWood*rustBlobs*rustGrowth*0.45 + mRock*rustBlobs*rustGrowth*0.25);
+    // Rust spreads along grain/edges
+    float rustVein = smoothstep(0.6, 0.85, fbm(vec2(uv.x*100.0*u_aspect, uv.y*20.0)));
+    col = mix(col, rustCol*0.6, (mWood+mRock)*rustVein*rustGrowth*0.3);
+  }
+
+  // --- #43 Rauchschichtung: Nebel + Rauch bilden visuelle Schichten ---
+  // Unter Nebel/Sturm/Feuer sammelt sich Rauch, der Silhouetten verstärkt und diffus wird
+  if(u_smokeAmount>0.05){
+    float smokeLayer = smoothstep(0.0, 0.5, u_smokeAmount) * clamp(1.0 - u_smokeAmount*0.7, 0.0, 1.0);
+    float smokeNoise = fbm(uv*vec2(3.0*u_aspect, 3.0) + vec2(t*0.03, -u_dryPhase*0.01));
+    vec3 smokeCol = mix(vec3(0.50, 0.48, 0.45), vec3(0.35, 0.32, 0.30), smokeNoise);  // gray smoke
+    float smokeAlpha = smokeLayer * clamp((smokeNoise - 0.3)*1.5, 0.0, 1.0) * 0.4;
+    col = mix(col, smokeCol, smokeAlpha);
+  }
+
+  // --- #20 Temperaturgradienten: Seiten zur Wärmequelle leuchtend, Schattenseite kalt ---
+  // (Verbesserung: direkt an Wärmequellen warm/glühend färben)
+  if(CUR.fireCount>0.1 && CUR.temperature>0.4){
+    for(int i=0; i<int(u_fireCount); i++){
+      vec2 fPos = u_fires[i].xy;
+      float fIntensity = u_fires[i].z;
+      float fRadius = u_fires[i].w;
+      float dist = length(uv - fPos);
+      float falloff = smoothstep(fRadius, 0.0, dist);
+      // Warm side: glow
+      col += vec3(1.0, 0.7, 0.4) * falloff * fIntensity * 0.08 * (mWood + mPath + mRock);
+      // Cold/shadow side gets slightly blue
+      float shadeDir = smoothstep(0.2, -0.2, (uv.x - fPos.x) / max(0.01, fRadius));
+      col = mix(col, col*vec3(0.8, 0.9, 1.2), shadeDir * (1.0-falloff) * 0.05);
+    }
   }
 
   // --- Schneedecke: Dächer & Gras zuerst, Pfade fleckig zuletzt ---
@@ -609,7 +678,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
  'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone',
- 'u_rainPhase','u_windDrift',
+ 'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -2179,7 +2248,8 @@ document.getElementById('btn-add').onclick=()=>{
 let time=0,lastT=0,mossBoost=0,timeFrozen=false;
 // Aufsummierte Wetter-Phasen: laufen NUR vorwärts, auch wenn Wind/Regen
 // abklingen (sonst "Rewind" der letzten Tropfen beim Sturm-Ende).
-let rainPhase=0, windDrift=0;
+let rainPhase=0, windDrift=0, dryPhase=0, heatWarp=0, rustAccum=0;
+let smokeAmount=0;
 // 2.5D-Parallaxe: Ziel folgt der Maus, Ist wird im Frame sanft nachgezogen.
 // hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
@@ -2190,6 +2260,11 @@ function tickWorld(dt){
     time+=dt;
     rainPhase+=dt*(1.0+CUR.wind*0.4);
     windDrift+=dt*CUR.wind;
+    // Phase C: World Laws Extension
+    dryPhase+=dt*Math.max(0, 0.8-CUR.wet);  // #42 Trocknung: schneller trocken wenn nicht nass
+    rustAccum+=dt*Math.max(0, CUR.wet-0.3)*0.15;  // #9 Rost: akkumuliert bei länger andauernder Nässe
+    heatWarp=CUR.temperature*CUR.fireCount;  // #41 Hitzeverzug: kombiniert Temperatur und Feuer
+    smokeAmount=CUR.fog*(CUR.storm+CUR.fireCount*0.5);  // #43 Rauchschichtung
   }
   tickStory(dt);
   tickActBlend(dt);
@@ -2221,6 +2296,10 @@ function frame(now){
     gl.uniform1f(U.u_time,time);
     gl.uniform1f(U.u_rainPhase,rainPhase);
     gl.uniform1f(U.u_windDrift,windDrift);
+    gl.uniform1f(U.u_dryPhase,dryPhase);       // Phase C: #42 Trocknung
+    gl.uniform1f(U.u_heatWarp,heatWarp);       // Phase C: #41 Hitzeverzug
+    gl.uniform1f(U.u_rustAccum,rustAccum);     // Phase C: #9 Rost
+    gl.uniform1f(U.u_smokeAmount,smokeAmount); // Phase C: #43 Rauchschichtung
     gl.uniform2f(U.u_parallax, pxShift.x, pxShift.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
@@ -2243,7 +2322,12 @@ window.SHADED = {
   setParams:(p)=>{ stopStory(); Object.assign(PARAMS,p); Object.assign(CUR,p); syncSliders(); },
   getParams:()=>({...CUR}),
   setTime:(t,freeze)=>{ time=t; timeFrozen=!!freeze;     // freeze=true: deterministische Frames
-    rainPhase=t*(1.0+CUR.wind*0.4); windDrift=t*CUR.wind; },  // Phasen deterministisch zur Zeit
+    rainPhase=t*(1.0+CUR.wind*0.4); windDrift=t*CUR.wind;
+    dryPhase=t*Math.max(0, 0.8-CUR.wet);  // Phase C: #42
+    rustAccum=t*Math.max(0, CUR.wet-0.3)*0.15;  // Phase C: #9
+    heatWarp=CUR.temperature*CUR.fireCount;  // Phase C: #41
+    smokeAmount=CUR.fog*(CUR.storm+CUR.fireCount*0.5);  // Phase C: #43
+  },  // Phasen deterministisch zur Zeit
   isReady:()=>ready,
   getMaterialTypeAt,
   story:{ play:playStory, stop:stopStory, board:()=>storyboard },
