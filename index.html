@@ -447,7 +447,7 @@ void main(){
 
   // --- #20 Temperaturgradienten: Seiten zur Wärmequelle leuchtend, Schattenseite kalt ---
   // (Verbesserung: direkt an Wärmequellen warm/glühend färben)
-  if(CUR.fireCount>0.1 && CUR.temperature>0.4){
+  if(u_fireCount>0.1 && u_temperature>0.4){
     for(int i=0; i<int(u_fireCount); i++){
       vec2 fPos = u_fires[i].xy;
       float fIntensity = u_fires[i].z;
