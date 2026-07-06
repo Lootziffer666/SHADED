@@ -69,6 +69,10 @@ body.cinema #exit-cinema{display:block}
   <input type="file" id="f-actor-manifest" accept="application/json" title="Zugehöriges Manifest JSON (SWIFT erzeugt es automatisch als <output>_manifest.json)">
   <div style="font-size:9px;color:#556;margin-bottom:4px">Erst Sprite-Sheet, dann Manifest wählen – fügt einen animierten Akteur aus einem SWIFT-Render zur Szene hinzu.</div>
 
+  <h2>Ökosystem (Runde 7)</h2>
+  <button id="btn-eco-cats" style="width:100%">🐱 Katzen-Schwarm spawnen</button>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Spawnt mehrere Katzen mit verschiedenen Animationen und Tiefenschichten – zeigt Ökosystem-Integration.</div>
+
   <h2>2 · Erstellen</h2>
   <button id="btn-create" class="primary">✨ Erstellen</button>
   <div id="status">Lade ein Bild und drücke „Erstellen“.</div>
@@ -2107,6 +2111,40 @@ document.getElementById('f-actor-manifest').onchange=e=>{
   else if(mf) setStatus('⚠️ Erst Sprite-Sheet-Bild wählen, dann Manifest.');
 };
 
+// --- Ökosystem-Manager: Runde 7 Ökosystem-Integration ---
+const ecosystemDefs={
+  cats:[
+    {x:0.2, y:0.6, scale:0.8, anim:'walk', depthLayer:'mid'},
+    {x:0.5, y:0.65, scale:1.0, anim:'rest_idle', depthLayer:'mid'},
+    {x:0.8, y:0.7, scale:0.9, anim:'eat_cycle', depthLayer:'back'},
+    {x:0.3, y:0.5, scale:0.7, anim:'walk_stretchy', depthLayer:'mid'},
+  ]
+};
+let ecosystemHandles=[];
+async function spawnEcosystem(type){
+  ecosystemHandles.forEach(h=>h.remove());
+  ecosystemHandles=[];
+  if(!type||!ecosystemDefs[type])return;
+  const manifest=await fetch('tools/verify-test-actor.json').then(r=>r.json());
+  const img=new Image();
+  img.onload=()=>{
+    ecosystemDefs[type].forEach((config,idx)=>{
+      const h=addActor({
+        image:img,
+        manifest:manifest,
+        x:config.x,
+        y:config.y,
+        scale:config.scale,
+        anim:config.anim,
+        depthLayer:config.depthLayer
+      });
+      ecosystemHandles.push(h);
+    });
+    setStatus(`🐱 Ökosystem geladen: ${type} (${ecosystemHandles.length} Figuren)`);
+  };
+  img.src='tools/verify-test-actor.png';
+}
+
 // --- Eingaben (Runde 4) ---
 window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
@@ -2287,6 +2325,7 @@ function erstellen(){
   return true;
 }
 document.getElementById('btn-create').onclick=erstellen;
+document.getElementById('btn-eco-cats').onclick=()=>spawnEcosystem('cats');
 
 // Kino / Aufnahme / Export
 function toggleCinema(){ document.body.classList.toggle('cinema'); }
@@ -2525,7 +2564,9 @@ window.SHADED = {
   // SWIFT-Actor-Bridge: animierte Sprite-Sheets (z.B. aus SWIFTs
   // `render --format sprite_sheet`, samt automatisch erzeugtem Manifest)
   // als optische Akteure hinzufügen. Rein additiv, rührt classGrid nicht an.
-  addActor
+  addActor,
+  // Runde 7: Ökosystem-Integration
+  ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) }
 };
 </script>
 </body>
