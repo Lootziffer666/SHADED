@@ -1621,7 +1621,8 @@ const CUR={...PARAMS};    // gerenderte (geblendete) Werte
 
 function defaultStoryboard(){
   storyboard = [
-    {name:'☀️ Goldener Tag',    dur:4,  p:{...ACTS.tag.p}},
+    {name:'🌅 Dunkel → Hell Übergang', dur:3, p:{...ACTS.morgen.p, dayNight:0.95, storm:0.08, rain:0, wet:0.70}}, // Nacht-Start
+    {name:'☀️ Goldener Tag',    dur:2,  p:{...ACTS.tag.p}},
     {name:'🌤️ Sturm zieht auf', dur:4,  p:{...ACTS.aufzug.p}},
     {name:'⛈️ Sturmnacht',      dur:5,  p:{...ACTS.sturmnacht.p}},
     {name:'⚡ Blitz schlägt ein',dur:2,  p:{...ACTS.blitz.p}},
@@ -2555,9 +2556,11 @@ function erstellen(){
   analyze();
   initEco();
   defaultStoryboard();
-  Object.assign(PARAMS,ACTS.tag.p); Object.assign(CUR,ACTS.tag.p); syncSliders();
+  // Starte mit Nacht-Zustand für Übergang zu Tag in erstem Storyboard-Schritt
+  const nightStart = {...ACTS.morgen.p, dayNight:0.95, storm:0.08, rain:0, wet:0.70};
+  Object.assign(PARAMS,nightStart); Object.assign(CUR,nightStart); syncSliders();
   playStory();
-  setStatus('✅ Szene lebt. Storyboard läuft (Loop). „K“ = Kino-Modus.');
+  setStatus('✅ Szene lebt. Storyboard läuft (Loop). „K” = Kino-Modus.');
   return true;
 }
 document.getElementById('btn-create').onclick=erstellen;
