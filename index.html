@@ -2003,69 +2003,105 @@ function ecoTick(dt){
   }
 }
 
-// --- Schnee-Partikel-System mit Vortex-Wind und Tiefenbewusstsein ---
+// --- Schnee-Partikel-System: Tiefenkarte steuert Fall, Temperatur+Material steuern Liegenbleiben ---
 let vortexPhase = 0;  // für weiche positive/negative Wind-Oszillation
+const SNOW_SETTLE_MAX=260; // Deckel gegen unbegrenztes Wachstum bei Dauerschnee
+function snowDepthAt(s){
+  // Echte Tiefenkarte wenn vorhanden (1=nah/weiß, 0=fern/schwarz), sonst die alte Pseudo-Tiefe
+  return hasDepth ? getDepthAt(s.u,s.v) : s.pseudoDepth;
+}
 function snowTick(dt){
   // Vortex-Wind: sanfte Sinusoszillation zwischen -1 und +1
   vortexPhase += dt * 1.2;  // Vortex-Frequenz
   const vortexWind = Math.sin(vortexPhase) * CUR.storm * 0.4;  // Strudel stärker bei Sturm
+  const cold = CUR.temperature < 0.42; // ~ 1 °C (tempC = temperature*50-20), s. Frost-System oben
 
-  // Schneeflocken spawnen VON OBEN (konsistent bei Schneefall)
+  // Schneeflocken spawnen VON OBEN, klein beginnend (konsistent bei Schneefall)
   const targetSnowflakes = Math.ceil(CUR.snowfall * 80);
   while(snowflakes.length < targetSnowflakes && Math.random()<0.6){
-    const size = CUR.snowfall > 0.7 ? 2.0 + Math.random()*1.5 : 0.8 + Math.random()*1.2;
     snowflakes.push({
       u: Math.random(),
       v: -0.15,  // KONSISTENT von oben, nicht zufällig
       z: 0,
-      depth: -0.5 + Math.random(),  // Pseudo-Tiefe für Rendering-Größe
-      size: size,
-      vu: (Math.random()-0.5)*0.01,  // Kleine initiale Bewegung
-      vv: 0.08 + Math.random()*0.04 + CUR.snowfall*0.12,  // Fallgeschwindigkeit
+      pseudoDepth: -0.5 + Math.random(),  // Fallback ohne Tiefenkarte
+      size: 0.6 + Math.random()*0.5,      // startet als kleines Flöckchen
+      vu: (Math.random()-0.5)*0.01,
+      vv: 0.08 + Math.random()*0.04 + CUR.snowfall*0.12,
       wobble: Math.random()*6.28,
       wobbleSpeed: 1.5 + Math.random()*2.0,
       age: 0,
-      settled: false
+      settled: false,
+      layer: 0
     });
   }
 
-  // Update und Tiefenverhalten
+  // Spieler klopft nahen liegenden Schnee ab (Abklopfbarkeit)
+  if(player.active){
+    for(const s of snowflakes){
+      if(!s.settled) continue;
+      const d=Math.hypot(s.u-player.u, s.v-player.v);
+      if(d<0.025){
+        s.settled=false; s.layer=0;
+        s.vu=(s.u-player.u)*2.2+(Math.random()-0.5)*0.02;
+        s.vv=-0.06-Math.random()*0.05; // kurz aufwirbeln
+      }
+    }
+  }
+
+  // Update: Fall mit Tiefensteuerung, Settle mit Temperatur+Material, Schichtenbildung
+  let settledCount=0;
+  for(const s of snowflakes) if(s.settled) settledCount++;
   for(let i=snowflakes.length-1;i>=0;i--){
     const s = snowflakes[i];
     s.age += dt;
 
-    // Settled schnee: am Boden, minimal bewegen
     if(s.settled){
-      s.vu *= Math.pow(0.85, dt);  // sehr langsam
-      s.vv *= Math.pow(0.92, dt);
-      // Wind kann auch settled Schnee bewegen
+      // Liegender Schnee: sehr träge, Wind kann ihn minimal verschieben
+      s.vu *= Math.pow(0.85, dt);
       s.vu += (CUR.wind*0.005 + vortexWind*0.008)*dt;
       s.u += s.vu*dt;
       if(s.u<0) s.u+=1; if(s.u>1) s.u-=1;
+      // Taut es wieder auf (zu warm), verschwindet die Liegeschicht allmählich
+      if(!cold){ s.age+=dt*2; if(s.age>60){ snowflakes.splice(i,1); } }
       continue;
     }
 
-    // Fallende Flocken
-    s.v += s.vv * dt;
-    // Vortex-Wind: positive/negative alternierend für Strudel-Effekt
+    // Tiefe (echte Karte oder Pseudo-Tiefe) steuert Fallgeschwindigkeit + wahrgenommene Größe:
+    // nah (Tiefe→1) fällt schneller/größer, fern (Tiefe→0) langsamer/kleiner.
+    const depth = snowDepthAt(s);
+    const depthF = depth===null ? 0.5 : depth;
+    const depthSpeed = 0.6 + depthF*0.7;   // 0.6x (fern) .. 1.3x (nah)
+
+    s.v += s.vv * depthSpeed * dt;
     s.u += (s.vu + CUR.wind*0.008 + vortexWind*0.012 + Math.sin(s.wobble + time*s.wobbleSpeed)*0.002) * dt;
     s.wobble += s.wobbleSpeed*dt*0.2;
-    s.depth += (Math.random()-0.5)*0.05*dt;  // Tiefe-Jitter für Parallax
+    s._depth = depthF; // fürs Rendering gemerkt
 
-    // wrapping: Seiten
     if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
 
-    // Bodenakkumulation: Schneeflocken in Senken (v > 0.92, wet > 0.4 = Pfützen/Nischen)
-    const wetThreshold = 0.92;
-    if(s.v > wetThreshold && CUR.wet > 0.3){
-      s.settled = true;
-      s.v = 0.92 + Math.random()*0.05;  // In die Nische sinken
-      s.vv = 0;
-      s.vu = 0;
-      continue;
+    // Liegenbleiben: NUR wenn kalt genug. Reihenfolge nach Oberfläche -
+    // erhöhte/exponierte Flächen (Dach, Laub) sammeln zuerst, Boden erst wenn die
+    // Flocke fast unten ist. Wasser/Fenster nehmen keinen Schnee an.
+    if(cold && s.v>=0 && settledCount<SNOW_SETTLE_MAX){
+      const mat = ready ? getMaterialTypeAt(s.u,s.v) : null;
+      const elevated = mat==='roof' || mat==='foliage';
+      const groundReady = s.v > 0.90;
+      // Zeitabhängige Klebechance statt Pro-Frame-Münzwurf, sonst friert die Szene
+      // quasi sofort ein statt Schnee sichtbar über Sekunden aufzubauen.
+      const stickChance = 1 - Math.pow(1 - (elevated?0.7:0.5), dt);
+      if(mat && mat!=='water' && mat!=='window' && (elevated || groundReady) && Math.random()<stickChance){
+        // Schichten: je mehr bereits liegender Schnee in der Nähe, desto höher die Lage
+        let neighbors=0;
+        for(const o of snowflakes){ if(o.settled && Math.hypot(o.u-s.u,o.v-s.v)<0.018) neighbors++; }
+        s.settled = true; settledCount++;
+        s.layer = Math.min(4, neighbors);
+        s.v = elevated ? s.v : Math.min(0.985, 0.90 + Math.random()*0.06) - s.layer*0.003;
+        s.vv = 0; s.vu = 0;
+        continue;
+      }
     }
 
-    // Ausspawn: oben (neue Flocke kommt) oder nach langer Zeit
+    // Ausspawn: unten raus (kein Liegenbleiben möglich, z.B. zu warm) oder nach langer Zeit
     if(s.v > 1.1 || s.age > 30) snowflakes.splice(i,1);
   }
 }
@@ -2075,9 +2111,12 @@ function rainTick(dt){
   // Regen-Tropfen spawnen basierend auf rain-Parameter
   const targetRaindrops = Math.ceil(CUR.rain * 120);
   while(raindrops.length < targetRaindrops && Math.random()<0.7){
-    // Wind bestimmt Richtung mit Vortex-Variation
+    // Wind bestimmt Richtung; Vortex moduliert nur die STÄRKE (0.7x..1.3x), niemals
+    // das Vorzeichen - sonst fällt Regen bei niedrigem Wind+hohem Sturm gleichzeitig
+    // in beide Richtungen (reproduzierter Bug: vorheriges additives +/- kehrte die
+    // Grundrichtung bei windAngle<vortexInfluence um).
     const windAngle = CUR.wind * 0.5;
-    const vortexInfluence = Math.sin(vortexPhase) * CUR.storm * 0.2;  // Vortex-Wind beeinflusst Regen
+    const vortexMod = 1 + Math.sin(vortexPhase) * CUR.storm * 0.3;
     const length = 0.015 + Math.random()*0.008;
 
     // Regen-Tropfen haben Tiefe (pseudo-3D): tiefere Tropfen fallen schneller
@@ -2087,7 +2126,7 @@ function rainTick(dt){
     raindrops.push({
       u: -length + Math.random(),
       v: -0.05 + Math.random()*0.1,
-      vx: (windAngle + vortexInfluence) * (0.4 + CUR.wind*0.3),
+      vx: windAngle * vortexMod * (0.4 + CUR.wind*0.3),
       vy: (0.6 + CUR.storm*0.3) * depthMultiplier,  // Tiefenvarianz
       length: length,
       depth: depth,  // für Rendering-Größe/Transparenz
@@ -2100,10 +2139,11 @@ function rainTick(dt){
     const r = raindrops[i];
     r.age += dt;
 
-    // Tiefere Tropfen sind weniger von Vortex-Wind beeinflusst
+    // Tiefere Tropfen sind weniger von Vortex-Wind beeinflusst; multiplikative
+    // Modulation um 1.0 herum kann die Grundrichtung nie umkehren (s. Spawn-Kommentar).
     const windModifier = 1.0 - r.depth*0.4;
-    const vortexInfluence = Math.sin(vortexPhase) * CUR.storm * 0.15;
-    r.vx += vortexInfluence*windModifier*dt*0.2;
+    const vortexMod = 1 + Math.sin(vortexPhase) * CUR.storm * 0.15 * windModifier;
+    r.vx = CUR.wind * 0.5 * vortexMod * (0.4 + CUR.wind*0.3);
 
     r.v += r.vy * dt;
     r.u += r.vx * dt;
@@ -2170,19 +2210,21 @@ function drawOverlay(dt){
   });
   // Schneeflocken: Tiefenvarianz (vordere größer/sichtbar, hintere kleiner/subtil)
   snowflakes.forEach(sn=>{
-    // Tiefe: -0.5 zu 0.5 → Größe und Transparenz variiert
-    const depthMultiplier = 0.5 + sn.depth;  // -0.5 bis 0.5 → 0.0 bis 1.0
-    const depthAlpha = 0.4 + Math.abs(sn.depth)*0.6;  // hinten schwächer, vorne stärker
+    // Tiefe (echte Karte oder Pseudo-Tiefe, 0=fern..1=nah) steuert Größe/Transparenz
+    const d = sn._depth ?? 0.5;
+    const depthMultiplier = 0.6 + d*0.6;   // fern 0.6x .. nah 1.2x
+    const depthAlpha = 0.5 + d*0.5;        // fern schwächer, nah kräftiger
+    const layerBoost = sn.settled ? (1 + sn.layer*0.22) : 1; // Schichten wachsen sichtbar
 
     const maxAge = sn.settled ? 40 : 25;
     ovx.globalAlpha = Math.min(0.95, (1-sn.age/maxAge)*0.6 + CUR.snowfall*0.3) * depthAlpha;
 
     const fadeNight = night>0.6 ? (0.4+night*0.3) : 1.0;
-    // Tiefere Flocken leicht bluer (Luftperspektive)
-    const blueShift = Math.max(0, sn.depth*20)|0;
+    // Fernere Flocken leicht bluer (Luftperspektive)
+    const blueShift = Math.max(0, (1-d)*20)|0;
     ovx.fillStyle = `rgba(${Math.max(180, 220*fadeNight-blueShift)|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
 
-    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier;
+    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier * layerBoost;
     ovx.beginPath();
     ovx.arc(sn.u*W, sn.v*H, Math.max(0.3, pixelSize), 0, 6.283);
     ovx.fill();
@@ -2659,9 +2701,24 @@ document.getElementById('f-scene').onchange=e=>e.target.files[0]&&loadImageFile(
 document.getElementById('f-mat').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],true);
 
 // === 2.5D-Tiefenkarte (Unit 6) ===
+// CPU-Sample-Cache der Tiefenkarte (Weiß=nah/1, Schwarz=fern/0) für Partikel-Steuerung
+// (Schnee/Regen/Laub), damit sie ohne GPU-Readback pro Frame die Szenentiefe kennen.
+let depthSample=null; // {data, w, h}
+function getDepthAt(u,v){
+  if(!depthSample) return null;
+  const x=Math.max(0,Math.min(depthSample.w-1, (u*depthSample.w)|0));
+  const y=Math.max(0,Math.min(depthSample.h-1, (v*depthSample.h)|0));
+  return depthSample.data[(y*depthSample.w+x)*4]/255; // R-Kanal reicht (Graustufen)
+}
 function setDepth(img,label){
   uploadTex(6,TEX.depth,0,0,img);
   hasDepth=true;
+  const dc=document.createElement('canvas');
+  const dw=Math.min(256,img.width), dh=Math.round(dw*img.height/img.width);
+  dc.width=dw; dc.height=dh;
+  const dctx=dc.getContext('2d');
+  dctx.drawImage(img,0,0,dw,dh);
+  depthSample={data:dctx.getImageData(0,0,dw,dh).data, w:dw, h:dh};
   setStatus('Tiefenkarte geladen: '+(label||img.width+'×'+img.height)+' – Maus über der Szene schwenkt die Kamera.');
 }
 function clearDepth(){
@@ -2669,6 +2726,7 @@ function clearDepth(){
   gl.activeTexture(gl.TEXTURE0+6); gl.bindTexture(gl.TEXTURE_2D,TEX.depth);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   hasDepth=false; parallaxTarget.x=0; parallaxTarget.y=0;
+  depthSample=null;
   const fd=document.getElementById('f-depth'); if(fd) fd.value='';
 }
 document.getElementById('f-depth').onchange=e=>{
