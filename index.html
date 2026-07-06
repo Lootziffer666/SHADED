@@ -180,7 +180,7 @@ const ACTS = {
   aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.25, wind:0.85, glow:0.55, decay:0,    temperature:0.56}},
   sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.40, wind:1,    glow:1,    decay:0,    temperature:0.52}},
   morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.50, wind:0.40, glow:0.60, decay:0,    temperature:0.52}},
-  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.08, wind:0.35, glow:0.12, decay:0,    temperature:0.62}},
+  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.02, wind:0.35, glow:0.12, decay:0,    temperature:0.62}},
   verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.20, wind:0.50, glow:0,    decay:1,    temperature:0.55}},
   fruehling:  {label:'🌸 Frühlingsmorgen', p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.10, wind:0.40, glow:0.10, decay:0.15, temperature:0.62, bloom:0.90}},
   sommer:     {label:'☀️ Vollsommer',     p:{dayNight:0.05,storm:0.02, rain:0.02, wet:0.05, puddle:0.05, fog:0.05, wind:0.25, glow:0.15, decay:0.25, temperature:0.85, bloom:0.50}},
@@ -739,14 +739,16 @@ void main(){
     col += vec3(1.0,0.85,0.45) * smoothstep(fdef.w*0.35,0.0,dd) * fdef.z * ffl * 0.5;
   }
 
-  // --- Nebelschleier (fbm-Schichten, dichter am Rand) ---
-  if(u_fog>0.003){
+  // --- Nebelschleier (fbm-Schichten, dünn und transparent bei niedrigen Werten) ---
+  if(u_fog>0.005){
     float f1 = fbm(uv*vec2(3.2*u_aspect,3.2) + vec2((t*0.5+u_windDrift)*0.060, -t*0.010));
     float f2 = fbm(uv*vec2(6.5*u_aspect,6.5) + vec2(-(t*0.5+u_windDrift)*0.045, t*0.020) + 31.7);
     float edge = smoothstep(0.22,0.60,length((uv-0.5)*vec2(1.15,1.35))) + smoothstep(0.75,0.15,uv.y)*0.3;
-    float fogAmt = clamp((0.45*f1+0.38*f2)*(0.35+0.85*edge),0.0,1.0)*u_fog;
+    // Fog fades aggressively when low: quadratic falloff prevents cloud appearance
+    float fogFade = u_fog*u_fog*(3.0-2.0*u_fog);  // smoother curve, nearly invisible below 0.3
+    float fogAmt = clamp((0.45*f1+0.38*f2)*(0.3+0.7*edge),0.0,1.0)*fogFade;
     vec3 fogCol = mix(vec3(0.86,0.89,0.93), vec3(0.40,0.46,0.62), night) + u_flash*0.8 + u_snow*0.05;
-    col = mix(col, fogCol, fogAmt*0.85);
+    col = mix(col, fogCol, fogAmt*0.75);
   }
 
   // --- Schneefall: träge taumelnde Flocken, windverdriftet (3 Parallax-Schichten) ---
