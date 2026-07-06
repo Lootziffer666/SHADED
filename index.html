@@ -175,18 +175,19 @@ const PARAM_META = [
 ];
 // Akte definieren nur relevante Keys; fehlende werden mit DEFAULTS aufgefüllt.
 const ACTS = {
-  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0, temperature:0.70}},
-  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.28, wind:0.85, glow:0.55, decay:0, temperature:0.56}},
-  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.45, wind:1,    glow:1,    decay:0, temperature:0.52}},
-  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.65, wind:0.40, glow:0.60, decay:0, temperature:0.52}},
-  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.16, wind:0.35, glow:0.12, decay:0, temperature:0.62}},
-  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1, temperature:0.55}},
-  fruehling:  {label:'Frühlingsmorgen',   p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.14, wind:0.40, glow:0.10, decay:0, temperature:0.62, bloom:0.90}},
-  herbst:     {label:'Goldener Herbst',   p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.25, wind:0.70, glow:0.30, decay:0.06,temperature:0.56, autumn:0.92}},
-  schnee:     {label:'Erster Schnee',     p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.30, wind:0.30, glow:0.50, decay:0, temperature:0.24, snow:0.85, snowfall:0.70}},
-  blitz:      {label:'⚡ Blitz schlägt ein', p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.35, wind:1,    glow:1,    decay:0.20, temperature:0.50, flash:1}},
-  gefroren:   {label:'❄️ Wasser gefriert', p:{dayNight:0.65,storm:0.50, rain:0.1,  wet:0.95, puddle:0.80, fog:0.50, wind:0.55, glow:0.70, decay:0,    temperature:0.10, snow:0.20, snowfall:0.15}},
-  schnee_dicke:{label:'⛄ Dichter Schnee', p:{dayNight:0.70,storm:0.90, rain:0,    wet:0.75, puddle:0.65, fog:0.70, wind:1,    glow:0.65, decay:0,    temperature:-0.10, snow:0.92, snowfall:0.85}}
+  tag:        {label:'Goldener Tag',      p:{dayNight:0,   storm:0.03, rain:0,    wet:0,    puddle:0.02, fog:0.05, wind:0.30, glow:0.10, decay:0,    temperature:0.70}},
+  aufzug:     {label:'Sturm zieht auf',   p:{dayNight:0.45,storm:0.80, rain:0.45, wet:0.45, puddle:0.30, fog:0.25, wind:0.85, glow:0.55, decay:0,    temperature:0.56}},
+  sturmnacht: {label:'Sturmnacht',        p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.40, wind:1,    glow:1,    decay:0,    temperature:0.52}},
+  morgen:     {label:'Morgengrauen',      p:{dayNight:0.55,storm:0.35, rain:0.12, wet:1,    puddle:0.85, fog:0.50, wind:0.40, glow:0.60, decay:0,    temperature:0.52}},
+  danach:     {label:'Der Tag danach',    p:{dayNight:0.04,storm:0.08, rain:0,    wet:0.75, puddle:0.55, fog:0.08, wind:0.35, glow:0.12, decay:0,    temperature:0.62}},
+  verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.20, wind:0.50, glow:0,    decay:1,    temperature:0.55}},
+  fruehling:  {label:'🌸 Frühlingsmorgen', p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.10, wind:0.40, glow:0.10, decay:0.15, temperature:0.62, bloom:0.90}},
+  sommer:     {label:'☀️ Vollsommer',     p:{dayNight:0.05,storm:0.02, rain:0.02, wet:0.05, puddle:0.05, fog:0.05, wind:0.25, glow:0.15, decay:0.25, temperature:0.85, bloom:0.50}},
+  herbst:     {label:'🍁 Goldener Herbst', p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.18, wind:0.70, glow:0.30, decay:0.40, temperature:0.56, autumn:0.92}},
+  schnee:     {label:'❄️ Erster Schnee',  p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.25, wind:0.30, glow:0.50, decay:0.50, temperature:0.24, snow:0.85, snowfall:0.70}},
+  blitz:      {label:'⚡ Blitz schlägt ein', p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.30, wind:1,    glow:1,    decay:0.50, temperature:0.50, flash:1}},
+  gefroren:   {label:'🧊 Wasser gefriert', p:{dayNight:0.65,storm:0.50, rain:0.1,  wet:0.95, puddle:0.80, fog:0.35, wind:0.55, glow:0.70, decay:0.55, temperature:0.10, snow:0.20, snowfall:0.15}},
+  schnee_dicke:{label:'⛄ Dichter Schnee', p:{dayNight:0.70,storm:0.90, rain:0,    wet:0.75, puddle:0.65, fog:0.40, wind:1,    glow:0.65, decay:0.60, temperature:-0.10, snow:0.92, snowfall:0.85}}
 };
 Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
@@ -1630,9 +1631,13 @@ function defaultStoryboard(){
     {name:'💧 Regen löscht es',  dur:2,  p:{...ACTS.sturmnacht.p, glow:0.5, decay:0.15, temperature:0.50}},
     {name:'❄️ Wasser gefriert',  dur:2,  p:{...ACTS.gefroren.p}},
     {name:'⛄ Schnee fällt',      dur:3,  p:{...ACTS.schnee_dicke.p}},
-    {name:'🍁 Herbst durchblickt',dur:2,  p:{...ACTS.herbst.p, snow:0.1, snowfall:0.05}},
-    {name:'🌫️ Morgengrauen',      dur:3,  p:{...ACTS.morgen.p}},
-    {name:'✨ Der Tag danach',    dur:4,  p:{...ACTS.danach.p}}
+    // Jahreszeiten im Schnelldurchlauf
+    {name:'🌸 Frühjahr wacht auf',dur:2, p:{...ACTS.fruehling.p}},
+    {name:'☀️ Sommer erblüht',    dur:1.5, p:{...ACTS.sommer.p}},
+    {name:'🍂 Herbst golden',     dur:1.5, p:{...ACTS.herbst.p}},
+    // Verfall zeigt Zeit-Passage
+    {name:'🕸️ Jahre verstreichen', dur:4, p:{...ACTS.verfall.p}},
+    {name:'✨ Der Tag danach',    dur:3,  p:{...ACTS.danach.p}}
   ];
   renderStory();
 }
@@ -1865,8 +1870,16 @@ function initEco(){
 function ecoTick(dt){
   const windU=CUR.wind*0.010;
   const autumnWind = CUR.autumn > 0.3 ? (CUR.autumn * 0.015) : 0;  // Herbst: mehr Wind für Blätter
+  const rainWeight = CUR.rain * 0.2;  // Regen macht Blätter schwerer
   for(let i=leaves.length-1;i>=0;i--){
     const l=leaves[i];
+    // Blätter am Boden (settled) bewegen sich nicht viel
+    if(l.settled){
+      // Am Boden: reagieren auf Regen, aber fallen nicht weiter
+      if(CUR.rain > 0.3 && Math.random()<0.1) l.settled=false;  // Regen hebt Blätter auf
+      continue;
+    }
+
     if(player.active&&l.z<=0){
       const d=Math.hypot(l.u-player.u,l.v-player.v);
       if(d<0.02){ const a=Math.atan2(l.v-player.v,l.u-player.u);
@@ -1875,12 +1888,28 @@ function ecoTick(dt){
     if(l.z>0){ l.vz-=dt*2.2; l.z+=l.vz*dt; l.ang+=l.va*dt;
       l.vu+=(windU+autumnWind)*dt*3.0; if(l.z<=0){l.z=0;l.vz=0;l.va=0;} }
     else {
-      l.vu+=(windU+autumnWind)*dt*(0.4+0.6*Math.random());
-      // Herbst-Blätter wirbeln mehr (größere Sinusoszillation)
+      // Blätter fallen aktiv, wenn Herbst aktiv ist
+      const fallSpeed = CUR.autumn > 0.2 ? CUR.autumn * 0.3 : 0.02;
+      l.vv += fallSpeed * dt;  // Blätter fallen schneller im Herbst
+
+      l.vu+=(windU+autumnWind)*dt*(0.3+0.4*CUR.autumn);  // Wind bewegt Blätter seitlich
+      // Herbst-Blätter wirbeln (größere Sinusoszillation)
       const wob = CUR.autumn > 0.5 ? Math.sin(time*1.2 + i*0.3)*0.008 : 0;
       l.vu += wob;
+
+      // Reibung / Bremsen
       const fr=Math.pow(0.5,dt/0.5);
-      l.vu*=fr; l.vv*=fr;
+      l.vu*=fr; l.vv*=Math.pow(0.8,dt/0.3);  // Schnellere Bremsung vertikal
+
+      // Blatt erreicht Boden
+      if(l.v > 0.95){
+        l.settled = true;
+        l.v = 0.95 + Math.random()*0.04;
+        l.vv = 0;
+        l.vu = 0;
+        l.va = 0;
+        continue;
+      }
     }
     l.u+=l.vu*dt*(l.z>0?3:1); l.v+=l.vv*dt*(l.z>0?3:1);
     if(l.u<0)l.u+=1; if(l.u>1)l.u-=1; if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
@@ -1952,11 +1981,12 @@ function rainTick(dt){
   // Regen-Tropfen spawnen basierend auf rain-Parameter
   const targetRaindrops = Math.ceil(CUR.rain * 120);
   while(raindrops.length < targetRaindrops && Math.random()<0.7){
-    const windAngle = -0.3 + CUR.wind * 0.4;  // Regen-Winkel folgt Wind (−30° to +11°)
+    // Wind bestimmt Richtung: 0=links nach rechts, 1=stark nach rechts
+    const windAngle = CUR.wind * 0.5;  // Regen-Winkel folgt Wind (0° to +25°), unidirektional
     raindrops.push({
       u: Math.random(),
       v: -0.05 + Math.random()*0.1,
-      vx: windAngle * (0.3 + CUR.wind*0.2),  // horizontale Geschwindigkeit vom Winkel
+      vx: windAngle * (0.4 + CUR.wind*0.3),  // horizontale Geschwindigkeit vom Winkel
       vy: 0.6 + CUR.storm*0.3,                // vertikale Geschwindigkeit
       length: 0.015 + Math.random()*0.008,
       age: 0
@@ -1969,8 +1999,8 @@ function rainTick(dt){
     r.v += r.vy * dt;
     r.u += r.vx * dt;
 
-    // wrapping
-    if(r.u<-0.1) r.u+=1.1; if(r.u>1.1) r.u-=1.1;
+    // wrapping: nur nach rechts, nicht nach links
+    if(r.u>1.2) r.u-=1.3;
     // ausspawn
     if(r.v>1.1 || r.age>8) raindrops.splice(i,1);
   }
