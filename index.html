@@ -1854,7 +1854,7 @@ function fireUniforms(){
 }
 
 // --- Partikel-Ökosystem (Overlay; rückwärts splicen!) ---
-let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[];
+let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[],raindrops=[];
 function initEco(){
   leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];
   for(let i=0;i<90;i++) leaves.push({u:Math.random(),v:Math.random(),
@@ -1946,6 +1946,35 @@ function snowTick(dt){
   }
 }
 
+// --- Regen-Tiefe-System (Regen mit Parallax basierend auf Höhe und Wind-Winkel) ---
+function rainTick(dt){
+  // Regen-Tropfen spawnen basierend auf rain-Parameter
+  const targetRaindrops = Math.ceil(CUR.rain * 120);
+  while(raindrops.length < targetRaindrops && Math.random()<0.7){
+    const windAngle = -0.3 + CUR.wind * 0.4;  // Regen-Winkel folgt Wind (−30° to +11°)
+    raindrops.push({
+      u: Math.random(),
+      v: -0.05 + Math.random()*0.1,
+      vx: windAngle * (0.3 + CUR.wind*0.2),  // horizontale Geschwindigkeit vom Winkel
+      vy: 0.6 + CUR.storm*0.3,                // vertikale Geschwindigkeit
+      length: 0.015 + Math.random()*0.008,
+      age: 0
+    });
+  }
+  // Update
+  for(let i=raindrops.length-1;i>=0;i--){
+    const r = raindrops[i];
+    r.age += dt;
+    r.v += r.vy * dt;
+    r.u += r.vx * dt;
+
+    // wrapping
+    if(r.u<-0.1) r.u+=1.1; if(r.u>1.1) r.u-=1.1;
+    // ausspawn
+    if(r.v>1.1 || r.age>8) raindrops.splice(i,1);
+  }
+}
+
 // --- Overlay-Rendering (deckungsgleich über dem GL-Canvas) ---
 function drawOverlay(dt){
   const W=ov.width,H=ov.height;
@@ -2006,6 +2035,19 @@ function drawOverlay(dt){
     ovx.beginPath();
     ovx.arc(sn.u*W, sn.v*H, Math.max(0.5, pixelSize), 0, 6.283);
     ovx.fill();
+  });
+  // Regen-Tropfen: dünne Linien mit Parallax-Winkel und Tiefe-Fade
+  raindrops.forEach(r=>{
+    ovx.globalAlpha = Math.min(0.8, CUR.rain*0.9 * (1-r.age/8));
+    const depthFade = 0.3 + (1-r.v)*0.7;  // Tropfen am Boden weniger sichtbar
+    ovx.strokeStyle = `rgba(${180*depthFade|0},${200*depthFade|0},${255*depthFade|0},1)`;
+    ovx.lineWidth = Math.max(0.5, 1.5 - r.v);  // Tropfen werden dünner je näher sie zum Boden
+    ovx.beginPath();
+    const x1 = r.u*W, y1 = r.v*H;
+    const x2 = x1 + r.length*W, y2 = y1 + r.length*H*2;  // Bewegungs-Spur
+    ovx.moveTo(x1, y1);
+    ovx.lineTo(x2, y2);
+    ovx.stroke();
   });
   ovx.globalAlpha=1;
   if(player.active) drawPlayer(W,H,S,dt);
@@ -2209,20 +2251,20 @@ const ecosystemDefs={
     {x:0.3, y:0.5, scale:0.7, anim:'walk_stretchy', depthLayer:'mid'},
   ],
   gaime_enemies:[
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_blob.png', x:0.15, y:0.55, scale:2.0, depthLayer:'mid', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_rat.png', x:0.35, y:0.65, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_wolf.png', x:0.65, y:0.6, scale:2.0, depthLayer:'back', fallbackAnim:'idle'},
+    {x:0.15, y:0.55, scale:1.8, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.35, y:0.65, scale:2.2, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.65, y:0.6, scale:1.8, anim:'depth_cycle', depthLayer:'back', isTestActor:true},
   ],
   gaime_npcs:[
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen1.png', x:0.2, y:0.6, scale:3.0, depthLayer:'mid', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen2.png', x:0.5, y:0.65, scale:3.0, depthLayer:'mid', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_barkeep.png', x:0.75, y:0.7, scale:2.5, depthLayer:'back', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_merchant.png', x:0.3, y:0.5, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
+    {x:0.2, y:0.6, scale:2.8, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.5, y:0.65, scale:2.8, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.75, y:0.7, scale:2.3, anim:'depth_cycle', depthLayer:'back', isTestActor:true},
+    {x:0.3, y:0.5, scale:2.3, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
   ],
   gaime_heroes:[
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/hero_nib.png', x:0.25, y:0.6, scale:2.5, depthLayer:'front', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/hero_brugg.png', x:0.55, y:0.65, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
-    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/hero_vellum.png', x:0.75, y:0.58, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
+    {x:0.25, y:0.6, scale:2.3, anim:'depth_cycle', depthLayer:'front', isTestActor:true},
+    {x:0.55, y:0.65, scale:2.3, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.75, y:0.58, scale:2.3, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
   ],
   test_depth:[
     {x:0.5, y:0.55, scale:2.0, anim:'depth_cycle', depthLayer:'mid', isDepthTest:true}
@@ -2237,8 +2279,38 @@ async function spawnEcosystem(type){
   const defs=ecosystemDefs[type];
   const isAnimated=defs[0]?.anim; // True if defs have anim (sprite-sheets)
   const isDepthTest=defs[0]?.isDepthTest; // Special handling for depth test
+  const isTestActor=defs[0]?.isTestActor; // Fallback: use test-depth-actor instead of GAIME assets
 
-  if(isDepthTest){
+  if(isTestActor){
+    // Fallback für GAIME-Assets: nutze test_depth_actor Sprites (lokale Test-Fixture)
+    const manifest=await fetch('tools/test_depth_actor/manifest.json').then(r=>r.json());
+    const img=new Image();
+    const depthImg=new Image();
+    let loadCount=0;
+    const checkReady=()=>{
+      loadCount++;
+      if(loadCount===2){
+        defs.forEach((config,idx)=>{
+          const h=addActor({
+            image:img,
+            manifest:manifest,
+            depthImage:depthImg,
+            x:config.x,
+            y:config.y,
+            scale:config.scale,
+            anim:config.anim||'depth_cycle',
+            depthLayer:config.depthLayer
+          });
+          ecosystemHandles.push(h);
+        });
+        setStatus(`✅ Ökosystem geladen: ${type} mit Tiefentest-Sprites (${ecosystemHandles.length} Figuren)`);
+      }
+    };
+    img.onload=checkReady;
+    depthImg.onload=checkReady;
+    img.src='tools/test_depth_actor/sprite.png';
+    depthImg.src='tools/test_depth_actor/sprite_depth.png';
+  } else if(isDepthTest){
     // Phase B2: Test Depth-Actor mit Manifest v1.4.0
     const manifest=await fetch('tools/test_depth_actor/manifest.json').then(r=>r.json());
     const img=new Image();
@@ -2615,6 +2687,7 @@ function tickWorld(dt){
     fireTick(dt);
     ecoTick(dt);
     snowTick(dt);
+    rainTick(dt);
     trailTick(dt);
   }
 }
