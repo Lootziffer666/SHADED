@@ -418,7 +418,7 @@ void main(){
     float heatFlicker = sin(t*8.3 + uv.x*100.0)*0.5 + 0.5;
     vec2 heatUV = uv + (heatFlicker-0.5)*u_heatWarp*0.008*vec2(sin(t*5.1), cos(t*4.7));
     vec3 heatCol = texture2D(u_scene, clamp(heatUV, vec2(0.001), vec2(0.999))).rgb;
-    float heatZone = (trail.a + CUR.fireCount) * smoothstep(0.0, 0.3, u_heatWarp);  // nur über Hitze
+    float heatZone = (trail.a + u_fireCount) * smoothstep(0.0, 0.3, u_heatWarp);  // nur über Hitze
     col = mix(col, heatCol, heatZone*0.15);
   }
 
