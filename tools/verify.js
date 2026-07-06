@@ -63,7 +63,9 @@ const server = http.createServer((req, res) => {
 
   await page.goto('http://localhost:8931/index.html');
   await page.setInputFiles('#f-scene', BASE_IMG);
-  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Szene geladen'));
+  // Szene mit Depth-Companion: Auto-Load ueberschreibt den Status fast sofort
+  // wieder auf "Tiefenkarte geladen" - beides bestaetigt, dass sceneImg gesetzt ist.
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
   await page.setInputFiles('#f-mat', MARKER_IMG);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
   await page.click('#btn-create');
