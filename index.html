@@ -97,6 +97,7 @@ body.cinema #exit-cinema{display:block}
     <button data-act="schnee">❄️ Erster Schnee</button>
     <button id="btn-year">📅 Ein Jahr (Loop)</button>
     <button id="btn-timelapse">⏳ Zeitraffer-Verfall</button>
+    <button id="btn-drama">⚡ Drama-Spektakel (20s)</button>
   </div>
 
   <h2>Interaktion</h2>
@@ -1653,6 +1654,22 @@ function yearStoryboard(){
   ];
   renderStory();
 }
+function dramaStoryboard(){
+  // 20-Sekunden Weltgesetze-Spektakel: Sturm + Blitz + Feuer + Verfall + Schnee
+  storyboard = [
+    {name:'🌤️ Klarer Moment',         dur:1.5, p:{...ACTS.tag.p}},
+    {name:'💨 Wind erhebt sich',       dur:2,   p:{dayNight:0.2, storm:0.3, rain:0.05, wet:0.1, puddle:0.05, fog:0.08, wind:0.85, glow:0.15, decay:0.15, temperature:0.65, autumn:0.4}},
+    {name:'⛈️ Extreme Turbulenzen',    dur:2.5, p:{dayNight:0.75, storm:1, rain:0.9, wet:0.9, puddle:0.85, fog:0.35, wind:1, glow:0.8, decay:0.3, temperature:0.4, bleeding:1}},
+    {name:'⚡ Blitz-Angriff',          dur:1.5, p:{dayNight:1, storm:1, rain:1, wet:1, puddle:0.95, fog:0.25, wind:1, glow:1, decay:0.25, temperature:0.35, flash:1}},
+    {name:'🔥 Feuer entfacht',         dur:1.5, p:{dayNight:0.9, storm:0.7, rain:0.5, wet:0.6, puddle:0.7, fog:0.2, wind:0.8, glow:1, decay:0.4, temperature:0.9}},
+    {name:'💧 Regen schlägt zurück',   dur:2,   p:{dayNight:1, storm:1, rain:1, wet:1, puddle:0.9, fog:0.45, wind:0.9, glow:0.6, decay:0.35, temperature:0.45}},
+    {name:'🧊 Blitzschneller Verfall',  dur:2.5, p:{dayNight:0.8, storm:0.6, rain:0.2, wet:0.3, puddle:0.25, fog:0.22, wind:0.6, glow:0.05, decay:1, temperature:0.15, snow:0.5, snowfall:0.4}},
+    {name:'❄️ Winterstille',           dur:2.5, p:{dayNight:0.5, storm:0.15, rain:0, wet:0.2, puddle:0.15, fog:0.12, wind:0.2, glow:0.08, decay:0.8, temperature:-0.1, snow:1, snowfall:0.3}},
+    {name:'✨ Hoffnungsstrahl',         dur:2.5, p:{dayNight:0.1, storm:0.05, rain:0, wet:0.1, puddle:0.05, fog:0.06, wind:0.15, glow:0.2, decay:0.6, temperature:0.5, snow:0.1, snowfall:0.02, bloom:0.3}}
+  ];
+  storyboard.forEach(s => {s.p = {...DEFAULTS, ...s.p};});
+  renderStory();
+}
 function renderStory(){
   const list=document.getElementById('story-list'); list.innerHTML='';
   storyboard.forEach((s,i)=>{
@@ -2663,6 +2680,9 @@ document.getElementById('btn-timelapse').onclick=()=>{
   renderStory(); playStory();
   setStatus('⏳ Zeitraffer: Das Dorf altert vor Deinen Augen (decay 0→1).');
 };
+document.getElementById('btn-drama').onclick=()=>{
+  dramaStoryboard(); playStory(); setStatus('⚡ Weltgesetze im Extremis – 20 Sekunden reines Drama mit Sturm + Blitz + Verfall.');
+};
 document.getElementById('btn-add').onclick=()=>{
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
 };
@@ -2681,6 +2701,8 @@ let shadowAge=0, smellDrift=0, touchWear=0, repairMark=0, blessCurse=0;
 // hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
 let parallaxTarget={x:0,y:0}, parallaxCurrent={x:0,y:0}, hasDepth=false;
+// Camera shake: Sturm + Blitz erzeugen visuelle Erschütterungen
+let cameraShake={x:0, y:0};
 const OV_DEPTH=0.5;  // Bodenebene ~ mittlere Tiefe: so weit schiebt das Overlay mit
 function tickWorld(dt){
   if(!timeFrozen){
@@ -2709,6 +2731,19 @@ function tickWorld(dt){
     touchWear+=dt*0.05; // konstantes Abnutzen
     repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
+
+    // === Camera Shake System: Sturm + Blitz erzeugen Kamera-Vibrationen ===
+    // Wind/Storm: subtiles, kontinuierliches Wackeln
+    const windShake = (CUR.wind * 0.8 + CUR.storm * 0.5) * 0.006;
+    // Blitz: scharfes, kurzfristiges Zucken
+    const flashShake = CUR.flash * 0.015;
+    const totalShake = windShake + flashShake;
+
+    cameraShake.x += (Math.random() - 0.5) * totalShake * 2;
+    cameraShake.y += (Math.random() - 0.5) * totalShake * 2;
+    // Sanfte Dämpfung: shake fällt ab wenn kein Sturm/Blitz mehr
+    cameraShake.x *= Math.pow(0.85, dt);
+    cameraShake.y *= Math.pow(0.85, dt);
   }
   tickStory(dt);
   tickActBlend(dt);
@@ -2735,7 +2770,9 @@ function frame(now){
   parallaxCurrent.x += (parallaxTarget.x-parallaxCurrent.x)*0.06;
   parallaxCurrent.y += (parallaxTarget.y-parallaxCurrent.y)*0.06;
   const pxShift = hasDepth ? parallaxCurrent : {x:0,y:0};
-  const fx = pxShift.x*OV_DEPTH, fy = pxShift.y*OV_DEPTH;   // UV-Bruchteile
+  // === Camera Shake beim Shader anwenden ===
+  const pxWithShake = {x: pxShift.x + cameraShake.x, y: pxShift.y + cameraShake.y};
+  const fx = pxWithShake.x*OV_DEPTH, fy = pxWithShake.y*OV_DEPTH;   // UV-Bruchteile
   ov.style.transform = hasDepth ? `translate(${fx*ov.clientWidth}px, ${fy*ov.clientHeight}px)` : '';
 
   if(sceneImg){
@@ -2761,7 +2798,7 @@ function frame(now){
     gl.uniform1f(U.u_touchWear,touchWear);
     gl.uniform1f(U.u_repairMark,repairMark);
     gl.uniform1f(U.u_blessCurse,blessCurse);
-    gl.uniform2f(U.u_parallax, pxShift.x, pxShift.y);
+    gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
     gl.uniform1f(U.u_mossBoost, ready? mossBoost*0.3 : 0);
