@@ -183,7 +183,10 @@ const ACTS = {
   verfall:    {label:'Jahre später',      p:{dayNight:0.10,storm:0.15, rain:0,    wet:0.15, puddle:0.10, fog:0.35, wind:0.50, glow:0,    decay:1, temperature:0.55}},
   fruehling:  {label:'Frühlingsmorgen',   p:{dayNight:0.06,storm:0.05, rain:0.08, wet:0.20, puddle:0.10, fog:0.14, wind:0.40, glow:0.10, decay:0, temperature:0.62, bloom:0.90}},
   herbst:     {label:'Goldener Herbst',   p:{dayNight:0.10,storm:0.25, rain:0.15, wet:0.35, puddle:0.20, fog:0.25, wind:0.70, glow:0.30, decay:0.06,temperature:0.56, autumn:0.92}},
-  schnee:     {label:'Erster Schnee',     p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.30, wind:0.30, glow:0.50, decay:0, temperature:0.24, snow:0.85, snowfall:0.70}}
+  schnee:     {label:'Erster Schnee',     p:{dayNight:0.18,storm:0.35, rain:0,    wet:0.15, puddle:0.28, fog:0.30, wind:0.30, glow:0.50, decay:0, temperature:0.24, snow:0.85, snowfall:0.70}},
+  blitz:      {label:'⚡ Blitz schlägt ein', p:{dayNight:1,   storm:1,    rain:1,    wet:1,    puddle:0.92, fog:0.35, wind:1,    glow:1,    decay:0.20, temperature:0.50, flash:1}},
+  gefroren:   {label:'❄️ Wasser gefriert', p:{dayNight:0.65,storm:0.50, rain:0.1,  wet:0.95, puddle:0.80, fog:0.50, wind:0.55, glow:0.70, decay:0,    temperature:0.10, snow:0.20, snowfall:0.15}},
+  schnee_dicke:{label:'⛄ Dichter Schnee', p:{dayNight:0.70,storm:0.90, rain:0,    wet:0.75, puddle:0.65, fog:0.70, wind:1,    glow:0.65, decay:0,    temperature:-0.10, snow:0.92, snowfall:0.85}}
 };
 Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
@@ -1618,11 +1621,17 @@ const CUR={...PARAMS};    // gerenderte (geblendete) Werte
 
 function defaultStoryboard(){
   storyboard = [
-    {name:'Goldener Tag',    dur:7,  p:{...ACTS.tag.p}},
-    {name:'Sturm zieht auf', dur:7,  p:{...ACTS.aufzug.p}},
-    {name:'Sturmnacht',      dur:16, p:{...ACTS.sturmnacht.p}},
-    {name:'Morgengrauen',    dur:7,  p:{...ACTS.morgen.p}},
-    {name:'Der Tag danach',  dur:11, p:{...ACTS.danach.p}}
+    {name:'☀️ Goldener Tag',    dur:4,  p:{...ACTS.tag.p}},
+    {name:'🌤️ Sturm zieht auf', dur:4,  p:{...ACTS.aufzug.p}},
+    {name:'⛈️ Sturmnacht',      dur:5,  p:{...ACTS.sturmnacht.p}},
+    {name:'⚡ Blitz schlägt ein',dur:2,  p:{...ACTS.blitz.p}},
+    {name:'🔥 Haus brennt',      dur:3,  p:{...ACTS.blitz.p, glow:1.0, decay:0.30, temperature:0.8}},
+    {name:'💧 Regen löscht es',  dur:2,  p:{...ACTS.sturmnacht.p, glow:0.5, decay:0.15, temperature:0.50}},
+    {name:'❄️ Wasser gefriert',  dur:2,  p:{...ACTS.gefroren.p}},
+    {name:'⛄ Schnee fällt',      dur:3,  p:{...ACTS.schnee_dicke.p}},
+    {name:'🍁 Herbst durchblickt',dur:2,  p:{...ACTS.herbst.p, snow:0.1, snowfall:0.05}},
+    {name:'🌫️ Morgengrauen',      dur:3,  p:{...ACTS.morgen.p}},
+    {name:'✨ Der Tag danach',    dur:4,  p:{...ACTS.danach.p}}
   ];
   renderStory();
 }
@@ -1845,7 +1854,7 @@ function fireUniforms(){
 }
 
 // --- Partikel-Ökosystem (Overlay; rückwärts splicen!) ---
-let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[];
+let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[];
 function initEco(){
   leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];
   for(let i=0;i<90;i++) leaves.push({u:Math.random(),v:Math.random(),
@@ -1854,6 +1863,7 @@ function initEco(){
 }
 function ecoTick(dt){
   const windU=CUR.wind*0.010;
+  const autumnWind = CUR.autumn > 0.3 ? (CUR.autumn * 0.015) : 0;  // Herbst: mehr Wind für Blätter
   for(let i=leaves.length-1;i>=0;i--){
     const l=leaves[i];
     if(player.active&&l.z<=0){
@@ -1862,9 +1872,15 @@ function ecoTick(dt){
         l.vu+=Math.cos(a)*0.02; l.vv+=Math.sin(a)*0.02; }
     }
     if(l.z>0){ l.vz-=dt*2.2; l.z+=l.vz*dt; l.ang+=l.va*dt;
-      l.vu+=windU*dt*3.0; if(l.z<=0){l.z=0;l.vz=0;l.va=0;} }
-    else { l.vu+=windU*dt*(0.4+0.6*Math.random()); const fr=Math.pow(0.5,dt/0.5);
-      l.vu*=fr; l.vv*=fr; }
+      l.vu+=(windU+autumnWind)*dt*3.0; if(l.z<=0){l.z=0;l.vz=0;l.va=0;} }
+    else {
+      l.vu+=(windU+autumnWind)*dt*(0.4+0.6*Math.random());
+      // Herbst-Blätter wirbeln mehr (größere Sinusoszillation)
+      const wob = CUR.autumn > 0.5 ? Math.sin(time*1.2 + i*0.3)*0.008 : 0;
+      l.vu += wob;
+      const fr=Math.pow(0.5,dt/0.5);
+      l.vu*=fr; l.vv*=fr;
+    }
     l.u+=l.vu*dt*(l.z>0?3:1); l.v+=l.vv*dt*(l.z>0?3:1);
     if(l.u<0)l.u+=1; if(l.u>1)l.u-=1; if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
   }
@@ -1888,6 +1904,45 @@ function ecoTick(dt){
     const b=breaths[i]; b.life-=dt*1.1;
     if(b.life<=0){breaths.splice(i,1);continue;}
     b.u+=b.vu*dt; b.v+=b.vv*dt; b.r+=dt*0.008;
+  }
+}
+
+// --- Schnee-Partikel-System (Phase C: Schnee mit dynamischer Größe und Bewegung) ---
+function snowTick(dt){
+  // Schneeflocken spawnen basierend auf snowfall-Parameter
+  const targetSnowflakes = Math.ceil(CUR.snowfall * 80);
+  while(snowflakes.length < targetSnowflakes && Math.random()<0.6){
+    const startY = CUR.snowfall>0.5 ? -0.1 : Math.random()*0.3; // dicke Flocken oben
+    const size = CUR.snowfall > 0.7 ? 2.0 + Math.random()*1.5 : 0.8 + Math.random()*1.2;
+    snowflakes.push({
+      u: Math.random(),
+      v: startY,
+      z: 0,
+      size: size,
+      vu: (Math.random()-0.5)*0.02,
+      vv: 0.15 + Math.random()*0.08 + CUR.snowfall*0.15,
+      wobble: Math.random()*3.14159*2,
+      wobbleSpeed: 2.0 + Math.random()*3.0,
+      age: 0
+    });
+  }
+  // Update und Rendering
+  for(let i=snowflakes.length-1;i>=0;i--){
+    const s = snowflakes[i];
+    s.age += dt;
+    s.v += s.vv * dt;
+    s.u += (s.vu + Math.sin(s.wobble + time*s.wobbleSpeed)*0.003) * dt;
+    s.wobble += s.wobbleSpeed*dt*0.3;
+
+    // wrapping und ausspawn
+    if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
+    if(s.v>1.1 || s.age > 25) snowflakes.splice(i,1);
+
+    // schnee sammelt sich bei wet/puddle (stillstand)
+    if(s.v > 0.85 && CUR.wet > 0.5){
+      s.vv *= Math.pow(0.8, dt);
+      s.vu *= Math.pow(0.9, dt);
+    }
   }
 }
 
@@ -1941,6 +1996,16 @@ function drawOverlay(dt){
     ovx.globalAlpha=b.life*0.35;
     ovx.fillStyle='rgba(235,245,255,1)';
     ovx.beginPath(); ovx.arc(b.u*W,b.v*H,b.r*W,0,6.283); ovx.fill();
+  });
+  // Schneeflocken: kleine wirbelnde Punkte, die größer werden bei Schneefall
+  snowflakes.forEach(sn=>{
+    ovx.globalAlpha = Math.min(0.95, (1-sn.age/25)*0.6 + CUR.snowfall*0.3);
+    const fadeNight = night>0.6 ? (0.4+night*0.3) : 1.0;
+    ovx.fillStyle = `rgba(${220*fadeNight|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
+    const pixelSize = sn.size * S * Math.pow(sn.age/25 + 0.1, 0.3);
+    ovx.beginPath();
+    ovx.arc(sn.u*W, sn.v*H, Math.max(0.5, pixelSize), 0, 6.283);
+    ovx.fill();
   });
   ovx.globalAlpha=1;
   if(player.active) drawPlayer(W,H,S,dt);
@@ -2144,20 +2209,20 @@ const ecosystemDefs={
     {x:0.3, y:0.5, scale:0.7, anim:'walk_stretchy', depthLayer:'mid'},
   ],
   gaime_enemies:[
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_blob.png', x:0.15, y:0.55, scale:2.0, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_rat.png', x:0.35, y:0.65, scale:2.5, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_wolf.png', x:0.65, y:0.6, scale:2.0, depthLayer:'back'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_blob.png', x:0.15, y:0.55, scale:2.0, depthLayer:'mid', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_rat.png', x:0.35, y:0.65, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_wolf.png', x:0.65, y:0.6, scale:2.0, depthLayer:'back', fallbackAnim:'idle'},
   ],
   gaime_npcs:[
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen1.png', x:0.2, y:0.6, scale:3.0, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen2.png', x:0.5, y:0.65, scale:3.0, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_barkeep.png', x:0.75, y:0.7, scale:2.5, depthLayer:'back'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_merchant.png', x:0.3, y:0.5, scale:2.5, depthLayer:'mid'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen1.png', x:0.2, y:0.6, scale:3.0, depthLayer:'mid', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen2.png', x:0.5, y:0.65, scale:3.0, depthLayer:'mid', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_barkeep.png', x:0.75, y:0.7, scale:2.5, depthLayer:'back', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_merchant.png', x:0.3, y:0.5, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
   ],
   gaime_heroes:[
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_nib.png', x:0.25, y:0.6, scale:2.5, depthLayer:'front'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_brugg.png', x:0.55, y:0.65, scale:2.5, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_vellum.png', x:0.75, y:0.58, scale:2.5, depthLayer:'mid'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/hero_nib.png', x:0.25, y:0.6, scale:2.5, depthLayer:'front', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/hero_brugg.png', x:0.55, y:0.65, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
+    {img:'/gaime/composeApp/src/commonMain/composeResources/drawable/hero_vellum.png', x:0.75, y:0.58, scale:2.5, depthLayer:'mid', fallbackAnim:'idle'},
   ],
   test_depth:[
     {x:0.5, y:0.55, scale:2.0, anim:'depth_cycle', depthLayer:'mid', isDepthTest:true}
@@ -2549,6 +2614,7 @@ function tickWorld(dt){
     playerTick(dt);
     fireTick(dt);
     ecoTick(dt);
+    snowTick(dt);
     trailTick(dt);
   }
 }
