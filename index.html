@@ -2144,20 +2144,20 @@ const ecosystemDefs={
     {x:0.3, y:0.5, scale:0.7, anim:'walk_stretchy', depthLayer:'mid'},
   ],
   gaime_enemies:[
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_blob.png', x:0.15, y:0.55, scale:2.0, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_rat.png', x:0.35, y:0.65, scale:2.5, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_wolf.png', x:0.65, y:0.6, scale:2.0, depthLayer:'back'},
+    {x:0.15, y:0.55, scale:1.8, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.35, y:0.65, scale:2.2, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.65, y:0.6, scale:1.8, anim:'depth_cycle', depthLayer:'back', isTestActor:true},
   ],
   gaime_npcs:[
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen1.png', x:0.2, y:0.6, scale:3.0, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen2.png', x:0.5, y:0.65, scale:3.0, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_barkeep.png', x:0.75, y:0.7, scale:2.5, depthLayer:'back'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_merchant.png', x:0.3, y:0.5, scale:2.5, depthLayer:'mid'},
+    {x:0.2, y:0.6, scale:2.8, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.5, y:0.65, scale:2.8, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.75, y:0.7, scale:2.3, anim:'depth_cycle', depthLayer:'back', isTestActor:true},
+    {x:0.3, y:0.5, scale:2.3, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
   ],
   gaime_heroes:[
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_nib.png', x:0.25, y:0.6, scale:2.5, depthLayer:'front'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_brugg.png', x:0.55, y:0.65, scale:2.5, depthLayer:'mid'},
-    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_vellum.png', x:0.75, y:0.58, scale:2.5, depthLayer:'mid'},
+    {x:0.25, y:0.6, scale:2.3, anim:'depth_cycle', depthLayer:'front', isTestActor:true},
+    {x:0.55, y:0.65, scale:2.3, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
+    {x:0.75, y:0.58, scale:2.3, anim:'depth_cycle', depthLayer:'mid', isTestActor:true},
   ],
   test_depth:[
     {x:0.5, y:0.55, scale:2.0, anim:'depth_cycle', depthLayer:'mid', isDepthTest:true}
@@ -2172,8 +2172,38 @@ async function spawnEcosystem(type){
   const defs=ecosystemDefs[type];
   const isAnimated=defs[0]?.anim; // True if defs have anim (sprite-sheets)
   const isDepthTest=defs[0]?.isDepthTest; // Special handling for depth test
+  const isTestActor=defs[0]?.isTestActor; // Fallback: use test-depth-actor instead of GAIME assets
 
-  if(isDepthTest){
+  if(isTestActor){
+    // Fallback für GAIME-Assets: nutze test_depth_actor Sprites (lokale Test-Fixture)
+    const manifest=await fetch('tools/test_depth_actor/manifest.json').then(r=>r.json());
+    const img=new Image();
+    const depthImg=new Image();
+    let loadCount=0;
+    const checkReady=()=>{
+      loadCount++;
+      if(loadCount===2){
+        defs.forEach((config,idx)=>{
+          const h=addActor({
+            image:img,
+            manifest:manifest,
+            depthImage:depthImg,
+            x:config.x,
+            y:config.y,
+            scale:config.scale,
+            anim:config.anim||'depth_cycle',
+            depthLayer:config.depthLayer
+          });
+          ecosystemHandles.push(h);
+        });
+        setStatus(`✅ Ökosystem geladen: ${type} mit Tiefentest-Sprites (${ecosystemHandles.length} Figuren)`);
+      }
+    };
+    img.onload=checkReady;
+    depthImg.onload=checkReady;
+    img.src='tools/test_depth_actor/sprite.png';
+    depthImg.src='tools/test_depth_actor/sprite_depth.png';
+  } else if(isDepthTest){
     // Phase B2: Test Depth-Actor mit Manifest v1.4.0
     const manifest=await fetch('tools/test_depth_actor/manifest.json').then(r=>r.json());
     const img=new Image();
