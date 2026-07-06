@@ -19,6 +19,14 @@ python3 -m http.server 8000
 Steuerung: `K` = Kino-Modus (UI aus), Akt-Buttons springen zu Stimmungen, „Experten-Regler" für Feintuning, 📸 PNG-Snapshot, 🔴 WebM-Aufnahme, Storyboard-Editor für eigene Abläufe.
 Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Schneedellen), `Leertaste` Sprint (Laub stiebt, Früchte fallen), `F` bzw. 🔥 Feuer-Tool entzündet Lagerfeuer (Warmlicht, Rauch, Brandspuren; Regen löscht). Ohne Eingabe bleibt SHADED ein reines Ambient-Stück.
 
+**Ökosystem-Verwaltung (Runde 7):** 4 neue Buttons in der Tools-Leiste laden jeweils einen Charaktergruppen-Satz:
+- 🐱 **Katzen-Schwarm** (4 animierte Sprite-Actor): bunt gemischte Animationen (laufen, fressen, faulenzen)
+- 👿 **Feinde** (3 statische Charaktere): GAIME-Monster mit räumlich korrektem Depth-Layer
+- 🧑 **NPCs** (4 Stadtbewohner): Marktszenen-Figuren mit Tiefenordnung
+- ⚔️ **Helden** (3 spielbare Charaktere): Nib, Brugg, Vellum mit individueller Tiefenschicht
+
+Actors sind rein optisch (beeinflussen nicht `classGrid` oder `getMaterialTypeAt`) und reagieren auf Nebel/Nacht-Parameter (globalAlpha-Kopplung für natürliche Sichtbarkeit).
+
 ## Assets im Repo
 
 | Datei | Rolle |
@@ -74,13 +82,36 @@ So liefert der Workflow deterministisch Dorf-Qualität für jedes Bild – ohne 
 
 **2.5D-Parallaxe (optional, dritter Datei-Input):** Eine Graustufen-**Tiefenkarte** (Weiß = nah, Schwarz = fern) macht die Szene räumlich – die Maus über der Bühne schwenkt die Kamera minimal (max. 3,5 %), Nahes verschiebt sich stärker als Fernes. Liegt neben `bild.png` eine `bild_depth.png` auf dem Server, wird sie automatisch geladen – das Demo-Dorf bringt eine handgemachte Tiefenkarte mit und ist damit ab dem ersten Klick räumlich. Ohne Tiefenkarte bleibt alles exakt wie bisher (flach, deterministisch). Der UV-Versatz passiert VOR allen Textur-Lookups, damit Szene, Masken, Physik und Trails dieselbe verschobene Welt sehen. Test-API: `SHADED.parallax.set(x,y)` / `.hasDepth()`.
 
+## SWIFT → SHADED Integration
+
+SHADED ist das **Rendering-Ziel für prozedural generierte Charaktere** aus dem SWIFT-Repository (separates Python/Blender-CLI). SWIFT produziert Sprite-Sheets (PNG) + Manifeste (JSON) mit Frame-Rects und Animationen; diese werden via `window.SHADED.addActor()` als rein optische Overlay-Ebene geladen.
+
+**Invariante 2 bleibt unberührt:** Actors beeinflussen NICHT `classGrid` oder `getMaterialTypeAt()`. Die Szenen-Analyse stammt allein vom Hintergrund; Actors sind Rendering-Dekoration ohne Physik-Rückwirkung.
+
+**Manifest-Schema (v1.4.0):**
+```json
+{
+  “mappingVersion”: “1.4.0”,
+  “sourceImage”: { “w”: 256, “h”: 64 },
+  “frameRects”: { “F01”: [0, 0, 64, 64], ... },
+  “frames”: [{ “id”: “F01”, “key”: “walk_01” }, ...],
+  “animations”: { “walk”: { “frames”: [“F01”, “F02”, ...], “fps”: 12, “loop”: true } },
+  “depthImage”: “sprite_depth.png”,
+  “depthSourceImage”: { “w”: 256, “h”: 64 },
+  “depthFrameRects”: { “F01”: [0, 0, 64, 64], ... }
+}
+```
+
+Depth-Map (optional, Phase B2): 8-bit Grayscale PNG (gleiche Größe wie RGB-Sheet). Dunklere Pixel = näher Betrachter (warm), hellere = ferner (cool). Ermöglicht räumliche Fake-3D-Tiefenordnung auf dem Canvas.
+
 ## Architektur (Kurzfassung)
 
 Single-File-App (`index.html`), WebGL 1, kein Build-Step.
 
-1. **Analyse (CPU, einmalig bei „Erstellen“):** Segmentierung in 8 Klassen → weiche Masken-Texturen; Chamfer-Distanz im Pfad → Pfützen-Tiefe („Wasser sammelt sich in Senken“); Blur-Gradient → Flussfeld; Fenster → Emissiv-Glow (energie-normalisiert). CPU-Wahrheit `classGrid` bleibt für Gameplay-Abfragen (`SHADED.getMaterialTypeAt`) erhalten – **identisch** zu dem, was die GPU sieht.
-2. **Shader (GLSL, 1 Fragment-Pass):** gesteuert von 9 High-Level-Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay`). Effekte: Nässe-Abdunklung + Sättigung, Pfützen-Spiegelung (Szene + Himmel + Fenster-Warmlicht), Rinnsal-Netz entlang des Flussfelds, Regenschlieren + Aufprallringe + Tropfkanten, fbm-Nebel, Blitz-Doppelschläge, Wolkenschatten, Fensterflackern, Moos/Überwucherung, Glitzern am Tag danach, permanentes „Atmen“ (Wind-Sway, Mikro-Exposure).
-3. **Storyboard-Engine:** Schritte = Parameter-Keyframes mit Dauer, smoothstep-Blending, Loop. Standard-Arc wird bei „Erstellen“ geladen und gestartet.
+1. **Analyse (CPU, einmalig bei „Erstellen”):** Segmentierung in 8 Klassen → weiche Masken-Texturen; Chamfer-Distanz im Pfad → Pfützen-Tiefe („Wasser sammelt sich in Senken”); Blur-Gradient → Flussfeld; Fenster → Emissiv-Glow (energie-normalisiert). CPU-Wahrheit `classGrid` bleibt für Gameplay-Abfragen (`SHADED.getMaterialTypeAt`) erhalten – **identisch** zu dem, was die GPU sieht.
+2. **Shader (GLSL, 1 Fragment-Pass):** gesteuert von 13 High-Level-Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`). Zusätzlich 19 simulierte Weltgesetze-Uniforms (Phase C). Effekte: Nässe-Abdunklung + Sättigung, Pfützen-Spiegelung (Szene + Himmel + Fenster-Warmlicht), Rinnsal-Netz entlang des Flussfelds, Regenschlieren + Aufprallringe + Tropfkanten, fbm-Nebel, Blitz-Doppelschläge, Wolkenschatten, Fensterflackern, Moos/Überwucherung, Glitzern am Tag danach, permanentes „Atmen” (Wind-Sway, Mikro-Exposure), plus 20 Weltgesetze-Effekte (Trocknung, Hitzeverzug, Rost, Rauchschichtung, Temperaturgradienten, etc.).
+3. **Storyboard-Engine:** Schritte = Parameter-Keyframes mit Dauer, smoothstep-Blending, Loop. Standard-Arc wird bei „Erstellen” geladen und gestartet.
+4. **Actor-System (Runde 7+):** Overlay-Canvas-basierte animierte Charaktere mit Tiefenschicht-Ordnung (front/mid/back) und atmosphärischer Kopplung (fog/dayNight).
 
 Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipeline/SKILL.md)
 
@@ -95,7 +126,20 @@ Der verbindliche Fahrplan (Runde 1–4) ist komplett umgesetzt. Darauf aufbauend
 
 - **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird. Grundlage ist der **verbindliche [Bildkanon](docs/bildkanon.md)** (Häuser sind Fachwerk, Fenster sind IMMER holzgerahmt, Glas ohne Rahmen = kein Fenster, Himmel ist oben & inert). Umgesetzt: Bodenanker + Dach-Anker (Adjazenz-Ringe) ✅, Rahmen-Fenster-Detektor (K3/K4) ✅, Himmel-Regel (K7) ✅, Fachwerk-Signatur (K1) → Gebäudezonen ✅ (Pfützen/Flussnetz/Überwucherung sind jetzt strukturell vom Gebäude ausgesperrt, Fenster-Validierung läuft über den Zonen-Beleg) → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
 
-**Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze“-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.“). Design-Referenz für alles nach Runde 4.
+**Phase C – Weltgesetze-Erweiterung** ✅: Implementierung von **20 neuen Weltgesetzen** (31/60 = 52% Gesamtabdeckung). Alle Effekte sind deterministische Shader-Simulationen mit CPU-seitiger Phasen-Akkumulation. Umfasst 5 Implementierungs-Sprints: Trocknung, Hitzeverzug, Rauchschichtung, Temperaturgradienten, Rost, Atemwolken, Druck, Lichtverschmutzung, Mondlicht, Biom-Zonen, Vegetation-Reaktion, Stimmungs-Tint, Weltmüdigkeit, Besitz-Grenzen, Oberflächen-Runen, Schatten-Besitzverhältnis, Geruch-Diffusion, Berührungsspuren, Reparaturmarken, Segen/Fluch. → Dokumentation: [`docs/phase-c-weltgesetze.md`](docs/phase-c-weltgesetze.md)
+
+**Runde 7 – Ökosystem-Integration** ✅: **13 lebende Charaktere** als animierte oder statische Sprite-Akteure auf dem Overlay-Canvas. 4 Ökosystem-Typen:
+  - **Cats** (4 Tiere): SWIFT-generierte animierte Pixel-Art-Sprites mit Frame-Manifest
+  - **GAIME Enemies** (3 Monster): Blob, Rat, Wolf aus dem GAIME-Repository
+  - **GAIME NPCs** (4 Stadtbewohner): Bürger, Gastwirt, Händler
+  - **GAIME Heroes** (3 Charaktere): Nib, Brugg, Vellum
+  - Tiefenschicht-System (front/mid/back) für räumlich korrekte Überlagerung
+  - Atmosphärische Kopplung: globalAlpha reagiert auf fog & dayNight
+  → Dokumentation: [`docs/round-7-ecosystem.md`](docs/round-7-ecosystem.md)
+
+**Phase B2 – Depth-Rendering für Actors** ✅: Tiefenkarten-basierte räumliche Integration von Characteren. Manifest v1.4.0 unterstützt optionale Depth-Maps (8-bit Grayscale PNG) mit korrespondierenden Frame-Rects. SHADED-seitige Depth-Composite-Logik: durchschnittliche Pixel-Tiefe pro Frame → Normalisierung → Wärmefärbung (warm = nah, kühl = fern). Test-Fixture mit 4-frame Tiefenprogression (0→255). → Dokumentation: [`docs/phase-b2-depth-rendering.md`](docs/phase-b2-depth-rendering.md)
+
+**Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze”-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.”). Design-Referenz für alles nach Runde 4.
 
 ## Instruktionen für LLMs / Agenten
 
@@ -118,12 +162,27 @@ node tools/verify.js        # schreibt tools/verify-out/shot_<akt>.png
 Programmatischer Zugriff im Browser (Test-API, nicht entfernen):
 
 ```js
-window.SHADED.erstellen()               // Analyse + Standard-Storyboard starten
-window.SHADED.applyAct('sturmnacht')    // tag|aufzug|sturmnacht|morgen|danach|verfall
-window.SHADED.setParams({rain:1,wet:1}) // 9 Parameter, alle 0..1
-window.SHADED.setTime(21.7, true)       // Zeit setzen; true = einfrieren (deterministische Frames)
-window.SHADED.isReady()                 // Analyse fertig?
-window.SHADED.getMaterialTypeAt(u,v)    // 'grass'|'roof'|... an UV-Position
+// Szenen-Verwaltung
+window.SHADED.erstellen()                                  // Analyse + Standard-Storyboard starten
+window.SHADED.applyAct('sturmnacht')                       // tag|aufzug|sturmnacht|morgen|danach|verfall
+window.SHADED.setParams({rain:1,wet:1})                   // Parameter-Übersteuerung, alle 0..1
+window.SHADED.setTime(21.7, true)                          // Zeit; true = einfrieren (deterministisch)
+window.SHADED.isReady()                                    // Analyse fertig?
+window.SHADED.getMaterialTypeAt(u,v)                       // 'grass'|'roof'|... an UV-Position
+
+// Ökosystem-Management (Runde 7+)
+window.SHADED.addActor({                                   // Charakter laden
+  image: <HTMLImageElement|string>,                        // RGB Sprite-Sheet
+  manifest: <Object>,                                      // Manifest JSON (v1.4.0+)
+  depthImage: <HTMLImageElement|string>,                   // Optional: 8-bit Grayscale Tiefenkarte
+  x: 0.5, y: 0.5,                                          // Position (0–1)
+  scale: 1.0,                                              // Skalierung
+  anim: 'walk',                                            // Animation (aus Manifest)
+  depthLayer: 'mid'                                        // front|mid|back für Tiefenordnung
+})
+→ actor = { setAnim(name), setPosition(x,y), setVisible(v), setDepthLayer(layer), remove() }
+
+window.SHADED.ecosystem                                    // Aktuelle Ökosystem-Instanz
 ```
 
 **Definition of Done** für visuelle Arbeit: Die Akte müssen den Zielbildern in Stimmung und Physik entsprechen (Nässe dunkelt Holz/Ziegel stark ab; Wasser sammelt sich in Pfadsenken und blutet in Grasränder aus; Fenster spiegeln warm in nassen Flächen; Nebel diffus an den Rändern) – und die Szene darf **nie** statisch wirken.
