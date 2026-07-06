@@ -1797,7 +1797,7 @@ let actors=[];
 function parseActorManifest(data){
   const m={sourceW:(data.sourceImage&&data.sourceImage.w)||0,
            sourceH:(data.sourceImage&&data.sourceImage.h)||0,
-           frameRects:{}, animations:{}};
+           frameRects:{}, animations:{}, depthImage:data.depthImage||null};
   const frames=data.frames||[];
   const explicit=data.frameRects||{};
   if(Object.keys(explicit).length){
@@ -1817,7 +1817,14 @@ function parseActorManifest(data){
 }
 function drawActors(dt){
   const W=ov.width,H=ov.height;
-  for(const a of actors){
+  const sortedActors=[...actors].sort((a,b)=>{
+    const order={front:0, mid:1, back:2};
+    return (order[a.depthLayer]||1)-(order[b.depthLayer]||1);
+  });
+  const fog=PARAMS.fog||0, dayNight=PARAMS.dayNight||0.5;
+  const tint=Math.max(0.3, 1-fog*0.7);
+  const nightMult=1-dayNight*0.5;
+  for(const a of sortedActors){
     if(!a.visible||!a.imgReady||!a.manifest)continue;
     const anim=a.manifest.animations[a.anim]||a.manifest.animations[Object.keys(a.manifest.animations)[0]];
     if(!anim||!anim.frames.length)continue;
@@ -1830,30 +1837,49 @@ function drawActors(dt){
     const scaleX=a.manifest.sourceW?iw/a.manifest.sourceW:1, scaleY=a.manifest.sourceH?ih/a.manifest.sourceH:1;
     const sx=rect[0]*scaleX, sy=rect[1]*scaleY, sw=rect[2]*scaleX, sh=rect[3]*scaleY;
     const dw=sw*a.scale, dh=sh*a.scale;
+    const oldAlpha=ovx.globalAlpha;
+    ovx.globalAlpha=tint*nightMult;
     ovx.drawImage(a.img, sx,sy,sw,sh, a.x*W-dw/2, a.y*H-dh, dw,dh);
+    if(a.depthImg&&a.depthReady){
+      const diw=a.depthImg.naturalWidth||a.depthImg.width, dih=a.depthImg.naturalHeight||a.depthImg.height;
+      const dscaleX=diw/a.manifest.sourceW, dscaleY=dih/a.manifest.sourceH;
+      const dsx=rect[0]*dscaleX, dsy=rect[1]*dscaleY;
+      const dsw=rect[2]*dscaleX, dsh=rect[3]*dscaleY;
+      ovx.globalAlpha=oldAlpha*0.12;
+      ovx.drawImage(a.depthImg, dsx,dsy,dsw,dsh, a.x*W-dw/2, a.y*H-dh, dw,dh);
+    }
+    ovx.globalAlpha=oldAlpha;
   }
 }
 function addActor(opts){
   opts=opts||{};
-  const actor={img:null, imgReady:false, manifest:null,
+  const actor={img:null, imgReady:false, depthImg:null, depthReady:false, manifest:null,
                x:opts.x??0.5, y:opts.y??0.6, scale:opts.scale||1,
-               anim:opts.anim||null, frameT:0, visible:true};
+               anim:opts.anim||null, frameT:0, visible:true, depthLayer:opts.depthLayer||'mid'};
   actors.push(actor);
   if(opts.manifest){
     actor.manifest=parseActorManifest(typeof opts.manifest==='string'?JSON.parse(opts.manifest):opts.manifest);
     if(!actor.anim) actor.anim=Object.keys(actor.manifest.animations)[0];
   }
   const setImg=img=>{ actor.img=img; actor.imgReady=true; };
+  const setDepth=img=>{ actor.depthImg=img; actor.depthReady=true; };
   if(opts.image instanceof HTMLImageElement){
     if(opts.image.complete) setImg(opts.image);
     else opts.image.addEventListener('load',()=>setImg(opts.image));
   } else if(typeof opts.image==='string'){
     const img=new Image(); img.onload=()=>setImg(img); img.src=opts.image;
   }
+  if(opts.depthImage instanceof HTMLImageElement){
+    if(opts.depthImage.complete) setDepth(opts.depthImage);
+    else opts.depthImage.addEventListener('load',()=>setDepth(opts.depthImage));
+  } else if(typeof opts.depthImage==='string'){
+    const img=new Image(); img.onload=()=>setDepth(img); img.src=opts.depthImage;
+  }
   return {
     setAnim:(name)=>{ if(actor.manifest&&actor.manifest.animations[name]){ actor.anim=name; actor.frameT=0; } },
     setPosition:(x,y)=>{ actor.x=x; actor.y=y; },
     setVisible:(v)=>{ actor.visible=!!v; },
+    setDepthLayer:(l)=>{ if(['front','mid','back'].includes(l)) actor.depthLayer=l; },
     remove:()=>{ const i=actors.indexOf(actor); if(i>=0) actors.splice(i,1); }
   };
 }
