@@ -1899,50 +1899,86 @@ function initEco(){
 }
 function ecoTick(dt){
   const windU=CUR.wind*0.010;
-  const autumnWind = CUR.autumn > 0.3 ? (CUR.autumn * 0.015) : 0;  // Herbst: mehr Wind für Blätter
-  const rainWeight = CUR.rain * 0.2;  // Regen macht Blätter schwerer
+  const autumnWind = CUR.autumn > 0.3 ? (CUR.autumn * 0.015) : 0;
+  // Vortex-Wind: sanfte positive/negative Oszillation (wie Schneestrudel)
+  const turbulencePhase = vortexPhase * 0.7;
+  const turbulenceWind = Math.sin(turbulencePhase) * CUR.storm * 0.3;
+  const turbulenceLift = Math.max(0, Math.sin(turbulencePhase + 1.57)*CUR.storm*0.08);  // Aufwind im Strudel
+
   for(let i=leaves.length-1;i>=0;i--){
     const l=leaves[i];
-    // Blätter am Boden (settled) bewegen sich nicht viel
+
+    // Blätter am Boden (settled in Nischen) bewegen sich kaum
     if(l.settled){
-      // Am Boden: reagieren auf Regen, aber fallen nicht weiter
-      if(CUR.rain > 0.3 && Math.random()<0.1) l.settled=false;  // Regen hebt Blätter auf
+      // Am Boden stabilisiert, aber Regen/Turbulenzen heben sie auf
+      const turbulenceStrength = CUR.storm * 0.5 + CUR.rain * 0.3;
+      if(turbulenceStrength > 0.4 && Math.random()<turbulenceStrength*0.15){
+        l.settled = false;  // Starke Turbulenzen wirbeln Blätter auf
+        l.vv = -0.15;  // Aufwind
+        l.vz = 0.08;
+        l.z = 0.02;
+      }
+      // Sanfte Bodenbewegung mit Vortex-Wind
+      l.vu += turbulenceWind*0.003*dt;
+      l.vu *= Math.pow(0.92, dt);
+      l.u += l.vu*dt;
+      if(l.u<0)l.u+=1; if(l.u>1)l.u-=1;
       continue;
     }
 
+    // Interaktion mit Spieler
     if(player.active&&l.z<=0){
       const d=Math.hypot(l.u-player.u,l.v-player.v);
       if(d<0.02){ const a=Math.atan2(l.v-player.v,l.u-player.u);
         l.vu+=Math.cos(a)*0.02; l.vv+=Math.sin(a)*0.02; }
     }
-    if(l.z>0){ l.vz-=dt*2.2; l.z+=l.vz*dt; l.ang+=l.va*dt;
-      l.vu+=(windU+autumnWind)*dt*3.0; if(l.z<=0){l.z=0;l.vz=0;l.va=0;} }
-    else {
-      // Blätter fallen aktiv, wenn Herbst aktiv ist
-      const fallSpeed = CUR.autumn > 0.2 ? CUR.autumn * 0.3 : 0.02;
-      l.vv += fallSpeed * dt;  // Blätter fallen schneller im Herbst
 
-      l.vu+=(windU+autumnWind)*dt*(0.3+0.4*CUR.autumn);  // Wind bewegt Blätter seitlich
-      // Herbst-Blätter wirbeln (größere Sinusoszillation)
-      const wob = CUR.autumn > 0.5 ? Math.sin(time*1.2 + i*0.3)*0.008 : 0;
+    // Luftphase (z > 0): wirbelt herum
+    if(l.z>0){
+      l.vz -= dt*2.2;
+      l.vz += turbulenceLift*dt;  // Strudel-Aufwind
+      l.z += l.vz*dt;
+      l.ang += l.va*dt;
+      l.vu += (windU+autumnWind+turbulenceWind)*dt*3.0;  // Wind + Vortex
+      if(l.z<=0){l.z=0;l.vz=0;l.va=0;}
+    }
+    else {
+      // Fallende Phase: in Nischen sammeln (Tiefenbewusstsein)
+      const fallSpeed = CUR.autumn > 0.2 ? CUR.autumn * 0.3 : 0.02;
+      l.vv += fallSpeed * dt;
+
+      // Vortex-Wind: positive/negative für Wirbel-Effekt
+      l.vu += (windU+autumnWind+turbulenceWind)*dt*(0.3+0.4*CUR.autumn);
+
+      // Herbst-Blätter wirbeln in Strudeln (Sinusoszillation mit Turbulenzen)
+      const wob = CUR.autumn > 0.5 ? Math.sin(time*1.2 + i*0.3 + turbulencePhase)*0.008 : 0;
       l.vu += wob;
 
-      // Reibung / Bremsen
-      const fr=Math.pow(0.5,dt/0.5);
-      l.vu*=fr; l.vv*=Math.pow(0.8,dt/0.3);  // Schnellere Bremsung vertikal
+      // Reibung / Bremsen (etwas weniger in Strudeln)
+      const frictionDamping = 1.0 - CUR.storm*0.1;
+      const fr=Math.pow(0.5,dt/0.5*frictionDamping);
+      l.vu*=fr;
+      l.vv*=Math.pow(0.8,dt/0.3);
 
-      // Blatt erreicht Boden
-      if(l.v > 0.95){
+      // TIEFENBEWUSSTSEIN: Blätter sammeln sich in Nischen (hohe wet-Werte = Senken)
+      // Wenn Blatt in nasse Gegend fällt (puddle/path mit Wasser), settlement bevorzugen
+      const isInNiche = l.v > 0.88 && CUR.wet > 0.2;  // nähe am Boden + nasse Gegend
+      const nicheThreshold = isInNiche ? 0.92 : 0.95;
+
+      if(l.v > nicheThreshold){
         l.settled = true;
-        l.v = 0.95 + Math.random()*0.04;
+        l.v = Math.min(0.98, nicheThreshold + Math.random()*0.03);
         l.vv = 0;
         l.vu = 0;
         l.va = 0;
         continue;
       }
     }
-    l.u+=l.vu*dt*(l.z>0?3:1); l.v+=l.vv*dt*(l.z>0?3:1);
-    if(l.u<0)l.u+=1; if(l.u>1)l.u-=1; if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
+
+    l.u+=l.vu*dt*(l.z>0?3:1);
+    l.v+=l.vv*dt*(l.z>0?3:1);
+    if(l.u<0)l.u+=1; if(l.u>1)l.u-=1;
+    if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
   }
   for(let i=fruits.length-1;i>=0;i--){
     const fr=fruits[i]; fr.age+=dt;
@@ -1967,73 +2003,117 @@ function ecoTick(dt){
   }
 }
 
-// --- Schnee-Partikel-System (Phase C: Schnee mit dynamischer Größe und Bewegung) ---
+// --- Schnee-Partikel-System mit Vortex-Wind und Tiefenbewusstsein ---
+let vortexPhase = 0;  // für weiche positive/negative Wind-Oszillation
 function snowTick(dt){
-  // Schneeflocken spawnen basierend auf snowfall-Parameter
+  // Vortex-Wind: sanfte Sinusoszillation zwischen -1 und +1
+  vortexPhase += dt * 1.2;  // Vortex-Frequenz
+  const vortexWind = Math.sin(vortexPhase) * CUR.storm * 0.4;  // Strudel stärker bei Sturm
+
+  // Schneeflocken spawnen VON OBEN (konsistent bei Schneefall)
   const targetSnowflakes = Math.ceil(CUR.snowfall * 80);
   while(snowflakes.length < targetSnowflakes && Math.random()<0.6){
-    const startY = CUR.snowfall>0.5 ? -0.1 : Math.random()*0.3; // dicke Flocken oben
     const size = CUR.snowfall > 0.7 ? 2.0 + Math.random()*1.5 : 0.8 + Math.random()*1.2;
     snowflakes.push({
       u: Math.random(),
-      v: startY,
+      v: -0.15,  // KONSISTENT von oben, nicht zufällig
       z: 0,
+      depth: -0.5 + Math.random(),  // Pseudo-Tiefe für Rendering-Größe
       size: size,
-      vu: (Math.random()-0.5)*0.02,
-      vv: 0.15 + Math.random()*0.08 + CUR.snowfall*0.15,
-      wobble: Math.random()*3.14159*2,
-      wobbleSpeed: 2.0 + Math.random()*3.0,
-      age: 0
+      vu: (Math.random()-0.5)*0.01,  // Kleine initiale Bewegung
+      vv: 0.08 + Math.random()*0.04 + CUR.snowfall*0.12,  // Fallgeschwindigkeit
+      wobble: Math.random()*6.28,
+      wobbleSpeed: 1.5 + Math.random()*2.0,
+      age: 0,
+      settled: false
     });
   }
-  // Update und Rendering
+
+  // Update und Tiefenverhalten
   for(let i=snowflakes.length-1;i>=0;i--){
     const s = snowflakes[i];
     s.age += dt;
-    s.v += s.vv * dt;
-    s.u += (s.vu + Math.sin(s.wobble + time*s.wobbleSpeed)*0.003) * dt;
-    s.wobble += s.wobbleSpeed*dt*0.3;
 
-    // wrapping und ausspawn
-    if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
-    if(s.v>1.1 || s.age > 25) snowflakes.splice(i,1);
-
-    // schnee sammelt sich bei wet/puddle (stillstand)
-    if(s.v > 0.85 && CUR.wet > 0.5){
-      s.vv *= Math.pow(0.8, dt);
-      s.vu *= Math.pow(0.9, dt);
+    // Settled schnee: am Boden, minimal bewegen
+    if(s.settled){
+      s.vu *= Math.pow(0.85, dt);  // sehr langsam
+      s.vv *= Math.pow(0.92, dt);
+      // Wind kann auch settled Schnee bewegen
+      s.vu += (CUR.wind*0.005 + vortexWind*0.008)*dt;
+      s.u += s.vu*dt;
+      if(s.u<0) s.u+=1; if(s.u>1) s.u-=1;
+      continue;
     }
+
+    // Fallende Flocken
+    s.v += s.vv * dt;
+    // Vortex-Wind: positive/negative alternierend für Strudel-Effekt
+    s.u += (s.vu + CUR.wind*0.008 + vortexWind*0.012 + Math.sin(s.wobble + time*s.wobbleSpeed)*0.002) * dt;
+    s.wobble += s.wobbleSpeed*dt*0.2;
+    s.depth += (Math.random()-0.5)*0.05*dt;  // Tiefe-Jitter für Parallax
+
+    // wrapping: Seiten
+    if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
+
+    // Bodenakkumulation: Schneeflocken in Senken (v > 0.92, wet > 0.4 = Pfützen/Nischen)
+    const wetThreshold = 0.92;
+    if(s.v > wetThreshold && CUR.wet > 0.3){
+      s.settled = true;
+      s.v = 0.92 + Math.random()*0.05;  // In die Nische sinken
+      s.vv = 0;
+      s.vu = 0;
+      continue;
+    }
+
+    // Ausspawn: oben (neue Flocke kommt) oder nach langer Zeit
+    if(s.v > 1.1 || s.age > 30) snowflakes.splice(i,1);
   }
 }
 
-// --- Regen-Tiefe-System (Regen mit Parallax basierend auf Höhe und Wind-Winkel) ---
+// --- Regen-System mit Tiefenvarianz und Vortex-Wind ---
 function rainTick(dt){
   // Regen-Tropfen spawnen basierend auf rain-Parameter
   const targetRaindrops = Math.ceil(CUR.rain * 120);
   while(raindrops.length < targetRaindrops && Math.random()<0.7){
-    // Wind bestimmt Richtung: 0=senkrecht, 1=stark nach rechts
-    const windAngle = CUR.wind * 0.5;  // Regen-Winkel folgt Wind (0° to +25°), unidirektional
+    // Wind bestimmt Richtung mit Vortex-Variation
+    const windAngle = CUR.wind * 0.5;
+    const vortexInfluence = Math.sin(vortexPhase) * CUR.storm * 0.2;  // Vortex-Wind beeinflusst Regen
     const length = 0.015 + Math.random()*0.008;
+
+    // Regen-Tropfen haben Tiefe (pseudo-3D): tiefere Tropfen fallen schneller
+    const depth = Math.random();  // 0=vorne (schnell), 1=hinten (langsam)
+    const depthMultiplier = 0.6 + depth*0.4;  // 0.6x bis 1.0x
+
     raindrops.push({
-      u: -length + Math.random(),  // Spawn von links off-screen bis zur rechten Bildmitte
+      u: -length + Math.random(),
       v: -0.05 + Math.random()*0.1,
-      vx: windAngle * (0.4 + CUR.wind*0.3),  // horizontale Geschwindigkeit vom Winkel
-      vy: 0.6 + CUR.storm*0.3,                // vertikale Geschwindigkeit
+      vx: (windAngle + vortexInfluence) * (0.4 + CUR.wind*0.3),
+      vy: (0.6 + CUR.storm*0.3) * depthMultiplier,  // Tiefenvarianz
       length: length,
+      depth: depth,  // für Rendering-Größe/Transparenz
       age: 0
     });
   }
-  // Update
+
+  // Update mit Tiefenbewusstsein
   for(let i=raindrops.length-1;i>=0;i--){
     const r = raindrops[i];
     r.age += dt;
+
+    // Tiefere Tropfen sind weniger von Vortex-Wind beeinflusst
+    const windModifier = 1.0 - r.depth*0.4;
+    const vortexInfluence = Math.sin(vortexPhase) * CUR.storm * 0.15;
+    r.vx += vortexInfluence*windModifier*dt*0.2;
+
     r.v += r.vy * dt;
     r.u += r.vx * dt;
 
-    // wrapping: wenn rechte Kante off-screen geht, komplett von links neu starten
+    // wrapping
     if(r.u > 1) r.u = -r.length;
-    // ausspawn
-    if(r.v>1.1 || r.age>8) raindrops.splice(i,1);
+
+    // ausspawn (tiefere Tropfen bleiben länger sichtbar)
+    const lifetime = 8 + r.depth*4;
+    if(r.v>1.1 || r.age>lifetime) raindrops.splice(i,1);
   }
 }
 
@@ -2088,25 +2168,44 @@ function drawOverlay(dt){
     ovx.fillStyle='rgba(235,245,255,1)';
     ovx.beginPath(); ovx.arc(b.u*W,b.v*H,b.r*W,0,6.283); ovx.fill();
   });
-  // Schneeflocken: kleine wirbelnde Punkte, die größer werden bei Schneefall
+  // Schneeflocken: Tiefenvarianz (vordere größer/sichtbar, hintere kleiner/subtil)
   snowflakes.forEach(sn=>{
-    ovx.globalAlpha = Math.min(0.95, (1-sn.age/25)*0.6 + CUR.snowfall*0.3);
+    // Tiefe: -0.5 zu 0.5 → Größe und Transparenz variiert
+    const depthMultiplier = 0.5 + sn.depth;  // -0.5 bis 0.5 → 0.0 bis 1.0
+    const depthAlpha = 0.4 + Math.abs(sn.depth)*0.6;  // hinten schwächer, vorne stärker
+
+    const maxAge = sn.settled ? 40 : 25;
+    ovx.globalAlpha = Math.min(0.95, (1-sn.age/maxAge)*0.6 + CUR.snowfall*0.3) * depthAlpha;
+
     const fadeNight = night>0.6 ? (0.4+night*0.3) : 1.0;
-    ovx.fillStyle = `rgba(${220*fadeNight|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
-    const pixelSize = sn.size * S * Math.pow(sn.age/25 + 0.1, 0.3);
+    // Tiefere Flocken leicht bluer (Luftperspektive)
+    const blueShift = Math.max(0, sn.depth*20)|0;
+    ovx.fillStyle = `rgba(${Math.max(180, 220*fadeNight-blueShift)|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
+
+    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier;
     ovx.beginPath();
-    ovx.arc(sn.u*W, sn.v*H, Math.max(0.5, pixelSize), 0, 6.283);
+    ovx.arc(sn.u*W, sn.v*H, Math.max(0.3, pixelSize), 0, 6.283);
     ovx.fill();
   });
-  // Regen-Tropfen: dünne Linien mit Parallax-Winkel und Tiefe-Fade
+  // Regen-Tropfen: Tiefenvarianz (vordere Tropfen sichtbar, hintere subtil)
   raindrops.forEach(r=>{
-    ovx.globalAlpha = Math.min(0.8, CUR.rain*0.9 * (1-r.age/8));
-    const depthFade = 0.3 + (1-r.v)*0.7;  // Tropfen am Boden weniger sichtbar
-    ovx.strokeStyle = `rgba(${180*depthFade|0},${200*depthFade|0},${255*depthFade|0},1)`;
-    ovx.lineWidth = Math.max(0.5, 1.5 - r.v);  // Tropfen werden dünner je näher sie zum Boden
+    // Tiefere Tropfen (r.depth ~ 1): schwächer und dünner (Parallax-Effekt)
+    const depthAlpha = 0.4 + r.depth*0.6;  // vorne 0.4-1.0, hinten 0.4-0.7
+    const lifetime = 8 + r.depth*4;
+    ovx.globalAlpha = Math.min(0.8, CUR.rain*0.9 * (1-r.age/lifetime)) * depthAlpha;
+
+    const depthFade = 0.3 + (1-r.v)*0.7;
+    // Tiefere Tropfen leicht blauer (Luftperspektive)
+    const blueShift = r.depth*20|0;
+    ovx.strokeStyle = `rgba(${Math.max(0,180*depthFade-blueShift)|0},${200*depthFade|0},${255*depthFade|0},1)`;
+
+    // Tiefere Tropfen sind länger (Parallax) aber dünner
+    const depthMultiplier = 0.8 + r.depth*0.4;
+    ovx.lineWidth = Math.max(0.3, (1.5 - r.v)*depthMultiplier);
+
     ovx.beginPath();
     const x1 = r.u*W, y1 = r.v*H;
-    const x2 = x1 + r.length*W, y2 = y1 + r.length*H*2;  // Bewegungs-Spur
+    const x2 = x1 + r.length*W*depthMultiplier, y2 = y1 + r.length*H*2*depthMultiplier;
     ovx.moveTo(x1, y1);
     ovx.lineTo(x2, y2);
     ovx.stroke();
