@@ -141,21 +141,29 @@ kommt nur aus `depthLayer` und interner Frame-Ordnung.
 - So wirken Charaktere im Nebel/bei Nacht natürlich dunkler, ohne ihre Textur zu ändern
 - Keine Farbverschiebung (keine Tint-Shader auf Actors) – nur Transparenz
 
-**Manifest-Schema (SWIFT-generiert):**
+**Manifest-Schema (SWIFT-generiert, v1.4.0+):**
 ```json
 {
   "mappingVersion": "1.4.0",
   "sourceImage": { "w": 256, "h": 64 },
-  "depthSourceImage": { "w": 256, "h": 64 },  // optional
-  "depthImage": "sprite_depth.png",           // optional
   "frameRects": { "F01": [x, y, w, h], ... },
-  "depthFrameRects": { "F01": [x, y, w, h], ... },  // parallel zu frameRects
   "frames": [{ "id": "F01", "key": "walk_01" }, ...],
   "animations": {
     "walk": { "frames": ["F01", "F02", ...], "fps": 12, "loop": true }
-  }
+  },
+  "depthImage": "sprite_depth.png",           // optional (Phase B2)
+  "depthSourceImage": { "w": 256, "h": 64 }, // optional, gleiche Größe wie sourceImage
+  "depthFrameRects": { "F01": [x, y, w, h], ... }  // optional, parallel zu frameRects
 }
 ```
+
+**Phase B2 (Depth-Rendering):**
+- `depthImage`: Pfad zu 8-bit Grayscale PNG (gleiche Größe wie RGB-Sheet)
+- `depthFrameRects`: Frame-Koordinaten in der Depth-Map (identisch zu `frameRects`)
+- Depth-Composite in SHADED: 
+  - Dunklere Pixel (niedrige Z-Werte) = näher Betrachter (heller/warm)
+  - Hellere Pixel (hohe Z-Werte) = ferner weg (dunkler/cool)
+  - Durchschnittliche Depth pro Frame steuert Tinting und Schattenintensität
 
 ## Fahrplan (verbindlich, siehe .kiro/specs/)
 

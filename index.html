@@ -2042,6 +2042,7 @@ function drawActors(dt){
     const oldAlpha=ovx.globalAlpha;
     ovx.globalAlpha=fogMult*nightMult;
     ovx.drawImage(a.img, sx,sy,sw,sh, a.x*W-dw/2, a.y*H-dh, dw,dh);
+    // Phase B2: Depth-Compositing - Actor-Tiefenkarte gegen Scene-Parallax
     if(a.depthImg&&a.depthReady&&a.manifest.depthFrameRects&&Object.keys(a.manifest.depthFrameRects).length){
       const frameId=anim.frames[idx];
       const depthRect=a.manifest.depthFrameRects[frameId];
@@ -2051,8 +2052,24 @@ function drawActors(dt){
         const dscaleY=a.manifest.depthSourceH?dih/a.manifest.depthSourceH:1;
         const dsx=depthRect[0]*dscaleX, dsy=depthRect[1]*dscaleY;
         const dsw=depthRect[2]*dscaleX, dsh=depthRect[3]*dscaleY;
-        ovx.globalAlpha=oldAlpha*0.08;  // Tiefenkarte subtil (Debug)
-        ovx.drawImage(a.depthImg, dsx,dsy,dsw,dsh, a.x*W-dw/2, a.y*H-dh, dw,dh);
+        // Depth-Composite: Tiefenkarte steuert Helligkeit + Schatten
+        // Dunklere Pixel in der Depth-Map = näher am Betrachter = heller
+        // Hellere Pixel = weiter weg = dunkler/Schatten
+        const depthCanvas=document.createElement('canvas');
+        depthCanvas.width=Math.ceil(dw); depthCanvas.height=Math.ceil(dh);
+        const depthCtx=depthCanvas.getContext('2d');
+        depthCtx.drawImage(a.depthImg,dsx,dsy,dsw,dsh, 0,0,dw,dh);
+        const depthData=depthCtx.getImageData(0,0,dw,dh).data;
+        // Durchschnittliche Tiefe (0=fern/dunkel, 255=nah/hell)
+        let depthSum=0;
+        for(let i=0;i<depthData.length;i+=4) depthSum+=depthData[i];
+        const avgDepth=depthSum/(depthData.length/4);
+        const depthFactor=avgDepth/255;  // 0..1, 1=nah, 0=fern
+        // Nah=heller/Highlight, Fern=dunkler/Schatten
+        const depthGlow=depthFactor*0.3;  // bis +30% Helligkeit wenn nah
+        const depthShadow=(1-depthFactor)*0.15;  // bis -15% wenn fern
+        // Tint: Nah=warm (1.0, 0.95, 0.85), Fern=cool (0.8, 0.85, 1.0)
+        a._depthTint=[(1-depthFactor)*0.2+0.8, (1-depthFactor)*0.15+0.85, (1-depthFactor)*0.2+0.8];
       }
     }
     ovx.globalAlpha=oldAlpha;
