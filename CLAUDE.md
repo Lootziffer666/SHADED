@@ -64,9 +64,20 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    Handle-Methoden: `setAnim(name)`, `setPosition(x,y)`, `setVisible(v)`,
    `setDepthLayer(layer)`, `remove()`.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
-   9 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay`, alle 0..1).
+   13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
    Akte/Storyboard integriert – keine Spezial-Codepfade an der Engine vorbei.
+   **Phase C (Runde 5+):** Weltgesetze-Erweiterung mit 5 neuen simulierten Effekten:
+   - **#42 Trocknung (Drying):** Nassglänzende Oberflächen verlieren Glanz und bekommen
+     Trocknungsränder (damp rings), dann mattkörnige Textur beim Austrocknen.
+   - **#41 Hitzeverzug (Heat Distortion):** Luft flimmert über Feuer/heißen Quellen,
+     visuelle Verzerrung durch Domain-Warp (u_heatWarp = temperature × fireCount).
+   - **#9 Rost (Rust):** Metallische und holzerne Oberflächen oxidieren unter Nässe,
+     orange-braune Verfärbung entlang Struktur (u_rustAccum akkumuliert bei wet>0.3).
+   - **#43 Rauchschichtung (Smoke Layering):** Nebel und Rauch bilden Schichten,
+     verstärken Silhouetten und diffundieren (u_smokeAmount = fog × (storm + fireCount×0.5)).
+   - **#20 Temperaturgradienten (Temperature Gradients):** Seiten zur Wärmequelle leuchtend
+     warm, Schattenseiten leicht blau gekühlt; simuliert lokale Wärmestrahlung.
 7. **Texture-Units:** 0 Szene, 1 maskA, 2 maskB, 3 phys, 4 emis,
    5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
    B Trampelpfad permanent, A Hitze/Brand ~25 s), 6 Tiefenkarte (2.5D-Parallaxe;
@@ -155,6 +166,39 @@ kommt nur aus `depthLayer` und interner Frame-Ordnung.
   – in Arbeit; nächster Schritt Fachwerk-Signatur (K1) → Gebäudezonen
 
 Jede Runde arbeitet ihre Spec ab: `requirements.md` → `design.md` → `tasks.md`.
+
+## Weltgesetze-Katalog – Implementierungsstatus
+
+Von 60 definierten Weltgesetzen (siehe `docs/vision-weltgesetze.md`):
+
+**Runde 1–4 (vollständig implementiert, 11 Systeme):**
+- 2. Fußspuren (Footprints)
+- 3. Material-Ermüdung (Material Fatigue)
+- 5. Wind
+- 17. Blut als Information (Blood)
+- 19. Tageszeit als Materialverhalten (Day/Night)
+- 21. Kälte/Frost (Cold/Frost, mit Schnee & Eiskristallen)
+- 22. Wasserströmung (Water Flow & Puddles)
+- 27. Jahreszeiten-Migration (Seasons: Spring bloom, Autumn, Snow)
+- 36. Feuer-Nachwirkungen (Fire Aftermath, Trail-Textur)
+- 37. Nebel als Informationsfilter (Fog)
+- 1. Schmutz/Staub/Ruß (partial, via mossBoost & decay)
+
+**Phase C (Runde 5+, neu implementiert):**
+- 41. Hitzeverzug (Heat Distortion)
+- 42. Trocknung als Zeitmesser (Drying)
+- 43. Rauchschichtung (Smoke Layering)
+- 9. Rost (Rust)
+- 20. Temperaturgradienten (Temperature Gradients)
+
+**Gesamt: 16 von 60 Weltgesetzen aktiv implementiert (27 %)**
+
+Weitere Kandidaten für zukünftige Runden:
+- 4. Druck/Gewicht/Belastung (Pressure)
+- 6. Geruch als Shader-Wolke (Smell/Diffusion)
+- 11. Schatten als Besitzverhältnis (Shadows as ownership)
+- 14. Krankheit/Gift (Poison Filter, teilweise da)
+- 44–60: Advanced world laws (siehe vision-weltgesetze.md)
 
 ## Git & Cross-Repo Coordination
 
