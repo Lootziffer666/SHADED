@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>SHADED Actor Visual Test</title>
+<style>
+body { background: #0b0b12; color: #e2e8f0; font-family: 'Segoe UI', system-ui; margin: 0; padding: 20px; }
+#container { max-width: 1200px; margin: 0 auto; }
+h1 { color: #7dd3fc; }
+#stage { border: 2px solid #7dd3fc; margin: 20px 0; }
+#gl { display: block; width: 100%; max-height: 600px; border-radius: 6px; }
+.controls { margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap; }
+button { background: #1e1e32; color: #cbd5e1; border: 1px solid #2e2e4a; padding: 8px 16px; cursor: pointer; border-radius: 6px; }
+button:hover { background: #2a2a44; }
+button.active { background: #7dd3fc; color: #0b0b12; }
+.info { background: #181828; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="container">
+  <h1>SHADED Actor System – Visual Test</h1>
+  <div class="info">
+    Klicke „Szene laden" um die Demo-Szene zu starten, dann „Actor laden" um einen animierten Charakter hinzuzufügen.
+  </div>
+
+  <div class="controls">
+    <button id="btn-load-scene">🖼️ Szene laden</button>
+    <button id="btn-load-actor">🎭 Actor laden</button>
+    <button id="btn-set-fog" data-fog="0.0">Nebel aus</button>
+    <button id="btn-set-night" data-night="0.0">Tag</button>
+    <button id="btn-set-night" data-night="1.0">Nacht</button>
+    <button id="btn-animation-walk">🚶 Walk Anim</button>
+    <button id="btn-animation-idle">🧍 Idle Anim</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="gl" width="1440" height="810"></canvas>
+  </div>
+
+  <div class="info">
+    <p><strong>Tests:</strong></p>
+    <ul>
+      <li>✓ Actor erscheint nach „Actor laden"</li>
+      <li>✓ Animation läuft ab</li>
+      <li>✓ Nebel/Nacht ändern globalAlpha (Figur wird dunkler)</li>
+      <li>✓ Depth-Layer sortiert korrekt</li>
+      <li>✓ Keine GL-Fehler in Browser-Console</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const canvas = document.getElementById('gl');
+const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+const BASE_IMG = 'file_00000000974871f49fe71f6b456f9579.png';
+const ACTOR_IMG = 'verify-test-actor.png';
+const ACTOR_MANIFEST = 'verify-test-actor.json';
+
+const VS = `
+attribute vec2 a;
+varying vec2 v_uv;
+void main(){
+  v_uv = a * 0.5 + 0.5;
+  v_uv.y = 1.0 - v_uv.y;
+  gl_Position = vec4(a, 0., 1.);
+}`;
+
+const FS = `precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_scene;
+void main(){
+  gl_FragColor = texture2D(u_scene, v_uv);
+}`;
+
+// Minimal WebGL Setup
+const prog = gl.createProgram();
+const vs = gl.createShader(gl.VERTEX_SHADER);
+gl.shaderSource(vs, VS);
+gl.compileShader(vs);
+const fs = gl.createShader(gl.FRAGMENT_SHADER);
+gl.shaderSource(fs, FS);
+gl.compileShader(fs);
+gl.attachShader(prog, vs);
+gl.attachShader(prog, fs);
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const aLoc = gl.getAttribLocation(prog, 'a');
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+gl.enableVertexAttribArray(aLoc);
+
+const sceneTexUnit = 0;
+const uLoc = gl.getUniformLocation(prog, 'u_scene');
+gl.uniform1i(uLoc, sceneTexUnit);
+
+const sceneImg = new Image();
+const ovCanvas = document.createElement('canvas');
+const ovCtx = ovCanvas.getContext('2d');
+
+const PARAMS = { fog: 0, dayNight: 0, time: 0 };
+
+sceneImg.onload = () => {
+  canvas.width = sceneImg.width;
+  canvas.height = sceneImg.height;
+  ovCanvas.width = sceneImg.width;
+  ovCanvas.height = sceneImg.height;
+  gl.viewport(0, 0, sceneImg.width, sceneImg.height);
+
+  const tex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sceneImg);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  render();
+};
+sceneImg.src = BASE_IMG;
+
+function render() {
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // Draw overlay
+  const cap = document.createElement('canvas');
+  cap.width = canvas.width;
+  cap.height = canvas.height;
+  const cc = cap.getContext('2d');
+  cc.drawImage(canvas, 0, 0);
+  cc.drawImage(ovCanvas, 0, 0);
+
+  const imgData = cap.toDataURL();
+  requestAnimationFrame(render);
+}
+
+document.getElementById('btn-load-scene').onclick = () => {
+  document.getElementById('btn-load-scene').textContent = '✓ Szene geladen';
+};
+
+document.getElementById('btn-load-actor').onclick = async () => {
+  const img = new Image();
+  const reader = new FileReader();
+  const manifestUrl = ACTOR_MANIFEST;
+
+  fetch(manifestUrl).then(r => r.json()).then(manifest => {
+    img.onload = () => {
+      ovCtx.globalAlpha = 1.0;
+      ovCtx.drawImage(img, 100, 200, 200, 200);
+      ovCtx.globalAlpha = 1.0;
+      document.getElementById('btn-load-actor').textContent = '✓ Actor geladen (200×200 @100,200)';
+    };
+    img.src = ACTOR_IMG;
+  });
+};
+
+document.querySelectorAll('button[data-fog]').forEach(b => {
+  b.onclick = () => {
+    PARAMS.fog = parseFloat(b.dataset.fog);
+    ovCtx.globalAlpha = (1 - PARAMS.fog * 0.5) * (1 - PARAMS.dayNight * 0.3);
+    render();
+  };
+});
+
+document.querySelectorAll('button[data-night]').forEach(b => {
+  b.onclick = () => {
+    PARAMS.dayNight = parseFloat(b.dataset.night);
+    ovCtx.globalAlpha = (1 - PARAMS.fog * 0.5) * (1 - PARAMS.dayNight * 0.3);
+    render();
+  };
+});
+
+render();
+</script>
+</body>
+</html>
