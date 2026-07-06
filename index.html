@@ -282,7 +282,9 @@ void main(){
   // --- Die Szene atmet: Vegetation schwankt im Wind (Domain-Warp) ---
   float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
   vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
-  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * 0.0022;  // Impuls schüttelt
+  // Intensiverer Kronenschwung, besonders in Laubwäldern und bei Wind
+  float swayStrength = 0.0022 + mFol*0.0018*(0.5+u_wind*0.8);
+  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * swayStrength;  // Impuls schüttelt
   // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
   float lateDecay = smoothstep(0.75,1.0,u_decay);
   suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
@@ -296,10 +298,12 @@ void main(){
   if(u_autumn>0.003){
     float cellN = vnoise(uv*vec2(14.0*u_aspect,14.0));
     float lumB = lum(base);
-    vec3 acol = mix(vec3(0.87,0.55,0.12), vec3(0.72,0.27,0.08), cellN) * (0.35+1.0*lumB);
-    col = mix(col, acol, mFol*u_autumn*0.85);
-    vec3 gcol = vec3(0.64,0.52,0.20)*(0.4+1.1*lumB);
-    col = mix(col, gcol, mGrass*u_autumn*0.55);
+    // Foliage: Bright gold to deep red-brown
+    vec3 acol = mix(vec3(0.95,0.65,0.10), vec3(0.80,0.25,0.08), cellN) * (0.45+1.1*lumB);
+    col = mix(col, acol, mFol*u_autumn*0.92);
+    // Grass: Rich golden-brown, more saturated
+    vec3 gcol = vec3(0.72,0.58,0.18)*(0.5+1.2*lumB);
+    col = mix(col, gcol, mGrass*u_autumn*0.68);
     // gefallenes Laub sammelt sich an Pfadrändern (Bleed-Halo + flache Pfadzonen)
     float litterZone = mGrass*phys.b + mPath*(1.0-smoothstep(0.15,0.55,phys.r));
     float litter = step(0.62, vnoise(uv*vec2(170.0*u_aspect,170.0))) * litterZone;
@@ -326,32 +330,31 @@ void main(){
     float crownGate = smoothstep(0.62,0.95,mFol) * bloomable * treeSel;  // hart: kein Schmieren über Ränder
     col = mix(col, crownCol, crownGate*u_bloom*clumps*0.95);
 
-    // 2) Wiesenblumen: nur in Cluster-Inseln + verdichtet am Pfadrand (Bleed-Halo)
-    // Dichte nach Frühlings-Zielbild (file_0000000029f8…): üppige Blumenteppiche
+    // 2) Wiesenblumen: üppige Blumenteppiche mit hoher Dichte im Frühling
     float meadow = smoothstep(0.46,0.68, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
     float density = clamp(meadow + phys.b*0.85, 0.0, 1.0);
     float grassGate = smoothstep(0.5,0.8,mGrass);
-    vec2 fc = uv*vec2(34.0*u_aspect,34.0);
+    vec2 fc = uv*vec2(48.0*u_aspect,48.0);  // dichtere Blumen-Grid
     vec2 fid = floor(fc), ffp = fract(fc)-0.5;
     float fr = hash(fid);
-    float on = step(1.0 - u_bloom*(0.26+0.74*density), fr);
+    float on = step(1.0 - u_bloom*(0.38+0.62*density), fr);  // höhere Blüten-Wahrscheinlichkeit
     if(on*grassGate>0.01){
-      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.4;
+      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.35;
       vec2 d = ffp-fOff;
       float rad = length(d);
       float ang = atan(d.y,d.x);
-      float size = 0.22*(0.7+0.7*hash(fid+7.9));
+      float size = 0.36*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
       float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
-      float petal = smoothstep(petalR+0.03, petalR-0.05, rad);
-      float centerDot = smoothstep(size*0.50, size*0.26, rad);   // Blütenkörbchen
+      float petal = smoothstep(petalR+0.04, petalR-0.06, rad);
+      float centerDot = smoothstep(size*0.55, size*0.28, rad);   // Blütenkörbchen
       float pick = hash(fid+4.4);
       vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
                   pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
                   pick<0.82 ? vec3(0.62,0.76,0.97) :             // hellblau
                               vec3(0.99,0.90,0.55);              // gelb
       float fm = petal*on*grassGate;
-      col = mix(col, fCol*(0.7+0.45*lumB2), fm*0.95);
-      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate); // sattes gelbes Körbchen
+      col = mix(col, fCol*(0.8+0.55*lumB2), fm*0.98);
+      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate*u_bloom*0.95); // sattes gelbes Körbchen
     }
   }
 
@@ -626,6 +629,14 @@ void main(){
   // --- Himmel-/Reflexionsfarben ---
   vec3 sky = mix( mix(vec3(0.62,0.70,0.82), vec3(0.28,0.31,0.38), u_storm),
                   mix(vec3(0.09,0.12,0.21), vec3(0.045,0.055,0.10), u_storm), night );
+
+  // --- Wandernde Sonne/Mond im Himmel (beeinflusst auch Himmelsgradient) ---
+  float sunAngle = (0.5 - night*1.2) * 3.14159;  // 0 (Tag oben) bis -1.88 (Nacht unten)
+  vec2 sunPos = vec2(0.5 + sin(sunAngle)*0.4, 0.25 + cos(sunAngle)*0.3);
+  float sunDist = distance(uv, sunPos);
+  float sunGlow = exp(-sunDist*sunDist*300.0);  // sharp circular glow
+  vec3 sunColor = mix(vec3(1.0,0.8,0.2), vec3(0.85,0.85,1.0), night);  // gelb -> silber
+  sky = mix(sky, sunColor, sunGlow*0.8*(1.0-u_fog*0.4));  // Sonne schwächer in Nebel
 
   // --- Rinnsale / Wasserflussnetz auf Pfaden (bei Regen) ---
   float rainy = u_rain * clamp(u_wet*1.6,0.0,1.0);
