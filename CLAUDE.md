@@ -1,7 +1,20 @@
 # CLAUDE.md – Projektregeln SHADED
 
 SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
-(Environmental Storytelling). Kernversprechen: **Bild laden → „✨ Erstellen“ → die Szene lebt.**
+(Environmental Storytelling). Kernversprechen: **Bild laden → „✨ Erstellen” → die Szene lebt.**
+
+## SWIFT→SHADED Integration
+
+SHADED ist nun das **Rendering-Ziel für procedural generierte Charaktere** aus SWIFT
+(separates Repo `lootziffer666/swift`). SWIFT produziert:
+- **Sprite-Sheets** (PNG): animierte Charaktere in Pixel-Art
+- **Manifeste** (JSON): Frame-Rects, Animationen, optional Tiefenkarten
+- **Depth-Maps** (8-bit Grayscale): Z-Buffer für räumliche Ordnung
+
+Diese werden via `window.SHADED.addActor()` als rein optische Overlay-Ebene geladen.
+**Invariante 2 (Eine Material-Wahrheit) bleibt absolut unberührt**: Actors beeinflussen
+NICHT `classGrid` oder `getMaterialTypeAt()`. Die Scene-Analyse wird nur vom Hintergrund
+bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
 
 ## Unverhandelbare Invarianten
 
@@ -85,6 +98,54 @@ verify.js vergleicht außerdem die Klassenzählung aller fünf Szenen gegen
 `tools/expected-classes.json` (±10 %) – bei GEWOLLTEN Verschiebungen die Baseline
 bewusst aktualisieren (nach visueller Prüfung!), nie blind.
 
+**Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zusätzlich manuell
+im Browser überprüfen:
+- Actor erscheint an korrekter Position (x, y)
+- Animation spielt korrekt ab (fps, loop)
+- Depth-Layer sortiert Actors korrekt (front/mid/back)
+- globalAlpha folgt fog+dayNight (Charakter wird im Nebel/bei Nacht dunkler)
+- Keine GL-Fehler in der Console (Depth-Textur korrekt gebunden?)
+- Sprite-Transparenz ist erhalten (RGBA PNG mit Alpha-Channel)
+
+## Actor-System & Depth-Integration
+
+Actors (SWIFT-generierte Charaktere) werden auf dem gleichen Overlay-Canvas `#ov`
+wie `drawPlayer()` gerendert. Sie sind **rein optisch** – keine Auswirkung auf Physik,
+Material-Klassifikation oder `getMaterialTypeAt()`.
+
+**Depth-Layer-Ordnung:**
+- `'front'`: Vor allen Scene-Elementen (z. B. fliegende Vögel)
+- `'mid'` (default): Zwischen Scene-Hintergrund und Vordergrund (Charaktere)
+- `'back'`: Hinter Scene-Elementen (z. B. Silhouetten dahinter)
+
+Actors in jeder Schicht werden von hinten nach vorne (nach Sprite-Y oder Animation-Frame)
+sortiert. Scene-Tiefenkarte (Unit 6) wird bei Actors ignoriert – ihre räumliche Ordnung
+kommt nur aus `depthLayer` und interner Frame-Ordnung.
+
+**Lighting & Atmosphere:**
+- Actor-globalAlpha wird an `fog`- und `dayNight`-Parameter gekoppelt:
+  ```
+  alpha = baseAlpha * (1 - fog * 0.5) * (1 - dayNight * 0.3)
+  ```
+- So wirken Charaktere im Nebel/bei Nacht natürlich dunkler, ohne ihre Textur zu ändern
+- Keine Farbverschiebung (keine Tint-Shader auf Actors) – nur Transparenz
+
+**Manifest-Schema (SWIFT-generiert):**
+```json
+{
+  "mappingVersion": "1.4.0",
+  "sourceImage": { "w": 256, "h": 64 },
+  "depthSourceImage": { "w": 256, "h": 64 },  // optional
+  "depthImage": "sprite_depth.png",           // optional
+  "frameRects": { "F01": [x, y, w, h], ... },
+  "depthFrameRects": { "F01": [x, y, w, h], ... },  // parallel zu frameRects
+  "frames": [{ "id": "F01", "key": "walk_01" }, ...],
+  "animations": {
+    "walk": { "frames": ["F01", "F02", ...], "fps": 12, "loop": true }
+  }
+}
+```
+
 ## Fahrplan (verbindlich, siehe .kiro/specs/)
 
 - Runde 2: Jahreszeiten & Klima (`round-2-seasons-climate`) ✅
@@ -95,8 +156,12 @@ bewusst aktualisieren (nach visueller Prüfung!), nie blind.
 
 Jede Runde arbeitet ihre Spec ab: `requirements.md` → `design.md` → `tasks.md`.
 
-## Git
+## Git & Cross-Repo Coordination
 
-- Branch: `claude/shaded-shader-storytelling-u4n5fs` (Push mit `git push -u origin <branch>`)
-- Nie committen: `node_modules/`, `tools/verify-out/`, `package*.json` aus Testläufen.
-- Die PNG/JPG-Referenzbilder niemals löschen, umbenennen oder neu komprimieren.
+- **SHADED Branch**: `claude/combine-repos-workflow-937fs4` (Push mit `git push -u origin <branch>`)
+- **SWIFT Branch** (parallel): `claude/combine-repos-workflow-937fs4` (selber Name für Koordination)
+- Beide Repos arbeiten **unabhängig**, werden aber über das Manifest-Format + Actor-API verknüpft
+- SWIFT generiert Output → wird manuell oder per Build-System in SHADED geladen
+- Nie committen: `node_modules/`, `tools/verify-out/`, `package*.json` aus Testläufen
+- Die PNG/JPG-Referenzbilder (Verify-Targets) niemals löschen, umbenennen oder neu komprimieren
+- Actor-Manifeste (von SWIFT) sind externe Assets – werden NICHT in SHADED committed
