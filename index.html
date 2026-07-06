@@ -214,6 +214,11 @@ uniform float u_moodTint;     // NPC-Stimmung (#24)
 uniform float u_worldTired;   // Weltmüdigkeit (#50)
 uniform float u_forbiddenCold;// Besitz-Grenzen (#25)
 uniform float u_runeGlow;     // Oberflächen-Runen (#32)
+uniform float u_shadowAge;    // Schatten verlangsamen Verfall (#11)
+uniform float u_smellDrift;   // Geruchswolken von Verfall/Feuer (#6)
+uniform float u_touchWear;    // Berührungsspuren: abgegriffene Stellen (#45)
+uniform float u_repairMark;   // Sichtbare Reparaturen mit neuer Farbe (#30)
+uniform float u_blessCurse;   // Segen/Fluch: Material-Verhalten konditioniert (#49)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -532,6 +537,42 @@ void main(){
   if(u_runeGlow>0.05){
     float runeGrid = step(0.9, vnoise(uv*vec2(300.0*u_aspect, 300.0)));
     col += vec3(0.4, 0.5, 1.0) * runeGrid * mWater * u_runeGlow * 0.3;
+  }
+
+  // --- #11 Schatten als Besitz: Objekte im Schatten altern langsamer ---
+  if(u_shadowAge>0.02){
+    float shadowMask = 1.0 - smoothstep(0.4, 0.7, fbm(uv*vec2(40.0*u_aspect, 40.0)));
+    col = mix(col, col*vec3(1.05, 1.03, 1.0), shadowMask * u_shadowAge * 0.15);
+  }
+
+  // --- #6 Geruch als Diffusion: Dunstwolken von Verfall & Feuer ---
+  if(u_smellDrift>0.02){
+    float smellCloud = fbm(uv*vec2(25.0*u_aspect, 25.0) + vec2(u_smellDrift, u_smellDrift*0.5));
+    col += vec3(0.6, 0.5, 0.4) * smoothstep(0.3, 0.7, smellCloud) * u_smellDrift * 0.08;
+  }
+
+  // --- #45 Berührungsspuren: Abgegriffene Stellen glänzend/dunkel ---
+  if(u_touchWear>0.1){
+    float touchZones = fbm(uv*vec2(80.0*u_aspect, 80.0) + u_touchWear);
+    float wearMask = smoothstep(0.4, 0.6, touchZones) * (mPath + mWood*0.5);
+    col = mix(col, col*vec3(1.15, 1.08, 0.95), wearMask * min(u_touchWear*0.3, 0.2));
+  }
+
+  // --- #30 Reparatur: Neue/reparierte Holzstellen glänzen und sind heller ---
+  if(u_repairMark>0.05){
+    float repairZones = fbm(uv*vec2(60.0*u_aspect, 60.0));
+    vec3 freshWood = vec3(0.95, 0.82, 0.65);
+    col = mix(col, freshWood, smoothstep(0.45, 0.55, repairZones) * mWood * u_repairMark * 0.4);
+  }
+
+  // --- #49 Segen/Fluch: Bloom aufhellt + Glanz, Decay verdunkelt + Staub ---
+  if(abs(u_blessCurse)>0.02){
+    float condition = (u_blessCurse > 0.0 ? u_blessCurse : -u_blessCurse);
+    if(u_blessCurse>0.02){
+      col = mix(col, col*vec3(1.2, 1.15, 1.1), condition * 0.12);
+    } else {
+      col = mix(col, col*vec3(0.85, 0.8, 0.75), condition * 0.15);
+    }
   }
 
   // --- Schneedecke: Dächer & Gras zuerst, Pfade fleckig zuletzt ---
@@ -2323,6 +2364,7 @@ let time=0,lastT=0,mossBoost=0,timeFrozen=false;
 let rainPhase=0, windDrift=0, dryPhase=0, heatWarp=0, rustAccum=0, smokeAmount=0;
 let breathAmount=0, pressureDim=0, pollutionGlow=0, moonBright=0, shelfShadow=0;
 let vegFade=0, moodTint=0, worldTired=0, forbiddenCold=0, runeGlow=0;
+let shadowAge=0, smellDrift=0, touchWear=0, repairMark=0, blessCurse=0;
 // 2.5D-Parallaxe: Ziel folgt der Maus, Ist wird im Frame sanft nachgezogen.
 // hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
@@ -2349,6 +2391,12 @@ function tickWorld(dt){
     worldTired=CUR.decay*0.4;
     forbiddenCold=CUR.storm*0.2;
     runeGlow=CUR.fog*0.3+CUR.bloom*0.1;
+    // Finale Sprint-Welt-Gesetze
+    shadowAge+=dt*Math.max(0, 0.5-CUR.glow)*0.4; // Schatten verlangsamen Verfall
+    smellDrift+=dt*(CUR.decay*0.6+CUR.fireCount*0.2); // Verfall + Feuer → Geruch
+    touchWear+=dt*0.05; // konstantes Abnutzen
+    repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
+    blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
   }
   tickStory(dt);
   tickActBlend(dt);
@@ -2394,6 +2442,11 @@ function frame(now){
     gl.uniform1f(U.u_worldTired,worldTired);
     gl.uniform1f(U.u_forbiddenCold,forbiddenCold);
     gl.uniform1f(U.u_runeGlow,runeGlow);
+    gl.uniform1f(U.u_shadowAge,shadowAge);
+    gl.uniform1f(U.u_smellDrift,smellDrift);
+    gl.uniform1f(U.u_touchWear,touchWear);
+    gl.uniform1f(U.u_repairMark,repairMark);
+    gl.uniform1f(U.u_blessCurse,blessCurse);
     gl.uniform2f(U.u_parallax, pxShift.x, pxShift.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
@@ -2431,6 +2484,11 @@ window.SHADED = {
     worldTired=CUR.decay*0.4;
     forbiddenCold=CUR.storm*0.2;
     runeGlow=CUR.fog*0.3+CUR.bloom*0.1;
+    shadowAge=t*Math.max(0, 0.5-CUR.glow)*0.4;
+    smellDrift=t*(CUR.decay*0.6+CUR.fireCount*0.2);
+    touchWear=t*0.05;
+    repairMark=CUR.glow*0.3+CUR.wind*0.1;
+    blessCurse=CUR.bloom*0.5+CUR.decay*-0.3;
   },  // Phasen deterministisch zur Zeit
   isReady:()=>ready,
   getMaterialTypeAt,
