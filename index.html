@@ -2511,6 +2511,7 @@ let shadowAge=0, smellDrift=0, touchWear=0, repairMark=0, blessCurse=0;
 // hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
 let parallaxTarget={x:0,y:0}, parallaxCurrent={x:0,y:0}, hasDepth=false;
+let cameraShake={x:0,y:0}, lastFlash=0; // Kamera-Shake (Wind+Blitz) und letzter u_flash-Wert
 const OV_DEPTH=0.5;  // Bodenebene ~ mittlere Tiefe: so weit schiebt das Overlay mit
 function tickWorld(dt){
   if(!timeFrozen){
@@ -2563,7 +2564,23 @@ function frame(now){
   parallaxCurrent.x += (parallaxTarget.x-parallaxCurrent.x)*0.06;
   parallaxCurrent.y += (parallaxTarget.y-parallaxCurrent.y)*0.06;
   const pxShift = hasDepth ? parallaxCurrent : {x:0,y:0};
-  const fx = pxShift.x*OV_DEPTH, fy = pxShift.y*OV_DEPTH;   // UV-Bruchteile
+
+  // Kamera-Shake: Wind gibt leichtes Zittern, ein Blitz (lastFlash, Vorframe) einen kurzen Ruck.
+  const windShake = CUR.wind * 0.01;
+  const flashShake = lastFlash * 0.015;
+  const totalShake = windShake + flashShake;
+  cameraShake.x += (Math.random()-0.5) * totalShake * 2;
+  cameraShake.y += (Math.random()-0.5) * totalShake * 2;
+  // Kräftige Dämpfung pro Sekunde (als reiner Pro-Frame-Faktor wie zuvor summiert
+  // der Shake bei kleinen dt praktisch ungedämpft auf).
+  const shakeDamp = Math.pow(0.05, dt);
+  cameraShake.x *= shakeDamp;
+  cameraShake.y *= shakeDamp;
+  cameraShake.x = Math.max(-0.05, Math.min(0.05, cameraShake.x));
+  cameraShake.y = Math.max(-0.05, Math.min(0.05, cameraShake.y));
+
+  const pxWithShake = {x: pxShift.x + cameraShake.x, y: pxShift.y + cameraShake.y};
+  const fx = pxWithShake.x*OV_DEPTH, fy = pxWithShake.y*OV_DEPTH;   // UV-Bruchteile
   ov.style.transform = hasDepth ? `translate(${fx*ov.clientWidth}px, ${fy*ov.clientHeight}px)` : '';
 
   if(sceneImg){
@@ -2589,9 +2606,10 @@ function frame(now){
     gl.uniform1f(U.u_touchWear,touchWear);
     gl.uniform1f(U.u_repairMark,repairMark);
     gl.uniform1f(U.u_blessCurse,blessCurse);
-    gl.uniform2f(U.u_parallax, pxShift.x, pxShift.y);
+    gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
-    gl.uniform1f(U.u_flash, ready? tickLightning(time):0);
+    lastFlash = ready ? tickLightning(time) : 0;
+    gl.uniform1f(U.u_flash, lastFlash);
     gl.uniform1f(U.u_mossBoost, ready? mossBoost*0.3 : 0);
     fireUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
