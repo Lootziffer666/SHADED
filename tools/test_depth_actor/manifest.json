@@ -1,0 +1,102 @@
+{
+  "mappingVersion": "1.4.0",
+  "sourceImage": {
+    "w": 128,
+    "h": 128
+  },
+  "depthImage": "sprite_depth.png",
+  "depthSourceImage": {
+    "w": 128,
+    "h": 128
+  },
+  "frameRects": {
+    "F01": {
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "F02": {
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "F03": {
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    "F04": {
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    }
+  },
+  "depthFrameRects": {
+    "F01": {
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "F02": {
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "F03": {
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    "F04": {
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    }
+  },
+  "frames": [
+    {
+      "id": "F01",
+      "row": 1,
+      "col": 1,
+      "key": "depth_near"
+    },
+    {
+      "id": "F02",
+      "row": 1,
+      "col": 2,
+      "key": "depth_med_near"
+    },
+    {
+      "id": "F03",
+      "row": 2,
+      "col": 1,
+      "key": "depth_med_far"
+    },
+    {
+      "id": "F04",
+      "row": 2,
+      "col": 2,
+      "key": "depth_far"
+    }
+  ],
+  "animations": {
+    "depth_cycle": {
+      "frames": [
+        "F01",
+        "F02",
+        "F03",
+        "F04"
+      ],
+      "fps": 2,
+      "loop": true
+    }
+  }
+}

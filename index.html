@@ -76,6 +76,10 @@ body.cinema #exit-cinema{display:block}
   <button id="btn-eco-heroes" style="width:100%">⚔️ Helden (Nib, Brugg, Vellum)</button>
   <div style="font-size:9px;color:#556;margin-bottom:4px">Spawnt mehrere animierte Charaktere mit verschiedenen Tiefenschichten aus GAIME-Assets.</div>
 
+  <h2>Phase B2: Depth-Rendering</h2>
+  <button id="btn-eco-depth-test" style="width:100%">🔍 Depth-Map Test (v1.4.0)</button>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Zeigt Manifest v1.4.0 mit depthImage + depthFrameRects. 4 Frames: Nah (dunkel/warm) → Fern (hell/cool).</div>
+
   <h2>2 · Erstellen</h2>
   <button id="btn-create" class="primary">✨ Erstellen</button>
   <div id="status">Lade ein Bild und drücke „Erstellen“.</div>
@@ -2154,6 +2158,9 @@ const ecosystemDefs={
     {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_nib.png', x:0.25, y:0.6, scale:2.5, depthLayer:'front'},
     {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_brugg.png', x:0.55, y:0.65, scale:2.5, depthLayer:'mid'},
     {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_vellum.png', x:0.75, y:0.58, scale:2.5, depthLayer:'mid'},
+  ],
+  test_depth:[
+    {x:0.5, y:0.55, scale:2.0, anim:'depth_cycle', depthLayer:'mid', isDepthTest:true}
   ]
 };
 let ecosystemHandles=[];
@@ -2164,8 +2171,38 @@ async function spawnEcosystem(type){
 
   const defs=ecosystemDefs[type];
   const isAnimated=defs[0]?.anim; // True if defs have anim (sprite-sheets)
+  const isDepthTest=defs[0]?.isDepthTest; // Special handling for depth test
 
-  if(isAnimated){
+  if(isDepthTest){
+    // Phase B2: Test Depth-Actor mit Manifest v1.4.0
+    const manifest=await fetch('tools/test_depth_actor/manifest.json').then(r=>r.json());
+    const img=new Image();
+    const depthImg=new Image();
+    let loadCount=0;
+    const checkReady=()=>{
+      loadCount++;
+      if(loadCount===2){ // Both RGB and Depth images loaded
+        defs.forEach((config,idx)=>{
+          const h=addActor({
+            image:img,
+            manifest:manifest,
+            depthImage:depthImg,
+            x:config.x,
+            y:config.y,
+            scale:config.scale,
+            anim:config.anim,
+            depthLayer:config.depthLayer
+          });
+          ecosystemHandles.push(h);
+        });
+        setStatus(`✅ Phase B2 Test: ${type} mit Depth-Map geladen (${ecosystemHandles.length} Figuren)`);
+      }
+    };
+    img.onload=checkReady;
+    depthImg.onload=checkReady;
+    img.src='tools/test_depth_actor/sprite.png';
+    depthImg.src='tools/test_depth_actor/sprite_depth.png';
+  } else if(isAnimated){
     // Sprite-Sheet mit Animationen (z.B. Katzen)
     const manifest=await fetch('tools/verify-test-actor.json').then(r=>r.json());
     const img=new Image();
@@ -2391,6 +2428,7 @@ document.getElementById('btn-eco-cats').onclick=()=>spawnEcosystem('cats');
 document.getElementById('btn-eco-enemies').onclick=()=>spawnEcosystem('gaime_enemies');
 document.getElementById('btn-eco-npcs').onclick=()=>spawnEcosystem('gaime_npcs');
 document.getElementById('btn-eco-heroes').onclick=()=>spawnEcosystem('gaime_heroes');
+document.getElementById('btn-eco-depth-test').onclick=()=>spawnEcosystem('test_depth');
 
 // Kino / Aufnahme / Export
 function toggleCinema(){ document.body.classList.toggle('cinema'); }
