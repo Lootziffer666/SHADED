@@ -1998,14 +1998,15 @@ function rainTick(dt){
   // Regen-Tropfen spawnen basierend auf rain-Parameter
   const targetRaindrops = Math.ceil(CUR.rain * 120);
   while(raindrops.length < targetRaindrops && Math.random()<0.7){
-    // Wind bestimmt Richtung: 0=links nach rechts, 1=stark nach rechts
+    // Wind bestimmt Richtung: 0=senkrecht, 1=stark nach rechts
     const windAngle = CUR.wind * 0.5;  // Regen-Winkel folgt Wind (0° to +25°), unidirektional
+    const length = 0.015 + Math.random()*0.008;
     raindrops.push({
-      u: Math.random(),
+      u: -length + Math.random(),  // Spawn von links off-screen bis zur rechten Bildmitte
       v: -0.05 + Math.random()*0.1,
       vx: windAngle * (0.4 + CUR.wind*0.3),  // horizontale Geschwindigkeit vom Winkel
       vy: 0.6 + CUR.storm*0.3,                // vertikale Geschwindigkeit
-      length: 0.015 + Math.random()*0.008,
+      length: length,
       age: 0
     });
   }
@@ -2016,8 +2017,8 @@ function rainTick(dt){
     r.v += r.vy * dt;
     r.u += r.vx * dt;
 
-    // wrapping: nur nach rechts, nicht nach links
-    if(r.u>1.2) r.u-=1.3;
+    // wrapping: wenn rechte Kante off-screen geht, komplett von links neu starten
+    if(r.u > 1) r.u = -r.length;
     // ausspawn
     if(r.v>1.1 || r.age>8) raindrops.splice(i,1);
   }
