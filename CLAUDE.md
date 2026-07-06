@@ -190,8 +190,23 @@ Von 60 definierten Weltgesetzen (siehe `docs/vision-weltgesetze.md`):
 - 43. Rauchschichtung (Smoke Layering)
 - 9. Rost (Rust)
 - 20. Temperaturgradienten (Temperature Gradients)
+- 44. Atemwolken (Breath Clouds)
+- 4. Druck/Gewicht/Belastung (Pressure)
+- 26. Lichtverschmutzung (Light Pollution)
+- 38. Mondlicht (Moonlight)
+- 34. Biom-Zonen (Biome Shelves)
+- 15. Vegetation-Reaktion (Vegetation Fade)
+- 24. NPC-Stimmung (Mood Tint)
+- 50. Weltmüdigkeit (World Tiredness)
+- 25. Besitz-Grenzen (Forbidden Boundaries)
+- 32. Oberflächen-Runen (Surface Runes)
+- 11. Schatten als Besitz (Shadows as Ownership)
+- 6. Geruch als Diffusion (Smell/Diffusion)
+- 45. Berührungsspuren (Touch Traces)
+- 30. Sichtbare Reparatur (Repair Marks)
+- 49. Segen/Fluch (Blessing/Curse)
 
-**Gesamt: 16 von 60 Weltgesetzen aktiv implementiert (27 %)**
+**Gesamt: 31 von 60 Weltgesetzen aktiv implementiert (52 %)**
 
 Weitere Kandidaten für zukünftige Runden:
 - 4. Druck/Gewicht/Belastung (Pressure)
