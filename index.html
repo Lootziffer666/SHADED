@@ -70,8 +70,11 @@ body.cinema #exit-cinema{display:block}
   <div style="font-size:9px;color:#556;margin-bottom:4px">Erst Sprite-Sheet, dann Manifest wählen – fügt einen animierten Akteur aus einem SWIFT-Render zur Szene hinzu.</div>
 
   <h2>Ökosystem (Runde 7)</h2>
-  <button id="btn-eco-cats" style="width:100%">🐱 Katzen-Schwarm spawnen</button>
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Spawnt mehrere Katzen mit verschiedenen Animationen und Tiefenschichten – zeigt Ökosystem-Integration.</div>
+  <button id="btn-eco-cats" style="width:100%">🐱 Katzen-Schwarm</button>
+  <button id="btn-eco-enemies" style="width:100%">👿 Feinde (Blob, Ratte, Wolf)</button>
+  <button id="btn-eco-npcs" style="width:100%">🧑 NPCs (Bürger, Barkeeper, Kaufmann)</button>
+  <button id="btn-eco-heroes" style="width:100%">⚔️ Helden (Nib, Brugg, Vellum)</button>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Spawnt mehrere animierte Charaktere mit verschiedenen Tiefenschichten aus GAIME-Assets.</div>
 
   <h2>2 · Erstellen</h2>
   <button id="btn-create" class="primary">✨ Erstellen</button>
@@ -2118,6 +2121,22 @@ const ecosystemDefs={
     {x:0.5, y:0.65, scale:1.0, anim:'rest_idle', depthLayer:'mid'},
     {x:0.8, y:0.7, scale:0.9, anim:'eat_cycle', depthLayer:'back'},
     {x:0.3, y:0.5, scale:0.7, anim:'walk_stretchy', depthLayer:'mid'},
+  ],
+  gaime_enemies:[
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_blob.png', x:0.15, y:0.55, scale:2.0, depthLayer:'mid'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_rat.png', x:0.35, y:0.65, scale:2.5, depthLayer:'mid'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/enemy_wolf.png', x:0.65, y:0.6, scale:2.0, depthLayer:'back'},
+  ],
+  gaime_npcs:[
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen1.png', x:0.2, y:0.6, scale:3.0, depthLayer:'mid'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_citizen2.png', x:0.5, y:0.65, scale:3.0, depthLayer:'mid'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_barkeep.png', x:0.75, y:0.7, scale:2.5, depthLayer:'back'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/npc_world_merchant.png', x:0.3, y:0.5, scale:2.5, depthLayer:'mid'},
+  ],
+  gaime_heroes:[
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_nib.png', x:0.25, y:0.6, scale:2.5, depthLayer:'front'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_brugg.png', x:0.55, y:0.65, scale:2.5, depthLayer:'mid'},
+    {img:'../workspace/gaime/composeApp/src/commonMain/composeResources/drawable/hero_vellum.png', x:0.75, y:0.58, scale:2.5, depthLayer:'mid'},
   ]
 };
 let ecosystemHandles=[];
@@ -2125,24 +2144,50 @@ async function spawnEcosystem(type){
   ecosystemHandles.forEach(h=>h.remove());
   ecosystemHandles=[];
   if(!type||!ecosystemDefs[type])return;
-  const manifest=await fetch('tools/verify-test-actor.json').then(r=>r.json());
-  const img=new Image();
-  img.onload=()=>{
-    ecosystemDefs[type].forEach((config,idx)=>{
-      const h=addActor({
-        image:img,
-        manifest:manifest,
-        x:config.x,
-        y:config.y,
-        scale:config.scale,
-        anim:config.anim,
-        depthLayer:config.depthLayer
+
+  const defs=ecosystemDefs[type];
+  const isAnimated=defs[0]?.anim; // True if defs have anim (sprite-sheets)
+
+  if(isAnimated){
+    // Sprite-Sheet mit Animationen (z.B. Katzen)
+    const manifest=await fetch('tools/verify-test-actor.json').then(r=>r.json());
+    const img=new Image();
+    img.onload=()=>{
+      defs.forEach((config,idx)=>{
+        const h=addActor({
+          image:img,
+          manifest:manifest,
+          x:config.x,
+          y:config.y,
+          scale:config.scale,
+          anim:config.anim,
+          depthLayer:config.depthLayer
+        });
+        ecosystemHandles.push(h);
       });
-      ecosystemHandles.push(h);
+      setStatus(`✅ Ökosystem geladen: ${type} (${ecosystemHandles.length} Figuren)`);
+    };
+    img.src='tools/verify-test-actor.png';
+  } else {
+    // Einzelne statische Bilder (z.B. GAIME-Assets)
+    defs.forEach((config,idx)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const h=addActor({
+          image:img,
+          x:config.x,
+          y:config.y,
+          scale:config.scale,
+          depthLayer:config.depthLayer
+        });
+        ecosystemHandles.push(h);
+        if(ecosystemHandles.length===defs.length){
+          setStatus(`✅ Ökosystem geladen: ${type} (${ecosystemHandles.length} Figuren)`);
+        }
+      };
+      img.src=config.img;
     });
-    setStatus(`🐱 Ökosystem geladen: ${type} (${ecosystemHandles.length} Figuren)`);
-  };
-  img.src='tools/verify-test-actor.png';
+  }
 }
 
 // --- Eingaben (Runde 4) ---
@@ -2326,6 +2371,9 @@ function erstellen(){
 }
 document.getElementById('btn-create').onclick=erstellen;
 document.getElementById('btn-eco-cats').onclick=()=>spawnEcosystem('cats');
+document.getElementById('btn-eco-enemies').onclick=()=>spawnEcosystem('gaime_enemies');
+document.getElementById('btn-eco-npcs').onclick=()=>spawnEcosystem('gaime_npcs');
+document.getElementById('btn-eco-heroes').onclick=()=>spawnEcosystem('gaime_heroes');
 
 // Kino / Aufnahme / Export
 function toggleCinema(){ document.body.classList.toggle('cinema'); }
