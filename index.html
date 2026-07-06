@@ -448,17 +448,19 @@ void main(){
   // --- #20 Temperaturgradienten: Seiten zur Wärmequelle leuchtend, Schattenseite kalt ---
   // (Verbesserung: direkt an Wärmequellen warm/glühend färben)
   if(u_fireCount>0.1 && u_temperature>0.4){
-    for(int i=0; i<int(u_fireCount); i++){
-      vec2 fPos = u_fires[i].xy;
-      float fIntensity = u_fires[i].z;
-      float fRadius = u_fires[i].w;
-      float dist = length(uv - fPos);
-      float falloff = smoothstep(fRadius, 0.0, dist);
-      // Warm side: glow
-      col += vec3(1.0, 0.7, 0.4) * falloff * fIntensity * 0.08 * (mWood + mPath + mRock);
-      // Cold/shadow side gets slightly blue
-      float shadeDir = smoothstep(0.2, -0.2, (uv.x - fPos.x) / max(0.01, fRadius));
-      col = mix(col, col*vec3(0.8, 0.9, 1.2), shadeDir * (1.0-falloff) * 0.05);
+    for(int i=0; i<8; i++){
+      if(float(i) < u_fireCount){
+        vec2 fPos = u_fires[i].xy;
+        float fIntensity = u_fires[i].z;
+        float fRadius = u_fires[i].w;
+        float dist = length(uv - fPos);
+        float falloff = smoothstep(fRadius, 0.0, dist);
+        // Warm side: glow
+        col += vec3(1.0, 0.7, 0.4) * falloff * fIntensity * 0.08 * (mWood + mPath + mRock);
+        // Cold/shadow side gets slightly blue
+        float shadeDir = smoothstep(0.2, -0.2, (uv.x - fPos.x) / max(0.01, fRadius));
+        col = mix(col, col*vec3(0.8, 0.9, 1.2), shadeDir * (1.0-falloff) * 0.05);
+      }
     }
   }
 
