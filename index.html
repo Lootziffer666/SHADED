@@ -774,7 +774,11 @@ void main(){
     for(int i=0;i<3;i++){
       float fi=float(i);
       vec2 ruv = uv;
-      ruv.x += ruv.y*(0.16+u_wind*0.38)*(1.0+fi*0.13);
+      // Gleiche Scherung (Winkel) für alle Schichten - nur Skalierung/Phasengeschwindigkeit
+      // unterscheidet sich (Tiefen-Parallaxe). Vorher variierte der Winkel pro Schicht
+      // (*(1.0+fi*0.13)), was zusammen mit den unterschiedlichen Skalen wie Regen aus
+      // zwei Richtungen aussah (bestätigt durch Vergleichsscreenshots mit 1/2/3 Schichten).
+      ruv.x += ruv.y*(0.16+u_wind*0.38);
       ruv *= vec2(90.0+fi*45.0, 2.3+fi*0.9);
       ruv.y -= u_rainPhase*(2.7+fi*1.2);          // Phase MINUS = Muster wandert nach unten (uv.y wächst abwärts)
       float colid = floor(ruv.x);
@@ -2118,18 +2122,20 @@ function rainTick(dt){
     const windAngle = CUR.wind * 0.5;
     const vortexMod = 1 + Math.sin(vortexPhase) * CUR.storm * 0.3;
     const length = 0.015 + Math.random()*0.008;
+    const u = -length + Math.random(), v = -0.05 + Math.random()*0.1;
 
-    // Regen-Tropfen haben Tiefe (pseudo-3D): tiefere Tropfen fallen schneller
-    const depth = Math.random();  // 0=vorne (schnell), 1=hinten (langsam)
+    // Regen-Tropfen haben Tiefe: echte Tiefenkarte wenn vorhanden (0=vorne/schnell,
+    // 1=hinten/langsam - invers zu getDepthAt, wo 1=nah), sonst Pseudo-Tiefe.
+    const realD = hasDepth ? getDepthAt(u,v) : null;
+    const depth = realD!==null ? 1-realD : Math.random();
     const depthMultiplier = 0.6 + depth*0.4;  // 0.6x bis 1.0x
 
     raindrops.push({
-      u: -length + Math.random(),
-      v: -0.05 + Math.random()*0.1,
+      u, v,
       vx: windAngle * vortexMod * (0.4 + CUR.wind*0.3),
       vy: (0.6 + CUR.storm*0.3) * depthMultiplier,  // Tiefenvarianz
+      depth: depth,  // für Rendering-Größe/Transparenz (bei echter Karte pro Frame aktualisiert)
       length: length,
-      depth: depth,  // für Rendering-Größe/Transparenz
       age: 0
     });
   }
@@ -2147,6 +2153,9 @@ function rainTick(dt){
 
     r.v += r.vy * dt;
     r.u += r.vx * dt;
+
+    // Tiefe pro Frame nachführen (echte Karte reagiert auf Position, nicht nur Spawn-Punkt)
+    if(hasDepth){ const d=getDepthAt(r.u,r.v); if(d!==null) r.depth = 1-d; }
 
     // wrapping
     if(r.u > 1) r.u = -r.length;
@@ -2873,7 +2882,8 @@ let shadowAge=0, smellDrift=0, touchWear=0, repairMark=0, blessCurse=0;
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
 let parallaxTarget={x:0,y:0}, parallaxCurrent={x:0,y:0}, hasDepth=false;
 // Camera shake: Sturm + Blitz erzeugen visuelle Erschütterungen
-let cameraShake={x:0, y:0}, lastFlash=0; // lastFlash: letzter u_flash-Wert (CUR.flash existiert nicht, flash ist kein PARAM)
+let cameraShake={x:0, y:0, jx:0, jy:0}, lastFlash=0; // lastFlash: letzter u_flash-Wert (CUR.flash existiert nicht, flash ist kein PARAM)
+let windSwayPhase=0; // sanfte, kontinuierliche Schwingung (Wind/Sturm) statt Zufalls-Jitter
 const OV_DEPTH=0.5;  // Bodenebene ~ mittlere Tiefe: so weit schiebt das Overlay mit
 function tickWorld(dt){
   if(!timeFrozen){
@@ -2903,24 +2913,26 @@ function tickWorld(dt){
     repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
 
-    // === Camera Shake System: Sturm + Blitz erzeugen Kamera-Vibrationen ===
-    // Wind/Storm: subtiles, kontinuierliches Wackeln
-    const windShake = (CUR.wind * 0.8 + CUR.storm * 0.5) * 0.006;
-    // Blitz: scharfes, kurzfristiges Zucken (lastFlash: Vorframe-Wert, da tickLightning
-    // erst später in diesem Frame für die Shader-Uniform aufgerufen wird)
-    const flashShake = lastFlash * 0.015;
-    const totalShake = windShake + flashShake;
+    // === Camera Shake System: Wind/Sturm sanftes Wiegen, Blitz kurzer scharfer Ruck ===
+    // Vorher: reiner Pro-Frame-Zufallsimpuls, der sich aufsummierte - das sah nach
+    // Zittern/Spacken aus, nicht nach Wiegen. Jetzt: kontinuierliche, langsame
+    // Sinus-Schwingung für Wind/Sturm (glatt, vorhersehbar), und ein separater,
+    // schnell abklingender Zufalls-Ruck NUR beim Blitz (der darf ruckartig sein).
+    windSwayPhase += dt * (0.30 + CUR.wind*0.22 + CUR.storm*0.15);
+    const swayAmp = (CUR.wind*0.7 + CUR.storm*0.4) * 0.009;
+    const swayX = Math.sin(windSwayPhase) * swayAmp;
+    const swayY = Math.sin(windSwayPhase*0.8 + 1.7) * swayAmp * 0.5;
 
-    cameraShake.x += (Math.random() - 0.5) * totalShake * 2;
-    cameraShake.y += (Math.random() - 0.5) * totalShake * 2;
-    // Kräftige Dämpfung pro Sekunde (0.85 war pro FRAME gemeint, nicht pro Sekunde -
-    // als Exponent von dt bei kleinen dt ist das praktisch keine Dämpfung und der
-    // Shake hätte unbegrenzt aufsummiert).
-    const shakeDamp = Math.pow(0.05, dt);
-    cameraShake.x *= shakeDamp;
-    cameraShake.y *= shakeDamp;
-    cameraShake.x = Math.max(-0.05, Math.min(0.05, cameraShake.x));
-    cameraShake.y = Math.max(-0.05, Math.min(0.05, cameraShake.y));
+    if(lastFlash > 0.05){
+      cameraShake.jx = (Math.random()-0.5) * lastFlash * 0.05;
+      cameraShake.jy = (Math.random()-0.5) * lastFlash * 0.05;
+    }
+    const joltDamp = Math.pow(0.02, dt); // Blitz-Ruck klingt binnen weniger Frames ab
+    cameraShake.jx *= joltDamp;
+    cameraShake.jy *= joltDamp;
+
+    cameraShake.x = swayX + cameraShake.jx;
+    cameraShake.y = swayY + cameraShake.jy;
   }
   tickStory(dt);
   tickActBlend(dt);
