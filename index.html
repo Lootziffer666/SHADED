@@ -1588,11 +1588,21 @@ function analyze(){
 
   // 3) Abgeleitete Karten
   const pathHard=new Float32Array(AW*AH);
-  for(let j=0;j<classGrid.length;j++) pathHard[j]= classGrid[j]===P?1:0;
-  const dPath = chamfer(pathHard,AW,AH);
+  const rockHard=new Float32Array(AW*AH);
+  for(let j=0;j<classGrid.length;j++){
+    pathHard[j]= classGrid[j]===P?1:0;
+    rockHard[j]= classGrid[j]===K?1:0;
+  }
+  const dPath = chamfer(pathHard,AW,AH);                // Pfad-Distanz (phys.a)
   const scale = Math.max(6, AW/60);                     // "Senken"-Tiefe relativ zur Pfadbreite
+  // Hohlwasser: Depressionstiefe für PFAD- UND FELS-Senken. Chamfer-Distanz zum
+  // Maskenrand, auf der vereinten Pfad/Fels-Maske, damit Wasser in beiden
+  // Materialien glaubwürdig in den Kuhlen sammelt (eine Material-Wahrheit).
+  const depMask=new Float32Array(AW*AH);
+  for(let j=0;j<classGrid.length;j++) depMask[j]= pathHard[j]||rockHard[j];
+  const dDep = chamfer(depMask,AW,AH);
   const depthMap=new Float32Array(AW*AH);
-  for(let j=0;j<AW*AH;j++) depthMap[j]=Math.pow(Math.min(1,dPath[j]/scale),0.8);
+  for(let j=0;j<AW*AH;j++) depthMap[j]=Math.pow(Math.min(1,dDep[j]/scale),0.8);
 
   const pathBlur=Float32Array.from(pathHard); boxBlur(pathBlur,AW,AH,Math.round(scale*0.9),3);
   const bleed=new Float32Array(AW*AH);                  // Wasser blutet in Grasränder aus
