@@ -2642,6 +2642,7 @@ PARAM_META.forEach(([key,label])=>{
   d.querySelector('input').oninput=e=>{
     stopStory();
     PARAMS[key]=+e.target.value/100;
+    CUR[key]=PARAMS[key];
     document.getElementById('v-'+key).textContent=PARAMS[key].toFixed(2);
   };
 });
