@@ -413,6 +413,36 @@ void main(){
     col = mix(col, mudCol, mud*0.85);
   }
 
+  // === Weltgesetz #2 (vertieft): oberflächenspezifische, lesbare Spuren ===
+  // R = frische Störung/Delle (transient), B = permanenter Trampelpfad.
+  // Das Erscheinungsbild hängt vom Untergrund (Masken), nie von der Farbe.
+  float fpFresh = trail.r;
+  float fpPerm  = trail.b;
+  // Zeitmesser / Alter: frisch & nass = dunkler, glänzender Kern;
+  // trocken/alt = matter, mit hellerem Rand (verknüpft mit #42 Trocknung).
+  float fpDry = clamp(u_dryPhase*0.4 + (1.0 - u_wet)*0.6, 0.0, 1.0);
+  float fpN = fbm(uv*vec2(150.0*u_aspect,150.0));
+  float fpCore = smoothstep(0.12,0.70, fpFresh) * (0.65+0.35*fpN);
+  float fpRim  = smoothstep(0.25,0.95, fpFresh) * (1.0-smoothstep(0.0,1.0,fpN)) * fpDry;
+  // Sand/lose Erde (Pfad, trocken): weiche Vertiefung + verwehter heller Rand
+  float loose = mPath*(1.0-mWater);
+  col = mix(col, col*0.80, fpCore*loose);
+  col = mix(col, col*1.10+0.03, fpRim*loose*clamp(u_wind+0.3,0.0,1.0)*0.5);
+  // Moos / Grün (Gras, Foliage): dunkle Druckstellen
+  float mossy = clamp(mGrass+mFol,0.0,1.0);
+  col = mix(col, col*0.58, fpCore*mossy);
+  col = mix(col, col*0.68, fpRim*mossy*0.5);
+  // Fels: helle Kratzspur (Korn kurz hervorgehoben)
+  col = mix(col, col*1.12, fpCore*mRock*0.5);
+  // Holz: dunkle, verdichtete Spur
+  col = mix(col, col*0.66, fpCore*mWood);
+  // Permanenter Trampelpfad auf festem Boden: braune Lehmbahn (Schlamm-Übertragung)
+  float track = smoothstep(0.18,0.90, fpPerm) * (mPath+mRock+mWood+mFol*0.4) * noZone;
+  vec3 trackCol = vec3(0.34,0.25,0.15)*(0.55+0.70*lum(base));
+  col = mix(col, trackCol, track*0.70);
+  // Frische, nasse Spur glänzt dunkel (Zeitmesser: noch feucht)
+  col = mix(col, col*0.86, fpCore*(mPath+mRock+mGrass)*u_wet*0.5);
+
   // --- Specular-Sheen auf nassen, obenliegenden Kanten ---
   float lC = lum(texture2D(u_scene,uv).rgb);
   float lU = lum(texture2D(u_scene,uv-vec2(0.0,u_px.y*3.0)).rgb);
@@ -654,6 +684,9 @@ void main(){
     vec3 snowCol = (vec3(0.90,0.93,0.98) + 0.06*vnoise(uv*vec2(90.0*u_aspect,90.0)) + sparkleS*0.35)
                  * (0.78+0.22*lum(base));   // Relief bleibt lesbar
     col = mix(col, snowCol, cover*0.95);
+    // Tiefe, dunkle Eindrücke im Schnee (Schuhabdruck gräbt sich ein)
+    float fpDent = smoothstep(0.15,0.95, trail.r) * cover;
+    col = mix(col, col*0.48 + vec3(0.02,0.03,0.06), fpDent*0.6);
   }
 
   // --- Wolkenschatten wandern (Tag) ---
@@ -908,17 +941,50 @@ function trailStamp(u,v,rad,ch,strength,cap){
   }
   trailDirty=true;
 }
+const _driftBuf=new Uint8Array(TR*TR*4);
+let _driftAcc=0;
 function trailTick(dt){
   trailDecayAcc+=dt;
   if(trailDecayAcc<0.066) return;              // ~15 Hz genügt
   const d=trailDecayAcc; trailDecayAcc=0;
-  const kR=Math.exp(-d*0.462), kG=Math.exp(-d*1.733), kA=Math.exp(-d*0.028);
+  const rain=(typeof CUR!=='undefined'?CUR.rain:0)||0;
+  const wind=(typeof CUR!=='undefined'?CUR.wind:0)||0;
+  // #2: Regen wäscht frische Spuren (R) schnell aus; der permanente Trampelpfad (B)
+  //     bleibt erhalten (Katalog: "Trampelpfade Wochen"). Feuer konserviert kurz (A).
+  const rR=0.462 + rain*1.6;                    // Regen beschleunigt Dellen-Abbau
+  const kR=Math.exp(-d*rR), kG=Math.exp(-d*1.733), kA=Math.exp(-d*0.028);
   let any=false;
   for(let i=0;i<trailData.length;i+=4){
     if(trailData[i])  {trailData[i]  =(trailData[i]*kR)|0; any=true;}
     if(trailData[i+1]){trailData[i+1]=(trailData[i+1]*kG)|0; any=true;}
+    if(trailData[i+2]){any=true;}                 // B: permanent, kein Decay
     if(trailData[i+3]){trailData[i+3]=(trailData[i+3]*kA)|0; any=true;}
   }
+  // #2: Wind verweht Asche/Ruß (A-Kanal) in Windrichtung (+x, leichte Hebung).
+  //     Nur bei spürbarem Wind, gedrosselt (~4 Hz), um CPU zu schonen.
+  if(wind>0.12){
+    _driftAcc+=d;
+    if(_driftAcc>=0.25){
+      _driftAcc=0;
+      const sx=Math.max(1,Math.round(wind*2.0));   // Versatz in Pixeln, downwind
+      const sy=-1;                                  // Asche steigt leicht auf
+      const buf=_driftBuf; buf.set(trailData);
+      const keep=0.72;                              // Rest bleibt liegen (Verwehung, kein Teleport)
+      for(let y=0;y<TR;y++){
+        const ny=y+sy; if(ny<0||ny>=TR) continue;
+        for(let x=0;x<TR;x++){
+          const a=buf[(y*TR+x)*4+3]; if(!a) continue;
+          const nx=x+sx; if(nx<0||nx>=TR) continue;
+          const di=(ny*TR+nx)*4+3;
+          const moved=a*(1-keep)|0;
+          const oi=(y*TR+x)*4+3;
+          trailData[oi]=(a*keep)|0;
+          const nv=trailData[di]+moved; trailData[di]=nv>255?255:nv;
+        }
+      }
+      any=true;
+    }
+  } else _driftAcc=0;
   if(any) trailDirty=true;
 }
 function trailUpload(){
@@ -1820,7 +1886,8 @@ const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
 
 const player={active:false,u:0.5,v:0.6,vu:0,vv:0,exert:0,wet:0,age:0,
-              breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0};
+               breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0,
+               carryMud:0,carryAsh:0};
 const keys={};
 const MAT_SPEED={path:1.0,grass:0.75,rock:0.85,wood:0.9,foliage:0.6,water:0.45,window:0.9,roof:0.9};
 
@@ -1886,7 +1953,21 @@ function playerTick(dt){
     player.stampAcc=0;
     trailStamp(player.u,player.v+0.006,0.007,0,0.7);
     trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
+    // #2 Übertragung: Schuhe nehmen Schlamm/Asche auf und tragen sie weiter
+    if(player.carryMud>0.05){
+      trailStamp(player.u,player.v+0.006,0.010,2,0.05*player.carryMud,235); // braune Lehmbahn
+      player.carryMud=Math.max(0,player.carryMud-0.35);
+    }
+    if(player.carryAsh>0.05){
+      trailStamp(player.u,player.v+0.006,0.011,3,0.10*player.carryAsh);    // schwarze Asche-Schleppspur
+      player.carryAsh=Math.max(0,player.carryAsh-0.30);
+    }
   }
+  // #2 Aufnahme: nasser Boden -> Schlamm an den Schuhen; verkohlter Boden -> Asche
+  if(CUR.wet>0.25 && (mat==='grass'||mat==='foliage'||mat==='path'))
+    player.carryMud=Math.min(1,player.carryMud+dt*0.5*CUR.wet*(moving?1:0.2));
+  const localChar=trailSample(player.u,player.v).a;
+  if(localChar>0.18) player.carryAsh=Math.min(1,player.carryAsh+dt*0.7);
   // Nässe der Figur
   if(CUR.rain>0.1) player.wet=Math.min(1,player.wet+CUR.rain*dt*0.25);
   let nearFire=fires.some(f=>Math.hypot(f.u-player.u,f.v-player.v)<0.09);
@@ -2395,6 +2476,18 @@ function drawActors(dt){
   const nightMult=1-dayNight*0.3;
   for(const a of sortedActors){
     if(!a.visible||!a.imgReady||!a.manifest)continue;
+    // #2: SWIFT-Aktoren hinterlassen Spuren, wo sie über begehbaren Boden laufen
+    const aMat = (typeof getMaterialTypeAt==='function') ? getMaterialTypeAt(a.x,a.y) : null;
+    const onGround = aMat && aMat!=='water' && aMat!=='roof' && aMat!=='window';
+    if(onGround && (a.depthLayer==='mid'||a.depthLayer==='front') && a._lu!==undefined){
+      const moved=Math.hypot(a.x-a._lu, a.y-a._lv);
+      if(moved>0.012){
+        trailStamp(a.x, a.y+0.006, 0.008, 0, 0.6);                  // frische Delle
+        trailStamp(a.x, a.y+0.006, 0.010, 2, 0.03, 235);           // leichter Dauerpfad
+        if(a.blood) trailStamp(a.x, a.y+0.006, 0.010, 3, 0.12);    // Blut-Schleppspur
+      }
+    }
+    a._lu=a.x; a._lv=a.y;
     const anim=a.manifest.animations[a.anim]||a.manifest.animations[Object.keys(a.manifest.animations)[0]];
     if(!anim||!anim.frames.length)continue;
     a.frameT+=dt*anim.fps;
@@ -2445,8 +2538,9 @@ function drawActors(dt){
 function addActor(opts){
   opts=opts||{};
   const actor={img:null, imgReady:false, depthImg:null, depthReady:false, manifest:null,
-               x:opts.x??0.5, y:opts.y??0.6, scale:opts.scale||1,
-               anim:opts.anim||null, frameT:0, visible:true, depthLayer:opts.depthLayer||'mid'};
+                x:opts.x??0.5, y:opts.y??0.6, scale:opts.scale||1,
+                anim:opts.anim||null, frameT:0, visible:true, depthLayer:opts.depthLayer||'mid',
+                blood:!!opts.blood};
   actors.push(actor);
   if(opts.manifest){
     actor.manifest=parseActorManifest(typeof opts.manifest==='string'?JSON.parse(opts.manifest):opts.manifest);
