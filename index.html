@@ -340,13 +340,16 @@ void main(){
   // --- Frühling: Blütenbäume schäumen auf, Wiesenblumen wachsen in Clustern ---
   if(u_bloom>0.003){
     float lumB2 = lum(base);
-    // 1) Baumkronen: klumpige Blütenwolken (rosa/weiß), dunkle Zwischenräume bleiben
+    // 1) Baumkronen: klumpige Blütenwolken (rosa/weiß) mit sichtbaren Einzelblüten
     float clumps = smoothstep(0.44,0.62, vnoise(uv*vec2(26.0*u_aspect,26.0))*0.6
                                        + vnoise(uv*vec2(64.0*u_aspect,64.0))*0.4);
     float crownHue = vnoise(uv*vec2(7.0*u_aspect,7.0));
     vec3 crownCol = mix(vec3(0.96,0.52,0.76), vec3(0.97,0.89,0.82), smoothstep(0.55,0.85,crownHue))
-                  * (0.85+0.3*lumB2)
-                  * (0.80+0.36*vnoise(uv*vec2(95.0*u_aspect,95.0)));  // innere Blüten-Textur
+                  * (0.85+0.3*lumB2);
+    // feine Blüten-Struktur: helle Flöckchen + Schattierung -> wirkt wie viele kleine Blüten
+    float floret = smoothstep(0.60,0.92, vnoise(uv*vec2(95.0*u_aspect,95.0)));
+    crownCol = mix(crownCol, mix(crownCol, vec3(1.0,0.87,0.93), 0.6), floret*0.55);
+    crownCol *= 0.82 + 0.30*vnoise(uv*vec2(150.0*u_aspect,150.0));   // innere Blüten-Textur
     // Nur echte Kronen blühen: Pixel muss grünlich (Laub) oder rosa (Blütenbaum)
     // sein – dunkle Blauschatten auf Dächern/Wänden können nie blühen.
     float greenish = smoothstep(0.0,0.12, base.g - max(base.r*0.75, base.b*0.95));
@@ -356,31 +359,63 @@ void main(){
     float crownGate = smoothstep(0.62,0.95,mFol) * bloomable * treeSel;  // hart: kein Schmieren über Ränder
     col = mix(col, crownCol, crownGate*u_bloom*clumps*0.95);
 
-    // 2) Wiesenblumen: üppige Blumenteppiche mit hoher Dichte im Frühling
-    float meadow = smoothstep(0.46,0.68, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
-    float density = clamp(meadow + phys.b*0.85, 0.0, 1.0);
+    // 2) Wiesenblumen: echte Blüten mit erkennbaren Petalen, in Clustern, nur auf Gras
     float grassGate = smoothstep(0.5,0.8,mGrass);
-    vec2 fc = uv*vec2(48.0*u_aspect,48.0);  // dichtere Blumen-Grid
-    vec2 fid = floor(fc), ffp = fract(fc)-0.5;
-    float fr = hash(fid);
-    float on = step(1.0 - u_bloom*(0.38+0.62*density), fr);  // höhere Blüten-Wahrscheinlichkeit
-    if(on*grassGate>0.01){
-      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.35;
-      vec2 d = ffp-fOff;
-      float rad = length(d);
-      float ang = atan(d.y,d.x);
-      float size = 0.36*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
-      float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
-      float petal = smoothstep(petalR+0.04, petalR-0.06, rad);
-      float centerDot = smoothstep(size*0.55, size*0.28, rad);   // Blütenkörbchen
-      float pick = hash(fid+4.4);
-      vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
-                  pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
-                  pick<0.82 ? vec3(0.62,0.76,0.97) :             // hellblau
-                              vec3(0.99,0.90,0.55);              // gelb
-      float fm = petal*on*grassGate;
-      col = mix(col, fCol*(0.8+0.55*lumB2), fm*0.98);
-      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate*u_bloom*0.95); // sattes gelbes Körbchen
+    if(grassGate>0.01){
+      float meadow = smoothstep(0.40,0.70, fbm(uv*vec2(4.0*u_aspect,4.0)+13.7));
+      float density = clamp(meadow + phys.b*0.6, 0.0, 1.0);
+      vec2 fscale = vec2(9.0*u_aspect, 9.0);     // grobe Cluster-Zellen
+      vec2 cc = uv*fscale;
+      vec3 fAccum = vec3(0.0);
+      float fCov = 0.0;
+      for(int cx=-1;cx<=1;cx++){
+        for(int cy=-1;cy<=1;cy++){
+          vec2 base = floor(cc)+vec2(float(cx),float(cy));
+          // Cluster nur in dichten Wiesenbereichen
+          float clH = hash(base*1.37+0.31);
+          if(clH > 1.0 - u_bloom*0.9*density){
+            for(int k=0;k<4;k++){
+              vec2 fh = fract(sin(vec2(
+                              dot(base+vec2(float(k)*1.3,float(k)*2.7)+11.0, base*1.7+vec2(3.1,7.9)),
+                              dot(base+vec2(float(k)*0.7,1.1), vec2(269.5,183.3))
+                            )) * 43758.5453);
+              if(fh.x < u_bloom*(0.45+0.55*density)){
+                vec2 fpos = (base + 0.12 + fh.y*0.76) / fscale;     // Blütenzentrum im Cluster
+                vec2 d = (uv - fpos)*fscale;
+                float r = length(d);
+                float a = atan(d.y,d.x);
+                // Blüte: N Petalen mit sichtbaren Lücken dazwischen
+                float np = 5.0 + floor(fh.y*2.0);                   // 5 oder 6 Petalen
+                float rot = fh.x*6.2831;
+                float pa = a - rot;
+                float lobe = pow(0.5+0.5*cos(np*pa), 2.2);          // scharfe Petalen
+                float outerR = 0.16 + 0.10*fh.y;                    // Blütengröße variiert
+                float innerR = outerR*0.30;
+                float radius = innerR + (outerR-innerR)*lobe;
+                float petal = smoothstep(radius+0.02, radius-0.03, r);
+                float centerR = outerR*0.42;                        // Blütenmitte (Körbchen)
+                float center = smoothstep(centerR+0.015, centerR-0.02, r);
+                // Farbwahl: weiß / rosa / hellblau / gelb (+ lila)
+                float pick = fract(fh.x*1.7 + fh.y*2.3);
+                vec3 petalCol = pick<0.26 ? vec3(0.99,0.97,0.93)
+                              : pick<0.54 ? vec3(0.97,0.68,0.83)
+                              : pick<0.76 ? vec3(0.63,0.77,0.97)
+                              : pick<0.92 ? vec3(0.99,0.88,0.50)
+                                          : vec3(0.80,0.62,0.92);
+                vec3 centerCol = (pick<0.76) ? vec3(1.0,0.78,0.18)
+                                             : vec3(0.98,0.82,0.30);
+                petalCol *= 0.82 + 0.35*smoothstep(0.0, outerR, r);  // Basis dunkler als Spitze
+                vec3 bcol = mix(petalCol, centerCol, center);
+                float cover = max(petal, center*0.9);
+                float ba = cover*grassGate*u_bloom;            // 'over'-Blending (premultipliziert)
+                fAccum += bcol * ba * (1.0 - fCov);
+                fCov   += ba * (1.0 - fCov);
+              }
+            }
+          }
+        }
+      }
+      if(fCov>0.001) col = mix(col, fAccum/max(fCov,1e-3), fCov);
     }
   }
 
