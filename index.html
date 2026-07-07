@@ -1744,6 +1744,7 @@ function playStory(){
 }
 function stopStory(){
   playing=false;
+  actBlend=null;
   document.getElementById('btn-play').textContent='▶ Abspielen';
   document.getElementById('btn-play').classList.remove('active');
   document.querySelectorAll('.story-step').forEach(e=>e.classList.remove('playing'));
