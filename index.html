@@ -811,24 +811,25 @@ void main(){
     col = mix(col, vec3(0.93,0.95,1.0), clamp(sf,0.0,1.0)*0.85);
   }
 
-  // --- Regenschlieren (3 Parallax-Schichten, windgeschert) ---
+  // --- Regenschlieren: dünne, diagonal fallende Linien, EINSEITIG wind-getrieben ---
   if(u_rain>0.004){
     float rn = 0.0;
+    float slope = 0.16 + u_wind*0.38;            // dx/dy der Fallrichtung (GLEICH für alle Schichten!)
     for(int i=0;i<3;i++){
       float fi=float(i);
-      vec2 ruv = uv;
-      // Gleiche Scherung (Winkel) für alle Schichten - nur Skalierung/Phasengeschwindigkeit
-      // unterscheidet sich (Tiefen-Parallaxe). Vorher variierte der Winkel pro Schicht
-      // (*(1.0+fi*0.13)), was zusammen mit den unterschiedlichen Skalen wie Regen aus
-      // zwei Richtungen aussah (bestätigt durch Vergleichsscreenshots mit 1/2/3 Schichten).
-      ruv.x += ruv.y*(0.16+u_wind*0.38);
-      ruv *= vec2(90.0+fi*45.0, 2.3+fi*0.9);
-      ruv.y -= u_rainPhase*(2.7+fi*1.2);          // Phase MINUS = Muster wandert nach unten (uv.y wächst abwärts)
-      float colid = floor(ruv.x);
-      float y = fract(ruv.y + hash(vec2(colid,fi))*13.7);
-      float on = step(1.0 - u_rain*0.42, hash(vec2(colid,fi+9.0)));
-      rn += on * smoothstep(0.35,0.0,abs(fract(ruv.x)-0.5))
-              * smoothstep(0.0,0.10,y)*smoothstep(0.50,0.22,y) * (1.0-fi*0.22);
+      float scaleX = 60.0 + fi*40.0;             // Streifendichte quer zur Fallrichtung
+      float scaleY = 2.2  + fi*0.9;              // Zellen entlang (Parallax)
+      float speed  = 2.7  + fi*1.2;              // Fall-Tempo (Parallax)
+      float lineW  = 0.14;                        // halbe Linienbreite (quer)
+      float across = (uv.x - slope*uv.y) * scaleX;   // Koordinate QUER zur Falllinie (Linien const. entlang (slope,1))
+      float colid  = floor(across);
+      float af     = fract(across) - 0.5;
+      float line   = smoothstep(lineW, 0.0, abs(af));   // dünne Linie quer zur Fallrichtung
+      float fy     = uv.y*scaleY - u_rainPhase*speed + hash(vec2(colid,fi))*scaleY;
+      float fyf    = fract(fy);
+      float drop   = smoothstep(0.0,0.10,fyf) * smoothstep(0.85,0.30,fyf);  // langer Tropfen
+      float on     = step(1.0 - u_rain*0.55, hash(vec2(colid,fi+9.0)));
+      rn += on * line * drop * (1.0 - fi*0.22);
     }
     col = mix(col, vec3(0.72,0.80,0.95), clamp(rn,0.0,1.0)*u_rain*0.32);
   }
