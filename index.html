@@ -279,12 +279,38 @@ void main(){
   float veg = clamp(mGrass+mFol,0.0,1.0);
   float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
 
-  // --- Die Szene atmet: Vegetation schwankt im Wind (Domain-Warp) ---
-  float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
-  vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
-  // Intensiverer Kronenschwung, besonders in Laubwäldern und bei Wind
-  float swayStrength = 0.0022 + mFol*0.0018*(0.5+u_wind*0.8);
-  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * swayStrength;  // Impuls schüttelt
+  // --- Vegetation im Wind: Kronen wiegen sich natürlich (kohärent, nicht als Warp) ---
+  // gust: langsam wanderndes Böenfeld; u_windDrift (∫wind dt) gibt Trägheit/Verzögerung
+  float gust = 0.45 + 0.55*vnoise(vec2(u_windDrift*0.12 + t*0.10, uv.y*1.5 + u_windDrift*0.04));
+  // jede Krone leicht phasenverschoben, damit nicht alle Bäume synchron zittern
+  float treePhase = vnoise(uv*vec2(3.0*u_aspect,3.0))*6.2831;
+  // primäre, kohärente Schwingung: die ganze Krone bewegt sich als Körper
+  float wphi = t*(0.7 + 1.3*u_wind) + u_windDrift*0.4;
+  float primary = sin(wphi + treePhase)*0.75 + sin(wphi*0.53 - treePhase*0.8)*0.25;
+  // Blatt-Flattern: hochfrequent & klein -> das "lebendig" Gefühl
+  float flutter = sin(t*6.5 + uv.x*55.0 + uv.y*40.0 + treePhase*3.0);
+  // Ankerung: Bewegung wächst zur Kronenoberseite. folBelow = Laub direkt unterhalb;
+  // je mehr Laub darunter, desto weiter oben im Kronenkörper -> freier schwingend.
+  // Am Kronenfuß (kein Laub darunter) bleibt es ruhig -> "stabiler unten".
+  float folBelow = texture2D(u_maskA, clamp(uv - vec2(0.0,0.018),0.001,0.999)).g;
+  float crownBody = mFol * smoothstep(0.04,0.55, folBelow);
+  float grassBelow = texture2D(u_maskA, clamp(uv - vec2(0.0,0.012),0.001,0.999)).r;
+  float grassBody = mGrass * smoothstep(0.04,0.5, grassBelow);
+  // Wind-Richtung: überwiegend horizontal (u_wind ist Betrag; Downwind = +x, leichte Hebung)
+  vec2 windDir = normalize(vec2(1.0, 0.14));
+  float windAmt = u_wind * gust;
+  // stetige Windneigung + Schwingung drumherum -> in jedem Frame sichtbar gekippt
+  float meanLean = windAmt * 0.010;
+  float crownAmp = 0.014*windAmt;
+  vec2 crownSway = windDir * (meanLean + primary*crownAmp) * crownBody
+                 + vec2(flutter*0.6, flutter*0.25) * (0.0003+0.004*windAmt) * crownBody;
+  // Gras: sanftes, aufrechtes Wippen, am Boden verankert
+  float grassAmp = 0.005*windAmt;
+  vec2 grassSway = vec2(sin(wphi*1.3 + treePhase), 0.2*sin(wphi*1.7)) * grassAmp * grassBody;
+  vec2 sway = crownSway + grassSway;
+  // Impuls (Fußtritt/Feuer) schüttelt lokal nach wie vor
+  sway += vec2(sin(t*22.0+uv.x*40.0), cos(t*19.0+uv.y*37.0)) * trail.g * 0.012 * veg;
+  vec2 suv = uv + sway;
   // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
   float lateDecay = smoothstep(0.75,1.0,u_decay);
   suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
@@ -2920,7 +2946,7 @@ function tickWorld(dt){
     // Sinus-Schwingung für Wind/Sturm (glatt, vorhersehbar), und ein separater,
     // schnell abklingender Zufalls-Ruck NUR beim Blitz (der darf ruckartig sein).
     windSwayPhase += dt * (0.30 + CUR.wind*0.22 + CUR.storm*0.15);
-    const swayAmp = (CUR.wind*0.7 + CUR.storm*0.4) * 0.009;
+    const swayAmp = (CUR.wind*0.7 + CUR.storm*0.4) * 0.006;
     const swayX = Math.sin(windSwayPhase) * swayAmp;
     const swayY = Math.sin(windSwayPhase*0.8 + 1.7) * swayAmp * 0.5;
 
