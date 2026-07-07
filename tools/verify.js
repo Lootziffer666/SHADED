@@ -36,6 +36,14 @@ const server = http.createServer((req, res) => {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 
+  // Screenshot via Viewport-Clip (kein "element stability"-Wait, der auf dauerhaft
+  // animierenden WebGL-Canvas hängt). Semantik der Verifikation bleibt unverändert.
+  async function shotSel(sel, file) {
+    const el = await page.$(sel);
+    const box = await el.boundingBox();
+    await page.screenshot({ path: file, clip: box });
+  }
+
   // Klassenzählung + Regression gegen tools/expected-classes.json (±10 %)
   async function logClasses(label) {
     const c = await page.evaluate(() => {
@@ -78,7 +86,7 @@ const server = http.createServer((req, res) => {
   for (const [act, t] of shots) {
     await page.evaluate(([a, tt]) => { window.SHADED.applyAct(a); window.SHADED.setTime(tt,true); }, [act, t]);
     await page.waitForTimeout(250);
-    await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_' + act + '.png') });
+    await shotSel('#gl', path.join(OUT, 'shot_' + act + '.png'));
   }
 
   // Zeitraffer-Mitte: halber Verfall (Holz grau, Dach-Moos beginnt, Pfad noch frei)
@@ -88,7 +96,7 @@ const server = http.createServer((req, res) => {
     window.SHADED.setTime(4.4,true);
   });
   await page.waitForTimeout(250);
-  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_zeitraffer_mitte.png') });
+  await shotSel('#gl', path.join(OUT, 'shot_zeitraffer_mitte.png'));
 
   // Interaktionstest (Runde 4): Trampelpfad wächst, Delle klingt ab, Feuer leuchtet
   await page.evaluate(() => {
@@ -109,7 +117,7 @@ const server = http.createServer((req, res) => {
     `R=${s1.r.toFixed(3)} -> ${s2.r.toFixed(3)} nach 3.2s  =>  ${trailOk ? 'PASS' : 'FAIL'}`);
   await page.evaluate(u => window.SHADED.fire.ignite(u.u + 0.08, u.v), p0);
   await page.waitForTimeout(700);
-  await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_interaktion.png') });
+  await shotSel('#canvas-wrap', path.join(OUT, 'shot_interaktion.png'));
 
   // Actor-Test (Runde 4+): SWIFT-generierte Sprite-Sheet laden
   console.log('\n=== ACTOR-SYSTEM TEST ===');
@@ -146,7 +154,7 @@ const server = http.createServer((req, res) => {
       window.SHADED.setTime(2.0, true);
     });
     await page.waitForTimeout(250);
-    await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_actor_mid.png') });
+    await shotSel('#canvas-wrap', path.join(OUT, 'shot_actor_mid.png'));
 
     // Tiefe-Layer testen: front
     await page.evaluate(() => {
@@ -158,7 +166,7 @@ const server = http.createServer((req, res) => {
       window.SHADED.setTime(2.0, true);
     });
     await page.waitForTimeout(250);
-    await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_actor_fog_night.png') });
+    await shotSel('#canvas-wrap', path.join(OUT, 'shot_actor_fog_night.png'));
     console.log('Actor-Rendering Tests: PASS (siehe shot_actor_*.png)');
   } else {
     console.log('Actor-Test-Fixtures nicht gefunden (OK für CI ohne SWIFT)');
@@ -173,7 +181,7 @@ const server = http.createServer((req, res) => {
   await page.waitForFunction(() => window.SHADED.isReady());
   await page.evaluate(() => { window.SHADED.applyAct('sturmnacht'); window.SHADED.setTime(21.7,true); });
   await page.waitForTimeout(250);
-  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_map_sturmnacht.png') });
+  await shotSel('#gl', path.join(OUT, 'shot_map_sturmnacht.png'));
 
   const mats = await page.evaluate(() => [
     window.SHADED.getMaterialTypeAt(0.5, 0.6),  // Pfadmitte
@@ -195,7 +203,7 @@ const server = http.createServer((req, res) => {
     window.SHADED.setTime(5.0, true);
   });
   await page.waitForTimeout(250);
-  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_taverne_regen.png') });
+  await shotSel('#gl', path.join(OUT, 'shot_taverne_regen.png'));
   await logClasses('taverne');
   console.log('Struktur-Pass Taverne:', JSON.stringify(await page.evaluate(() => window.SHADED.structure())));
 
@@ -209,7 +217,7 @@ const server = http.createServer((req, res) => {
     window.SHADED.setParams({ ...window.SHADED.getParams(), rain: 0.3 });
     window.SHADED.setTime(21.7, true); });
   await page.waitForTimeout(250);
-  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_kanon_sturmnacht.png') });
+  await shotSel('#gl', path.join(OUT, 'shot_kanon_sturmnacht.png'));
 
   // Fünfter Durchlauf: Kanon-Dorf perspektivisch MIT Himmel (Bildkanon K7)
   await page.setInputFiles('#f-scene', path.join(REPO, 'file_00000000723471f48a11eaa8371edfb7.png'));
@@ -221,7 +229,7 @@ const server = http.createServer((req, res) => {
     window.SHADED.setParams({ ...window.SHADED.getParams(), rain: 0.3 });
     window.SHADED.setTime(21.7, true); });
   await page.waitForTimeout(250);
-  await (await page.$('#gl')).screenshot({ path: path.join(OUT, 'shot_himmel_sturmnacht.png') });
+  await shotSel('#gl', path.join(OUT, 'shot_himmel_sturmnacht.png'));
   console.log('Konsole-Fehler:', errors.length ? errors.join(' | ') : 'keine');
   await browser.close();
   server.close();

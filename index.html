@@ -235,6 +235,8 @@ uniform float u_smellDrift;   // Geruchswolken von Verfall/Feuer (#6)
 uniform float u_touchWear;    // Berührungsspuren: abgegriffene Stellen (#45)
 uniform float u_repairMark;   // Sichtbare Reparaturen mit neuer Farbe (#30)
 uniform float u_blessCurse;   // Segen/Fluch: Material-Verhalten konditioniert (#49)
+uniform float u_bloodStain;   // Übertragene Blut-Schicht auf Schuhen (#2: Blut-Transfer)
+uniform float u_mudStain;     // Übertragene Schlamm-Schicht auf Schuhen (#2: Schlamm-Transfer)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -411,6 +413,37 @@ void main(){
   if(mud>0.003){
     vec3 mudCol = mix(u_grassAvg*0.55, vec3(0.32,0.23,0.14), 0.7)*(0.45+0.85*lum(base));
     col = mix(col, mudCol, mud*0.85);
+  }
+
+  // --- Weltgesetz #2: oberflächenspezifische Spuren, lesbar & konsequent ---
+  // Kanäle: R=frische Imprint/Delle (1.5s, Regen wäscht), G=Impuls (0.4s),
+  //         B=permanenter Trampel-/Trag-Pfad, A=Hitze/Brand/Asche (~25s, Wind verweht)
+  // (a) MOOS: betretene Moosflächen quetschen dunkel nach (Kaschierung der Gefahr)
+  if(mGrass>0.35 && (u_mossBoost>0.05 || u_decay>0.25)){
+    float mossCov = clamp(u_mossBoost*3.0 + (u_decay-0.25)*2.2, 0.0, 1.0);
+    float crush = smoothstep(0.12,0.7, trail.b)*mGrass*mossCov*noZone;
+    col = mix(col, vec3(0.07,0.12,0.05)*(0.5+0.7*lum(base)), crush*0.85);
+  }
+  // (b) ASCHE: auf gebranntem Grund schwarze Schleppspuren + Aschepuff beim Auftreten
+  if(trail.a>0.06){
+    float ash = max(smoothstep(0.12,0.7, trail.a), smoothstep(0.10,0.6, trail.b)*step(0.06,trail.a));
+    col = mix(col, vec3(0.05,0.045,0.04)*(0.55+0.5*lum(base)), ash*noZone*0.80);
+    col = mix(col, vec3(0.46,0.44,0.42), clamp(trail.g,0.0,1.0)*ash*0.30);
+  }
+  // (c) SCHLAMM-/BLUT-ÜBERTRAGUNG: beschuhte Figur trägt dunkle Spur auf fremde Flächen
+  {
+    float trk = smoothstep(0.18,0.9, trail.b) * (mPath+mRock+mWood+mWin) * (1.0-mGrass) * noZone;
+    float carry = clamp(u_mudStain + u_bloodStain, 0.0, 1.0);   // nur bei Kontamination
+    vec3 trCol = mix(vec3(0.22,0.15,0.09), vec3(0.10,0.07,0.05), u_wet);
+    trCol = mix(trCol, vec3(0.34,0.03,0.04), clamp(u_bloodStain,0.0,1.0));   // Blut-Transfer
+    col = mix(col, trCol*(0.55+0.6*lum(base)), trk*0.6*carry);
+  }
+  // (d) ZEITMESSER: frische (nasse) Fußspur = dunkler, feucht glänzender Kern;
+  //     klingt als R ab -> trocknet zu matter Delle (verknüpft mit #42 Trocknung)
+  {
+    float fresh = smoothstep(0.05,0.6, trail.r)*ground;
+    col = mix(col, col*0.72, fresh*u_wet*0.55);                 // nass dunkelt
+    col += vec3(0.82,0.90,1.0)*fresh*u_wet*0.10*ground;         // feuchter Glanz
   }
 
   // --- Specular-Sheen auf nassen, obenliegenden Kanten ---
@@ -654,6 +687,13 @@ void main(){
     vec3 snowCol = (vec3(0.90,0.93,0.98) + 0.06*vnoise(uv*vec2(90.0*u_aspect,90.0)) + sparkleS*0.35)
                  * (0.78+0.22*lum(base));   // Relief bleibt lesbar
     col = mix(col, snowCol, cover*0.95);
+    // (Weltgesetz #2) tiefe Schnee-Abdrücke: frische Delle (R) legt dunkle,
+    // gepresste Kruste frei; permanenter gestampfter Pfad (B) bleibt matt liegen.
+    float snowMask = (mGrass+mFol+mRoof+mRock+mPath)*smoothstep(0.35,0.7,u_snow);
+    float deep = smoothstep(0.05,0.6, trail.r)*snowMask;
+    col = mix(col, mix(vec3(0.55,0.62,0.74), vec3(0.30,0.36,0.48), deep)*(0.7+0.3*lum(base)), deep*0.70);
+    float packedSnow = smoothstep(0.05,0.5, trail.b)*snowMask;
+    col = mix(col, vec3(0.72,0.78,0.88)*(0.7+0.3*lum(base)), packedSnow*0.45);
   }
 
   // --- Wolkenschatten wandern (Tag) ---
@@ -868,7 +908,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
  'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone',
- 'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold','u_runeGlow',
+ 'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold',  'u_runeGlow','u_bloodStain','u_mudStain',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -913,7 +953,10 @@ function trailTick(dt){
   trailDecayAcc+=dt;
   if(trailDecayAcc<0.066) return;              // ~15 Hz genügt
   const d=trailDecayAcc; trailDecayAcc=0;
-  const kR=Math.exp(-d*0.462), kG=Math.exp(-d*1.733), kA=Math.exp(-d*0.028);
+  // Regen wäscht frische Spuren (R) langsam aus; Wind verweht Asche/Brand (A)
+  const rainWash = 1 + (CUR?CUR.rain:0)*2.5;
+  const windBlow = 1 + (CUR?CUR.wind:0)*1.6;
+  const kR=Math.exp(-d*0.462*rainWash), kG=Math.exp(-d*1.733), kA=Math.exp(-d*0.028*windBlow);
   let any=false;
   for(let i=0;i<trailData.length;i+=4){
     if(trailData[i])  {trailData[i]  =(trailData[i]*kR)|0; any=true;}
@@ -1831,7 +1874,7 @@ const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
 
 const player={active:false,u:0.5,v:0.6,vu:0,vv:0,exert:0,wet:0,age:0,
-              breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0};
+               breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0,mud:0,ash:0,blood:0};
 const keys={};
 const MAT_SPEED={path:1.0,grass:0.75,rock:0.85,wood:0.9,foliage:0.6,water:0.45,window:0.9,roof:0.9};
 
@@ -1891,12 +1934,31 @@ function playerTick(dt){
   const du=player.vu*dt, dv=player.vv*dt;
   player.u=Math.max(0.01,Math.min(0.99,player.u+du));
   player.v=Math.max(0.01,Math.min(0.99,player.v+dv));
-  // Fußspuren: transiente Delle + permanenter Trampelpfad
+  // Fußspuren: oberflächenspezifisch, lesbar & konsequent (Weltgesetz #2)
   player.stampAcc+=Math.hypot(du,dv);
   if(player.stampAcc>0.014){
     player.stampAcc=0;
-    trailStamp(player.u,player.v+0.006,0.007,0,0.7);
+    const mat=getMaterialTypeAt(player.u,player.v)||'path';
+    const onSnow = CUR.snow>0.05 && (mat==='grass'||mat==='foliage'||mat==='roof'||mat==='rock'||mat==='path');
+    const onAsh  = trailSample(player.u,player.v).a>0.15;        // steht auf Brand/Asche
+    const wet = CUR.wet>0.4 || mat==='water';
+    // Kontamination an den Schuhen: Schlamm aus Nässe, Asche von Brandstellen
+    if(wet && (mat==='path'||mat==='grass'||mat==='water')) player.mud=Math.min(1,player.mud+0.25);
+    else player.mud=Math.max(0,player.mud-dt*0.4);
+    player.ash = onAsh?1:Math.max(0,player.ash-dt*0.6);
+    // (R) frische Delle – tief auf Schnee, leicht auf Stein/Holz
+    let rStr=0.7, rRad=0.007;
+    if(onSnow){ rStr=1.0; rRad=0.010; }
+    else if(mat==='rock'||mat==='wood'){ rStr=0.4; rRad=0.006; }
+    trailStamp(player.u,player.v+0.006,rRad,0,rStr);
+    // (B) permanenter Trampelpfad – Basis wie Runde 4 (sichtbar & beständig)
     trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
+    // Zusatz-Charakter: gestampfter Schnee / Asche-Schleppspur
+    if(onSnow) trailStamp(player.u,player.v+0.006,0.010,2,0.03,200);
+    else if(player.ash>0) trailStamp(player.u,player.v+0.006,0.009,2,0.04,180);
+    // (G) Impuls: Aschepuff / Matschspritzer
+    if(player.ash>0) trailStamp(player.u,player.v+0.006,0.012,1,0.5);
+    else if(player.mud>0.5 && wet) trailStamp(player.u,player.v+0.006,0.010,1,0.4);
   }
   // Nässe der Figur
   if(CUR.rain>0.1) player.wet=Math.min(1,player.wet+CUR.rain*dt*0.25);
@@ -2451,6 +2513,22 @@ function drawActors(dt){
       }
     }
     ovx.globalAlpha=oldAlpha;
+    // Weltgesetz #2: SWIFT-Aktoren hinterlassen Spuren, wo es Sinn ergibt
+    // (nur front/mid – back-Akteure stehen hinter der Szene, keine Bodenspur)
+    if(a.depthLayer!=='back'){
+      if(a._lx!==undefined){
+        const am=Math.hypot(a.x-a._lx, a.y-a._ly);
+        if(am>0.004){
+          a._ta=(a._ta||0)+am;
+          if(a._ta>0.02){
+            a._ta=0;
+            trailStamp(a.x, a.y, 0.008, 0, 0.45);             // frischer Abdruck
+            trailStamp(a.x, a.y, 0.010, 2, 0.03, 170);        // leichter Pfad
+          }
+        }
+      }
+      a._lx=a.x; a._ly=a.y;
+    }
   }
 }
 function addActor(opts){
@@ -2926,7 +3004,7 @@ document.getElementById('btn-add').onclick=()=>{
 // =========================== Render-Loop ===========================
 // Welt-Logik läuft in festen Substeps (max 50 ms): Die Weltzeit folgt der
 // Echtzeit auch bei niedriger Framerate (Headless, schwache GPU, Tab-Drossel).
-let time=0,lastT=0,mossBoost=0,timeFrozen=false;
+let time=0,lastT=0,mossBoost=0,bloodStain=0,mudStain=0,timeFrozen=false;
 // Aufsummierte Wetter-Phasen: laufen NUR vorwärts, auch wenn Wind/Regen
 // abklingen (sonst "Rewind" der letzten Tropfen beim Sturm-Ende).
 let rainPhase=0, windDrift=0, dryPhase=0, heatWarp=0, rustAccum=0, smokeAmount=0;
@@ -2993,10 +3071,12 @@ function tickWorld(dt){
   tickStory(dt);
   tickActBlend(dt);
   if(!playing&&!actBlend) for(const key in PARAMS) CUR[key]+= (PARAMS[key]-CUR[key])*Math.min(1,dt*4);
-  if(ready){
-    // Feuchte-Patina: lange Nässe lässt Moos schneller kommen (persistiert über Akte)
-    mossBoost = Math.min(1, mossBoost + dt*Math.max(0, CUR.wet-0.5)*0.02);
-    playerTick(dt);
+    if(ready){
+      // Feuchte-Patina: lange Nässe lässt Moos schneller kommen (persistiert über Akte)
+      mossBoost = Math.min(1, mossBoost + dt*Math.max(0, CUR.wet-0.5)*0.02);
+      bloodStain = Math.min(1, player.blood);   // Blut-Transfer auf Schuhen (#2)
+      mudStain = Math.min(1, player.mud);       // Schlamm-Transfer auf Schuhen (#2)
+      playerTick(dt);
     fireTick(dt);
     ecoTick(dt);
     snowTick(dt);
@@ -3043,6 +3123,8 @@ function frame(now){
     gl.uniform1f(U.u_touchWear,touchWear);
     gl.uniform1f(U.u_repairMark,repairMark);
     gl.uniform1f(U.u_blessCurse,blessCurse);
+    gl.uniform1f(U.u_bloodStain, ready? bloodStain : 0);
+    gl.uniform1f(U.u_mudStain, ready? mudStain : 0);
     gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     lastFlash = ready ? tickLightning(time) : 0;
