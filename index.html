@@ -1744,7 +1744,6 @@ function playStory(){
 }
 function stopStory(){
   playing=false;
-  actBlend=null;
   document.getElementById('btn-play').textContent='▶ Abspielen';
   document.getElementById('btn-play').classList.remove('active');
   document.querySelectorAll('.story-step').forEach(e=>e.classList.remove('playing'));
@@ -2668,6 +2667,7 @@ PARAM_META.forEach(([key,label])=>{
   slidersDiv.appendChild(d);
   d.querySelector('input').oninput=e=>{
     stopStory();
+    actBlend=null;
     PARAMS[key]=+e.target.value/100;
     CUR[key]=PARAMS[key];
     document.getElementById('v-'+key).textContent=PARAMS[key].toFixed(2);
