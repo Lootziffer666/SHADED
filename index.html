@@ -340,13 +340,18 @@ void main(){
   // --- Frühling: Blütenbäume schäumen auf, Wiesenblumen wachsen in Clustern ---
   if(u_bloom>0.003){
     float lumB2 = lum(base);
-    // 1) Baumkronen: klumpige Blütenwolken (rosa/weiß), dunkle Zwischenräume bleiben
-    float clumps = smoothstep(0.44,0.62, vnoise(uv*vec2(26.0*u_aspect,26.0))*0.6
-                                       + vnoise(uv*vec2(64.0*u_aspect,64.0))*0.4);
+    // 1) Baumkronen: üppige Blütenwolken (rosa/weiß) mit erkennbaren Blütenklumpen
+    float clumps = smoothstep(0.46,0.62, fbm(uv*vec2(20.0*u_aspect,20.0)+5.3));
     float crownHue = vnoise(uv*vec2(7.0*u_aspect,7.0));
-    vec3 crownCol = mix(vec3(0.96,0.52,0.76), vec3(0.97,0.89,0.82), smoothstep(0.55,0.85,crownHue))
-                  * (0.85+0.3*lumB2)
-                  * (0.80+0.36*vnoise(uv*vec2(95.0*u_aspect,95.0)));  // innere Blüten-Textur
+    vec3 crownCol = mix(vec3(0.97,0.55,0.78), vec3(0.98,0.90,0.85), smoothstep(0.55,0.85,crownHue));
+    // feine Blüten-Tupfer auf der Krone (deutliche, aber weiche Punkte -> kein Rauschen)
+    vec2 cfc = uv*vec2(64.0*u_aspect,64.0);
+    vec2 cfid = floor(cfc), cffp = fract(cfc)-0.5;
+    float cfr = hash(cfid);
+    vec2 cOff = (vec2(hash(cfid+1.3),hash(cfid+2.6))-0.5)*0.4;
+    float cdist = length(cffp-cOff);
+    float blossom = smoothstep(0.20,0.06, cdist) * step(0.55, cfr);
+    crownCol = mix(crownCol, vec3(1.0,0.96,0.94), blossom*0.5);
     // Nur echte Kronen blühen: Pixel muss grünlich (Laub) oder rosa (Blütenbaum)
     // sein – dunkle Blauschatten auf Dächern/Wänden können nie blühen.
     float greenish = smoothstep(0.0,0.12, base.g - max(base.r*0.75, base.b*0.95));
@@ -354,33 +359,45 @@ void main(){
     float bloomable = clamp(greenish+pinkish, 0.0, 1.0);
     float treeSel = smoothstep(0.42,0.60, vnoise(uv*vec2(3.0*u_aspect,3.0)+7.7)); // nicht jeder Baum
     float crownGate = smoothstep(0.62,0.95,mFol) * bloomable * treeSel;  // hart: kein Schmieren über Ränder
-    col = mix(col, crownCol, crownGate*u_bloom*clumps*0.95);
+    col = mix(col, crownCol, crownGate*u_bloom*clumps*0.92);
 
-    // 2) Wiesenblumen: üppige Blumenteppiche mit hoher Dichte im Frühling
-    float meadow = smoothstep(0.46,0.68, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
-    float density = clamp(meadow + phys.b*0.85, 0.0, 1.0);
+    // 2) Wiesenblumen: erkennbare Blüten in Clustern, NUR auf Gras
     float grassGate = smoothstep(0.5,0.8,mGrass);
-    vec2 fc = uv*vec2(48.0*u_aspect,48.0);  // dichtere Blumen-Grid
+    // Cluster-Feld: Blumen stehen in Gruppen, dazwischen ruhige Wiese
+    float clusterF = fbm(uv*vec2(8.0*u_aspect,8.0)+13.7);
+    float inCluster = smoothstep(0.44,0.64, clusterF);
+    float flowerProb = inCluster * (0.40 + 0.5*u_bloom);
+    // grobes Blumen-Gitter -> deutlich größere, lesbare Blüten (kein Rauschen)
+    vec2 fc = uv*vec2(19.0*u_aspect,19.0) + vec2(hash(vec2(floor(uv.x*3.1),floor(uv.y*2.7)))*0.5);
     vec2 fid = floor(fc), ffp = fract(fc)-0.5;
     float fr = hash(fid);
-    float on = step(1.0 - u_bloom*(0.38+0.62*density), fr);  // höhere Blüten-Wahrscheinlichkeit
+    float on = step(1.0 - flowerProb, fr);  // Blüte nur in Clustern
     if(on*grassGate>0.01){
-      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.35;
-      vec2 d = ffp-fOff;
+      vec2 d = ffp;
       float rad = length(d);
-      float ang = atan(d.y,d.x);
-      float size = 0.36*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
-      float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
-      float petal = smoothstep(petalR+0.04, petalR-0.06, rad);
-      float centerDot = smoothstep(size*0.55, size*0.28, rad);   // Blütenkörbchen
+      float size = 0.32*(0.7+0.6*hash(fid+7.9));   // Blütendurchmesser
+      // Blütenblätter als überlagernde Kreise -> echte, getrennte Petalen
+      const int NP = 5;
+      float petalMask = 0.0;
+      float petalDist = size*0.52;
+      float petalRad  = size*0.40;
+      float rot = fr*6.2831;
+      for(int i=0;i<NP;i++){
+        float a = rot + float(i)*(6.2831/float(NP));
+        vec2 pc = vec2(cos(a),sin(a))*petalDist;
+        petalMask = max(petalMask, smoothstep(petalRad+0.02, petalRad-0.02, length(d-pc)));
+      }
+      float center = smoothstep(size*0.24+0.02, size*0.24-0.02, rad);  // Blütenmitte
+      // Farbvielfalt pro Blüte: weiß / rosa / hellblau / gelb
       float pick = hash(fid+4.4);
-      vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
-                  pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
-                  pick<0.82 ? vec3(0.62,0.76,0.97) :             // hellblau
-                              vec3(0.99,0.90,0.55);              // gelb
-      float fm = petal*on*grassGate;
-      col = mix(col, fCol*(0.8+0.55*lumB2), fm*0.98);
-      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate*u_bloom*0.95); // sattes gelbes Körbchen
+      vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92)
+                : pick<0.58 ? vec3(0.97,0.66,0.82)
+                : pick<0.80 ? vec3(0.60,0.74,0.97)
+                            : vec3(0.99,0.86,0.45);
+      vec3 midCol = vec3(1.0,0.78,0.18);  // sattes gelbes Körbchen
+      float fm = petalMask*on*grassGate;
+      col = mix(col, fCol*(0.82+0.5*lumB2), fm*0.97);
+      col = mix(col, midCol, center*on*grassGate*u_bloom*0.9);
     }
   }
 
