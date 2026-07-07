@@ -358,9 +358,10 @@ void main(){
 
     // 2) Wiesenblumen: üppige Blumenteppiche mit hoher Dichte im Frühling
     float meadow = smoothstep(0.46,0.68, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
-    float density = clamp(meadow + phys.b*0.85, 0.0, 1.0);
+    float patch  = smoothstep(0.30,0.62, fbm(uv*vec2(2.4*u_aspect,2.4)+41.0)); // Cluster: Blumen in Gruppen, nicht gleichmäßig verteilt
+    float density = clamp(meadow*0.6 + patch*0.75 + phys.b*0.6, 0.0, 1.0);
     float grassGate = smoothstep(0.5,0.8,mGrass);
-    vec2 fc = uv*vec2(48.0*u_aspect,48.0);  // dichtere Blumen-Grid
+    vec2 fc = uv*vec2(34.0*u_aspect,34.0);  // größere, lesbare Blumen (kein Rauschen)
     vec2 fid = floor(fc), ffp = fract(fc)-0.5;
     float fr = hash(fid);
     float on = step(1.0 - u_bloom*(0.38+0.62*density), fr);  // höhere Blüten-Wahrscheinlichkeit
@@ -369,7 +370,7 @@ void main(){
       vec2 d = ffp-fOff;
       float rad = length(d);
       float ang = atan(d.y,d.x);
-      float size = 0.36*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
+      float size = 0.46*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
       float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
       float petal = smoothstep(petalR+0.04, petalR-0.06, rad);
       float centerDot = smoothstep(size*0.55, size*0.28, rad);   // Blütenkörbchen
