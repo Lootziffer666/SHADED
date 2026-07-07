@@ -279,12 +279,38 @@ void main(){
   float veg = clamp(mGrass+mFol,0.0,1.0);
   float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
 
-  // --- Die Szene atmet: Vegetation schwankt im Wind (Domain-Warp) ---
-  float gust = 0.55 + 0.45*vnoise(vec2(t*0.4, uv.y*3.0));
-  vec2 sway = vec2(sin(t*1.35+uv.y*26.0+uv.x*11.0), 0.35*cos(t*1.8+uv.x*31.0));
-  // Intensiverer Kronenschwung, besonders in Laubwäldern und bei Wind
-  float swayStrength = 0.0022 + mFol*0.0018*(0.5+u_wind*0.8);
-  vec2 suv = uv + sway * veg * (u_wind*gust + trail.g*3.0) * swayStrength;  // Impuls schüttelt
+  // --- Vegetation im Wind: Kronen wiegen sich natürlich (kohärent, nicht als Warp) ---
+  // gust: langsam wanderndes Böenfeld; u_windDrift (∫wind dt) gibt Trägheit/Verzögerung
+  float gust = 0.45 + 0.55*vnoise(vec2(u_windDrift*0.12 + t*0.10, uv.y*1.5 + u_windDrift*0.04));
+  // jede Krone leicht phasenverschoben, damit nicht alle Bäume synchron zittern
+  float treePhase = vnoise(uv*vec2(3.0*u_aspect,3.0))*6.2831;
+  // primäre, kohärente Schwingung: die ganze Krone bewegt sich als Körper
+  float wphi = t*(0.7 + 1.3*u_wind) + u_windDrift*0.4;
+  float primary = sin(wphi + treePhase)*0.75 + sin(wphi*0.53 - treePhase*0.8)*0.25;
+  // Blatt-Flattern: hochfrequent & klein -> das "lebendig" Gefühl
+  float flutter = sin(t*6.5 + uv.x*55.0 + uv.y*40.0 + treePhase*3.0);
+  // Ankerung: Bewegung wächst zur Kronenoberseite. folBelow = Laub direkt unterhalb;
+  // je mehr Laub darunter, desto weiter oben im Kronenkörper -> freier schwingend.
+  // Am Kronenfuß (kein Laub darunter) bleibt es ruhig -> "stabiler unten".
+  float folBelow = texture2D(u_maskA, clamp(uv - vec2(0.0,0.018),0.001,0.999)).g;
+  float crownBody = mFol * smoothstep(0.04,0.55, folBelow);
+  float grassBelow = texture2D(u_maskA, clamp(uv - vec2(0.0,0.012),0.001,0.999)).r;
+  float grassBody = mGrass * smoothstep(0.04,0.5, grassBelow);
+  // Wind-Richtung: überwiegend horizontal (u_wind ist Betrag; Downwind = +x, leichte Hebung)
+  vec2 windDir = normalize(vec2(1.0, 0.14));
+  float windAmt = u_wind * gust;
+  // stetige Windneigung + Schwingung drumherum -> in jedem Frame sichtbar gekippt
+  float meanLean = windAmt * 0.010;
+  float crownAmp = 0.014*windAmt;
+  vec2 crownSway = windDir * (meanLean + primary*crownAmp) * crownBody
+                 + vec2(flutter*0.6, flutter*0.25) * (0.0003+0.004*windAmt) * crownBody;
+  // Gras: sanftes, aufrechtes Wippen, am Boden verankert
+  float grassAmp = 0.005*windAmt;
+  vec2 grassSway = vec2(sin(wphi*1.3 + treePhase), 0.2*sin(wphi*1.7)) * grassAmp * grassBody;
+  vec2 sway = crownSway + grassSway;
+  // Impuls (Fußtritt/Feuer) schüttelt lokal nach wie vor
+  sway += vec2(sin(t*22.0+uv.x*40.0), cos(t*19.0+uv.y*37.0)) * trail.g * 0.012 * veg;
+  vec2 suv = uv + sway;
   // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
   float lateDecay = smoothstep(0.75,1.0,u_decay);
   suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
@@ -314,13 +340,18 @@ void main(){
   // --- Frühling: Blütenbäume schäumen auf, Wiesenblumen wachsen in Clustern ---
   if(u_bloom>0.003){
     float lumB2 = lum(base);
-    // 1) Baumkronen: klumpige Blütenwolken (rosa/weiß), dunkle Zwischenräume bleiben
-    float clumps = smoothstep(0.44,0.62, vnoise(uv*vec2(26.0*u_aspect,26.0))*0.6
-                                       + vnoise(uv*vec2(64.0*u_aspect,64.0))*0.4);
+    // 1) Baumkronen: üppige Blütenwolken (rosa/weiß) mit erkennbaren Blütenklumpen
+    float clumps = smoothstep(0.46,0.62, fbm(uv*vec2(20.0*u_aspect,20.0)+5.3));
     float crownHue = vnoise(uv*vec2(7.0*u_aspect,7.0));
-    vec3 crownCol = mix(vec3(0.96,0.52,0.76), vec3(0.97,0.89,0.82), smoothstep(0.55,0.85,crownHue))
-                  * (0.85+0.3*lumB2)
-                  * (0.80+0.36*vnoise(uv*vec2(95.0*u_aspect,95.0)));  // innere Blüten-Textur
+    vec3 crownCol = mix(vec3(0.97,0.55,0.78), vec3(0.98,0.90,0.85), smoothstep(0.55,0.85,crownHue));
+    // feine Blüten-Tupfer auf der Krone (deutliche, aber weiche Punkte -> kein Rauschen)
+    vec2 cfc = uv*vec2(64.0*u_aspect,64.0);
+    vec2 cfid = floor(cfc), cffp = fract(cfc)-0.5;
+    float cfr = hash(cfid);
+    vec2 cOff = (vec2(hash(cfid+1.3),hash(cfid+2.6))-0.5)*0.4;
+    float cdist = length(cffp-cOff);
+    float blossom = smoothstep(0.20,0.06, cdist) * step(0.55, cfr);
+    crownCol = mix(crownCol, vec3(1.0,0.96,0.94), blossom*0.5);
     // Nur echte Kronen blühen: Pixel muss grünlich (Laub) oder rosa (Blütenbaum)
     // sein – dunkle Blauschatten auf Dächern/Wänden können nie blühen.
     float greenish = smoothstep(0.0,0.12, base.g - max(base.r*0.75, base.b*0.95));
@@ -328,33 +359,45 @@ void main(){
     float bloomable = clamp(greenish+pinkish, 0.0, 1.0);
     float treeSel = smoothstep(0.42,0.60, vnoise(uv*vec2(3.0*u_aspect,3.0)+7.7)); // nicht jeder Baum
     float crownGate = smoothstep(0.62,0.95,mFol) * bloomable * treeSel;  // hart: kein Schmieren über Ränder
-    col = mix(col, crownCol, crownGate*u_bloom*clumps*0.95);
+    col = mix(col, crownCol, crownGate*u_bloom*clumps*0.92);
 
-    // 2) Wiesenblumen: üppige Blumenteppiche mit hoher Dichte im Frühling
-    float meadow = smoothstep(0.46,0.68, fbm(uv*vec2(5.5*u_aspect,5.5)+13.7));
-    float density = clamp(meadow + phys.b*0.85, 0.0, 1.0);
+    // 2) Wiesenblumen: erkennbare Blüten in Clustern, NUR auf Gras
     float grassGate = smoothstep(0.5,0.8,mGrass);
-    vec2 fc = uv*vec2(48.0*u_aspect,48.0);  // dichtere Blumen-Grid
+    // Cluster-Feld: Blumen stehen in Gruppen, dazwischen ruhige Wiese
+    float clusterF = fbm(uv*vec2(8.0*u_aspect,8.0)+13.7);
+    float inCluster = smoothstep(0.44,0.64, clusterF);
+    float flowerProb = inCluster * (0.40 + 0.5*u_bloom);
+    // grobes Blumen-Gitter -> deutlich größere, lesbare Blüten (kein Rauschen)
+    vec2 fc = uv*vec2(19.0*u_aspect,19.0) + vec2(hash(vec2(floor(uv.x*3.1),floor(uv.y*2.7)))*0.5);
     vec2 fid = floor(fc), ffp = fract(fc)-0.5;
     float fr = hash(fid);
-    float on = step(1.0 - u_bloom*(0.38+0.62*density), fr);  // höhere Blüten-Wahrscheinlichkeit
+    float on = step(1.0 - flowerProb, fr);  // Blüte nur in Clustern
     if(on*grassGate>0.01){
-      vec2 fOff = (vec2(hash(fid+1.3),hash(fid+2.6))-0.5)*0.35;
-      vec2 d = ffp-fOff;
+      vec2 d = ffp;
       float rad = length(d);
-      float ang = atan(d.y,d.x);
-      float size = 0.36*(0.6+0.8*hash(fid+7.9));  // größere, sichtbarere Blumen
-      float petalR = size*(0.64+0.36*cos(ang*5.0 + fr*6.2832));  // 5 Petalen
-      float petal = smoothstep(petalR+0.04, petalR-0.06, rad);
-      float centerDot = smoothstep(size*0.55, size*0.28, rad);   // Blütenkörbchen
+      float size = 0.32*(0.7+0.6*hash(fid+7.9));   // Blütendurchmesser
+      // Blütenblätter als überlagernde Kreise -> echte, getrennte Petalen
+      const int NP = 5;
+      float petalMask = 0.0;
+      float petalDist = size*0.52;
+      float petalRad  = size*0.40;
+      float rot = fr*6.2831;
+      for(int i=0;i<NP;i++){
+        float a = rot + float(i)*(6.2831/float(NP));
+        vec2 pc = vec2(cos(a),sin(a))*petalDist;
+        petalMask = max(petalMask, smoothstep(petalRad+0.02, petalRad-0.02, length(d-pc)));
+      }
+      float center = smoothstep(size*0.24+0.02, size*0.24-0.02, rad);  // Blütenmitte
+      // Farbvielfalt pro Blüte: weiß / rosa / hellblau / gelb
       float pick = hash(fid+4.4);
-      vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92) :             // weiß
-                  pick<0.60 ? vec3(0.97,0.70,0.83) :             // rosa
-                  pick<0.82 ? vec3(0.62,0.76,0.97) :             // hellblau
-                              vec3(0.99,0.90,0.55);              // gelb
-      float fm = petal*on*grassGate;
-      col = mix(col, fCol*(0.8+0.55*lumB2), fm*0.98);
-      col = mix(col, vec3(1.0,0.75,0.14), centerDot*on*grassGate*u_bloom*0.95); // sattes gelbes Körbchen
+      vec3 fCol = pick<0.30 ? vec3(0.99,0.97,0.92)
+                : pick<0.58 ? vec3(0.97,0.66,0.82)
+                : pick<0.80 ? vec3(0.60,0.74,0.97)
+                            : vec3(0.99,0.86,0.45);
+      vec3 midCol = vec3(1.0,0.78,0.18);  // sattes gelbes Körbchen
+      float fm = petalMask*on*grassGate;
+      col = mix(col, fCol*(0.82+0.5*lumB2), fm*0.97);
+      col = mix(col, midCol, center*on*grassGate*u_bloom*0.9);
     }
   }
 
@@ -2921,7 +2964,7 @@ function tickWorld(dt){
     // Sinus-Schwingung für Wind/Sturm (glatt, vorhersehbar), und ein separater,
     // schnell abklingender Zufalls-Ruck NUR beim Blitz (der darf ruckartig sein).
     windSwayPhase += dt * (0.30 + CUR.wind*0.22 + CUR.storm*0.15);
-    const swayAmp = (CUR.wind*0.7 + CUR.storm*0.4) * 0.009;
+    const swayAmp = (CUR.wind*0.7 + CUR.storm*0.4) * 0.006;
     const swayX = Math.sin(windSwayPhase) * swayAmp;
     const swayY = Math.sin(windSwayPhase*0.8 + 1.7) * swayAmp * 0.5;
 
