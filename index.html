@@ -817,21 +817,19 @@ void main(){
     float slope = 0.16 + u_wind*0.38;            // dx/dy der Fallrichtung (GLEICH für alle Schichten!)
     for(int i=0;i<3;i++){
       float fi=float(i);
-      float scaleX = 60.0 + fi*40.0;             // Streifendichte quer zur Fallrichtung
-      float scaleY = 2.2  + fi*0.9;              // Zellen entlang (Parallax)
-      float speed  = 2.7  + fi*1.2;              // Fall-Tempo (Parallax)
-      float lineW  = 0.14;                        // halbe Linienbreite (quer)
+      float scaleX = 55.0 + fi*35.0;             // Streifendichte quer zur Fallrichtung
+      float lineW  = 0.12;                        // halbe Linienbreite (quer)
       float across = (uv.x - slope*uv.y) * scaleX;   // Koordinate QUER zur Falllinie (Linien const. entlang (slope,1))
       float colid  = floor(across);
       float af     = fract(across) - 0.5;
       float line   = smoothstep(lineW, 0.0, abs(af));   // dünne Linie quer zur Fallrichtung
-      float fy     = uv.y*scaleY - u_rainPhase*speed + hash(vec2(colid,fi))*scaleY;
-      float fyf    = fract(fy);
-      float drop   = smoothstep(0.0,0.10,fyf) * smoothstep(0.85,0.30,fyf);  // langer Tropfen
-      float on     = step(1.0 - u_rain*0.55, hash(vec2(colid,fi+9.0)));
-      rn += on * line * drop * (1.0 - fi*0.22);
+      // entlang der Falllinie: aperiodische, gestreckte Noise -> KEINE Zeilen-Periodizität (kein Gitter!)
+      float along  = vnoise(vec2(colid*3.1 + fi*5.0, uv.y*1.6 - u_rainPhase*(0.8+fi*0.4)));
+      float on     = step(1.0 - u_rain*0.5, hash(vec2(colid,fi+9.0)));
+      float streak = smoothstep(0.38, 0.70, along);  // elongierte, unregelmäßige Tropfen
+      rn += on * line * streak * (1.0 - fi*0.22);
     }
-    col = mix(col, vec3(0.72,0.80,0.95), clamp(rn,0.0,1.0)*u_rain*0.32);
+    col = mix(col, vec3(0.72,0.80,0.95), clamp(rn,0.0,1.0)*u_rain*0.42);
   }
 
   // --- Blitz ---
