@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+.claude
+.kiro
+CLAUDE.md
+assetpilot.md
+docs
+*.md
+Dockerfile
+.dockerignore
