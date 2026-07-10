@@ -88,18 +88,19 @@ addActor({
 
 **Location:** `index.html`, lines ~2042–2076
 
-**Algorithm:**
+**Algorithm (via `actorDepthBrightness()`):**
 
-1. **Extract Depth Frame:** Load grayscale pixels for current animation frame
+1. **Extract Depth Frame:** Load grayscale pixels for the animation frame
+   ONCE per frame ID (cached in `actor._depthAvg`, no per-render readback)
 2. **Average Depth:** Compute mean pixel value (0–255)
 3. **Normalize:** `depthFactor = avgDepth / 255` → 0 (far) to 1 (near)
-4. **Temperature Tint:**
-   - Near (high depthFactor): Warm RGB (1.0, 0.95, 0.85)
-   - Far (low depthFactor): Cool RGB (0.8, 0.85, 1.0)
-5. **Store in actor._depthTint** for potential future shader use
+4. **Brightness modulation (applied via `ctx.filter = brightness(...)`):**
+   - Near (high depthFactor): up to +30 % highlight
+   - Far (low depthFactor): up to −15 % darkening
+   - Deliberately NO color tint — actors keep their texture colors
+     (rule: no color shift on actors, transparency/brightness only)
 
-**Current Output:** Depth data extracted; Tint calculated  
-**Future Extension:** Apply tint via canvas blend mode or WebGL shader
+**Current Output:** Depth-driven brightness is applied at draw time
 
 ---
 
@@ -243,17 +244,15 @@ Frame F04 (depth=255): Yellow square+ White depth    (FAR, coolest)
 
 4. **Multi-Pass Rendering**
    - Separate passes for depth analysis
-   - Cache depth tints (don't recompute every frame)
-   - Performance optimization
+   - (Done) Per-frame depth averages are cached — no per-render recompute
 
 ---
 
 ## Technical Debt & Notes
 
 ### Current Limitations
-- Depth-composite logic stores tint in `actor._depthTint` but doesn't use it
 - Only average depth per frame – ignores spatial variation within sprite
-- Canvas-based pixel reading (not GPU-accelerated)
+- Canvas-based pixel reading (not GPU-accelerated), but cached per frame ID
 
 ### Shader Capacity
 - 1 free texture unit (Unit 7) available if needed for depth FBO
@@ -261,8 +260,8 @@ Frame F04 (depth=255): Yellow square+ White depth    (FAR, coolest)
 - Could add depth-based parallax jitter without exceeding budget
 
 ### Performance
-- Depth pixelread happens every frame (small overhead for 64×64 frames)
-- Negligible for 1–4 actors; consider caching if 10+ actors
+- Depth pixelread happens once per frame ID and is cached in `actor._depthAvg`
+- Steady-state render loop performs no `getImageData` readbacks
 
 ---
 

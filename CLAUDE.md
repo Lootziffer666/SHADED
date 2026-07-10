@@ -146,32 +146,43 @@ kommt nur aus `depthLayer` und interner Frame-Ordnung.
 {
   "mappingVersion": "1.4.0",
   "sourceImage": { "w": 256, "h": 64 },
-  "frameRects": { "F01": [x, y, w, h], ... },
+  "frameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... },
   "frames": [{ "id": "F01", "key": "walk_01" }, ...],
   "animations": {
     "walk": { "frames": ["F01", "F02", ...], "fps": 12, "loop": true }
   },
   "depthImage": "sprite_depth.png",           // optional (Phase B2)
   "depthSourceImage": { "w": 256, "h": 64 }, // optional, gleiche Größe wie sourceImage
-  "depthFrameRects": { "F01": [x, y, w, h], ... }  // optional, parallel zu frameRects
+  "depthFrameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... }  // optional, parallel zu frameRects
 }
 ```
+
+**Wichtig:** `frameRects`/`depthFrameRects` sind **Objekte** `{x,y,w,h}`, KEINE Arrays –
+genau so liest sie `parseActorManifest` (`r.x/r.y/r.w/r.h`) und genau so emittiert sie
+SWIFTs `core/exporter.export_manifest`. Das Manifest-Feld `depthImage` ist ein Pfad
+relativ zum Manifest und wird von `addActor` NICHT automatisch geladen – die Depth-Map
+wird als eigene Option `addActor({..., depthImage})` übergeben.
 
 **Phase B2 (Depth-Rendering):**
 - `depthImage`: Pfad zu 8-bit Grayscale PNG (gleiche Größe wie RGB-Sheet)
 - `depthFrameRects`: Frame-Koordinaten in der Depth-Map (identisch zu `frameRects`)
-- Depth-Composite in SHADED: 
-  - Dunklere Pixel (niedrige Z-Werte) = näher Betrachter (heller/warm)
-  - Hellere Pixel (hohe Z-Werte) = ferner weg (dunkler/cool)
-  - Durchschnittliche Depth pro Frame steuert Tinting und Schattenintensität
+- Depth-Composite in SHADED (`actorDepthBrightness`):
+  - Helle Depth-Pixel = nah am Betrachter → bis +30 % Helligkeit
+  - Dunkle Depth-Pixel = fern → bis −15 % Abdunklung
+  - avgDepth wird EINMAL pro Frame-ID berechnet und am Actor gecacht
+    (`actor._depthAvg`) – nie `getImageData` im Render-Pfad
+  - Bewusst KEIN Farbtint (Regel „keine Farbverschiebung auf Actors" gilt auch hier);
+    angewendet wird nur `ctx.filter = brightness(…)` beim Zeichnen
 
 ## Fahrplan (verbindlich, siehe .kiro/specs/)
 
 - Runde 2: Jahreszeiten & Klima (`round-2-seasons-climate`) ✅
 - Runde 3: Material Fatigue & Verfall (`round-3-material-fatigue`) ✅
 - Runde 4: Interaktion & Ökosystem (`round-4-interaction-ecosystem`) ✅
-- Runde 5: Strukturelle Segmentierung / Bildkanon (`round-5-structural-segmentation`)
-  – in Arbeit; nächster Schritt Fachwerk-Signatur (K1) → Gebäudezonen
+- Runde 5: Strukturelle Segmentierung / Bildkanon (`round-5-structural-segmentation`) ✅
+  (alle 9 Tasks abgeschlossen, inkl. Fachwerk-Signatur K1 → Gebäudezonen, Unit 7)
+- Runde 7: Ökosystem-Integration (`docs/round-7-ecosystem.md`, `window.SHADED.ecosystem`)
+  – ohne .kiro-Spec umgesetzt; bei Erweiterungen zuerst Spec nachziehen
 
 Jede Runde arbeitet ihre Spec ab: `requirements.md` → `design.md` → `tasks.md`.
 
@@ -225,8 +236,8 @@ Weitere Kandidaten für zukünftige Runden:
 
 ## Git & Cross-Repo Coordination
 
-- **SHADED Branch**: `claude/combine-repos-workflow-937fs4` (Push mit `git push -u origin <branch>`)
-- **SWIFT Branch** (parallel): `claude/combine-repos-workflow-937fs4` (selber Name für Koordination)
+- **Branches**: SHADED und SWIFT arbeiten pro Aufgabe auf gleichnamigen Branches
+  (aktuell `claude/pipeline-repos-review-qft48j`; Push mit `git push -u origin <branch>`)
 - Beide Repos arbeiten **unabhängig**, werden aber über das Manifest-Format + Actor-API verknüpft
 - SWIFT generiert Output → wird manuell oder per Build-System in SHADED geladen
 - Nie committen: `node_modules/`, `tools/verify-out/`, `package*.json` aus Testläufen
