@@ -63,6 +63,14 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    `getMaterialTypeAt` – Invariante 2 bleibt unberührt.
    Handle-Methoden: `setAnim(name)`, `setPosition(x,y)`, `setVisible(v)`,
    `setDepthLayer(layer)`, `remove()`.
+   **v1.5.0+ (SWIFT-Parität):** `addActor` versteht zusätzlich `emissiveImage`
+   (RGB-Sheet aus SWIFTs `--emissive-pass`, wird additiv als Eigenlicht gerendert:
+   nachts voll, tags schwach, Nebel dämpft – KEIN Tint der Basistextur) und
+   `worldStateImages: {name: url|HTMLImage}` (Varianten-Sheets aus `--world-states`,
+   Frame-Layout laut Orchestration-Vertrag identisch). Neue Handle-Methoden:
+   `setWorldState(name|null)`, `getWorldStates()`, `getWorldState()`.
+   `normalImage`/`worldStates` werden aus dem Manifest geparst; Normal-Maps werden
+   derzeit nicht gerendert (Canvas-2D hat keinen Licht-Pass) – Feld ist reserviert.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
@@ -109,8 +117,10 @@ verify.js vergleicht außerdem die Klassenzählung aller fünf Szenen gegen
 `tools/expected-classes.json` (±10 %) – bei GEWOLLTEN Verschiebungen die Baseline
 bewusst aktualisieren (nach visueller Prüfung!), nie blind.
 
-**Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zusätzlich manuell
-im Browser überprüfen:
+**Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zuerst
+`node tools/verify-actors.js` laufen lassen (deckt API, Depth-Kopplung und die
+SWIFT-v1.4-Erweiterungen emissive/worldStates mit Pixel-Assertions ab; Exit ≠ 0
+bei FAIL oder Konsolenfehlern), zusätzlich manuell im Browser überprüfen:
 - Actor erscheint an korrekter Position (x, y)
 - Animation spielt korrekt ab (fps, loop)
 - Depth-Layer sortiert Actors korrekt (front/mid/back)
@@ -153,9 +163,19 @@ kommt nur aus `depthLayer` und interner Frame-Ordnung.
   },
   "depthImage": "sprite_depth.png",           // optional (Phase B2)
   "depthSourceImage": { "w": 256, "h": 64 }, // optional, gleiche Größe wie sourceImage
-  "depthFrameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... }  // optional, parallel zu frameRects
+  "depthFrameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... },  // optional, parallel zu frameRects
+  "emissiveImage": "sprite_emissive.png",     // optional (SWIFT --emissive-pass)
+  "emissiveSourceImage": { "w": 256, "h": 64 },
+  "emissiveFrameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... },
+  "normalImage": "sprite_normal.png",         // optional, geparst aber (noch) ungenutzt
+  "worldStates": {                             // optional (SWIFT --world-states)
+    "dust": { "name": "dust", "transform": "dust", "intensity": 0.5, "variant_path": "sprite_dust.png" }
+  }
 }
 ```
+Wie `depthImage` werden auch `emissiveImage` und die `worldStates`-Varianten-PNGs
+NICHT automatisch aus Manifest-Pfaden geladen – der Aufrufer übergibt sie explizit
+(`addActor({..., emissiveImage, worldStateImages})`).
 
 **Wichtig:** `frameRects`/`depthFrameRects` sind **Objekte** `{x,y,w,h}`, KEINE Arrays –
 genau so liest sie `parseActorManifest` (`r.x/r.y/r.w/r.h`) und genau so emittiert sie
