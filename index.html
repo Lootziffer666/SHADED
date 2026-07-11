@@ -2421,7 +2421,33 @@ function drawPlayer(W,H,S,dt){
 // als rein optische Akteure auf dem Overlay-Canvas – parallel zur Spielfigur,
 // ohne classGrid/getMaterialTypeAt (die Material-Wahrheit) zu berühren.
 let actors=[];
+// Phase B2: durchschnittliche Tiefe eines Frames (0..1, 1 = nah/hell in der Depth-Map),
+// einmal pro Frame-ID berechnet und am Actor gecacht. Ergebnis ist ein reiner
+// Helligkeitsfaktor (nah bis +30 %, fern bis −15 %) – nie eine Farbverschiebung.
+function actorDepthBrightness(a, frameId){
+  if(!(a.depthImg&&a.depthReady&&a.manifest&&a.manifest.depthFrameRects)) return 1;
+  const rect=a.manifest.depthFrameRects[frameId];
+  if(!rect) return 1;
+  a._depthAvg=a._depthAvg||{};
+  if(!(frameId in a._depthAvg)){
+    const diw=a.depthImg.naturalWidth||a.depthImg.width, dih=a.depthImg.naturalHeight||a.depthImg.height;
+    const scX=a.manifest.depthSourceW?diw/a.manifest.depthSourceW:1;
+    const scY=a.manifest.depthSourceH?dih/a.manifest.depthSourceH:1;
+    const w=Math.max(1,Math.round(rect[2]*scX)), h=Math.max(1,Math.round(rect[3]*scY));
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const cx=c.getContext('2d',{willReadFrequently:true});
+    cx.drawImage(a.depthImg, rect[0]*scX, rect[1]*scY, w, h, 0, 0, w, h);
+    const d=cx.getImageData(0,0,w,h).data;
+    let sum=0; for(let i=0;i<d.length;i+=4) sum+=d[i];
+    a._depthAvg[frameId]=(sum/(d.length/4))/255;   // 0 = fern/dunkel, 1 = nah/hell
+  }
+  const f=a._depthAvg[frameId];
+  return 1 + f*0.3 - (1-f)*0.15;
+}
 function parseActorManifest(data){
+  if(data.mappingVersion&&data.mappingVersion!=='1.4.0'&&data.mappingVersion!=='1.3.0'){
+    console.warn('SHADED: unbekannte Manifest-mappingVersion "'+data.mappingVersion+'" – erwartet 1.3.0/1.4.0, lade nach Best Effort.');
+  }
   const m={sourceW:(data.sourceImage&&data.sourceImage.w)||0,
            sourceH:(data.sourceImage&&data.sourceImage.h)||0,
            frameRects:{}, animations:{}, depthImage:data.depthImage||null,
@@ -2452,11 +2478,12 @@ function parseActorManifest(data){
 }
 function drawActors(dt){
   const W=ov.width,H=ov.height;
-  // Tiefenschichtung: front (0) < mid (1) < back (2)
-  // Innerhalb jeder Schicht: nach Y sortieren (hinten → vorne)
+  // Tiefenschichtung: back wird ZUERST gemalt (landet unten), front ZULETZT (landet oben).
+  // Canvas-2D: spätere drawImage-Aufrufe liegen über früheren.
+  // Innerhalb jeder Schicht: nach Y sortieren (hinten = kleineres Y zuerst)
   const sortedActors=[...actors].sort((a,b)=>{
-    const order={front:0, mid:1, back:2};
-    const layerCmp=(order[a.depthLayer]||1)-(order[b.depthLayer]||1);
+    const order={back:0, mid:1, front:2};
+    const layerCmp=(order[a.depthLayer]??1)-(order[b.depthLayer]??1);
     if(layerCmp!==0) return layerCmp;
     return a.y-b.y;  // Gleichschicht: nach Y (hinten=kleineres Y zuerst)
   });
@@ -2479,37 +2506,13 @@ function drawActors(dt){
     const dw=sw*a.scale, dh=sh*a.scale;
     const oldAlpha=ovx.globalAlpha;
     ovx.globalAlpha=fogMult*nightMult;
+    // Phase B2: avgDepth pro Frame-ID einmalig vorberechnet (kein getImageData im
+    // Render-Pfad) steuert die Helligkeit: nah = leichter Highlight, fern = leicht
+    // abgedunkelt. Bewusst KEIN Farbtint (Regel: keine Farbverschiebung auf Actors).
+    const depthBright=actorDepthBrightness(a, anim.frames[idx]);
+    if(depthBright!==1) ovx.filter='brightness('+depthBright.toFixed(3)+')';
     ovx.drawImage(a.img, sx,sy,sw,sh, a.x*W-dw/2, a.y*H-dh, dw,dh);
-    // Phase B2: Depth-Compositing - Actor-Tiefenkarte gegen Scene-Parallax
-    if(a.depthImg&&a.depthReady&&a.manifest.depthFrameRects&&Object.keys(a.manifest.depthFrameRects).length){
-      const frameId=anim.frames[idx];
-      const depthRect=a.manifest.depthFrameRects[frameId];
-      if(depthRect){
-        const diw=a.depthImg.naturalWidth||a.depthImg.width, dih=a.depthImg.naturalHeight||a.depthImg.height;
-        const dscaleX=a.manifest.depthSourceW?diw/a.manifest.depthSourceW:1;
-        const dscaleY=a.manifest.depthSourceH?dih/a.manifest.depthSourceH:1;
-        const dsx=depthRect[0]*dscaleX, dsy=depthRect[1]*dscaleY;
-        const dsw=depthRect[2]*dscaleX, dsh=depthRect[3]*dscaleY;
-        // Depth-Composite: Tiefenkarte steuert Helligkeit + Schatten
-        // Dunklere Pixel in der Depth-Map = näher am Betrachter = heller
-        // Hellere Pixel = weiter weg = dunkler/Schatten
-        const depthCanvas=document.createElement('canvas');
-        depthCanvas.width=Math.ceil(dw); depthCanvas.height=Math.ceil(dh);
-        const depthCtx=depthCanvas.getContext('2d');
-        depthCtx.drawImage(a.depthImg,dsx,dsy,dsw,dsh, 0,0,dw,dh);
-        const depthData=depthCtx.getImageData(0,0,dw,dh).data;
-        // Durchschnittliche Tiefe (0=fern/dunkel, 255=nah/hell)
-        let depthSum=0;
-        for(let i=0;i<depthData.length;i+=4) depthSum+=depthData[i];
-        const avgDepth=depthSum/(depthData.length/4);
-        const depthFactor=avgDepth/255;  // 0..1, 1=nah, 0=fern
-        // Nah=heller/Highlight, Fern=dunkler/Schatten
-        const depthGlow=depthFactor*0.3;  // bis +30% Helligkeit wenn nah
-        const depthShadow=(1-depthFactor)*0.15;  // bis -15% wenn fern
-        // Tint: Nah=warm (1.0, 0.95, 0.85), Fern=cool (0.8, 0.85, 1.0)
-        a._depthTint=[(1-depthFactor)*0.2+0.8, (1-depthFactor)*0.15+0.85, (1-depthFactor)*0.2+0.8];
-      }
-    }
+    if(depthBright!==1) ovx.filter='none';
     ovx.globalAlpha=oldAlpha;
     // Weltgesetz #2: SWIFT-Aktoren hinterlassen Spuren, wo es Sinn ergibt
     // (nur front/mid – back-Akteure stehen hinter der Szene, keine Bodenspur)
