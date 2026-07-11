@@ -18,9 +18,16 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
 
 ## Unverhandelbare Invarianten
 
-1. **Single-File, kein Build-Step.** `index.html` ist die komplette App und muss per
-   Doppelklick bzw. `python3 -m http.server` laufen. Keine Bundler, keine npm-Dependencies
-   zur Laufzeit, kein Framework. (Playwright wird nur für Tests genutzt, nie im Produkt.)
+1. **Single-File, kein Build-Step — für `index.html`.** `index.html` bleibt die komplette
+   Runtime-App und muss weiterhin per Doppelklick bzw. `python3 -m http.server` laufen.
+   Keine Bundler, keine npm-Dependencies zur Laufzeit, kein Framework in `index.html`.
+   **Update:** Diese Regel wurde vom Maintainer als für Autoren-Werkzeuge zu eng erkannt
+   und ausdrücklich aufgehoben ("obsoletes Relikt") — sie gilt jetzt NUR noch für die
+   ausgelieferte Runtime `index.html`. `editor/` (Gate: Capybara-inspirierter Editor,
+   siehe unten) ist ein separates Autoren-Werkzeug, darf Mehrdatei-/ESM-Struktur nutzen
+   und `index.html` unverändert per `<iframe>` einbetten. Es steuert die Engine
+   ausschließlich über das bestehende `window.SHADED`-API (Invariante 5) — es forkt oder
+   dupliziert nie Shader-/Analyse-Code (Invariante 2 bleibt für den Editor genauso hart).
 2. **Eine Material-Wahrheit.** Die CPU-Analyse (`classGrid`, `getMaterialTypeAt`) und die
    GPU-Masken-Texturen entstehen aus DERSELBEN Segmentierung in `analyze()`.
    Niemals eine zweite, unabhängige Klassifikation einführen – genau daran ist der
@@ -94,6 +101,37 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    Fachwerk-Gebäude; maskiert puddle/riv/creep/mud; bodenverankerte Pfad-/
    Fels-Komponenten sind für Zonen tabu). Trail-Decay wirkt IMMER direkt
    auf den Pixeldaten – nie über Canvas-Composite-Tricks.
+
+## SHADED Editor (`editor/`)
+
+SHADED hatte nie einen echten Editor — nur die eingefrorene Referenz
+`gaime_shader_editor_pro_v2_6_bio_physics_edition.html` (Invariante 4, nicht anfassen)
+und die rohe `window.SHADED`-API. `editor/` ist der erste echte, funktionierende Editor,
+konzeptionell an [Capybara 2D Engine](https://github.com/d-liya/capybara_2d_engine)
+angelehnt: **eine große Engine hinter einer kleinen, stabilen, agentenfreundlichen
+Fassade**, statt einer zweiten Implementierung der Engine-Interna.
+
+- **`editor/facade.js` — `SceneEditorFacade`.** Die einzige Klasse, die
+  `../index.html` anfasst — per `<iframe>` eingebettet, unverändert. Ruft
+  ausschließlich das bestehende `window.SHADED`-API auf (`loadImageFile`, `erstellen`,
+  `getParams`/`setParams`, `applyAct`, `isReady`, `getMaterialTypeAt`). Kein
+  Shader-/Analyse-Code wird hier dupliziert oder geforkt — Invariante 2 gilt für den
+  Editor genauso hart wie für `index.html` selbst.
+- **`editor/markerPainter.js` — `MarkerPainter`.** Zweite kleine Fassade: ein
+  Pinsel-Werkzeug für das in Invariante 3 beschriebene Marker-Overlay. Malt direkt auf
+  eine Canvas-Kopie des Szenenbilds; unveränderte Pixel bleiben exakt erhalten (SHADEDs
+  eigene Marker-Erkennung ist diff-basiert). `MARKER_BRUSH`/`CANONICAL_PALETTE` sind von
+  Hand mit `index.html`s `PALETTE`-Objekt synchron gehalten — `index.html` bleibt die
+  Wahrheit, der Editor kopiert nur die Farbwerte.
+- **`editor/app.js`** verdrahtet nur UI-Events auf die beiden Fassaden — enthält selbst
+  keine Engine- oder Klassifikationslogik.
+- **Funktionsumfang (erste Ausbaustufe):** Live-Parameter-Tuning (alle Slider aus
+  `PARAM_META`, direkt gegen die laufende Engine) + Marker-/Palette-Overlay-Malen
+  (Pinsel in den 8 kanonischen Palettenfarben + Fenster-Marker-Pink, Export als PNG oder
+  direkte Live-Anwendung als Zweitbild in der eingebetteten Vorschau).
+- **Verifikation:** `node tools/verify-editor.js` (gleiches Muster wie `tools/verify.js`
+  — lokaler Server + headless Chromium; prüft echten Engine-Ready-Zustand, echte
+  Parameter-Übertragung, echtes Pinsel-Pixel-Ergebnis und Konsolenfehler-Freiheit).
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 

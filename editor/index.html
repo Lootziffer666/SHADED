@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>SHADED Editor</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<header>
+  <h1>SHADED Editor</h1>
+  <p>Live-Parameter-Tuning + Marker-/Palette-Overlay — steuert die echte Engine aus <code>../index.html</code>, dupliziert sie nicht.</p>
+</header>
+
+<div class="layout">
+  <section class="panel">
+    <h2>Vorschau</h2>
+    <iframe id="engine-frame" src="../index.html" title="SHADED-Engine"></iframe>
+
+    <div class="toolbar">
+      <button id="btn-demo" type="button">Demo laden</button>
+      <label class="file-btn"><span>Szene laden…</span><input id="f-scene" type="file" accept="image/*"></label>
+      <label class="file-btn"><span>Zweitbild laden…</span><input id="f-mat" type="file" accept="image/*"></label>
+      <button id="btn-erstellen" type="button">✨ Erstellen</button>
+      <label class="file-btn"><span>Preset laden…</span><input id="f-preset" type="file" accept="application/json"></label>
+      <button id="btn-save-preset" type="button">Preset speichern</button>
+    </div>
+
+    <h2>Parameter</h2>
+    <div id="sliders"></div>
+    <div id="editor-status">Noch keine Szene geladen.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Marker-/Palette-Overlay malen</h2>
+    <p style="color:var(--muted); font-size:12px; margin-top:0;">
+      Lädt eine Kopie des Szenenbilds; unveränderte Pixel bleiben unangetastet
+      (SHADEDs Marker-Erkennung ist diff-basiert). Pink = Fenster-Marker, jede
+      andere Farbe = Klassen-Korrektur — genau der Vertrag aus <code>CLAUDE.md</code>.
+    </p>
+    <div class="toolbar">
+      <label class="file-btn"><span>Bild fürs Malen laden…</span><input id="f-paint-source" type="file" accept="image/*"></label>
+      <button id="btn-paint-clear" type="button">Übermalungen zurücksetzen</button>
+    </div>
+    <div id="palette-buttons"></div>
+    <div class="brush-row">
+      <label for="brush-size">Pinselgröße</label>
+      <input id="brush-size" type="range" min="2" max="60" value="12">
+    </div>
+    <canvas id="paint-canvas" width="640" height="360"></canvas>
+    <div class="toolbar">
+      <button id="btn-paint-export" type="button">Als PNG exportieren</button>
+      <button id="btn-paint-apply" type="button">Als Zweitbild in Vorschau anwenden</button>
+    </div>
+  </section>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
