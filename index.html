@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SHADED – Ein Bild. Erstellen. Lebendig.</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0b0b12;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;height:100vh;overflow:hidden}
@@ -2453,7 +2454,17 @@ function parseActorManifest(data){
            frameRects:{}, animations:{}, depthImage:data.depthImage||null,
            depthSourceW:(data.depthSourceImage&&data.depthSourceImage.w)||0,
            depthSourceH:(data.depthSourceImage&&data.depthSourceImage.h)||0,
-           depthFrameRects:{}};
+           depthFrameRects:{},
+           // SWIFT v1.4.0-Erweiterungen (--emissive-pass / --normal-pass / --world-states):
+           // emissive wird als additives Nacht-Glühen gerendert; normal wird geparst,
+           // aber (noch) nicht gerendert (Canvas-2D hat keinen Licht-Pass);
+           // worldStates referenzieren Varianten-Sheets (setWorldState am Handle).
+           emissiveImage:data.emissiveImage||null,
+           emissiveSourceW:(data.emissiveSourceImage&&data.emissiveSourceImage.w)||0,
+           emissiveSourceH:(data.emissiveSourceImage&&data.emissiveSourceImage.h)||0,
+           emissiveFrameRects:{},
+           normalImage:data.normalImage||null,
+           worldStates:{}, variants:Array.isArray(data.variants)?data.variants:[]};
   const frames=data.frames||[];
   const explicit=data.frameRects||{};
   if(Object.keys(explicit).length){
@@ -2469,6 +2480,20 @@ function parseActorManifest(data){
   const depthExplicit=data.depthFrameRects||{};
   if(Object.keys(depthExplicit).length){
     frames.forEach(f=>{ const r=depthExplicit[f.id]; if(r) m.depthFrameRects[f.id]=[r.x,r.y,r.w,r.h]; });
+  }
+  // Optional: Emissive-Frame-Rects (Layout identisch zu frameRects, eigene Quelle)
+  const emisExplicit=data.emissiveFrameRects||{};
+  if(Object.keys(emisExplicit).length){
+    frames.forEach(f=>{ const r=emisExplicit[f.id]; if(r) m.emissiveFrameRects[f.id]=[r.x,r.y,r.w,r.h]; });
+  }
+  // Optional: worldStates (SWIFT WorldStateRef; legacy `palette` wird toleriert)
+  for(const name in (data.worldStates||{})){
+    const ws=data.worldStates[name]||{};
+    m.worldStates[name]={name:ws.name||name,
+                         transform:ws.transform||ws.palette||name,
+                         intensity:typeof ws.intensity==='number'?ws.intensity:0.5,
+                         variantPath:ws.variant_path||null,
+                         params:ws.params||null};
   }
   for(const name in (data.animations||{})){
     const a=data.animations[name];
@@ -2513,6 +2538,27 @@ function drawActors(dt){
     if(depthBright!==1) ovx.filter='brightness('+depthBright.toFixed(3)+')';
     ovx.drawImage(a.img, sx,sy,sw,sh, a.x*W-dw/2, a.y*H-dh, dw,dh);
     if(depthBright!==1) ovx.filter='none';
+    // SWIFT --emissive-pass: Emission additiv obendrauf. Kein Tint der Basistextur
+    // (Regel „keine Farbverschiebung auf Actors" bleibt gewahrt) – die Emission ist
+    // von SWIFT autorisiertes Eigenlicht. Nachts voll, tags schwach; Nebel dämpft
+    // (gleicher fogMult wie der Actor selbst).
+    if(a.emissiveReady&&a.emissiveImg){
+      const fid=anim.frames[idx];
+      const er=a.manifest.emissiveFrameRects[fid]||a.manifest.frameRects[fid];
+      if(er){
+        const eiw=a.emissiveImg.naturalWidth||a.emissiveImg.width,
+              eih=a.emissiveImg.naturalHeight||a.emissiveImg.height;
+        const eSW=a.manifest.emissiveSourceW||a.manifest.sourceW,
+              eSH=a.manifest.emissiveSourceH||a.manifest.sourceH;
+        const esX=eSW?eiw/eSW:1, esY=eSH?eih/eSH:1;
+        const oldComp=ovx.globalCompositeOperation;
+        ovx.globalCompositeOperation='lighter';
+        ovx.globalAlpha=fogMult*(0.25+0.75*dayNight);
+        ovx.drawImage(a.emissiveImg, er[0]*esX,er[1]*esY,er[2]*esX,er[3]*esY,
+                      a.x*W-dw/2, a.y*H-dh, dw,dh);
+        ovx.globalCompositeOperation=oldComp;
+      }
+    }
     ovx.globalAlpha=oldAlpha;
     // Weltgesetz #2: SWIFT-Aktoren hinterlassen Spuren, wo es Sinn ergibt
     // (nur front/mid – back-Akteure stehen hinter der Szene, keine Bodenspur)
@@ -2534,7 +2580,9 @@ function drawActors(dt){
 }
 function addActor(opts){
   opts=opts||{};
-  const actor={img:null, imgReady:false, depthImg:null, depthReady:false, manifest:null,
+  const actor={img:null, imgReady:false, depthImg:null, depthReady:false,
+               emissiveImg:null, emissiveReady:false, manifest:null,
+               worldStateImgs:{}, worldState:null, _baseImg:null,
                x:opts.x??0.5, y:opts.y??0.6, scale:opts.scale||1,
                anim:opts.anim||null, frameT:0, visible:true, depthLayer:opts.depthLayer||'mid'};
   actors.push(actor);
@@ -2542,25 +2590,47 @@ function addActor(opts){
     actor.manifest=parseActorManifest(typeof opts.manifest==='string'?JSON.parse(opts.manifest):opts.manifest);
     if(!actor.anim) actor.anim=Object.keys(actor.manifest.animations)[0];
   }
-  const setImg=img=>{ actor.img=img; actor.imgReady=true; };
-  const setDepth=img=>{ actor.depthImg=img; actor.depthReady=true; };
-  if(opts.image instanceof HTMLImageElement){
-    if(opts.image.complete) setImg(opts.image);
-    else opts.image.addEventListener('load',()=>setImg(opts.image));
-  } else if(typeof opts.image==='string'){
-    const img=new Image(); img.onload=()=>setImg(img); img.src=opts.image;
-  }
-  if(opts.depthImage instanceof HTMLImageElement){
-    if(opts.depthImage.complete) setDepth(opts.depthImage);
-    else opts.depthImage.addEventListener('load',()=>setDepth(opts.depthImage));
-  } else if(typeof opts.depthImage==='string'){
-    const img=new Image(); img.onload=()=>setDepth(img); img.src=opts.depthImage;
+  const loadInto=(src,cb)=>{
+    if(src instanceof HTMLImageElement){
+      if(src.complete) cb(src);
+      else src.addEventListener('load',()=>cb(src));
+    } else if(typeof src==='string'){
+      const img=new Image(); img.onload=()=>cb(img); img.src=src;
+    }
+  };
+  if(opts.image) loadInto(opts.image, img=>{ actor.img=img; actor.imgReady=true; });
+  if(opts.depthImage) loadInto(opts.depthImage, img=>{ actor.depthImg=img; actor.depthReady=true; });
+  // SWIFT --emissive-pass: wie depthImage wird das Emissive-Sheet NICHT automatisch
+  // aus dem Manifest-Pfad geladen, sondern explizit als Option übergeben.
+  if(opts.emissiveImage) loadInto(opts.emissiveImage, img=>{ actor.emissiveImg=img; actor.emissiveReady=true; });
+  // SWIFT --world-states: Varianten-Sheets (identisches Frame-Layout, Vertrag §5).
+  // worldStateImages: { dust:<url|HTMLImage>, aging:... } – Auswahl via setWorldState().
+  for(const wsName in (opts.worldStateImages||{})){
+    const slot={img:null, ready:false, onReady:null};
+    actor.worldStateImgs[wsName]=slot;
+    loadInto(opts.worldStateImages[wsName], img=>{ slot.img=img; slot.ready=true; if(slot.onReady) slot.onReady(); });
   }
   return {
     setAnim:(name)=>{ if(actor.manifest&&actor.manifest.animations[name]){ actor.anim=name; actor.frameT=0; } },
     setPosition:(x,y)=>{ actor.x=x; actor.y=y; },
     setVisible:(v)=>{ actor.visible=!!v; },
     setDepthLayer:(l)=>{ if(['front','mid','back'].includes(l)) actor.depthLayer=l; },
+    // SWIFT-Weltzustands-Variante aktivieren (null = Basis-Sheet). Rein optisch –
+    // Frame-Layout ist laut Orchestration-Vertrag über alle Varianten identisch.
+    setWorldState:(name)=>{
+      if(!name){
+        if(actor._baseImg){ actor.img=actor._baseImg; actor.imgReady=true; }
+        actor.worldState=null; return true;
+      }
+      const slot=actor.worldStateImgs[name];
+      if(!slot) return false;
+      if(!actor._baseImg) actor._baseImg=actor.img;
+      const apply=()=>{ actor.img=slot.img; actor.imgReady=true; actor.worldState=name; };
+      if(slot.ready) apply(); else slot.onReady=apply;
+      return true;
+    },
+    getWorldStates:()=>actor.manifest?Object.keys(actor.manifest.worldStates):[],
+    getWorldState:()=>actor.worldState,
     remove:()=>{ const i=actors.indexOf(actor); if(i>=0) actors.splice(i,1); }
   };
 }
