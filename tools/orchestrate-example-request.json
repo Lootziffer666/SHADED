@@ -1,0 +1,8 @@
+{
+  "scene": "../file_00000000974871f49fe71f6b456f9579.png",
+  "params": { "fog": 0.4, "dayNight": 0.7 },
+  "actors": [
+    { "sheet": "verify-test-actor.png", "manifest": "verify-test-actor.json", "x": 0.5, "y": 0.6, "anim": "idle", "label": "test-actor" }
+  ],
+  "storyboard": [ { "name": "Akt 1", "dur": 4, "p": { "fog": 0.4 } } ]
+}
