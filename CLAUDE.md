@@ -123,15 +123,37 @@ Fassade**, statt einer zweiten Implementierung der Engine-Interna.
   eigene Marker-Erkennung ist diff-basiert). `MARKER_BRUSH`/`CANONICAL_PALETTE` sind von
   Hand mit `index.html`s `PALETTE`-Objekt synchron gehalten — `index.html` bleibt die
   Wahrheit, der Editor kopiert nur die Farbwerte.
-- **`editor/app.js`** verdrahtet nur UI-Events auf die beiden Fassaden — enthält selbst
+- **`editor/actorPlacer.js` — `ActorPlacer`.** Dritte kleine Fassade: platziert
+  SWIFT-Sprite-Sheet-Akteure ausschließlich über `window.SHADED.addActor()`. Übergibt
+  `image`/`depthImage`/`emissiveImage` immer als `blob:`-URL-Strings und `manifest`
+  immer als JSON-String — niemals als Parent-Fenster-`Image()`/-Objekt, weil
+  `addActor`s interne `instanceof HTMLImageElement`-Prüfung sonst am Iframe-Realm
+  scheitert. `scale` ist laut echtem `addActor`-Handle nur beim Erstellen setzbar
+  (kein `setScale`) — Änderung entfernt den Actor und legt ihn mit denselben
+  gecachten Dateien neu an, statt eine nicht existierende API zu erfinden.
+- **`editor/storyboardTimeline.js` — `StoryboardTimeline`.** Vierte kleine Fassade:
+  bearbeitet `window.SHADED.story.board()` — das ist dieselbe Live-Referenz, die
+  `playStory()`/`tickStory()` intern abspielen, keine zweite Storyboard-Wahrheit.
+- **`editor/app.js`** verdrahtet nur UI-Events auf die vier Fassaden — enthält selbst
   keine Engine- oder Klassifikationslogik.
-- **Funktionsumfang (erste Ausbaustufe):** Live-Parameter-Tuning (alle Slider aus
-  `PARAM_META`, direkt gegen die laufende Engine) + Marker-/Palette-Overlay-Malen
-  (Pinsel in den 8 kanonischen Palettenfarben + Fenster-Marker-Pink, Export als PNG oder
-  direkte Live-Anwendung als Zweitbild in der eingebetteten Vorschau).
+- **Funktionsumfang:**
+  1. Live-Parameter-Tuning (alle Slider aus `PARAM_META`, direkt gegen die laufende
+     Engine, Preset speichern/laden).
+  2. Marker-/Palette-Overlay-Malen (Pinsel in den 8 kanonischen Palettenfarben +
+     Fenster-Marker-Pink, Export als PNG oder direkte Live-Anwendung als Zweitbild).
+  3. Actor-Platzierung (SWIFT-Sprites): Sprite-Sheet + Manifest hochladen, Marker in
+     der eingebetteten Vorschau per Drag positionieren, Anim/Depth-Layer/Scale je
+     Actor einstellen, entfernen.
+  4. Story/Akt-Timeline: Schritte aus dem aktuellen Zustand erzeugen, Name/Dauer
+     bearbeiten, Zustand in einen Schritt übernehmen, Vorschau, Umsortieren, Play/Stop.
 - **Verifikation:** `node tools/verify-editor.js` (gleiches Muster wie `tools/verify.js`
   — lokaler Server + headless Chromium; prüft echten Engine-Ready-Zustand, echte
-  Parameter-Übertragung, echtes Pinsel-Pixel-Ergebnis und Konsolenfehler-Freiheit).
+  Parameter-Übertragung, echtes Pinsel-Pixel-Ergebnis, Actor-Hinzufügen inkl.
+  Drag-Positionierung, Timeline-Schreibzugriff auf `window.SHADED.story.board()` und
+  Konsolenfehler-Freiheit). **Wichtig für neue Interaktionstests:** das Vorschau-Panel
+  ist wegen Iframe + 15 Slidern sehr hoch — vor jeder mausbasierten Interaktion mit
+  weiter oben liegenden Elementen (Marker, Canvas) `scrollIntoViewIfNeeded()` bzw.
+  `window.scrollTo(0,0)` nutzen, sonst zielen die Koordinaten ins Leere.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 
