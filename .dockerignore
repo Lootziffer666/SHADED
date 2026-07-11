@@ -3,9 +3,8 @@
 .github
 .claude
 .kiro
-CLAUDE.md
-assetpilot.md
-docs
-*.md
-Dockerfile
-.dockerignore
+node_modules
+npm-debug.log*
+.DS_Store
+tools/verify-out
+tools/register-out
