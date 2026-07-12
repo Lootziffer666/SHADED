@@ -154,6 +154,20 @@ Fassade**, statt einer zweiten Implementierung der Engine-Interna.
   ist wegen Iframe + 15 Slidern sehr hoch — vor jeder mausbasierten Interaktion mit
   weiter oben liegenden Elementen (Marker, Canvas) `scrollIntoViewIfNeeded()` bzw.
   `window.scrollTo(0,0)` nutzen, sonst zielen die Koordinaten ins Leere.
+- **Headless-Orchestrierung (`window.SHADED_ORCHESTRATOR`, Real Golden Run R-07–R-11).**
+  Fünfte Erweiterung von `facade.js` selbst (nicht der interaktiven UI): `loadProject`/
+  `exportProject`/`addActorBundle`/`getRuntimeStatus`/`getDebugSnapshot`, konform zu
+  `contracts/shaded-scene-project.schema.json` (Parameter/Actors/Storyboard — trägt
+  bewusst keine Bild-Bytes, JSON kann das nicht). `editor/app.js` exponiert diese fünf
+  Methoden gebündelt als `window.SHADED_ORCHESTRATOR` auf der EDITOR-Seite (nicht im
+  Engine-Iframe — mit `window.SHADED` selbst nicht zu verwechseln), damit ein externes
+  Headless-Skript sie ohne ESM-Import erreichen kann. `tools/orchestrate.js` ist der
+  reale, shellbare CLI-Vertrag darüber (Beweis-Ziel für ANVILs künftigen
+  `ShadedCliAdapter`, analog zu SWIFTs `python main.py render --json`) — siehe
+  `docs/ORCHESTRATION.md` für Aufruf, Request-Format und Exit-Codes.
+  Verifikation: `node editor/facade.test.js` (fünf Methoden direkt), `node
+  tools/orchestrate.js --project tools/orchestrate-example-request.json --json`
+  (End-to-End-CLI-Beweis).
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 

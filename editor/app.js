@@ -427,3 +427,20 @@ document.getElementById('btn-timeline-stop').addEventListener('click', () => {
 });
 document.getElementById('btn-timeline-refresh').addEventListener('click', () => renderTimeline());
 
+// ─────────────────────────── Headless-Orchestrierungs-API ───────────────────────────
+// Debug-/Orchestrierungs-Fassade für tools/orchestrate.js (Real Golden Run R-09/R-10):
+// app.js kapselt `facade`/`actorPlacer`/`timeline` bewusst in ES-Modulen (keine globalen
+// Leaks) — ein externes Headless-Skript kann sie sonst nicht ohne ESM-Import erreichen.
+// Dies ist eine reine Orchestrierungs-Fassade auf window (der EDITOR-Seite, nicht der
+// Engine-Iframe-Seite) — mit `window.SHADED` (CLAUDE.md Invariante 5, das Engine-API im
+// Iframe) nicht zu verwechseln und ruft ausschließlich `facade`-Methoden auf, die selbst
+// nur das echte `window.SHADED`-API im Iframe aufrufen.
+window.SHADED_ORCHESTRATOR = {
+  loadProject: (project, assets) => facade.loadProject(project, assets),
+  exportProject: () => facade.exportProject(),
+  addActorBundle: (sheetFile, manifestFile, opts) => facade.addActorBundle(sheetFile, manifestFile, opts),
+  getRuntimeStatus: () => facade.getRuntimeStatus(),
+  getDebugSnapshot: () => facade.getDebugSnapshot(),
+  isReady: () => facade.isReady(),
+};
+

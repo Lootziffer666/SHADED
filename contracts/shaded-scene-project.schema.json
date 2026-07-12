@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "shaded.scene-project/v1",
+  "title": "SHADED Scene Project",
+  "description": "Round-trippable structural state of a SHADED scene: the 13 canonical window.SHADED parameters (CLAUDE.md Invariante 6), placed SWIFT actor bundles, and the story/act timeline (window.SHADED.story.board()). Produced/consumed by editor/facade.js (exportProject/loadProject) and tools/orchestrate.js. Image/manifest BYTES are never embedded here (JSON cannot carry them, and the engine does not expose already-loaded assets for re-export) — actor entries carry a human-readable 'label' only; a real loadProject() call must be given the actual files again out-of-band.",
+  "type": "object",
+  "required": ["schema", "params", "actors", "storyboard"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "shaded.scene-project/v1"
+    },
+    "params": {
+      "type": "object",
+      "description": "Subset of window.SHADED's 13 canonical high-level parameters (CLAUDE.md Invariante 6). Unset keys keep the engine's current/default value.",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+      "properties": {
+        "dayNight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "storm": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rain": { "type": "number", "minimum": 0, "maximum": 1 },
+        "wet": { "type": "number", "minimum": 0, "maximum": 1 },
+        "puddle": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fog": { "type": "number", "minimum": 0, "maximum": 1 },
+        "wind": { "type": "number", "minimum": 0, "maximum": 1 },
+        "glow": { "type": "number", "minimum": 0, "maximum": 1 },
+        "decay": { "type": "number", "minimum": 0, "maximum": 1 },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 1 },
+        "bloom": { "type": "number", "minimum": 0, "maximum": 1 },
+        "autumn": { "type": "number", "minimum": 0, "maximum": 1 },
+        "snow": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "actors": {
+      "type": "array",
+      "description": "Placed SWIFT sprite-sheet actors (window.SHADED.addActor() calls). One entry per assets.actorFiles[i] passed to facade.loadProject().",
+      "items": {
+        "type": "object",
+        "required": ["x", "y"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "description": "Informational only (e.g. the sprite-sheet's original file name) — not re-loadable from this field alone." },
+          "x": { "type": "number", "minimum": 0, "maximum": 1 },
+          "y": { "type": "number", "minimum": 0, "maximum": 1 },
+          "scale": { "type": "number", "exclusiveMinimum": 0, "default": 1 },
+          "anim": { "type": "string" },
+          "depthLayer": { "type": "string", "enum": ["front", "mid", "back"], "default": "mid" }
+        }
+      }
+    },
+    "storyboard": {
+      "type": "array",
+      "description": "Verbatim contents of window.SHADED.story.board() — the same live array StoryboardTimeline and playStory()/tickStory() already share, not a second storyboard truth.",
+      "items": {
+        "type": "object",
+        "required": ["name", "dur"],
+        "properties": {
+          "name": { "type": "string" },
+          "dur": { "type": "number", "exclusiveMinimum": 0 },
+          "p": { "type": "object", "description": "Snapshot of window.SHADED.getParams() at capture time — the field name 'p' matches StoryboardTimeline.addStepFromCurrentParams() exactly, not renamed here." }
+        }
+      }
+    }
+  }
+}
