@@ -314,6 +314,28 @@ Weitere Kandidaten für zukünftige Runden:
 - 14. Krankheit/Gift (Poison Filter, teilweise da)
 - 44–60: Advanced world laws (siehe vision-weltgesetze.md)
 
+## TRIVIUM-Anbindung (Cross-Repo-Vertrag)
+
+SHADED ist der erste fließend rhetorische Zieladapter des universellen Game
+Translation Compilers **TRIVIUM** (`lootziffer666/TRIVIUM`,
+`adapters/shaded/`). TRIVIUM formuliert Weltbedeutung engine-agnostisch
+(WIR: Grammatik/Rhetorik/Logik) und übersetzt sie u. a. in SHADED-Artefakte:
+abspielbare Storyboards (`{name, dur, p}` via `story.board()`), Parameter-Sets,
+`addActor`-Slots und Marker-Briefs in der kanonischen Palette.
+
+Vertragsregeln (spiegelbildlich zu TRIVIUMs CLAUDE.md):
+- Der TRIVIUM-Driver spricht AUSSCHLIESSLICH das `window.SHADED`-API
+  (setParams, getParams, story.board/play/stop, addActor, getMaterialTypeAt).
+  Invariante 2 (Eine Material-Wahrheit) bleibt unberührt — der Driver liest
+  höchstens `getMaterialTypeAt`, schreibt nie Klassifikation.
+- Bei Änderungen am `window.SHADED`-API (Invariante 5: nur erweitern):
+  TRIVIUMs SHADED-Adapter nachziehen und dort `node tools/verify-live.js`
+  laufen lassen — der Beweisritt führt den generierten Driver headless im
+  echten `index.html` aus. SHADED selbst richtet sich NIE nach TRIVIUM;
+  die Abhängigkeit zeigt in eine Richtung (wie bei SWIFT).
+- TRIVIUM-generierte Driver/WIR-Dateien sind externe Artefakte — werden
+  NICHT in SHADED committet (gleiches Gesetz wie für SWIFT-Manifeste).
+
 ## Git & Cross-Repo Coordination
 
 - **Branches**: SHADED und SWIFT arbeiten pro Aufgabe auf gleichnamigen Branches
