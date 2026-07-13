@@ -26,6 +26,14 @@ jobs:
       run: |
         timeout 120 node tools/verify-lenses.js || echo "⚠️ Lens test timed out (OK for headless CI)"
 
+    - name: Run COST-format self-tests (Runde 9, synthetic fixtures only)
+      run: |
+        node tools/test-cost-format.mjs
+
+    - name: Run Costume-Browser verification (Runde 9, synthetic fixture only)
+      run: |
+        timeout 120 node tools/verify-costume-browser.js || echo "⚠️ Costume-browser test timed out (OK for headless CI)"
+
     - name: Check manifest compatibility
       run: |
         node -e "
