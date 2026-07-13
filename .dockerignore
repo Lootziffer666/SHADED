@@ -1,0 +1,10 @@
+.git
+.gitignore
+.github
+.claude
+.kiro
+node_modules
+npm-debug.log*
+.DS_Store
+tools/verify-out
+tools/register-out

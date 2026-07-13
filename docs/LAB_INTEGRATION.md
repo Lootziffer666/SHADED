@@ -1,0 +1,23 @@
+# SHADED ↔ LAB
+
+Load `integrations/lab-runtime.js` after `index.html` has created `window.SHADED`. LAB uses only SHADED's stable public API: `erstellen`, `applyAct`, `setParams`, `setTime`, `isReady`, and `addActor`.
+
+```html
+<script src="integrations/lab-runtime.js"></script>
+<script>
+  const result = await SHADED_LAB.apply({
+    schemaVersion: "1.0.0",
+    module: "trivium-lab",
+    scene: { act: "sturmnacht", params: { rain: 1, wet: 1 }, time: 21.7 },
+    actors: [{ image: "hero.png", manifest: "hero_manifest.json", x: 0.5, y: 0.7 }]
+  });
+</script>
+```
+
+LAB does not replace SHADED's image analysis. The background, optional correction overlay and optional depth map must be loaded through SHADED itself. Actors remain visual overlays and never alter `classGrid` or material truth.
+
+## BELLOWS boundary
+
+SHADED's runtime realization remains deterministic and does not need an LLM. If a server-side assistant interprets natural-language weather, scene intent, parameter suggestions, or an extracted scene preview, that request must use BELLOWS. ANVIL-BELLOWS now supports OpenAI-compatible `text`/`image_url` content parts for such vision tasks.
+
+The browser runtime must never receive the BELLOWS bearer key, inline a source image into a persisted LAB bundle, or call external model providers directly. Vision analysis belongs before runtime realization; SHADED receives the resulting structured scene intent and evidence references.

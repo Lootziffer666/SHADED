@@ -27,6 +27,20 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 
 Actors sind rein optisch (beeinflussen nicht `classGrid` oder `getMaterialTypeAt`) und reagieren auf Nebel/Nacht-Parameter (globalAlpha-Kopplung für natürliche Sichtbarkeit).
 
+
+## Deployment
+
+SHADED bleibt eine statische Single-File-Web-App ohne Runtime-Build. Für den Webserver ist die robuste Standard-Variante der mitgelieferte Nginx-Container:
+
+```bash
+docker build -t shaded .
+docker run --rm -p 8080:80 shaded
+# -> http://localhost:8080/
+# Healthcheck: http://localhost:8080/healthz
+```
+
+Der Container kopiert `index.html`, die Design-Bilder, Tiefenkarten, Test-Assets und Dokumentation unverändert in `/usr/share/nginx/html`. `nginx.conf` liefert `/healthz` für Deploy-Plattformen (z. B. Coolify) und lässt die App über `/` sowie `/index.html` laufen.
+
 ## Assets im Repo
 
 | Datei | Rolle |

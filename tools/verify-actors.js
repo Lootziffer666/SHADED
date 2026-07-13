@@ -19,6 +19,7 @@ const server = http.createServer((req, res) => {
   // Actor test fixtures
   if (urlPath.includes('verify-test-actor.png')) p = ACTOR_IMG;
   if (urlPath.includes('verify-test-actor.json')) p = ACTOR_MANIFEST;
+  if (urlPath === 'favicon.ico') { res.writeHead(204); res.end(); return; }
   if (p === REPO + '/' || p === REPO) p = path.join(REPO, 'index.html');
   try {
     const data = fs.readFileSync(p);
@@ -58,7 +59,9 @@ const server = http.createServer((req, res) => {
   // Szene laden
   await page.goto('http://localhost:8932/index.html');
   await page.setInputFiles('#f-scene', BASE_IMG);
-  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Szene geladen'));
+  // Auto-Depth-Loader überschreibt den Status sofort mit "Tiefenkarte geladen" –
+  // beides bestätigt, dass sceneImg gesetzt ist (gleicher Fix wie in verify.js).
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
   await page.setInputFiles('#f-mat', MARKER_IMG);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
   await page.click('#btn-create');
@@ -157,10 +160,73 @@ const server = http.createServer((req, res) => {
   console.log(`  ✓ animations: ${Object.keys(manifestData.animations || {}).length} anims`);
   console.log(`  ✓ depthImage: ${depthTest.hasDepthImage ? 'yes' : 'no'} | depthFrameRects: ${depthTest.hasDepthFrameRects ? 'yes' : 'no'}`);
 
+  // ✓ Test 7: SWIFT v1.4 emissive-Pass + worldStates (in-page Fixtures, keine Dateien nötig)
+  console.log('\nTest 7: SWIFT v1.4 emissive + worldStates');
+  const emisTest = await page.evaluate(async () => {
+    const mk = (w, h, draw) => {
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const x = c.getContext('2d'); draw(x, w, h); return c.toDataURL('image/png');
+    };
+    const W = 32, H = 16; // 2 Frames à 16×16
+    const base = mk(W, H, x => { x.fillStyle = '#404040'; x.fillRect(0, 0, W, H); });
+    const emis = mk(W, H, x => {
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+      x.fillStyle = '#ff8800'; x.fillRect(1, 1, 14, 14); x.fillRect(17, 1, 14, 14);
+    });
+    const dust = mk(W, H, x => { x.fillStyle = '#8a6d3b'; x.fillRect(0, 0, W, H); });
+    const manifest = {
+      mappingVersion: '1.4.0', sourceImage: { w: W, h: H },
+      frameRects: { F01: { x: 0, y: 0, w: 16, h: 16 }, F02: { x: 16, y: 0, w: 16, h: 16 } },
+      frames: [{ id: 'F01', key: 'F01' }, { id: 'F02', key: 'F02' }],
+      animations: { idle: { frames: ['F01', 'F02'], fps: 4, loop: true } },
+      emissiveImage: 't_emissive.png', emissiveSourceImage: { w: W, h: H },
+      emissiveFrameRects: { F01: { x: 0, y: 0, w: 16, h: 16 }, F02: { x: 16, y: 0, w: 16, h: 16 } },
+      normalImage: 't_normal.png',
+      worldStates: { dust: { name: 'dust', transform: 'dust', intensity: 0.6, variant_path: 't_dust.png' } }
+    };
+    // Abseits des Test-1-Actors (0.5, 0.6) platzieren, sonst überlagern sich die Sprites
+    const AX = 0.15, AY = 0.85;
+    const h = window.SHADED.addActor({
+      image: base, manifest, x: AX, y: AY, scale: 6, anim: 'idle',
+      emissiveImage: emis, worldStateImages: { dust }
+    });
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    await wait(600);
+    const ov = document.getElementById('ov');
+    const sample = () => {
+      const g = ov.getContext('2d');
+      const px = Math.round(AX * ov.width), py = Math.round(AY * ov.height - 6 * 8);
+      const d = g.getImageData(px, py, 1, 1).data; return [d[0], d[1], d[2], d[3]];
+    };
+    window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0, fog: 0 });
+    await wait(300);
+    const day = sample();
+    window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 1, fog: 0 });
+    await wait(300);
+    const night = sample();
+    window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0, fog: 0 });
+    await wait(300);
+    const states = h.getWorldStates();
+    const swOk = h.setWorldState('dust');
+    await wait(300);
+    const dustPx = sample();
+    h.setWorldState(null);
+    h.remove();
+    return { day, night, states, swOk, dustPx };
+  });
+  const emissiveOk = emisTest.night[0] > emisTest.day[0] + 30;   // Emission nachts deutlich stärker
+  const wsParsedOk = emisTest.states.length === 1 && emisTest.states[0] === 'dust' && emisTest.swOk;
+  const wsSwapOk = emisTest.dustPx[0] > emisTest.day[0] + 20;    // Varianten-Sheet (braun) statt Basis (grau)
+  console.log(`  ${emissiveOk ? '✓ PASS' : '✗ FAIL'}: Emissive glüht nachts additiv (Tag r=${emisTest.day[0]} → Nacht r=${emisTest.night[0]})`);
+  console.log(`  ${wsParsedOk ? '✓ PASS' : '✗ FAIL'}: worldStates geparst + setWorldState akzeptiert (${JSON.stringify(emisTest.states)})`);
+  console.log(`  ${wsSwapOk ? '✓ PASS' : '✗ FAIL'}: Varianten-Sheet aktiv (Basis r=${emisTest.day[0]} → dust r=${emisTest.dustPx[0]})`);
+  const test7Failed = !(emissiveOk && wsParsedOk && wsSwapOk);
+
   console.log('\nKonsolen-Fehler:', errors.length ? errors.join(' | ') : 'keine');
   console.log('\n✓ Actor-Verifikation abgeschlossen.');
   console.log('  Screenshots in tools/verify-out/shot_actor_*.png');
 
   await browser.close();
   server.close();
+  if (test7Failed || errors.length) process.exit(1);
 })().catch(e => { console.error(e); process.exit(1); });

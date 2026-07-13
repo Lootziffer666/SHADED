@@ -18,9 +18,16 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
 
 ## Unverhandelbare Invarianten
 
-1. **Single-File, kein Build-Step.** `index.html` ist die komplette App und muss per
-   Doppelklick bzw. `python3 -m http.server` laufen. Keine Bundler, keine npm-Dependencies
-   zur Laufzeit, kein Framework. (Playwright wird nur für Tests genutzt, nie im Produkt.)
+1. **Single-File, kein Build-Step — für `index.html`.** `index.html` bleibt die komplette
+   Runtime-App und muss weiterhin per Doppelklick bzw. `python3 -m http.server` laufen.
+   Keine Bundler, keine npm-Dependencies zur Laufzeit, kein Framework in `index.html`.
+   **Update:** Diese Regel wurde vom Maintainer als für Autoren-Werkzeuge zu eng erkannt
+   und ausdrücklich aufgehoben ("obsoletes Relikt") — sie gilt jetzt NUR noch für die
+   ausgelieferte Runtime `index.html`. `editor/` (Gate: Capybara-inspirierter Editor,
+   siehe unten) ist ein separates Autoren-Werkzeug, darf Mehrdatei-/ESM-Struktur nutzen
+   und `index.html` unverändert per `<iframe>` einbetten. Es steuert die Engine
+   ausschließlich über das bestehende `window.SHADED`-API (Invariante 5) — es forkt oder
+   dupliziert nie Shader-/Analyse-Code (Invariante 2 bleibt für den Editor genauso hart).
 2. **Eine Material-Wahrheit.** Die CPU-Analyse (`classGrid`, `getMaterialTypeAt`) und die
    GPU-Masken-Texturen entstehen aus DERSELBEN Segmentierung in `analyze()`.
    Niemals eine zweite, unabhängige Klassifikation einführen – genau daran ist der
@@ -63,6 +70,14 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    `getMaterialTypeAt` – Invariante 2 bleibt unberührt.
    Handle-Methoden: `setAnim(name)`, `setPosition(x,y)`, `setVisible(v)`,
    `setDepthLayer(layer)`, `remove()`.
+   **v1.5.0+ (SWIFT-Parität):** `addActor` versteht zusätzlich `emissiveImage`
+   (RGB-Sheet aus SWIFTs `--emissive-pass`, wird additiv als Eigenlicht gerendert:
+   nachts voll, tags schwach, Nebel dämpft – KEIN Tint der Basistextur) und
+   `worldStateImages: {name: url|HTMLImage}` (Varianten-Sheets aus `--world-states`,
+   Frame-Layout laut Orchestration-Vertrag identisch). Neue Handle-Methoden:
+   `setWorldState(name|null)`, `getWorldStates()`, `getWorldState()`.
+   `normalImage`/`worldStates` werden aus dem Manifest geparst; Normal-Maps werden
+   derzeit nicht gerendert (Canvas-2D hat keinen Licht-Pass) – Feld ist reserviert.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
@@ -87,6 +102,73 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    Fels-Komponenten sind für Zonen tabu). Trail-Decay wirkt IMMER direkt
    auf den Pixeldaten – nie über Canvas-Composite-Tricks.
 
+## SHADED Editor (`editor/`)
+
+SHADED hatte nie einen echten Editor — nur die eingefrorene Referenz
+`gaime_shader_editor_pro_v2_6_bio_physics_edition.html` (Invariante 4, nicht anfassen)
+und die rohe `window.SHADED`-API. `editor/` ist der erste echte, funktionierende Editor,
+konzeptionell an [Capybara 2D Engine](https://github.com/d-liya/capybara_2d_engine)
+angelehnt: **eine große Engine hinter einer kleinen, stabilen, agentenfreundlichen
+Fassade**, statt einer zweiten Implementierung der Engine-Interna.
+
+- **`editor/facade.js` — `SceneEditorFacade`.** Die einzige Klasse, die
+  `../index.html` anfasst — per `<iframe>` eingebettet, unverändert. Ruft
+  ausschließlich das bestehende `window.SHADED`-API auf (`loadImageFile`, `erstellen`,
+  `getParams`/`setParams`, `applyAct`, `isReady`, `getMaterialTypeAt`). Kein
+  Shader-/Analyse-Code wird hier dupliziert oder geforkt — Invariante 2 gilt für den
+  Editor genauso hart wie für `index.html` selbst.
+- **`editor/markerPainter.js` — `MarkerPainter`.** Zweite kleine Fassade: ein
+  Pinsel-Werkzeug für das in Invariante 3 beschriebene Marker-Overlay. Malt direkt auf
+  eine Canvas-Kopie des Szenenbilds; unveränderte Pixel bleiben exakt erhalten (SHADEDs
+  eigene Marker-Erkennung ist diff-basiert). `MARKER_BRUSH`/`CANONICAL_PALETTE` sind von
+  Hand mit `index.html`s `PALETTE`-Objekt synchron gehalten — `index.html` bleibt die
+  Wahrheit, der Editor kopiert nur die Farbwerte.
+- **`editor/actorPlacer.js` — `ActorPlacer`.** Dritte kleine Fassade: platziert
+  SWIFT-Sprite-Sheet-Akteure ausschließlich über `window.SHADED.addActor()`. Übergibt
+  `image`/`depthImage`/`emissiveImage` immer als `blob:`-URL-Strings und `manifest`
+  immer als JSON-String — niemals als Parent-Fenster-`Image()`/-Objekt, weil
+  `addActor`s interne `instanceof HTMLImageElement`-Prüfung sonst am Iframe-Realm
+  scheitert. `scale` ist laut echtem `addActor`-Handle nur beim Erstellen setzbar
+  (kein `setScale`) — Änderung entfernt den Actor und legt ihn mit denselben
+  gecachten Dateien neu an, statt eine nicht existierende API zu erfinden.
+- **`editor/storyboardTimeline.js` — `StoryboardTimeline`.** Vierte kleine Fassade:
+  bearbeitet `window.SHADED.story.board()` — das ist dieselbe Live-Referenz, die
+  `playStory()`/`tickStory()` intern abspielen, keine zweite Storyboard-Wahrheit.
+- **`editor/app.js`** verdrahtet nur UI-Events auf die vier Fassaden — enthält selbst
+  keine Engine- oder Klassifikationslogik.
+- **Funktionsumfang:**
+  1. Live-Parameter-Tuning (alle Slider aus `PARAM_META`, direkt gegen die laufende
+     Engine, Preset speichern/laden).
+  2. Marker-/Palette-Overlay-Malen (Pinsel in den 8 kanonischen Palettenfarben +
+     Fenster-Marker-Pink, Export als PNG oder direkte Live-Anwendung als Zweitbild).
+  3. Actor-Platzierung (SWIFT-Sprites): Sprite-Sheet + Manifest hochladen, Marker in
+     der eingebetteten Vorschau per Drag positionieren, Anim/Depth-Layer/Scale je
+     Actor einstellen, entfernen.
+  4. Story/Akt-Timeline: Schritte aus dem aktuellen Zustand erzeugen, Name/Dauer
+     bearbeiten, Zustand in einen Schritt übernehmen, Vorschau, Umsortieren, Play/Stop.
+- **Verifikation:** `node tools/verify-editor.js` (gleiches Muster wie `tools/verify.js`
+  — lokaler Server + headless Chromium; prüft echten Engine-Ready-Zustand, echte
+  Parameter-Übertragung, echtes Pinsel-Pixel-Ergebnis, Actor-Hinzufügen inkl.
+  Drag-Positionierung, Timeline-Schreibzugriff auf `window.SHADED.story.board()` und
+  Konsolenfehler-Freiheit). **Wichtig für neue Interaktionstests:** das Vorschau-Panel
+  ist wegen Iframe + 15 Slidern sehr hoch — vor jeder mausbasierten Interaktion mit
+  weiter oben liegenden Elementen (Marker, Canvas) `scrollIntoViewIfNeeded()` bzw.
+  `window.scrollTo(0,0)` nutzen, sonst zielen die Koordinaten ins Leere.
+- **Headless-Orchestrierung (`window.SHADED_ORCHESTRATOR`, Real Golden Run R-07–R-11).**
+  Fünfte Erweiterung von `facade.js` selbst (nicht der interaktiven UI): `loadProject`/
+  `exportProject`/`addActorBundle`/`getRuntimeStatus`/`getDebugSnapshot`, konform zu
+  `contracts/shaded-scene-project.schema.json` (Parameter/Actors/Storyboard — trägt
+  bewusst keine Bild-Bytes, JSON kann das nicht). `editor/app.js` exponiert diese fünf
+  Methoden gebündelt als `window.SHADED_ORCHESTRATOR` auf der EDITOR-Seite (nicht im
+  Engine-Iframe — mit `window.SHADED` selbst nicht zu verwechseln), damit ein externes
+  Headless-Skript sie ohne ESM-Import erreichen kann. `tools/orchestrate.js` ist der
+  reale, shellbare CLI-Vertrag darüber (Beweis-Ziel für ANVILs künftigen
+  `ShadedCliAdapter`, analog zu SWIFTs `python main.py render --json`) — siehe
+  `docs/ORCHESTRATION.md` für Aufruf, Request-Format und Exit-Codes.
+  Verifikation: `node editor/facade.test.js` (fünf Methoden direkt), `node
+  tools/orchestrate.js --project tools/orchestrate-example-request.json --json`
+  (End-to-End-CLI-Beweis).
+
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 
 ```bash
@@ -109,8 +191,10 @@ verify.js vergleicht außerdem die Klassenzählung aller fünf Szenen gegen
 `tools/expected-classes.json` (±10 %) – bei GEWOLLTEN Verschiebungen die Baseline
 bewusst aktualisieren (nach visueller Prüfung!), nie blind.
 
-**Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zusätzlich manuell
-im Browser überprüfen:
+**Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zuerst
+`node tools/verify-actors.js` laufen lassen (deckt API, Depth-Kopplung und die
+SWIFT-v1.4-Erweiterungen emissive/worldStates mit Pixel-Assertions ab; Exit ≠ 0
+bei FAIL oder Konsolenfehlern), zusätzlich manuell im Browser überprüfen:
 - Actor erscheint an korrekter Position (x, y)
 - Animation spielt korrekt ab (fps, loop)
 - Depth-Layer sortiert Actors korrekt (front/mid/back)
@@ -146,32 +230,53 @@ kommt nur aus `depthLayer` und interner Frame-Ordnung.
 {
   "mappingVersion": "1.4.0",
   "sourceImage": { "w": 256, "h": 64 },
-  "frameRects": { "F01": [x, y, w, h], ... },
+  "frameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... },
   "frames": [{ "id": "F01", "key": "walk_01" }, ...],
   "animations": {
     "walk": { "frames": ["F01", "F02", ...], "fps": 12, "loop": true }
   },
   "depthImage": "sprite_depth.png",           // optional (Phase B2)
   "depthSourceImage": { "w": 256, "h": 64 }, // optional, gleiche Größe wie sourceImage
-  "depthFrameRects": { "F01": [x, y, w, h], ... }  // optional, parallel zu frameRects
+  "depthFrameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... },  // optional, parallel zu frameRects
+  "emissiveImage": "sprite_emissive.png",     // optional (SWIFT --emissive-pass)
+  "emissiveSourceImage": { "w": 256, "h": 64 },
+  "emissiveFrameRects": { "F01": {"x": 0, "y": 0, "w": 64, "h": 64}, ... },
+  "normalImage": "sprite_normal.png",         // optional, geparst aber (noch) ungenutzt
+  "worldStates": {                             // optional (SWIFT --world-states)
+    "dust": { "name": "dust", "transform": "dust", "intensity": 0.5, "variant_path": "sprite_dust.png" }
+  }
 }
 ```
+Wie `depthImage` werden auch `emissiveImage` und die `worldStates`-Varianten-PNGs
+NICHT automatisch aus Manifest-Pfaden geladen – der Aufrufer übergibt sie explizit
+(`addActor({..., emissiveImage, worldStateImages})`).
+
+**Wichtig:** `frameRects`/`depthFrameRects` sind **Objekte** `{x,y,w,h}`, KEINE Arrays –
+genau so liest sie `parseActorManifest` (`r.x/r.y/r.w/r.h`) und genau so emittiert sie
+SWIFTs `core/exporter.export_manifest`. Das Manifest-Feld `depthImage` ist ein Pfad
+relativ zum Manifest und wird von `addActor` NICHT automatisch geladen – die Depth-Map
+wird als eigene Option `addActor({..., depthImage})` übergeben.
 
 **Phase B2 (Depth-Rendering):**
 - `depthImage`: Pfad zu 8-bit Grayscale PNG (gleiche Größe wie RGB-Sheet)
 - `depthFrameRects`: Frame-Koordinaten in der Depth-Map (identisch zu `frameRects`)
-- Depth-Composite in SHADED: 
-  - Dunklere Pixel (niedrige Z-Werte) = näher Betrachter (heller/warm)
-  - Hellere Pixel (hohe Z-Werte) = ferner weg (dunkler/cool)
-  - Durchschnittliche Depth pro Frame steuert Tinting und Schattenintensität
+- Depth-Composite in SHADED (`actorDepthBrightness`):
+  - Helle Depth-Pixel = nah am Betrachter → bis +30 % Helligkeit
+  - Dunkle Depth-Pixel = fern → bis −15 % Abdunklung
+  - avgDepth wird EINMAL pro Frame-ID berechnet und am Actor gecacht
+    (`actor._depthAvg`) – nie `getImageData` im Render-Pfad
+  - Bewusst KEIN Farbtint (Regel „keine Farbverschiebung auf Actors" gilt auch hier);
+    angewendet wird nur `ctx.filter = brightness(…)` beim Zeichnen
 
 ## Fahrplan (verbindlich, siehe .kiro/specs/)
 
 - Runde 2: Jahreszeiten & Klima (`round-2-seasons-climate`) ✅
 - Runde 3: Material Fatigue & Verfall (`round-3-material-fatigue`) ✅
 - Runde 4: Interaktion & Ökosystem (`round-4-interaction-ecosystem`) ✅
-- Runde 5: Strukturelle Segmentierung / Bildkanon (`round-5-structural-segmentation`)
-  – in Arbeit; nächster Schritt Fachwerk-Signatur (K1) → Gebäudezonen
+- Runde 5: Strukturelle Segmentierung / Bildkanon (`round-5-structural-segmentation`) ✅
+  (alle 9 Tasks abgeschlossen, inkl. Fachwerk-Signatur K1 → Gebäudezonen, Unit 7)
+- Runde 7: Ökosystem-Integration (`docs/round-7-ecosystem.md`, `window.SHADED.ecosystem`)
+  – ohne .kiro-Spec umgesetzt; bei Erweiterungen zuerst Spec nachziehen
 
 Jede Runde arbeitet ihre Spec ab: `requirements.md` → `design.md` → `tasks.md`.
 
@@ -223,10 +328,32 @@ Weitere Kandidaten für zukünftige Runden:
 - 14. Krankheit/Gift (Poison Filter, teilweise da)
 - 44–60: Advanced world laws (siehe vision-weltgesetze.md)
 
+## TRIVIUM-Anbindung (Cross-Repo-Vertrag)
+
+SHADED ist der erste fließend rhetorische Zieladapter des universellen Game
+Translation Compilers **TRIVIUM** (`lootziffer666/TRIVIUM`,
+`adapters/shaded/`). TRIVIUM formuliert Weltbedeutung engine-agnostisch
+(WIR: Grammatik/Rhetorik/Logik) und übersetzt sie u. a. in SHADED-Artefakte:
+abspielbare Storyboards (`{name, dur, p}` via `story.board()`), Parameter-Sets,
+`addActor`-Slots und Marker-Briefs in der kanonischen Palette.
+
+Vertragsregeln (spiegelbildlich zu TRIVIUMs CLAUDE.md):
+- Der TRIVIUM-Driver spricht AUSSCHLIESSLICH das `window.SHADED`-API
+  (setParams, getParams, story.board/play/stop, addActor, getMaterialTypeAt).
+  Invariante 2 (Eine Material-Wahrheit) bleibt unberührt — der Driver liest
+  höchstens `getMaterialTypeAt`, schreibt nie Klassifikation.
+- Bei Änderungen am `window.SHADED`-API (Invariante 5: nur erweitern):
+  TRIVIUMs SHADED-Adapter nachziehen und dort `node tools/verify-live.js`
+  laufen lassen — der Beweisritt führt den generierten Driver headless im
+  echten `index.html` aus. SHADED selbst richtet sich NIE nach TRIVIUM;
+  die Abhängigkeit zeigt in eine Richtung (wie bei SWIFT).
+- TRIVIUM-generierte Driver/WIR-Dateien sind externe Artefakte — werden
+  NICHT in SHADED committet (gleiches Gesetz wie für SWIFT-Manifeste).
+
 ## Git & Cross-Repo Coordination
 
-- **SHADED Branch**: `claude/combine-repos-workflow-937fs4` (Push mit `git push -u origin <branch>`)
-- **SWIFT Branch** (parallel): `claude/combine-repos-workflow-937fs4` (selber Name für Koordination)
+- **Branches**: SHADED und SWIFT arbeiten pro Aufgabe auf gleichnamigen Branches
+  (aktuell `claude/pipeline-repos-review-qft48j`; Push mit `git push -u origin <branch>`)
 - Beide Repos arbeiten **unabhängig**, werden aber über das Manifest-Format + Actor-API verknüpft
 - SWIFT generiert Output → wird manuell oder per Build-System in SHADED geladen
 - Nie committen: `node_modules/`, `tools/verify-out/`, `package*.json` aus Testläufen
