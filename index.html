@@ -3472,8 +3472,11 @@ function frame(now){
     gl.uniform1f(U.u_bloodStain, ready? bloodStain : 0);
     gl.uniform1f(U.u_mudStain, ready? mudStain : 0);
     gl.uniform1f(U.u_lens, ready? lensState : 0);
+<<<<<<< HEAD
     // Materialschicht: ohne Zerlegung (oder vor analyze()) exakt 0 -> identity-albedo
     gl.uniform1f(U.u_intrinsic, (ready && intrinsicShading) ? intrinsicStrength : 0);
+=======
+>>>>>>> d4ac8b3 (Runde 8: Wally-Monokel — Inspektions-Linsen + Klang-Wellenfeld)
     gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     lastFlash = ready ? tickLightning(time) : 0;
@@ -3559,6 +3562,7 @@ window.SHADED = {
   // Runde 8: Wally-Monokel (Inspektions-Linsen) + Klang-Wellenfeld
   lens:{ set:(n)=>{ lensState=Math.max(0,Math.min(5,n|0)); }, get:()=>lensState },
   sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear }
+<<<<<<< HEAD
   // Materialschicht: Licht/Material-Trennung (docs/neuronale-materialien-svbrdf-pbr.md).
   // Rein optisch – schreibt NIE in classGrid oder getMaterialTypeAt (Invariante 2).
   intrinsic:{
@@ -3619,6 +3623,8 @@ window.SHADED = {
       return intrinsicShading[y*AW+x];
     }
   }
+=======
+>>>>>>> d4ac8b3 (Runde 8: Wally-Monokel — Inspektions-Linsen + Klang-Wellenfeld)
 };
 </script>
 </body>
