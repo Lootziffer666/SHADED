@@ -7,6 +7,12 @@ index.html                          Die App (Runde 1). Aufbau: CSS → Sidebar-D
                                     Render-Loop → window.SHADED
 tools/verify.js                     Headless-Verifikation (Playwright)
 tools/verify-out/                   Screenshot-Ausgabe (gitignored)
+tools/costume-browser.html          Runde 9: lokales Kostüm-Label-Werkzeug (offline)
+tools/sprite-exporter.html          Runde 10: Labels -> echte Sprite-Sheet-PNGs (offline, ZIP)
+tools/cost-format.mjs               Runde 9: SCUMM-COST-Decoder (getestet, experimentelle Pixel-RLE)
+tools/minizip.mjs                   Runde 10: STORE-ZIP-Writer (getestet gg. Python zipfile)
+content/*.js                        Reine Erzähl-Inhalte (window.SHADED_*), NICHT in index.html
+                                    eingebunden - Engine (Runde 10: Dialog) bleibt generisch
 CLAUDE.md                           Regeln für Claude Code (Spiegel dieses Steerings)
 README.md                           Menschen-Doku inkl. Fahrplan & LLM-Instruktionen
 .claude/skills/shaded-pipeline/     Architektur-Skill (Texturen, Uniforms, Andocken)

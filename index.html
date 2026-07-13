@@ -15,6 +15,15 @@ body.cinema #sidebar{margin-left:-330px}
 canvas#gl{max-width:100%;max-height:100%;display:block;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.85)}
 canvas#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:6px}
 canvas#ov.firetool{pointer-events:auto;cursor:crosshair}
+/* Runde 10: Dialog-Box (SCUMM-artige Textbox am unteren Rand) */
+#dialogue-box{position:absolute;left:6%;right:6%;bottom:6%;background:rgba(8,10,16,.86);border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;padding:14px 18px;font-family:'Segoe UI',system-ui,sans-serif;color:#f2f2f5;cursor:pointer;
+  box-shadow:0 8px 30px rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+#dialogue-box.hidden{display:none}
+#dialogue-speaker{font-weight:700;font-size:13px;letter-spacing:.04em;color:#7dd3fc;margin-bottom:4px;min-height:1em}
+#dialogue-speaker.direction{color:#9aa;font-style:italic;font-weight:400}
+#dialogue-text{font-size:15px;line-height:1.5;min-height:1.5em;white-space:pre-wrap}
+#dialogue-hint{margin-top:8px;font-size:11px;color:#8a8f9c;text-align:right}
 #drop-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4b4b6b;font-size:15px;pointer-events:none;gap:8px;text-align:center}
 #drop-hint b{color:#7dd3fc;font-size:22px}
 h1{font-size:17px;letter-spacing:3px;color:#7dd3fc;margin-bottom:2px}
@@ -136,6 +145,11 @@ body.cinema #exit-cinema{display:block}
   <div id="canvas-wrap">
     <canvas id="gl" width="16" height="9"></canvas>
     <canvas id="ov" width="16" height="9"></canvas>
+    <div id="dialogue-box" class="hidden">
+      <div id="dialogue-speaker"></div>
+      <div id="dialogue-text"></div>
+      <div id="dialogue-hint">▶ weiter (Leertaste / Klick)</div>
+    </div>
   </div>
   <div id="drop-hint"><b>SHADED</b><span>Bild hierher ziehen oder links laden,<br>dann „✨ Erstellen“ drücken.</span></div>
 </div>
@@ -2876,7 +2890,7 @@ window.addEventListener('keydown',e=>{
     if(!player.active&&ready) spawnPlayer();
     if(player.active) e.preventDefault();
   }
-  if(k===' '&&player.active){ e.preventDefault(); dash(); }
+  if(k===' '&&player.active&&dialogueIndex<0){ e.preventDefault(); dash(); }
   if(k==='f'&&player.active){ igniteFire(player.u+0.012*(player.lookX||1), player.v); }
 });
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
@@ -3240,6 +3254,10 @@ function frame(now){
   const frameDt=acc;
   while(acc>0){ const s=Math.min(0.05,acc); tickWorld(s); acc-=s; }
   const dt=frameDt;
+  // Runde 10: EIN Tick pro Frame mit eigenem, eng gekappten Delta (nicht die Substep-Schleife
+  // oben) - sonst würde eine reale Pause (Tab im Hintergrund, langsamer Rechner) den gesamten
+  // Text auf einen Schlag aufdecken statt normal weiterzutippen, sobald es weitergeht.
+  dialogueTick(Math.min(dt, 0.1));
   if(ready) trailUpload();
   if(ready) soundUpload();
 
@@ -3292,6 +3310,55 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// === Runde 10: Dialog-Engine ===============================================================
+// Datengetrieben, motorunabhängig vom eigentlichen Skriptinhalt: SHADED selbst bleibt generisch,
+// echte Erzähl-Inhalte (z. B. content/prolog-act1.js) werden separat geladen und nur als Array
+// von "Beats" übergeben. Beat-Typen: {type:'direction'|'line', speaker?, text} (angezeigt,
+// Schreibmaschinen-Effekt), {type:'lens', n} / {type:'sound-emit', at:[u,v], strength}
+// (Trigger, laufen sofort durch, keine Wartezeit - koppeln an Runde 8 ohne diese zu duplizieren).
+let dialogueBeats=[], dialogueIndex=-1, dialogueRevealChars=0;
+const DIALOGUE_CPS=42; // Zeichen pro Sekunde, Schreibmaschinen-Tempo
+function dialogueShowCurrent(){
+  const box=document.getElementById('dialogue-box');
+  const speakerEl=document.getElementById('dialogue-speaker');
+  const textEl=document.getElementById('dialogue-text');
+  const hintEl=document.getElementById('dialogue-hint');
+  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length){ box.classList.add('hidden'); return; }
+  const beat=dialogueBeats[dialogueIndex];
+  box.classList.remove('hidden');
+  if(beat.type==='direction'){ speakerEl.textContent=''; speakerEl.className='direction'; }
+  else { speakerEl.textContent=beat.speaker||''; speakerEl.className=''; }
+  const full=beat.text||'';
+  textEl.textContent=full.slice(0, Math.floor(dialogueRevealChars));
+  const complete=dialogueRevealChars>=full.length;
+  hintEl.textContent = !complete ? '' : (dialogueIndex>=dialogueBeats.length-1 ? '■ Ende (Leertaste/Klick)' : '▶ weiter (Leertaste/Klick)');
+}
+function dialogueTick(dt){
+  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length) return;
+  const full=dialogueBeats[dialogueIndex].text||'';
+  if(dialogueRevealChars<full.length){ dialogueRevealChars=Math.min(full.length, dialogueRevealChars+DIALOGUE_CPS*dt); dialogueShowCurrent(); }
+}
+function dialogueGoto(index){
+  dialogueIndex=index; dialogueRevealChars=0;
+  if(dialogueIndex>=dialogueBeats.length){ dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); return; }
+  const beat=dialogueBeats[dialogueIndex];
+  if(beat.type==='lens'){ lensState=Math.max(0,Math.min(5,beat.n|0)); dialogueGoto(dialogueIndex+1); return; }
+  if(beat.type==='sound-emit'){ const at=beat.at||[0.5,0.5]; soundStamp(at[0],at[1],beat.strength==null?1:beat.strength); dialogueGoto(dialogueIndex+1); return; }
+  dialogueShowCurrent();
+}
+function dialoguePlay(beats){ dialogueBeats=Array.isArray(beats)?beats:[]; dialogueGoto(0); }
+function dialogueAdvance(){
+  if(dialogueIndex<0) return;
+  const full=dialogueBeats[dialogueIndex].text||'';
+  if(dialogueRevealChars<full.length){ dialogueRevealChars=full.length; dialogueShowCurrent(); return; } // erst: Text sofort komplett zeigen
+  dialogueGoto(dialogueIndex+1); // dann erst: naechster Beat
+}
+function dialogueSkip(){ dialogueBeats=[]; dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); }
+document.getElementById('dialogue-box').addEventListener('click', dialogueAdvance);
+window.addEventListener('keydown', e=>{
+  if(dialogueIndex>=0 && (e.key===' '||e.key==='Enter')){ e.preventDefault(); dialogueAdvance(); }
+});
 
 // =========================== Agent-/Test-API (nicht entfernen!) ===========================
 window.SHADED = {
@@ -3362,7 +3429,13 @@ window.SHADED = {
   ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) },
   // Runde 8: Wally-Monokel (Inspektions-Linsen) + Klang-Wellenfeld
   lens:{ set:(n)=>{ lensState=Math.max(0,Math.min(5,n|0)); }, get:()=>lensState },
-  sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear }
+  sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear },
+  // Runde 10: Dialog-Engine (motorseitig generisch, Inhalte kommen separat, z.B. content/*.js)
+  dialogue:{
+    play:dialoguePlay, advance:dialogueAdvance, skip:dialogueSkip,
+    isPlaying:()=>dialogueIndex>=0,
+    current:()=>dialogueIndex>=0?{index:dialogueIndex, total:dialogueBeats.length, beat:dialogueBeats[dialogueIndex], revealed:Math.floor(dialogueRevealChars)}:null,
+  },
 };
 </script>
 </body>

@@ -37,6 +37,7 @@ tech.md) die automatische Analyse übersteuern.
 4. Runde 4: Interaktion & Ökosystem → Spec `round-4-interaction-ecosystem`
 5. ✅ Runde 8: Wally-Monokel (Inspektions-Linsen) → Spec `round-8-inspection-lenses`
 6. ✅ Runde 9: Asset-Pipeline (Kostüm-Browser, Szenen-Projekt-Zusammenbau) → Spec `round-9-asset-pipeline`
+7. ✅ Runde 10: Sprite-Export & Dialog-Engine → Spec `round-10-sprite-export-dialogue`
 
 Die Specs in `.kiro/specs/` sind verbindlich („Build by specs“:
 requirements → design → tasks).
