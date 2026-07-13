@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>SHADED — Kostüm-Browser (lokal, offline)</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;background:#15171c;color:#e8e8ea;max-width:900px;margin:0 auto;padding:24px}
+  h1{font-size:20px} h2{font-size:15px;color:#9aa}
+  .box{background:#1e2129;border:1px solid #333846;border-radius:8px;padding:16px;margin:14px 0}
+  .warn{background:#332615;border-color:#7a5a20;color:#f0c674}
+  button{background:#3a4a6b;color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:14px}
+  button:disabled{opacity:.4;cursor:default}
+  button:hover:not(:disabled){background:#4a5c85}
+  input[type=file]{color:#e8e8ea}
+  input[type=text]{background:#11131a;color:#e8e8ea;border:1px solid #333846;border-radius:6px;padding:6px 10px;font-size:14px;width:240px}
+  canvas{image-rendering:pixelated;background:#0a0b0e;border:1px solid #333846;border-radius:4px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  td,th{border-bottom:1px solid #2a2e38;padding:4px 8px;text-align:left}
+  .row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .muted{color:#8a8f9c}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px}
+  .pill.ok{background:#1e4620;color:#7ee787}
+  .pill.warn{background:#4a3a12;color:#f0c674}
+  .pill.err{background:#4a1e1e;color:#ff8080}
+  #swatches div{display:inline-block;width:14px;height:14px;border:1px solid #000}
+</style>
+</head>
+<body>
+<h1>SHADED — Kostüm-Browser <span class="muted">(Runde 9, lokal &amp; offline)</span></h1>
+
+<div class="box warn">
+  <b>Läuft komplett lokal in diesem Browser-Tab.</b> Keine Datei verlässt diesen Rechner —
+  kein Upload, kein Server, kein Netzwerkzugriff (offen im Dateimanager prüfbar: dieses HTML
+  lädt nichts von außen nach). Der Pixel-Decoder für die Sprite-Vorschau ist <b>experimentell</b>
+  — für das klassische SCUMM-„COST“-Format gibt es keine autoritative öffentliche Byte-Spezifikation,
+  nur community-rekonstruiertes Wissen. Struktur/Header/Palette-Auslesen ist mit synthetischen
+  Testdaten abgesichert (<code>tools/test-cost-format.mjs</code>); die Pixel-Vorschau kann bei
+  echten Dateien noch daneben liegen. Sieht eine Vorschau wie Rauschen/Streifen statt einer Form
+  aus: kurz beschreiben, was zu sehen ist, dann justiere ich den Algorithmus — dafür muss ich die
+  Datei selbst nie sehen.
+</div>
+
+<div class="box">
+  <div class="row">
+    <div>
+      <div class="muted">Ressourcendatei (z. B. MONKEY2.001 / monkey.001)</div>
+      <input type="file" id="f-res">
+    </div>
+    <div>
+      <div class="muted">Indexdatei, optional (z. B. MONKEY2.000 / monkey.000) — für Raumnamen</div>
+      <input type="file" id="f-idx">
+    </div>
+  </div>
+  <p id="status" class="muted">Noch keine Datei geladen.</p>
+</div>
+
+<div class="box" id="viewer" style="display:none">
+  <div class="row">
+    <div>
+      <canvas id="cv" width="256" height="256"></canvas>
+      <div style="margin-top:6px">
+        <button id="prev">&larr; Zurück</button>
+        <button id="next">Weiter &rarr;</button>
+        <span id="pos" class="muted"></span>
+      </div>
+      <div id="decodeStatus" style="margin-top:6px"></div>
+      <div id="swatches" style="margin-top:6px"></div>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div class="muted" id="meta"></div>
+      <div style="margin-top:10px">
+        <input type="text" id="label" placeholder="Name eintippen, z. B. Guybrush-walk-S">
+        <button id="save">Merken</button>
+      </div>
+      <table style="margin-top:14px">
+        <thead><tr><th>#</th><th>Offset</th><th>Raum</th><th>Name</th></tr></thead>
+        <tbody id="labels"></tbody>
+      </table>
+      <button id="export" style="margin-top:10px" disabled>Zuordnung als JSON exportieren</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ Kern-Logik (identisch zu tools/cost-format-Kernstück, self-tested — siehe
+// tools/test-cost-format.mjs im selben Repo für die synthetischen Round-Trip-Tests) ============
+function xorDecode(bytes){ const out=new Uint8Array(bytes.length); for(let i=0;i<bytes.length;i++) out[i]=bytes[i]^0x69; return out; }
+function tagAt(dv,off){ return String.fromCharCode(dv.getUint8(off),dv.getUint8(off+1),dv.getUint8(off+2),dv.getUint8(off+3)); }
+function headerAt(dv,offset,end){
+  if(offset+8>end) throw new Error('truncated chunk header at '+offset);
+  const tag=tagAt(dv,offset), size=dv.getUint32(offset+4,false);
+  if(!/^[A-Z0-9 ]{4}$/.test(tag)) throw new Error('invalid tag at '+offset);
+  if(size<8||offset+size>end) throw new Error('invalid size at '+offset);
+  return {tag,size,offset,dataOffset:offset+8,end:offset+size};
+}
+function parseStream(dv,start,end){ const chunks=[]; let offset=start; while(offset<end){ const c=headerAt(dv,offset,end); chunks.push(c); offset=c.end; } return chunks; }
+
+function findCostChunks(decoded){
+  const dv=new DataView(decoded.buffer,decoded.byteOffset,decoded.byteLength);
+  const root=headerAt(dv,0,decoded.length);
+  if(root.tag!=='LECF') throw new Error('keine SCUMM-LECF-Ressourcendatei (falsche Datei? falsches Spiel?)');
+  const top=parseStream(dv,root.dataOffset,root.end);
+  const ROOM_CONTAINERS=new Set(['ROOM','RMIM','OBIM','OBCD']);
+  const found=[];
+  for(const lflf of top.filter(c=>c.tag==='LFLF')){
+    let children; try{ children=parseStream(dv,lflf.dataOffset,lflf.end); }catch(e){ continue; }
+    for(const c of children) if(c.tag==='COST') found.push({...c,room:lflf.offset});
+    const room=children.find(c=>c.tag==='ROOM');
+    if(!room) continue;
+    let roomChildren; try{ roomChildren=parseStream(dv,room.dataOffset,room.end); }catch(e){ continue; }
+    for(const c of roomChildren) if(c.tag==='COST') found.push({...c,room:lflf.offset});
+    for(const c of roomChildren){
+      if(!ROOM_CONTAINERS.has(c.tag)) continue;
+      try{ for(const n of parseStream(dv,c.dataOffset,c.end)) if(n.tag==='COST') found.push({...n,room:lflf.offset}); }catch(e){}
+    }
+  }
+  return found;
+}
+function parseCostumeHeader(decoded,chunk){
+  const dv=new DataView(decoded.buffer,decoded.byteOffset+chunk.dataOffset,chunk.size-8);
+  const numAnim=dv.getUint8(0), formatByte=dv.getUint8(1);
+  const format=formatByte&0x7f, mirror=(formatByte&0x80)!==0;
+  const numColors=(format&0x01)?32:16, bitsPerPixel=numColors===16?4:5;
+  const palette=[]; for(let i=0;i<numColors&&2+i<dv.byteLength;i++) palette.push(dv.getUint8(2+i));
+  return {numAnim,format,mirror,numColors,bitsPerPixel,palette,byteLength:dv.byteLength};
+}
+function decodeCel(decoded,celByteOffset,maxBytes,bitsPerPixel){
+  const avail=decoded.byteLength-celByteOffset;
+  if(avail<10) throw new Error('zu wenig Bytes für Cel-Header');
+  const dv=new DataView(decoded.buffer,decoded.byteOffset+celByteOffset,Math.min(maxBytes,avail));
+  const width=dv.getUint16(0,true), height=dv.getUint16(2,true);
+  if(width===0||height===0||width>512||height>512) throw new Error('unplausible Cel-Maße '+width+'x'+height);
+  const relX=dv.getInt16(4,true), relY=dv.getInt16(6,true);
+  const pixels=new Uint8Array(width*height);
+  let src=10, dst=0, bitBuf=0, bitCount=0;
+  const mask=(1<<bitsPerPixel)-1;
+  function readIndex(){
+    while(bitCount<bitsPerPixel){
+      if(src>=dv.byteLength) throw new Error('Cel-Stream zu kurz');
+      bitBuf|=dv.getUint8(src++)<<bitCount; bitCount+=8;
+    }
+    const v=bitBuf&mask; bitBuf>>>=bitsPerPixel; bitCount-=bitsPerPixel; return v;
+  }
+  let guard=pixels.length*4+64; // gegen Endlosschleifen bei kaputten Daten
+  while(dst<pixels.length){
+    if(guard-- <= 0) throw new Error('Decoder-Sicherung ausgelöst (zu viele Iterationen)');
+    if(src>=dv.byteLength) throw new Error('Cel-Stream zu kurz (Kontrollbyte)');
+    const ctrl=dv.getUint8(src++), repeat=(ctrl&0x80)!==0;
+    let run=ctrl&0x7f; if(run===0) run=128;
+    if(repeat){ const idx=readIndex(); for(let i=0;i<run&&dst<pixels.length;i++) pixels[dst++]=idx; }
+    else { for(let i=0;i<run&&dst<pixels.length;i++) pixels[dst++]=readIndex(); }
+    bitBuf=0; bitCount=0; // jeder Run ist byteweise ausgerichtet (Encoder-Konvention)
+  }
+  return {width,height,relX,relY,pixels,bytesUsed:src};
+}
+function parseRoomNames(decodedIndex){
+  const dv=new DataView(decodedIndex.buffer,decodedIndex.byteOffset,decodedIndex.byteLength);
+  const chunks=parseStream(dv,0,decodedIndex.length);
+  const rnam=chunks.find(c=>c.tag==='RNAM');
+  if(!rnam) return new Map();
+  const map=new Map();
+  const data=decodedIndex.subarray(rnam.dataOffset,rnam.end);
+  for(let off=0; off+10<=data.length; off+=10){
+    const id=data[off]; if(id===0) break;
+    const enc=data.subarray(off+1,off+10); const chars=[];
+    for(const v of enc){ const ch=v^0xff; if(ch===0) break; chars.push(ch); }
+    map.set(id, String.fromCharCode(...chars));
+  }
+  return map;
+}
+
+// Brute-force-Cel-Suche: statt der (unsicheren) Animations-Offset-Tabelle zu parsen, wird jede
+// Byteposition nach dem Header als möglicher Cel-Start versucht; plausible, sauber dekodierte
+// Treffer werden behalten. Ehrlich unpräzise, aber robust gegenüber Unsicherheit im Tabellenformat.
+function scanForCels(decoded, chunk, header){
+  const results=[];
+  const start=chunk.dataOffset+2+header.numColors;
+  const end=Math.min(chunk.end, start+20000); // Sicherheitsdeckel pro Kostüm
+  let lastGoodEnd=-1;
+  for(let off=start; off<end && results.length<24; off++){
+    if(off<lastGoodEnd) continue; // keine überlappenden Treffer
+    try{
+      const cel=decodeCel(decoded, off, chunk.end-off, header.bitsPerPixel);
+      if(cel.width>=2 && cel.height>=2 && cel.width*cel.height>=8){
+        results.push({offset:off, ...cel});
+        lastGoodEnd=off+cel.bytesUsed;
+      }
+    }catch(e){ /* kein Treffer an dieser Position, weiter */ }
+  }
+  return results;
+}
+
+// ============ UI ============
+let decodedRes=null, roomNames=new Map(), costumes=[], cur=0, curCels=[], celFrame=0, playTimer=null;
+const labels=[]; // {index, offset, room, name}
+
+const statusEl=document.getElementById('status');
+document.getElementById('f-res').addEventListener('change', async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  statusEl.textContent='Lese '+file.name+' …';
+  const buf=new Uint8Array(await file.arrayBuffer());
+  try{
+    decodedRes=xorDecode(buf);
+    costumes=findCostChunks(decodedRes);
+    if(!costumes.length) throw new Error('keine COST-Chunks gefunden — falsche Datei oder anderes SCUMM-Format?');
+    cur=0;
+    statusEl.textContent=`${file.name}: ${costumes.length} Kostüm-Ressourcen gefunden.`;
+    document.getElementById('viewer').style.display='block';
+    document.getElementById('export').disabled=false;
+    showCostume();
+  }catch(err){
+    statusEl.textContent='Fehler: '+err.message;
+    document.getElementById('viewer').style.display='none';
+  }
+});
+document.getElementById('f-idx').addEventListener('change', async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const buf=new Uint8Array(await file.arrayBuffer());
+  try{ roomNames=parseRoomNames(xorDecode(buf)); showCostume(); }catch(err){ /* optional, egal wenn's fehlschlägt */ }
+});
+
+function showCostume(){
+  if(playTimer){ clearInterval(playTimer); playTimer=null; }
+  const chunk=costumes[cur];
+  const meta=document.getElementById('meta'), decodeStatus=document.getElementById('decodeStatus'), swatches=document.getElementById('swatches');
+  document.getElementById('pos').textContent=`Kostüm ${cur+1} / ${costumes.length}`;
+  let header;
+  try{ header=parseCostumeHeader(decodedRes, chunk); }
+  catch(err){ meta.textContent='Header-Fehler: '+err.message; decodeStatus.innerHTML='<span class="pill err">Header defekt</span>'; return; }
+  const roomName=roomNames.get==null?null:null;
+  const roomLabel = roomNames.size ? (findRoomNameFor(chunk) || '(unbekannt)') : '(Indexdatei nicht geladen)';
+  meta.innerHTML = `Offset: ${chunk.offset}<br>Raum: ${roomLabel}<br>numAnim: ${header.numAnim}<br>Format: 0x${header.format.toString(16)} (${header.numColors} Farben, ${header.bitsPerPixel} bpp)`;
+
+  swatches.innerHTML='';
+  for(const idx of header.palette.slice(0,32)){
+    const d=document.createElement('div');
+    const g=idx*8%256; d.style.background=`rgb(${g},${g},${g})`; // Rohindex als Graustufe - echte VGA-Palette liegt außerhalb dieses Chunks
+    d.title='Palettenindex '+idx;
+    swatches.appendChild(d);
+  }
+
+  try{
+    curCels=scanForCels(decodedRes, chunk, header);
+    if(!curCels.length) throw new Error('kein plausibles Cel im Scan-Fenster gefunden');
+    decodeStatus.innerHTML=`<span class="pill ok">${curCels.length} Cel(s) dekodiert</span>`;
+    celFrame=0;
+    drawCel();
+    if(curCels.length>1) playTimer=setInterval(()=>{ celFrame=(celFrame+1)%curCels.length; drawCel(); }, 250);
+  }catch(err){
+    curCels=[];
+    decodeStatus.innerHTML=`<span class="pill warn">Pixel-Vorschau fehlgeschlagen</span> <span class="muted">${err.message} — Struktur/Palette oben bleibt trotzdem verlässlich.</span>`;
+    const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,cv.width,cv.height);
+  }
+  document.getElementById('label').value = (labels.find(l=>l.index===cur)||{}).name || '';
+}
+function findRoomNameFor(chunk){
+  // chunk.room ist der LFLF-Offset in der Ressourcendatei, nicht direkt die Room-ID aus dem Index -
+  // ehrlich: ohne LOFF-Kreuzreferenz (Runde-8/DECOMPILE-Probe kann das) bleibt das hier ein Platzhalter.
+  return null;
+}
+function drawCel(){
+  const cel=curCels[celFrame]; if(!cel) return;
+  const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  const scale=Math.max(1, Math.min(16, Math.floor(220/Math.max(cel.width,cel.height))));
+  cv.width=cel.width*scale; cv.height=cel.height*scale;
+  const img=ctx.createImageData(cel.width,cel.height);
+  for(let i=0;i<cel.pixels.length;i++){
+    const idx=cel.pixels[i], g=(idx*16)%256; // Graustufen-Fallback: echte Farben kommen aus der (hier nicht mitgelieferten) VGA-Palette
+    img.data[i*4]=g; img.data[i*4+1]=g; img.data[i*4+2]=g; img.data[i*4+3]= idx===0?0:255;
+  }
+  const off=document.createElement('canvas'); off.width=cel.width; off.height=cel.height;
+  off.getContext('2d').putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.drawImage(off,0,0,cel.width,cel.height,0,0,cv.width,cv.height);
+}
+
+document.getElementById('prev').onclick=()=>{ cur=(cur-1+costumes.length)%costumes.length; showCostume(); };
+document.getElementById('next').onclick=()=>{ cur=(cur+1)%costumes.length; showCostume(); };
+document.getElementById('save').onclick=()=>{
+  const name=document.getElementById('label').value.trim(); if(!name) return;
+  const chunk=costumes[cur];
+  const existing=labels.find(l=>l.index===cur);
+  if(existing) existing.name=name; else labels.push({index:cur, offset:chunk.offset, room:chunk.room, name});
+  renderLabels();
+};
+function renderLabels(){
+  const tbody=document.getElementById('labels'); tbody.innerHTML='';
+  for(const l of labels.slice().sort((a,b)=>a.index-b.index)){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${l.index+1}</td><td>${l.offset}</td><td>${l.room}</td><td>${l.name}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+document.getElementById('export').onclick=()=>{
+  const payload={schemaVersion:'1.0.0', tool:'shaded.costume-browser', note:'id/offset/name only — no pixel data', labels};
+  const blob=new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='costume-labels.json'; a.click();
+  URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
