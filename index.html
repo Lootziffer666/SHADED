@@ -238,6 +238,9 @@ uniform float u_repairMark;   // Sichtbare Reparaturen mit neuer Farbe (#30)
 uniform float u_blessCurse;   // Segen/Fluch: Material-Verhalten konditioniert (#49)
 uniform float u_bloodStain;   // Übertragene Blut-Schicht auf Schuhen (#2: Blut-Transfer)
 uniform float u_mudStain;     // Übertragene Schlamm-Schicht auf Schuhen (#2: Schlamm-Transfer)
+// Runde 8: Wally-Monokel (Inspektions-Linsen)
+uniform float u_lens;         // 0=aus, 1=Schmutz/Abnutzung, 2=Belastung, 3=Klang, 4=Materialtreue, 5=Kanten (#7)
+uniform sampler2D u_sound;    // Klang als sichtbare Wellen (#7): r=Wellenfeld, CPU-Stempel+Decay wie Trail
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -884,6 +887,31 @@ void main(){
   col *= 1.0 + 0.012*sin(t*0.45);
   col *= 1.0 - (0.30*night + 0.10*u_storm) * pow(length(uv-0.5)*1.42, 1.8);
 
+  // === Runde 8: Wally-Monokel — isolierte Inspektions-Linsen, ersetzt col am Ende ===
+  // (nach der vollen Komposition, damit jede Linse dieselbe Welt sieht wie das normale Bild).
+  if(u_lens>0.5){
+    vec3 grey = vec3(lum(base))*0.35;             // gedimmter Materialgrund, Linsen heben NUR ihr Merkmal hervor
+    if(u_lens<1.5){                                 // Linse 1: Schmutz, Abnutzung, Fußspuren
+      float wear = clamp(trail.b*1.4 + u_touchWear*0.6, 0.0, 1.0);
+      col = grey + wear*vec3(0.95,0.70,0.30);
+    } else if(u_lens<2.5){                           // Linse 2: Belastung/Druck (#4)
+      float press = clamp(u_pressureDim*3.0, 0.0, 1.0);
+      col = grey + press*vec3(1.0,0.25,0.20);
+    } else if(u_lens<3.5){                           // Linse 3: Klang als sichtbare Geometrie (#7)
+      float wave = texture2D(u_sound,uv).r;
+      col = grey + wave*vec3(0.35,0.85,1.0);
+    } else if(u_lens<4.5){                           // Linse 4: Materialtreue — der stabile Shader.
+      // Bewusst unverändert: das normale, voll komponierte Bild IST diese Linse.
+    } else {                                          // Linse 5: nur Kanten, keine Materialinformation
+      vec4 mAx = texture2D(u_maskA, uv+vec2(u_px.x,0.0)) - texture2D(u_maskA, uv-vec2(u_px.x,0.0));
+      vec4 mAy = texture2D(u_maskA, uv+vec2(0.0,u_px.y)) - texture2D(u_maskA, uv-vec2(0.0,u_px.y));
+      vec4 mBx = texture2D(u_maskB, uv+vec2(u_px.x,0.0)) - texture2D(u_maskB, uv-vec2(u_px.x,0.0));
+      vec4 mBy = texture2D(u_maskB, uv+vec2(0.0,u_px.y)) - texture2D(u_maskB, uv-vec2(0.0,u_px.y));
+      float e = length(mAx)+length(mAy)+length(mBx)+length(mBy);
+      col = vec3(smoothstep(0.05,0.5,e));
+    }
+  }
+
   gl_FragColor = vec4(clamp(col,0.0,1.0),1.0);
 }`;
 
@@ -908,6 +936,7 @@ const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
  'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone',
  'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold',  'u_runeGlow','u_bloodStain','u_mudStain',
+ 'u_lens','u_sound',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -921,12 +950,14 @@ function mkTex(unit){
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   return t;
 }
-const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7) };
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7), sound:mkTex(8) };
 gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
 gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);  gl.uniform1i(U.u_trail,5);
 gl.uniform1i(U.u_depth,6); gl.uniform2f(U.u_parallax,0,0);
 gl.uniform1i(U.u_zone,7);
+gl.uniform1i(U.u_sound,8);
 gl.uniform1f(U.u_fireCount,0);
+gl.uniform1f(U.u_lens,0);
 
 // === Runde 4: Trail-/Störungstextur (Unit 5) ===
 // Kanäle: R transiente Störung (Fußdelle, Halbwertszeit 1.5 s), G Impuls (0.4 s),
@@ -977,6 +1008,46 @@ function trailSample(u,v){
   return {r:trailData[i]/255, g:trailData[i+1]/255, b:trailData[i+2]/255, a:trailData[i+3]/255};
 }
 trailUpload();   // sofort nullen – der 1×1-Platzhalter hätte a=1 (Brandspur überall)
+
+// === Runde 8: Klang-Wellenfeld (Unit 8) — gleiche Idiom wie die Trail-Textur ===
+// Nur R-Kanal genutzt: Wellenintensität. Schneller Decay (~0.35 s Halbwertszeit),
+// weil Klang per Definition transient ist (#7: Klang als sichtbare Wellen).
+const SND=256;
+const soundData = new Uint8Array(SND*SND*4);
+let soundDirty=true, soundDecayAcc=0;
+function soundStamp(u,v,strength){
+  const cx=u*SND, cy=v*SND, r=Math.max(1,0.10*SND);
+  const x0=Math.max(0,Math.floor(cx-r)), x1=Math.min(SND-1,Math.ceil(cx+r));
+  const y0=Math.max(0,Math.floor(cy-r)), y1=Math.min(SND-1,Math.ceil(cy+r));
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    const d=Math.hypot(x-cx,y-cy)/r;
+    if(d>1)continue;
+    const i=(y*SND+x)*4;
+    soundData[i]=Math.min(255, soundData[i]+strength*255*(1-d*d));
+  }
+  soundDirty=true;
+}
+function soundTick(dt){
+  soundDecayAcc+=dt;
+  if(soundDecayAcc<0.066) return;
+  const d=soundDecayAcc; soundDecayAcc=0;
+  const k=Math.exp(-d*1.98);                    // ~0.35 s Halbwertszeit
+  let any=false;
+  for(let i=0;i<soundData.length;i+=4){
+    if(soundData[i]){ soundData[i]=(soundData[i]*k)|0; any=true; }
+  }
+  if(any) soundDirty=true;
+}
+function soundUpload(){
+  if(!soundDirty)return;
+  gl.activeTexture(gl.TEXTURE0+8); gl.bindTexture(gl.TEXTURE_2D,TEX.sound);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,SND,SND,0,gl.RGBA,gl.UNSIGNED_BYTE,soundData);
+  soundDirty=false;
+}
+function soundClear(){ soundData.fill(0); soundDirty=true; }
+soundUpload();
+
+let lensState=0;   // Runde 8: Wally-Monokel, 0=aus, 1..5 aktive Linse
 
 function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canvas
   gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,tex);
@@ -2810,6 +2881,14 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 
+// --- Runde 8: Wally-Monokel — Tasten 1..5 schalten die Inspektions-Linsen (Klak.) ---
+window.addEventListener('keydown',e=>{
+  if(['1','2','3','4','5'].includes(e.key)){
+    lensState = (lensState===Number(e.key)) ? 0 : Number(e.key);   // erneutes Drücken schaltet aus
+    setStatus(lensState ? `🔎 Linse ${lensState} aktiv.` : '🔎 Linse aus.');
+  }
+});
+
 document.getElementById('btn-fire').onclick=()=>{
   fireToolActive=!fireToolActive;
   ov.classList.toggle('firetool',fireToolActive);
@@ -3153,6 +3232,7 @@ function tickWorld(dt){
     snowTick(dt);
     rainTick(dt);
     trailTick(dt);
+    soundTick(dt);
   }
 }
 function frame(now){
@@ -3161,6 +3241,7 @@ function frame(now){
   while(acc>0){ const s=Math.min(0.05,acc); tickWorld(s); acc-=s; }
   const dt=frameDt;
   if(ready) trailUpload();
+  if(ready) soundUpload();
 
   // Parallaxe glatt interpolieren; Overlay (Figur/Feuer) folgt der Bodenebene.
   parallaxCurrent.x += (parallaxTarget.x-parallaxCurrent.x)*0.06;
@@ -3196,6 +3277,7 @@ function frame(now){
     gl.uniform1f(U.u_blessCurse,blessCurse);
     gl.uniform1f(U.u_bloodStain, ready? bloodStain : 0);
     gl.uniform1f(U.u_mudStain, ready? mudStain : 0);
+    gl.uniform1f(U.u_lens, ready? lensState : 0);
     gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     lastFlash = ready ? tickLightning(time) : 0;
@@ -3277,7 +3359,10 @@ window.SHADED = {
   // als optische Akteure hinzufügen. Rein additiv, rührt classGrid nicht an.
   addActor,
   // Runde 7: Ökosystem-Integration
-  ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) }
+  ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) },
+  // Runde 8: Wally-Monokel (Inspektions-Linsen) + Klang-Wellenfeld
+  lens:{ set:(n)=>{ lensState=Math.max(0,Math.min(5,n|0)); }, get:()=>lensState },
+  sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear }
 };
 </script>
 </body>
