@@ -18,4 +18,6 @@ LAB does not replace SHADED's image analysis. The background, optional correctio
 
 ## BELLOWS boundary
 
-SHADED's runtime realization remains deterministic and does not need an LLM. If a future assistant interprets natural-language weather, scene intent or parameter suggestions, that server-side interpretation must go through BELLOWS. The browser runtime must never receive the BELLOWS bearer key and must never call external model providers directly.
+SHADED's runtime realization remains deterministic and does not need an LLM. If a server-side assistant interprets natural-language weather, scene intent, parameter suggestions, or an extracted scene preview, that request must use BELLOWS. ANVIL-BELLOWS now supports OpenAI-compatible `text`/`image_url` content parts for such vision tasks.
+
+The browser runtime must never receive the BELLOWS bearer key, inline a source image into a persisted LAB bundle, or call external model providers directly. Vision analysis belongs before runtime realization; SHADED receives the resulting structured scene intent and evidence references.
