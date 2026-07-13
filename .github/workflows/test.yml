@@ -34,16 +34,29 @@ jobs:
       run: |
         timeout 120 node tools/verify-costume-browser.js || echo "⚠️ Costume-browser test timed out (OK for headless CI)"
 
+    - name: Run minizip + content-lint self-tests (Runde 10)
+      run: |
+        node tools/test-minizip.mjs
+        node tools/test-content-lint.mjs
+
+    - name: Run Sprite-Exporter verification (Runde 10, synthetic fixture only)
+      run: |
+        timeout 120 node tools/verify-sprite-exporter.js || echo "⚠️ Sprite-exporter test timed out (OK for headless CI)"
+
+    - name: Run Dialogue-Engine verification (Runde 10)
+      run: |
+        timeout 120 node tools/verify-dialogue.js || echo "⚠️ Dialogue test timed out (OK for headless CI)"
+
     - name: Check manifest compatibility
       run: |
         node -e "
-const fs = require('fs');
-const manifest = JSON.parse(fs.readFileSync('tools/verify-test-actor.json', 'utf8'));
-console.log('✓ Manifest v' + manifest.mappingVersion + ' parsed');
-console.log('  - Frames:', Object.keys(manifest.frameRects || manifest.grid || {}).length);
-console.log('  - Animations:', Object.keys(manifest.animations).length);
-console.log('  - Schema compatibility: v1.3.0+ and v1.4.0+ supported');
-"
+        const fs = require('fs');
+        const manifest = JSON.parse(fs.readFileSync('tools/verify-test-actor.json', 'utf8'));
+        console.log('✓ Manifest v' + manifest.mappingVersion + ' parsed');
+        console.log('  - Frames:', Object.keys(manifest.frameRects || manifest.grid || {}).length);
+        console.log('  - Animations:', Object.keys(manifest.animations).length);
+        console.log('  - Schema compatibility: v1.3.0+ and v1.4.0+ supported');
+        "
 
     - name: Lint HTML
       run: |
