@@ -15,3 +15,7 @@ Load `integrations/lab-runtime.js` after `index.html` has created `window.SHADED
 ```
 
 LAB does not replace SHADED's image analysis. The background, optional correction overlay and optional depth map must be loaded through SHADED itself. Actors remain visual overlays and never alter `classGrid` or material truth.
+
+## BELLOWS boundary
+
+SHADED's runtime realization remains deterministic and does not need an LLM. If a future assistant interprets natural-language weather, scene intent or parameter suggestions, that server-side interpretation must go through BELLOWS. The browser runtime must never receive the BELLOWS bearer key and must never call external model providers directly.
