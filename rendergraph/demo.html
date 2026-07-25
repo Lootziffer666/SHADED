@@ -1,0 +1,592 @@
+<!doctype html>
+
+<html lang="de">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>SHADED Rendergraph — Phase 1 Infrastrukturbeweis</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+
+  :root{--bg:#0a0e13;--panel:rgba(10,16,22,.88);--line:rgba(255,255,255,.07);
+
+    --tx:#d8e2ea;--mut:rgba(160,185,210,.5);--acc:#6ec6ff;--warm:#ffb26b;--ok:#7ddf9a;
+
+    --disp:"Bricolage Grotesque",sans-serif;--mono:"IBM Plex Mono",monospace}
+
+  *{box-sizing:border-box}html,body{height:100%;margin:0}
+
+  body{background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:12px;overflow:hidden}
+
+  canvas{position:fixed;inset:0;width:100%;height:100%}
+
+  #ui{position:fixed;inset:0;pointer-events:none;display:grid;
+
+    grid-template-columns:320px 1fr 300px;grid-template-rows:auto 1fr auto;gap:10px;padding:14px}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;
+
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);pointer-events:auto;overflow-y:auto}
+
+  h1{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:.08em;margin:0 0 2px;color:#eef3f8}
+
+  .sub{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:10px}
+
+  h2{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin:12px 0 6px;border-top:1px solid var(--line);padding-top:8px}
+
+  .pass{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;margin-bottom:4px;
+
+    border:1px solid var(--line);transition:all .15s;cursor:default}
+
+  .pass:hover{border-color:rgba(110,198,255,.3)}
+
+  .pass .dot{width:7px;height:7px;border-radius:50%;flex:none}
+
+  .pass .nm{flex:1;font-size:11px}
+
+  .pass .ms{color:var(--acc);font-size:10px}
+
+  .pass .st{font-size:9px;padding:1px 6px;border-radius:3px;text-transform:uppercase}
+
+  .st-FULL{background:rgba(125,223,154,.15);color:var(--ok)}
+
+  .st-VISIBLE{background:rgba(110,198,255,.15);color:var(--acc)}
+
+  .st-SIMULATING{background:rgba(255,178,107,.15);color:var(--warm)}
+
+  .st-DORMANT{background:rgba(255,255,255,.05);color:var(--mut)}
+
+  .res{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+
+  .res .id{color:var(--acc)}.res .sz{color:var(--mut)}
+
+  .budget-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+
+  .budget-row input{flex:1;accent-color:var(--acc)}
+
+  .budget-row output{color:var(--acc);min-width:52px;text-align:right}
+
+  #caps{grid-column:1/-1;font-size:9.5px;color:var(--mut);display:flex;flex-wrap:wrap;gap:6px 16px}
+
+  #caps b{color:var(--tx);font-weight:500}
+
+  #fps{position:fixed;top:14px;right:14px;font-size:11px;color:var(--acc);
+
+    background:var(--panel);border:1px solid rgba(110,198,255,.16);border-radius:16px;padding:5px 12px;
+
+    backdrop-filter:blur(12px)}
+
+  #order{font-size:10px;color:var(--mut);line-height:1.7}
+
+  #order b{color:var(--acc)}
+
+  .fusion{font-size:10px;color:var(--warm);margin-top:4px}
+
+</style>
+
+</head>
+
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="fps">– fps</div>
+
+<div id="ui">
+
+  <div class="panel" style="grid-row:1/3">
+
+    <h1>RENDERGRAPH</h1>
+
+    <div class="sub">SHADED Phase 1 · Infrastrukturbeweis</div>
+
+    <h2>Pässe</h2>
+
+    <div id="passes"></div>
+
+    <h2>Ausführungsreihenfolge</h2>
+
+    <div id="order"></div>
+
+    <div id="fusion" class="fusion"></div>
+
+    <h2>Budget (§6.5)</h2>
+
+    <div class="budget-row">
+
+      <span>Frame</span>
+
+      <input type="range" id="budgetMs" min="4" max="33" step="0.5" value="16.6">
+
+      <output id="budgetOut">16.6 ms</output>
+
+    </div>
+
+    <div class="budget-row">
+
+      <span>Qualität</span>
+
+      <select id="qualitySel" style="flex:1;background:#111;color:var(--tx);border:1px solid var(--line);border-radius:4px;padding:3px">
+
+        <option value="high">high</option><option value="medium">medium</option><option value="low">low</option>
+
+      </select>
+
+    </div>
+
+  </div>
+
+  <div></div>
+
+  <div class="panel" style="grid-row:1/3">
+
+    <h2>Ressourcen-Pool (§7)</h2>
+
+    <div id="resources"></div>
+
+    <h2>Capability-Snapshot (§7.4)</h2>
+
+    <div id="caps-detail"></div>
+
+  </div>
+
+  <div id="caps" class="panel"></div>
+
+</div>
+
+
+
+<script src="rendergraph.js"></script>
+
+<script>
+
+'use strict';
+
+/* ============================================================
+
+   DEMO: 3 Pässe durch den Rendergraph
+
+   scene.procedural → glow.extract → composite.final
+
+   Beweist: Topologie, Ressourcen-Pool, Frequenz, Budget-Degradation
+
+   ============================================================ */
+
+const canvas = document.getElementById('c');
+
+const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+let graph = null;
+
+if (!gl) { document.body.innerHTML = '<h1 style="color:#ff9a8a;padding:40px">WebGL2 nicht verfügbar.</h1>'; throw 0; }
+
+
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+  if (graph) {
+    graph.pool.setBaseSize('sceneColor', canvas.width, canvas.height);
+    graph.pool.setBaseSize('glowColor', canvas.width, canvas.height);
+  }
+}
+
+addEventListener('resize', resize); resize();
+
+
+
+/* ---------- Shader-Compiler ---------- */
+
+function makeProgram(vsSrc, fsSrc) {
+
+  const vs = gl.createShader(gl.VERTEX_SHADER);
+
+  gl.shaderSource(vs, vsSrc); gl.compileShader(vs);
+
+  if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) throw new Error('VS: ' + gl.getShaderInfoLog(vs));
+
+  const fs = gl.createShader(gl.FRAGMENT_SHADER);
+
+  gl.shaderSource(fs, fsSrc); gl.compileShader(fs);
+
+  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) throw new Error('FS: ' + gl.getShaderInfoLog(fs));
+
+  const p = gl.createProgram();
+
+  gl.attachShader(p, vs); gl.attachShader(p, fs);
+
+  gl.bindAttribLocation(p, 0, 'a_pos');
+
+  gl.linkProgram(p);
+
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('Link: ' + gl.getProgramInfoLog(p));
+  gl.detachShader(p, vs); gl.detachShader(p, fs);
+  gl.deleteShader(vs); gl.deleteShader(fs);
+  return p;
+
+}
+
+
+
+const VS = `#version 300 es
+
+in vec2 a_pos;
+
+void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
+
+
+/* Pass 1: Prozedurale Szene (animierte Orbs + Gradient) */
+
+const SCENE_FS = `#version 300 es
+
+precision highp float;
+
+uniform vec2 u_resolution;
+
+uniform float u_time;
+
+out vec4 o;
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+
+float noise(vec2 p){
+
+  vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f);
+
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+
+}
+
+void main(){
+
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  vec2 asp = vec2(u_resolution.x/u_resolution.y, 1.0);
+
+  vec3 col = mix(vec3(0.04,0.06,0.12), vec3(0.08,0.14,0.24), uv.y);
+
+  col += vec3(0.02,0.04,0.06)*noise(uv*4.0+u_time*0.1);
+
+  for(int i=0;i<5;i++){
+
+    float fi=float(i);
+
+    vec2 center = vec2(0.2+0.6*hash(vec2(fi,1.)), 0.2+0.6*hash(vec2(fi,2.)));
+
+    center += 0.08*vec2(sin(u_time*(0.3+fi*0.1)+fi*2.1), cos(u_time*(0.25+fi*0.08)+fi*1.7));
+
+    float d = length((uv-center)*asp);
+
+    float glow = 0.012/(d*d+0.001);
+
+    vec3 orbCol = 0.5+0.5*cos(vec3(0.0,2.1,4.2)+fi*1.3);
+
+    col += orbCol * glow * 0.15;
+
+  }
+
+  o = vec4(col, 1.0);
+
+}`;
+
+
+
+/* Pass 2: Glow-Extraktion (Bright-Pass + einfacher Blur) */
+
+const GLOW_FS = `#version 300 es
+
+precision highp float;
+
+uniform sampler2D u_sceneColor;
+
+uniform vec2 u_resolution;
+
+out vec4 o;
+
+void main(){
+
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  vec2 tx = 1.0 / u_resolution;
+
+  vec3 sum = vec3(0.0);
+
+  for(int x=-2;x<=2;x++) for(int y=-2;y<=2;y++){
+
+    vec3 s = texture(u_sceneColor, uv + vec2(float(x),float(y))*tx*2.0).rgb;
+
+    float lum = dot(s, vec3(0.2126,0.7152,0.0722));
+
+    sum += s * smoothstep(0.25, 0.6, lum);
+
+  }
+
+  o = vec4(sum / 25.0, 1.0);
+
+}`;
+
+
+
+/* Pass 3: Composite (Szene + Glow + Vignette) */
+
+const COMPOSITE_FS = `#version 300 es
+
+precision highp float;
+
+uniform sampler2D u_sceneColor;
+
+uniform sampler2D u_glowColor;
+
+uniform vec2 u_resolution;
+
+uniform float u_time;
+
+out vec4 o;
+
+void main(){
+
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  vec3 scene = texture(u_sceneColor, uv).rgb;
+
+  vec3 glow = texture(u_glowColor, uv).rgb;
+
+  vec3 col = scene + glow * 1.4;
+
+  float vig = 1.0 - 0.35*dot((uv-0.5)*1.4, (uv-0.5)*1.4);
+
+  col *= vig;
+
+  col = pow(clamp(col, 0.0, 1.0), vec3(1.0/2.2));
+
+  o = vec4(col, 1.0);
+
+}`;
+
+
+
+/* ---------- Rendergraph aufbauen ---------- */
+
+graph = new RenderGraph(gl);
+
+const W = canvas.width, H = canvas.height;
+
+
+
+// Ressourcen allozieren (§7)
+
+graph.pool.allocate('sceneColor', { lifetime: 'transient', width: W, height: H });
+
+graph.pool.allocate('glowColor', { lifetime: 'transient', width: W, height: H, format: 'rgba8' });
+
+
+
+// Pässe registrieren (§4.1)
+
+const pScene = graph.registerPass({
+
+  id: 'scene.procedural', phase: 'composite', inputs: [], outputs: ['sceneColor'],
+
+  resolution: 1.0, cadence: 'frame', hz: 60, priority: 90, cost: 2
+
+});
+
+pScene.program = makeProgram(VS, SCENE_FS);
+
+
+
+const pGlow = graph.registerPass({
+
+  id: 'glow.extract', phase: 'post', inputs: ['sceneColor'], outputs: ['glowColor'],
+
+  resolution: 0.5, cadence: 'fixedHz', hz: 30, priority: 60, cost: 1, fallback: 'glow-quarter-res'
+
+});
+
+pGlow.program = makeProgram(VS, GLOW_FS);
+
+
+
+const pComp = graph.registerPass({
+
+  id: 'composite.final', phase: 'post', inputs: ['sceneColor', 'glowColor'], outputs: [],
+
+  resolution: 1.0, cadence: 'frame', hz: 60, priority: 100, cost: 1
+
+});
+
+pComp.program = makeProgram(VS, COMPOSITE_FS);
+
+
+
+/* ---------- §11 API exponieren ---------- */
+
+window.SHADED = {
+
+  renderGraph: {
+
+    inspect: () => graph.inspect(),
+
+    setBudget: (b) => graph.setBudget(b),
+
+    getPassTimings: () => graph.getPassTimings(),
+
+    setQuality: (q) => graph.setQuality(q)
+
+  },
+
+  capabilities: { snapshot: () => capabilitySnapshot(gl) },
+
+  resources: { inspect: () => graph.pool.inspect() }
+
+};
+
+
+
+/* ---------- UI-Update ---------- */
+
+function updateUI() {
+
+  const info = graph.inspect();
+
+  // Pässe
+
+  document.getElementById('passes').innerHTML = info.passes.map(p => {
+
+    const dotColor = p.state === 'FULL' ? 'var(--ok)' : p.state === 'VISIBLE' ? 'var(--acc)' : p.state === 'SIMULATING' ? 'var(--warm)' : 'var(--mut)';
+
+    return `<div class="pass"><span class="dot" style="background:${dotColor}"></span>
+
+      <span class="nm">${p.id}<small style="display:block;color:var(--mut)">${Math.round(p.effectiveResolution*100)}% · ${p.cadence}${p.cadence==='fixedHz'?' '+p.hz+'Hz':''}</small></span><span class="ms">${p.lastTimeMs}ms</span>
+
+      <span class="st st-${p.state}">${p.state}</span></div>`;
+
+  }).join('');
+
+  // Reihenfolge
+
+  document.getElementById('order').innerHTML = info.executionOrder.map((id, i) =>
+
+    `<b>${i + 1}.</b> ${id}`).join('<br>');
+
+  // Fusion
+
+  document.getElementById('fusion').textContent = info.fusionCandidates.length
+
+    ? '⚡ Fusion möglich: ' + info.fusionCandidates.map(f => f.passes.join('+')).join(', ')
+
+    : '';
+
+  // Ressourcen
+
+  document.getElementById('resources').innerHTML = info.resources.map(r =>
+
+    `<div class="res"><span class="id">${r.id}</span><span class="sz">${r.size} · ${r.format} · ${r.memoryMB} MB</span></div>`).join('');
+  document.getElementById('resources').insertAdjacentHTML('beforeend',
+    `<div class="res"><span class="id">Gesamt</span><span class="sz">${info.resourceMemoryMB} MB</span></div>`);
+
+  // Capabilities
+
+  const caps = capabilitySnapshot(gl);
+
+  document.getElementById('caps').innerHTML =
+
+    `<span><b>${caps.renderer}</b></span>
+
+     <span>Units: <b>${caps.maxTextureUnits}</b></span>
+
+     <span>MaxTex: <b>${caps.maxTextureSize}</b></span>
+
+     <span>Float: <b>${caps.floatRenderable ? '✓' : '✗'}</b></span>
+
+     <span>HalfFloat: <b>${caps.halfFloatRenderable ? '✓' : '✗'}</b></span>
+
+     <span>MRT: <b>${caps.maxDrawBuffers}</b></span>
+     <span>Timer: <b>${caps.timerQuery ? '✓' : '✗'}</b></span>`;
+
+  document.getElementById('caps-detail').innerHTML =
+
+    `<div class="res"><span class="id">Vendor</span><span class="sz">${caps.vendor}</span></div>
+
+     <div class="res"><span class="id">GLSL</span><span class="sz">${caps.glslVersion}</span></div>
+
+     <div class="res"><span class="id">Combined Units</span><span class="sz">${caps.maxCombinedUnits}</span></div>`;
+
+}
+
+
+
+/* ---------- Budget-Controls ---------- */
+
+document.getElementById('budgetMs').addEventListener('input', e => {
+
+  const v = +e.target.value;
+
+  graph.setBudget({ frameMs: v });
+
+  document.getElementById('budgetOut').textContent = v.toFixed(1) + ' ms';
+
+});
+
+document.getElementById('qualitySel').addEventListener('change', e => {
+
+  graph.setQuality(e.target.value);
+
+});
+
+
+
+/* ---------- Render-Loop ---------- */
+
+let time = 0, lastNow = performance.now(), fpsAcc = 0, fpsFrames = 0, uiAcc = 0;
+
+function frame(now) {
+
+  requestAnimationFrame(frame);
+
+  const dt = Math.min((now - lastNow) / 1000, 0.1);
+
+  lastNow = now; time += dt;
+
+  graph.execute({ time, nowMs: now });
+
+  fpsAcc += dt; fpsFrames++; uiAcc += dt;
+
+  if (fpsAcc >= 0.5) {
+
+    document.getElementById('fps').textContent = Math.round(fpsFrames / fpsAcc) + ' fps';
+
+    fpsAcc = 0; fpsFrames = 0;
+
+  }
+
+  if (uiAcc >= 0.25) { updateUI(); uiAcc = 0; }
+  if (!window.__SHADED_RENDERGRAPH_READY__) {
+    window.__SHADED_RENDERGRAPH_READY__ = true;
+    document.documentElement.dataset.rendergraphReady = 'true';
+  }
+
+}
+
+updateUI();
+
+requestAnimationFrame(frame);
+
+console.log('%c SHADED.renderGraph.inspect() → ', 'color:#6ec6ff', graph.inspect());
+
+console.log('%c SHADED.capabilities.snapshot() → ', 'color:#6ec6ff', capabilitySnapshot(gl));
+
+</script>
+
+</body>
+
+</html>
