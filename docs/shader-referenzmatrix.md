@@ -5,7 +5,7 @@
 
 > Nicht der schönste Shader gewinnt. Eine Referenz ist für SHADED dann wertvoll, wenn sie einen sichtbaren Zustand **lesbar, übertragbar und mechanisch nutzbar** macht.
 
-Die ausgelieferte SHADED-Basis bleibt WebGL 1, ein Fragment-Pass und ohne Build-Step. Das ist jedoch nur die kleinste eigenständig lauffähige Runtime – **nicht die Obergrenze des Gesamtsystems**. Darüber liegt perspektivisch eine Bridge zu externen Render- und Post-Processing-Schichten, mindestens ReShade. Diese Bridge darf zusätzliche Texturen, Zustandsfelder und Effekt-Pässe bedarfsgesteuert von außen einspeisen.
+Die ausgelieferte SHADED-Basis bleibt zunächst WebGL 1 und ohne Runtime-Build-Step. Der heutige große Fragmentshader ist jedoch nur die erste lauffähige Implementierung, **nicht die Obergrenze des Systems**. SHADED entwickelt einen internen dynamischen Mehrpass-Rendergraph mit Scheduler, Ressourcen-Pool und Lastverteilung. Texture Units begrenzen einen einzelnen Pass, nicht die Zahl der Weltgesetze oder die gesamte Renderpipeline. Die verbindliche Architektur steht in [`rendergraph-lastverteilung.md`](./rendergraph-lastverteilung.md).
 
 ---
 
@@ -23,11 +23,11 @@ Die ausgelieferte SHADED-Basis bleibt WebGL 1, ein Fragment-Pass und ohne Build-
 
 | Stufe | Bedeutung |
 |---|---|
-| **A** | Direkt oder stark vereinfacht im vorhandenen WebGL-1-Fragmentshader nutzbar |
-| **B** | Braucht ein zusätzliches Feld, eine CPU-Akkumulation oder eine dynamisch gebundene Textur |
-| **C** | Mehrpass-, Compute-, volumetrische oder Geometrie-Technik; über Bridge, ReShade oder eine spätere Engine-Schicht nutzbar |
+| **A** | Direkt oder stark vereinfacht in einem vorhandenen SHADED-Pass nutzbar |
+| **B** | Benötigt ein zusätzliches Feld, einen eigenen Pass, CPU-Akkumulation oder eine dynamisch gebundene Textur |
+| **C** | Mehrpass-, Feedback-, Compute-, volumetrische oder Geometrie-Technik; als eigener Rendergraph-Zweig oder späteres Backend umzusetzen |
 
-Die Einstufung beschreibt nicht, ob ein Verfahren „zu groß für SHADED“ ist. Sie beschreibt nur, **in welcher Schicht es ausgeführt werden sollte**.
+Die Einstufung beschreibt nicht, ob ein Verfahren „zu groß für SHADED“ ist. Sie beschreibt, **wie es in den Rendergraph eingeordnet und verteilt werden muss**.
 
 ### Lizenzampel
 
@@ -157,7 +157,7 @@ Die bereits lokal gesicherten Shader sind kein zufälliger Bilderordner mehr. Je
 | 38 | Sternen-/Mondlicht | Godot Sky · Over the Moon | silberne Kanten und materialabhängige Nachtreaktionen |
 | 39 | Wolken als Regelzonen | Protean Clouds · Clouds · CloudSkybox | wandernde Deckungsmaske steuert Licht, Feuchte und Solarenergie |
 | 40 | Falsche Sauberkeit | Wet Concrete · dynamisches Gedächtnisfeld | fehlende Materialgeschichte wird selbst zum lesbaren Widerspruch |
-| 41 | Hitzeverzug | Fire Shader · Godot-Shaders · ReShade-Pass | lokaler, bandbegrenzter UV-Domain-Warp über Wärmequellen |
+| 41 | Hitzeverzug | Fire Shader · Godot-Shaders · eigener Post-Pass | lokaler, bandbegrenzter UV-Domain-Warp über Wärmequellen |
 | 42 | Trocknung als Zeitmesser | Wet Sand · Wet Concrete · Rainier Mood | Glanz→Randring→Mattheit; Zeit seit letzter Nässe sichtbar |
 | 43 | Rauchschichtung | Godot Fog · Volumetric Explosion · FluidsGL | Dichte folgt Decke, Ritzen, Temperatur und Luftströmung |
 | 44 | Atem als Wahrheit | Godot Fog · Sparks Drifting | kurze gerichtete Dichteimpulse, gekoppelt an Kälte und Zustand |
@@ -180,37 +180,57 @@ Die bereits lokal gesicherten Shader sind kein zufälliger Bilderordner mehr. Je
 
 ---
 
-## 5. Architekturentscheidung: dynamische Weltgesetz-Pipeline statt fester Slot-Deckel
+## 5. Architekturentscheidung: interner Mehrpass-Rendergraph
 
-Die bisherige Aussage „sieben von acht Textur-Slots sind belegt, also muss der letzte Slot dauerhaft einem gemeinsamen `WorldField` gehören“ war falsch. Sie verwechselt die Grenze **eines einzelnen WebGL-Passes** mit der Kapazität des gesamten SHADED-Systems.
+Die Annahme, SHADED müsse alle Weltgesetze in einem einzigen Fragmentpass und dessen Texture Units unterbringen, ist ausdrücklich verworfen.
 
-Für SHADED gelten stattdessen vier Ebenen:
+SHADED verwendet künftig:
 
-1. **SHADED Base Runtime**  
-   Die kleinste eigenständig lauffähige WebGL-1-Version. Sie enthält nur die gerade gebundenen Basiseffekte und bleibt Single-File-fähig.
+1. **kanonischen Weltzustand** unabhängig vom Renderer,
+2. **World-Law Scheduler** für die gerade relevante Teilmenge,
+3. **internen Rendergraph** aus Simulation-, Material-, Licht-, Atmosphären-, Composite- und Post-Pässen,
+4. **Ressourcen-Pool** mit wiederverwendeten Render-Targets und Ping-Pong-Feldern,
+5. **Lastverteilung** nach Frequenz, Auflösung, Sichtbarkeit, Lokalität, Prozessor und Framebudget.
 
-2. **World-Law Scheduler**  
-   Er bestimmt aus Szene, Storyboard, Wetter, Materialklassen und Gameplayzustand, welche Weltgesetze aktuell relevant sind. Nie alle 60 Gesetze müssen gleichzeitig GPU-aktiv sein.
+Der heutige Shader wird zunächst als `LegacyCompositePass` eingebunden und schrittweise zerlegt. Kein Big-Bang-Rewrite.
 
-3. **Bridge Layer**  
-   Ein versionierter Vertrag überträgt aktive Gesetze, Uniforms, Masken und Texturbeschreibungen zwischen SHADED, Host-Anwendung und externen Renderern.
+### Texturregel
 
-4. **ReShade-/External-Pass Layer**  
-   Bildschirmraum-, Mehrpass- und zusätzliche Texturverfahren können von außen zugeschaltet werden. Externe Texturen werden nur für die Dauer ihrer aktiven Gesetze injiziert und danach freigegeben oder anderweitig belegt.
+**Texture Units begrenzen einen Pass, nicht SHADED.**
 
-### Konsequenz
+Zwischenresultate werden in Render-Texturen geschrieben und von späteren Pässen gelesen. Ressourcen werden nach Lebensdauer wiederverwendet. Weltzustände dürfen persistent sein, ohne permanent GPU-gebunden zu bleiben.
 
-**Textur-Slots werden vermietet, nicht dauerhaft vererbt.**
+### Aktivitätsregel
 
-Ein Slot kann während eines Schneesturms ein Schnee-/Spurenfeld tragen, später im Innenraum einem Rauch-/Geruchsfeld gehören und in einer magischen Szene als Brechungs- oder Runenmaske dienen. Persistente Zustände müssen deshalb logisch gespeichert werden, aber nicht permanent als GPU-Textur gebunden bleiben.
+Nie alle 60 Weltgesetze müssen gleichzeitig gerendert werden. Ein Gesetz wird nur eingeplant, wenn mindestens eine dieser Bedingungen gilt:
+
+- seine Ursache ist vorhanden,
+- seine Wirkung ist sichtbar,
+- ein mechanisches System liest seinen Zustand,
+- ein anderes aktives Gesetz benötigt sein Ergebnis.
+
+### Lastverteilungsregel
+
+Jedes neue Weltgesetz braucht vor der Implementierung:
+
+- Aktivierungs- und Sichtbarkeitsbedingungen,
+- Pass-Phase,
+- Eingaben und Ausgaben,
+- Aktualisierungsfrequenz,
+- Auflösung und räumliche Lokalität,
+- Ressourcen-Lebensdauer,
+- Fallback und Budgetverhalten,
+- Test-Fixture und Timing-Evidenz.
+
+Die vollständige Entscheidung und der Migrationspfad stehen in [`rendergraph-lastverteilung.md`](./rendergraph-lastverteilung.md).
 
 ---
 
 ## 6. Dynamische Field-Bank
 
-Statt eines einzigen universellen RGBA-Feldes erhält SHADED eine Bibliothek spezialisierter Feldprofile. Der Scheduler lädt nur die benötigten Profile.
+Die Field-Bank beschreibt logische Datenprofile, keine feste Slotbelegung.
 
-| Feldprofil | Beispielkanäle | Aktiv bei |
+| Feldprofil | Beispielkanäle | Typische Aktivität |
 |---|---|---|
 | **HydroField** | Nässe · Flussrichtung · Tiefe · Trocknungsalter | Regen, Pfützen, Flut, nasse Kleidung |
 | **TraceField** | Blut/Schlamm · Ruß/Öl · Berührung · Spurgedächtnis | Verfolgung, Reinigung, Tatort, Gewohnheitspfade |
@@ -219,148 +239,36 @@ Statt eines einzigen universellen RGBA-Feldes erhält SHADED eine Bibliothek spe
 | **BioField** | Wachstum · Krankheit · Pollen · Tierreaktion | Wald, Leichen, Heilung, Jahreszeiten |
 | **ArcaneField** | Brechung · Runen · Segen/Fluch · Materialgedächtnis | Magie, Grenzen, Lügen, Rituale |
 
-Diese Felder sind **logische Profile**, keine fest verdrahteten Textur-Slots. Sie können je nach Zielsystem realisiert werden als:
-
-- CPU-Array mit bedarfsgesteuertem Upload,
-- gepackte RGBA-Textur,
-- mehrere niedrig aufgelöste Texturen,
-- Ping-Pong-Buffer,
-- ReShade-injizierte externe Ressource,
-- engine-native Render- oder Compute-Texture.
-
-### Persistenz ist nicht Bindung
-
-Ein Weltzustand kann gespeichert bleiben, obwohl sein Feld gerade nicht auf der GPU liegt:
-
-- Schnee-Spuren bleiben im Szenenzustand erhalten, während der Spieler ein Gebäude betritt.
-- Rost akkumuliert logisch weiter, obwohl kein Metall sichtbar ist.
-- Geruch wird nur dort hochgeladen, wo Tiere oder Wind ihn gerade mechanisch relevant machen.
-- Alte Brandnarben werden erst beim erneuten Betreten der Region wieder als Textur materialisiert.
+Ein Profil kann als CPU-Array, gepackte Textur, mehrere spezialisierte Texturen, Tile-Feld, Ping-Pong-Target oder später Compute-Buffer realisiert werden. Nur aktuell benötigte Kanäle werden materialisiert.
 
 ---
 
-## 7. Bridge-Vertrag
+## 7. ReShade-Einordnung
 
-Die Bridge darf keine zweite Materialwahrheit erzeugen. `classGrid`, Materialmasken und Weltzustände bleiben kanonisch in SHADED beziehungsweise seinem Host-State. Externe Renderer erhalten daraus abgeleitete Ressourcen.
+ReShade ist **keine Voraussetzung** und kein Bestandteil der internen SHADED-Architektur.
 
-Minimaler Bridge-Snapshot:
-
-```json
-{
-  "bridgeVersion": "1.0",
-  "sceneId": "village-001",
-  "frame": 18420,
-  "activeLaws": [2, 5, 17, 21, 37, 41],
-  "params": {
-    "rain": 0.8,
-    "wet": 1.0,
-    "snow": 0.65,
-    "wind": 0.4,
-    "temperature": 0.18
-  },
-  "fields": [
-    {
-      "name": "HydroField",
-      "version": 12,
-      "channels": ["wetness", "flow", "depth", "dryAge"]
-    },
-    {
-      "name": "TraceField",
-      "version": 31,
-      "channels": ["blood", "dirt", "touch", "memory"]
-    }
-  ],
-  "externalPasses": [
-    "heat-distortion",
-    "fog-information-filter"
-  ]
-}
-```
-
-Der genaue Transportweg ist Implementierungsdetail. Der Vertrag muss jedoch garantieren:
-
-- identische Szenen- und Materialkoordinaten,
-- versionierte Feldinhalte,
-- eindeutige Lebensdauer jeder injizierten Ressource,
-- Aktivieren und Deaktivieren ohne Zustandsverlust,
-- deterministische Wiederherstellung für Tests und Storyboards,
-- keine unabhängige Klassifikation außerhalb der kanonischen SHADED-Analyse.
+Es kann später als optionaler Export- oder Fremdspiel-Adapter untersucht werden, wenn SHADED eine Renderpipeline erweitern soll, die es nicht selbst kontrolliert. Kein Weltgesetz, Passvertrag oder Ressourcenmodell darf ReShade voraussetzen.
 
 ---
 
-## 8. Aktivitäts-Scheduler
+## 8. Nächster Architektur-Sprint
 
-Ein Weltgesetz wird nicht aktiviert, weil es existiert, sondern weil seine Voraussetzungen erfüllt sind.
+Vor dem massenhaften Einbau weiterer Weltgesetze:
 
-Beispiel:
+1. bestehenden Renderer als `LegacyCompositePass` kapseln,
+2. minimalen Rendergraph-Runner einführen,
+3. Capability Snapshot und Ressourcen-Pool aufbauen,
+4. einen klar begrenzten Post-/Atmosphäreneffekt extrahieren,
+5. World-Law Scheduler mit Aktivitäts- und Budgetregeln ergänzen,
+6. mindestens zwei Update-Frequenzen und eine reduzierte Passauflösung beweisen,
+7. ein Ping-Pong-Feld für Wasser, Rauch oder Reaction Diffusion umsetzen,
+8. visuelle Parität und Ressourcenfreiheit verifizieren.
 
-```text
-Schnee aktiv
-  → Snow/Trace Field laden
-  → Fußspuren + Winddrift + Blutkontrast aktivieren
-
-Feuer im Schnee aktiv
-  → zusätzlich Heat/Atmos Field laden
-  → Schmelze + Dampf + Rauch + Lichtbrechung aktivieren
-
-Innenraum betreten
-  → volumetrischen Schneefall abschalten
-  → persistente Außenspuren entbinden, nicht löschen
-  → Rauchschichtung und Mauerfeuchte nach Bedarf binden
-```
-
-### Auswahlkriterien
-
-- **Sichtbarkeit:** Ist das betroffene Material oder Gebiet überhaupt im Bild?
-- **Mechanische Relevanz:** Kann Spieler, NPC oder Simulation mit dem Zustand interagieren?
-- **Kausalität:** Existiert eine Quelle für das Gesetz, etwa Feuer, Wasser, Wind oder Magie?
-- **Priorität:** Welche Effekte tragen gerade die Szene und welche wären nur visuelles Rauschen?
-- **Budget:** Welche Gesetze laufen in der Base Runtime, welche über ReShade und welche bleiben logisch inaktiv?
-
-### Degradationsregel
-
-Wenn das Budget nicht reicht, wird nicht der Weltzustand gelöscht. Nur seine Darstellung wird abgestuft:
-
-1. mechanisch + vollständig sichtbar,
-2. mechanisch + vereinfachte Darstellung,
-3. logisch simuliert + nur indirekte Spuren,
-4. persistiert, aber bis zur nächsten Relevanz nicht gerendert.
+**Beweislevel:** Schnee + Fußspuren + Wind + Blut + Fackellicht, anschließend Außen-/Innenraumwechsel mit persistenten, zeitweise nicht gebundenen Zuständen.
 
 ---
 
-## 9. Nächster sinnvoller Architektur-Sprint
-
-Vor dem massenhaften Portieren weiterer Shader braucht SHADED nicht zuerst ein Shader-Rewrite, sondern den verbindenden Rücken:
-
-1. **Bridge-Schema definieren** – aktive Gesetze, Parameter, Feldbeschreibungen, Versionen.
-2. **World-Law Scheduler bauen** – Aktivierung aus Sichtbarkeit, Ursache, Gameplay und Budget.
-3. **Field-Bank einführen** – Hydro, Trace, Structure, Atmos, Bio und Arcane zunächst als logische Profile.
-4. **ReShade-Adapter-Prototyp** – mindestens ein externes Feld und ein externer Post-Pass.
-5. **Ressourcen-Lebenszyklus testen** – injizieren, austauschen, entbinden, später deterministisch wiederherstellen.
-6. **Beweislevel fahren** – Schnee + Fußspuren + Wind + Blut + Fackellicht.
-
-Der Beweislevel eignet sich besonders gut, weil er dynamisches Umschalten erzwingt:
-
-- Schnee und Wind benötigen andere Ressourcen als Feuer und Rauch.
-- Blut muss logisch persistent bleiben und je nach Untergrund anders dargestellt werden.
-- Hitzeverzug kann über den externen Pass laufen.
-- Beim Wechsel zwischen Außen- und Innenraum müssen Felder gebunden und entbunden werden, ohne Weltgeschichte zu verlieren.
-
-Danach folgen als erste inhaltliche Feldpakete:
-
-1. **#7 Klangwellen** – Impuls-/Trail-Logik.
-2. **#8 Mauerfeuchte** – Nässe, Trocknung, Moos und Frost.
-3. **#10 Öl/Fett/Harz** – Transfer, Brennbarkeit und Reinigung.
-4. **#12 Bodengedächtnis** – langfristige Weltgeschichte.
-5. **#14 Krankheit/Gift** – Reaction-Diffusion als biologisches Feld.
-6. **#17 Blut vervollständigen** – Alter, Verdünnung, Übertragung und Restschuld.
-7. **#18 Magie als Brechungsfehler** – externes Post-Processing plus ArcaneField.
-8. **#21 Kristallwachstum** – Frost, Sprödigkeit und Kälte.
-9. **#31 Reinigung** – Gegenmechanik für Blut, Öl, Ruß, Gift und verborgene Hinweise.
-
----
-
-## 10. Übernahmeregel
+## 9. Übernahmeregel
 
 Für jede neue Referenz werden künftig genau diese Felder dokumentiert:
 
@@ -369,11 +277,16 @@ Name:
 URL:
 Rolle: Zielbild | Algorithmus | Implementierung
 Weltgesetze:
-Ausführungsschicht: Base Runtime | Bridge Field | ReShade | Engine-native
-Portierbarkeit: A | B | C
-Aktivierungsbedingungen:
-Benötigte Felder/Texturen:
+Rendergraph-Phase:
+Update: frame | fixedHz | event | onDirty
+Frequenz:
+Auflösung:
+Lokalität:
+Benötigte Eingaben/Felder:
+Ausgaben:
 Persistenz:
+Fallback:
+Portierbarkeit: A | B | C
 Lizenz:
 Übernehmbarer Kern:
 Nicht übernehmen:
