@@ -107,7 +107,11 @@ Es fehlen:
 
 Vor allem: `albedo` steht hier bereits als Feld, obwohl niemand es erzeugt und niemand definiert hat, ob es Licht enthält.
 
-### 1.5 Der harte Deckel: WebGL 1 mit acht belegten Texture Units
+### 1.5 Der harte Deckel: WebGL 1 mit acht belegten Texture Units *(behoben)*
+
+> **Stand nach der Umsetzung:** SHADED läuft auf **WebGL 2 mit GLSL ES 3.00**.
+> Der folgende Befund beschreibt die Ausgangslage und bleibt als Begründung stehen.
+
 
 `index.html` erzeugt den Kontext mit:
 
@@ -131,7 +135,7 @@ Zusätzlich fehlen in WebGL 1:
 - Texture Arrays und 3D-Texturen,
 - Compute.
 
-Damit ist die Lage eindeutig: **Nicht das Modellangebot blockiert PBR in SHADED, sondern der Grafik-Kontext.** Jede Diskussion über WGSL, MaterialX oder OpenPBR-Auswertung ist bis zu dieser Entscheidung gegenstandslos.
+Damit war die Lage eindeutig: **Nicht das Modellangebot blockierte PBR in SHADED, sondern der Grafik-Kontext.** Diese Blockade ist mit dem Wechsel auf WebGL 2 aufgehoben (§10).
 
 ---
 
@@ -512,9 +516,21 @@ Ein MaterialX-Runtime-Pfad würde:
 
 ---
 
-## 10. Die Kontextfrage: WebGL 1, WebGL 2 oder WebGPU
+## 10. Die Kontextfrage: WebGL 1, WebGL 2 oder WebGPU — entschieden
 
-Ohne freie Texture Units ist keine Materialschicht lauffähig. Drei Wege:
+**Status: Weg B umgesetzt.** `index.html` erzeugt den Kontext mit `getContext('webgl2')`;
+Vertex- und Fragment-Shader laufen auf GLSL ES 3.00 (`#version 300 es`, `in`/`out`,
+`texture()`, `fragColor`). Gemessen im Verify-Chromium: **32 Fragment-Sampler,
+9 belegt, 23 frei, 6 Draw-Buffer** — `tools/verify.js` prüft das als harten Gate.
+
+Es gibt bewusst **keinen** WebGL-1-Fallback. Zwei Shader-Quellen wären zwei Wahrheiten;
+fehlt WebGL 2, bricht die Runtime mit einer klaren Meldung ab statt still zu degradieren.
+
+Der erste Gewinn ist bereits eingelöst: Die Materialschicht sitzt nicht mehr huckepack im
+freien Kanal der Zonen-Textur, sondern auf **Unit 8** (R = Shading, G = Konfidenz,
+B/A reserviert für Rauheit und AO). Die Zonen-Textur trägt wieder genau ihre eine Aufgabe.
+
+Die ursprüngliche Abwägung:
 
 | Weg | Gewinn | Kosten | Bewertung |
 |---|---|---|---|
@@ -522,9 +538,15 @@ Ohne freie Texture Units ist keine Materialschicht lauffähig. Drei Wege:
 | **B – WebGL 2** | MRT, mehr Sampler, Texture Arrays, Float-Targets, GLSL ES 3.00 | Shader-Portierung; Fallback-Frage; alle Verify-Baselines neu prüfen | **empfohlener Zielkontext** |
 | **C – WebGPU/WGSL** | Compute, moderne Toolchain, MaterialX-WGSL-Anschluss | größter Umbau; Toolchain gegen Invariante 1; breite Verfügbarkeit prüfen | erst nach B, mit eigenem Beweisritt |
 
-Empfehlung: **B**, und zwar als eigene Runde mit vollständigem visuellem Verify-Durchlauf, bevor der erste Materialkanal überhaupt gerendert wird. Grund: WebGL 2 ist die kleinste Änderung, die die Blockade tatsächlich löst, und sie kollidiert nicht mit dem Single-File-Gebot.
+Gewählt wurde **B**: die kleinste Änderung, die die Blockade tatsächlich löst, ohne mit dem
+Single-File-Gebot zu kollidieren. Die Portierung war mechanisch (21× `texture2D` → `texture`,
+`varying`/`attribute` → `in`/`out`, `gl_FragColor` → `fragColor`, plus die Umbenennung einer
+lokalen Variablen `patch`, die in GLSL ES 3.00 reserviert ist) und ist verhaltenserhaltend:
+Klassenzählung aller fünf Szenen unverändert, Materialschicht-Wirkung Δ 2.699 → 2.702.
 
-Der erste vertikale Schnitt in §11 ist bewusst so geschnitten, dass er **ohne** Kontextwechsel beweisbar ist – über Weg A, mit genau einem zusätzlichen Kanal.
+**WebGPU (Weg C) bleibt offen** und ist erst nach einem eigenen Beweisritt sinnvoll — der
+Gewinn (MaterialX-WGSL-Anschluss, Compute) rechtfertigt den Toolchain-Konflikt mit
+Invariante 1 heute noch nicht.
 
 ---
 
@@ -580,7 +602,7 @@ Ziel war **nicht** PBR, sondern der Beweis, dass SHADED Licht und Material trenn
 | Planschritt | Umsetzung |
 |---|---|
 | Provider im Worker | **Abweichung:** das eingebaute Backend läuft inline in `analyze()`. Es ist die klassische deterministische Baseline (homomorphe Tiefpasstrennung der log-Luminanz) und kostet drei Box-Blurs – ein Worker wäre reine Zeremonie. Gelernte Backends kommen über `window.SHADED.intrinsic.set()` von außen herein; genau dafür existiert der Vertrag. |
-| `albedo` in freien RGBA-Kanal packen | Gespeichert wird **`shading`**, nicht `albedo` – ein Skalar statt drei Kanälen. Der Shader gewinnt `albedo = col / shade` zurück. Ablage: `u_zone.g` (0.5 = neutral), Konfidenz in `u_zone.b`. Damit blieb Weg A ohne Kontextwechsel möglich. |
+| `albedo` in freien RGBA-Kanal packen | Gespeichert wird **`shading`**, nicht `albedo` – ein Skalar statt drei Kanälen. Der Shader gewinnt `albedo = col / shade` zurück. Ablage: eigene Textur auf **Unit 8** (R = Shading mit 0.5 = neutral, G = Konfidenz, B/A reserviert). Die erste Fassung lag huckepack in `u_zone.g`; mit WebGL 2 war die Packung unnötig. |
 | Ein Weltgesetz umstellen | Nässe (`u_wet`). Sonst nichts. |
 | A/B-Schalter | `window.SHADED.intrinsic.setStrength(0..1)` plus Regler und A/B-Knopf im Editor. |
 | Verify mit gleicher Klassenzählung | `tools/verify-intrinsic.js`; Klassenzählung bei an/aus exakt identisch. |
@@ -625,7 +647,7 @@ Nässe ist der Effekt, bei dem der Doppelbeschattungsfehler am deutlichsten sich
 - [ ] MaterialX bleibt Export-/Vokabularschicht ohne Runtime-Codegen.
 - [ ] Lizenz von Code **und** Checkpoint ist je Provider dokumentiert.
 - [ ] Der visuelle Verify-Durchlauf zeigt A/B mit unveränderter Klassenzählung.
-- [ ] Die Texture-Unit-Belegung ist nach der Änderung dokumentiert und begründet.
+- [x] Die Texture-Unit-Belegung ist nach der Änderung dokumentiert und begründet.
 
 **Durch den ersten Schnitt bereits erfüllt** (`node tools/verify-intrinsic.js`):
 Trennung von beobachteter Farbe und Albedo · vollständige Pflichtmetadaten am

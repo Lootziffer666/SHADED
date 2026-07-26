@@ -107,15 +107,20 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
    B Trampelpfad permanent, A Hitze/Brand ~25 s), 6 Tiefenkarte (2.5D-Parallaxe;
    ohne Upload 1×1 schwarz = flach; `u_parallax` ist ohne Mausbewegung (0,0) –
-   verify-Frames bleiben deterministisch), 7 Gebäudezonen + Materialschicht
-   (R-Kanal 1 = Fachwerk-Gebäude nach K1; maskiert puddle/riv/creep/mud;
-   bodenverankerte Pfad-/Fels-Komponenten sind für Zonen tabu. **G-Kanal =
-   Shading** (eingebackene Beleuchtung des Quellbilds, 0.5 = neutral),
-   **B-Kanal = Konfidenz** der Zerlegung). Trail-Decay wirkt IMMER direkt
-   auf den Pixeldaten – nie über Canvas-Composite-Tricks.
-   **Damit sind alle 8 garantierten WebGL-1-Sampler belegt.** Ein weiterer
-   Materialkanal erzwingt eine Kontextentscheidung (WebGL 2) – siehe
-   `docs/neuronale-materialien-svbrdf-pbr.md` §10.
+   verify-Frames bleiben deterministisch), 7 Gebäudezonen (K1: R-Kanal 1 =
+   Fachwerk-Gebäude; maskiert puddle/riv/creep/mud; bodenverankerte Pfad-/
+   Fels-Komponenten sind für Zonen tabu), 8 Materialschicht (R = Shading /
+   eingebackene Beleuchtung des Quellbilds, 0.5 = neutral; G = Konfidenz der
+   Zerlegung; B/A reserviert für kommende Kanäle wie Rauheit und AO).
+   Trail-Decay wirkt IMMER direkt auf den Pixeldaten – nie über
+   Canvas-Composite-Tricks.
+   **Grafikkontext ist WebGL 2 mit GLSL ES 3.00** (`#version 300 es`, `in`/`out`,
+   `texture()`, `fragColor`). Es gibt bewusst **keinen** zweiten WebGL-1-Pfad –
+   zwei Shader-Quellen wären zwei Wahrheiten; fehlt WebGL 2, bricht `index.html`
+   mit klarer Meldung ab. WebGL 2 garantiert ≥ 16 Fragment-Sampler (real 32 im
+   Verify-Chromium), von denen 9 belegt sind. Neue Kanäle bekommen eine eigene
+   Unit statt Huckepack-Packung; `tools/verify.js` prüft Kontext und Belegung.
+   Begründung: `docs/neuronale-materialien-svbrdf-pbr.md` §10.
 
 ## SHADED Editor (`editor/`)
 

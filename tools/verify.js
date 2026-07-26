@@ -36,6 +36,14 @@ const server = http.createServer((req, res) => {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 
+  // Die Engine sucht neben "bild.png" automatisch eine "bild_depth.png". Fehlt sie,
+  // ist das ein GEWOLLTER Fehlversuch – Chromium loggt ihn trotzdem als 404. Solche
+  // Treffer werden hier gezielt abgezogen, alle anderen 404 bleiben echte Fehler.
+  const notFound = [];
+  page.on('response', r => { if (r.status() === 404) notFound.push(r.url()); });
+  const isOptionalCompanion = u => /_depth\.(png|jpe?g|webp)(\?|$)/i.test(u);
+  let classFailures = 0, actorFailures = 0, trailFailures = 0;
+
   // Screenshot via Viewport-Clip (kein "element stability"-Wait, der auf dauerhaft
   // animierenden WebGL-Canvas hängt). Semantik der Verifikation bleibt unverändert.
   async function shotSel(sel, file) {
@@ -65,11 +73,30 @@ const server = http.createServer((req, res) => {
             console.log(`  Abweichung ${k}: erwartet ~${e}, ist ${a}`); }
         }
         console.log(`Klassen-Regression[${label}]:`, ok ? 'PASS' : 'FAIL');
+        if (!ok) classFailures++;
       }
     }
   }
 
   await page.goto('http://localhost:8931/index.html');
+
+  // Grafikkontext: SHADED fährt genau EINEN Shader-Pfad (GLSL ES 3.00 auf WebGL 2).
+  const ctx = await page.evaluate(() => {
+    const c = document.getElementById('gl');
+    const gl2 = c.getContext('webgl2');
+    if (!gl2) return { webgl2: false };
+    return {
+      webgl2: true,
+      fragUnits: gl2.getParameter(gl2.MAX_TEXTURE_IMAGE_UNITS),
+      drawBuffers: gl2.getParameter(gl2.MAX_DRAW_BUFFERS),
+    };
+  });
+  if (!ctx.webgl2) { console.log('✗ FAIL: kein WebGL-2-Kontext'); process.exit(1); }
+  const USED_UNITS = 9;   // 0 Szene … 7 Zonen, 8 Material
+  console.log(`Kontext: WebGL 2, ${ctx.fragUnits} Fragment-Sampler (${USED_UNITS} belegt, ` +
+              `${ctx.fragUnits - USED_UNITS} frei), ${ctx.drawBuffers} Draw-Buffer`);
+  if (ctx.fragUnits < 16) { console.log('✗ FAIL: weniger Sampler als von WebGL 2 garantiert'); process.exit(1); }
+
   await page.setInputFiles('#f-scene', BASE_IMG);
   // Szene mit Depth-Companion: Auto-Load ueberschreibt den Status fast sofort
   // wieder auf "Tiefenkarte geladen" - beides bestaetigt, dass sceneImg gesetzt ist.
@@ -115,6 +142,7 @@ const server = http.createServer((req, res) => {
   const trailOk = s1.b > 0.02 && s1.r > 0.05 && s2.r < s1.r * 0.5 && Math.abs(s2.b - s1.b) < 0.02;
   console.log(`Trail-Test: B=${s1.b.toFixed(3)} (permanent: ${s2.b.toFixed(3)}), ` +
     `R=${s1.r.toFixed(3)} -> ${s2.r.toFixed(3)} nach 3.2s  =>  ${trailOk ? 'PASS' : 'FAIL'}`);
+  if (!trailOk) trailFailures++;
   await page.evaluate(u => window.SHADED.fire.ignite(u.u + 0.08, u.v), p0);
   await page.waitForTimeout(700);
   await shotSel('#canvas-wrap', path.join(OUT, 'shot_interaktion.png'));
@@ -126,19 +154,28 @@ const server = http.createServer((req, res) => {
   if (fs.existsSync(actorImg) && fs.existsSync(actorManifest)) {
     const manifestData = JSON.parse(fs.readFileSync(actorManifest, 'utf8'));
     const actorTests = await page.evaluate(async (manifest) => {
+      // Pfad relativ zum Repo-Root, so wie dieser Server ausliefert. Vorher stand
+      // hier ein Wurzelpfad, der auf 404 lief – der Actor wurde nie gezeichnet.
       const handle = window.SHADED.addActor({
-        image: 'verify-test-actor.png',
+        image: 'tools/verify-test-actor.png',
         manifest: manifest,
         x: 0.5, y: 0.6, scale: 2,
         anim: Object.keys(manifest.animations)[0],
         depthLayer: 'mid'
       });
-
-      // Warte bis Actor ready
       await new Promise(r => setTimeout(r, 500));
 
+      // Echter Beleg statt hartkodiertem `visible:true`: hat das Overlay Pixel?
+      const ov = document.getElementById('ov');
+      const probe = document.createElement('canvas');
+      probe.width = 120; probe.height = 68;
+      probe.getContext('2d').drawImage(ov, 0, 0, probe.width, probe.height);
+      const d = probe.getContext('2d').getImageData(0, 0, probe.width, probe.height).data;
+      let opaque = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 8) opaque++;
+
       return {
-        visible: true,
+        overlayPixels: opaque,
         hasHandle: !!handle,
         hasSetAnim: typeof handle?.setAnim === 'function',
         hasSetPosition: typeof handle?.setPosition === 'function',
@@ -146,7 +183,9 @@ const server = http.createServer((req, res) => {
         hasRemove: typeof handle?.remove === 'function'
       };
     }, manifestData);
-    console.log('Actor-API Test:', actorTests.hasHandle && actorTests.hasSetAnim ? 'PASS' : 'FAIL', actorTests);
+    const actorOk = actorTests.hasHandle && actorTests.hasSetAnim && actorTests.overlayPixels > 0;
+    console.log('Actor-API Test:', actorOk ? 'PASS' : 'FAIL', actorTests);
+    if (!actorOk) actorFailures++;
 
     // Screenshot mit Actor mid-Schicht
     await page.evaluate(() => {
@@ -156,10 +195,8 @@ const server = http.createServer((req, res) => {
     await page.waitForTimeout(250);
     await shotSel('#canvas-wrap', path.join(OUT, 'shot_actor_mid.png'));
 
-    // Tiefe-Layer testen: front
-    await page.evaluate(() => {
-      const actors = window.SHADED.story.board();  // Hack: Actors sind global
-    });
+    // Depth-Layer-Ordnung und Emissive/worldStates prüft tools/verify-actors.js
+    // mit Pixel-Assertions – hier bleibt nur die Sichtprüfung der Screenshots.
     // Licht-Koppelung: Nebel erhöhen
     await page.evaluate(() => {
       window.SHADED.setParams({ ...window.SHADED.getParams(), fog: 0.7, dayNight: 1.0 });
@@ -167,7 +204,7 @@ const server = http.createServer((req, res) => {
     });
     await page.waitForTimeout(250);
     await shotSel('#canvas-wrap', path.join(OUT, 'shot_actor_fog_night.png'));
-    console.log('Actor-Rendering Tests: PASS (siehe shot_actor_*.png)');
+    console.log('Actor-Rendering: Screenshots geschrieben (shot_actor_*.png) – visuell prüfen.');
   } else {
     console.log('Actor-Test-Fixtures nicht gefunden (OK für CI ohne SWIFT)');
   }
@@ -230,7 +267,25 @@ const server = http.createServer((req, res) => {
     window.SHADED.setTime(21.7, true); });
   await page.waitForTimeout(250);
   await shotSel('#gl', path.join(OUT, 'shot_himmel_sturmnacht.png'));
-  console.log('Konsole-Fehler:', errors.length ? errors.join(' | ') : 'keine');
+  // 404 einordnen: fehlende optionale Tiefenkarten sind erwartet, alles andere nicht.
+  const badNotFound = notFound.filter(u => !isOptionalCompanion(u));
+  const benignCount = notFound.length - badNotFound.length;
+  let realErrors = errors;
+  for (let i = 0; i < benignCount; i++) {
+    const idx = realErrors.findIndex(e => /status of 404/.test(e));
+    if (idx < 0) break;
+    realErrors = realErrors.filter((_, k) => k !== idx);
+  }
+  if (benignCount) console.log(`Optionale Tiefenkarten nicht vorhanden (erwartet): ${benignCount}`);
+  if (badNotFound.length) console.log('Unerwartete 404:', badNotFound.join(' | '));
+  console.log('Konsole-Fehler:', realErrors.length ? realErrors.join(' | ') : 'keine');
+
+  const failed = classFailures || actorFailures || trailFailures || realErrors.length || badNotFound.length;
+  console.log(failed
+    ? `\n✗ Verifikation FEHLGESCHLAGEN (${classFailures} Klassen-Regression(en), ${actorFailures} Actor-Fehler, ${trailFailures} Trail-Fehler, ${realErrors.length} Konsolenfehler, ${badNotFound.length} unerwartete 404)`
+    : '\n✓ Verifikation bestanden – Screenshots in tools/verify-out/ jetzt visuell gegen die Zielbilder prüfen.');
+
   await browser.close();
   server.close();
+  if (failed) process.exit(1);
 })().catch(e => { console.error(e); process.exit(1); });

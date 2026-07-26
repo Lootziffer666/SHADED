@@ -195,10 +195,20 @@ Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
 // =========================== WebGL ===========================
 const canvas = document.getElementById('gl');
-const gl = canvas.getContext('webgl',{preserveDrawingBuffer:true});
-const VS = `attribute vec2 a;varying vec2 v_uv;void main(){v_uv=a*0.5+0.5;v_uv.y=1.0-v_uv.y;gl_Position=vec4(a,0.,1.);}`;
-const FS = `precision highp float;
-varying vec2 v_uv;
+const gl = canvas.getContext('webgl2',{preserveDrawingBuffer:true});
+if(!gl){
+  // Bewusst KEIN zweiter WebGL-1-Pfad: zwei Shader-Quellen waeren zwei Wahrheiten.
+  document.body.innerHTML='<div style="padding:28px;font:14px/1.6 system-ui;color:#e6e6f0;'
+    +'background:#14141c;height:100vh"><b>SHADED braucht WebGL 2.</b><br>'
+    +'Dieser Browser stellt keinen WebGL-2-Kontext bereit.</div>';
+  throw new Error('WebGL2 nicht verfuegbar');
+}
+const VS = `#version 300 es
+in vec2 a;out vec2 v_uv;void main(){v_uv=a*0.5+0.5;v_uv.y=1.0-v_uv.y;gl_Position=vec4(a,0.,1.);}`;
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
 uniform sampler2D u_scene,u_maskA,u_maskB,u_phys,u_emis;
 uniform vec2  u_px;
 uniform float u_time,u_aspect;
@@ -212,9 +222,12 @@ uniform float u_fireCount;
 uniform sampler2D u_depth;  // 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern); ohne Upload 1x1 schwarz = flach
 uniform vec2 u_parallax;    // Maus-/Kamera-Versatz (0,0 ohne Interaktion -> deterministische Frames)
 uniform sampler2D u_zone;   // K1: Gebäudezonen (R; 1 = Fachwerk-Gebäude) – maskiert Bodeneffekte
-                            // G: Shading (eingebackene Beleuchtung, 0.5 = neutral), B: Konfidenz
-// Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md): 0 = beobachtete Farbe
-// (Fallback identity-albedo, exakt das bisherige Verhalten), 1 = Licht/Material getrennt.
+// Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md), Unit 8:
+// R = Shading (eingebackene Beleuchtung, 0.5 = neutral), G = Konfidenz der Zerlegung,
+// B/A frei für kommende Kanäle (Rauheit, AO). Erst durch WebGL 2 gibt es diesen Slot.
+uniform sampler2D u_material;
+// 0 = beobachtete Farbe (Fallback identity-albedo, exakt das Verhalten ohne
+// Materialschicht), 1 = Licht und Material getrennt.
 uniform float u_intrinsic;
 // Aufsummierte Phasen (CPU): Intensitäten dürfen NIE im Phasenterm t*f(wind)
 // stehen – sinkt der Wind, liefe die Phase rückwärts (Regen-"Rewind").
@@ -271,22 +284,21 @@ void main(){
   // --- 2.5D-Parallaxe: Nahes (weiß in u_depth) verschiebt sich stärker. ---
   // Der Versatz passiert VOR allen Lookups, damit Szene, Masken, Physik und
   // Trail dieselbe verschobene Welt sehen (eine Material-Wahrheit!).
-  float depthVal = texture2D(u_depth, uv).r;
+  float depthVal = texture(u_depth, uv).r;
   uv += u_parallax * depthVal;
   uv = clamp(uv, vec2(0.001), vec2(0.999));
 
-  vec4 mA = texture2D(u_maskA,uv);   // r=grass g=foliage b=roof a=path
-  vec4 mB = texture2D(u_maskB,uv);   // r=wood  g=window  b=water a=rock
+  vec4 mA = texture(u_maskA,uv);   // r=grass g=foliage b=roof a=path
+  vec4 mB = texture(u_maskB,uv);   // r=wood  g=window  b=water a=rock
   float mGrass=mA.r, mFol=mA.g, mRoof=mA.b, mPath=mA.a;
   float mWood=mB.r,  mWin=mB.g,  mWater=mB.b, mRock=mB.a;
-  vec4 phys = texture2D(u_phys,uv);  // r=Pfützentiefe g=Flusswinkel b=Bleed a=Pfad-Distanz
-  vec4 trail = texture2D(u_trail,uv);// r=Delle g=Impuls b=Trampelpfad a=Hitze/Brand
-  vec4 zoneTex = texture2D(u_zone,uv);
-  float zone = zoneTex.r;              // K1: 1 = Gebäude -> Bodeneffekte hier verboten
+  vec4 phys = texture(u_phys,uv);  // r=Pfützentiefe g=Flusswinkel b=Bleed a=Pfad-Distanz
+  vec4 trail = texture(u_trail,uv);// r=Delle g=Impuls b=Trampelpfad a=Hitze/Brand
+  float zone = texture(u_zone,uv).r;   // K1: 1 = Gebäude -> Bodeneffekte hier verboten
   float noZone = 1.0 - zone;
   // Eingebackene Beleuchtung des Quellbilds: <1 Schatten, >1 Licht, 1 neutral.
   // Bei u_intrinsic == 0 ist shade EXAKT 1.0 -> Albedo == beobachtete Farbe.
-  float shade = mix(1.0, max(zoneTex.g*2.0, 0.18), u_intrinsic);
+  float shade = mix(1.0, max(texture(u_material,uv).r*2.0, 0.18), u_intrinsic);
   float veg = clamp(mGrass+mFol,0.0,1.0);
   float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
 
@@ -303,9 +315,9 @@ void main(){
   // Ankerung: Bewegung wächst zur Kronenoberseite. folBelow = Laub direkt unterhalb;
   // je mehr Laub darunter, desto weiter oben im Kronenkörper -> freier schwingend.
   // Am Kronenfuß (kein Laub darunter) bleibt es ruhig -> "stabiler unten".
-  float folBelow = texture2D(u_maskA, clamp(uv - vec2(0.0,0.018),0.001,0.999)).g;
+  float folBelow = texture(u_maskA, clamp(uv - vec2(0.0,0.018),0.001,0.999)).g;
   float crownBody = mFol * smoothstep(0.04,0.55, folBelow);
-  float grassBelow = texture2D(u_maskA, clamp(uv - vec2(0.0,0.012),0.001,0.999)).r;
+  float grassBelow = texture(u_maskA, clamp(uv - vec2(0.0,0.012),0.001,0.999)).r;
   float grassBody = mGrass * smoothstep(0.04,0.5, grassBelow);
   // Wind-Richtung: überwiegend horizontal (u_wind ist Betrag; Downwind = +x, leichte Hebung)
   vec2 windDir = normalize(vec2(1.0, 0.14));
@@ -325,7 +337,7 @@ void main(){
   // Spätverfall: Dachlinien hängen sichtbar durch (vertikaler Domain-Warp)
   float lateDecay = smoothstep(0.75,1.0,u_decay);
   suv.y += sin(uv.x*26.0*u_aspect + 1.7) * 0.0035 * lateDecay * mRoof;
-  vec3 base = texture2D(u_scene,suv).rgb;
+  vec3 base = texture(u_scene,suv).rgb;
   vec3 col = base;
 
   float tempC = u_temperature*50.0 - 20.0;          // 0..1 -> −20..+30 °C
@@ -465,8 +477,8 @@ void main(){
   col = mix(col, col*0.86, fpCore*(mPath+mRock+mGrass)*u_wet*0.5);
 
   // --- Specular-Sheen auf nassen, obenliegenden Kanten ---
-  float lC = lum(texture2D(u_scene,uv).rgb);
-  float lU = lum(texture2D(u_scene,uv-vec2(0.0,u_px.y*3.0)).rgb);
+  float lC = lum(texture(u_scene,uv).rgb);
+  float lU = lum(texture(u_scene,uv-vec2(0.0,u_px.y*3.0)).rgb);
   float sheen = clamp((lC-lU)*6.0,0.0,1.0) * u_wet;
   col += sheen * vec3(0.85,0.92,1.0) * (mRoof+mPath+mRock+mWood) * (0.28 - 0.16*night);
 
@@ -515,8 +527,8 @@ void main(){
 
     // Spätphase: Risse entlang der Bildkanten (Kantenstärke × ridged Noise)
     if(lateDecay>0.01){
-      float eH = lum(texture2D(u_scene, uv+vec2(u_px.x*2.0,0.0)).rgb) - lum(texture2D(u_scene, uv-vec2(u_px.x*2.0,0.0)).rgb);
-      float eV = lum(texture2D(u_scene, uv+vec2(0.0,u_px.y*2.0)).rgb) - lum(texture2D(u_scene, uv-vec2(0.0,u_px.y*2.0)).rgb);
+      float eH = lum(texture(u_scene, uv+vec2(u_px.x*2.0,0.0)).rgb) - lum(texture(u_scene, uv-vec2(u_px.x*2.0,0.0)).rgb);
+      float eV = lum(texture(u_scene, uv+vec2(0.0,u_px.y*2.0)).rgb) - lum(texture(u_scene, uv-vec2(0.0,u_px.y*2.0)).rgb);
       float edgeS = clamp((abs(eH)+abs(eV))*3.0, 0.0, 1.0);
       float ridged = 1.0-abs(2.0*fbm(uv*vec2(90.0*u_aspect,90.0))-1.0);
       float crack = step(0.86, ridged*(0.5+0.5*edgeS));
@@ -545,7 +557,7 @@ void main(){
   if(u_heatWarp>0.01){
     float heatFlicker = sin(t*8.3 + uv.x*100.0)*0.5 + 0.5;
     vec2 heatUV = uv + (heatFlicker-0.5)*u_heatWarp*0.008*vec2(sin(t*5.1), cos(t*4.7));
-    vec3 heatCol = texture2D(u_scene, clamp(heatUV, vec2(0.001), vec2(0.999))).rgb;
+    vec3 heatCol = texture(u_scene, clamp(heatUV, vec2(0.001), vec2(0.999))).rgb;
     float heatZone = (trail.a + u_fireCount) * smoothstep(0.0, 0.3, u_heatWarp);  // nur über Hitze
     col = mix(col, heatCol, heatZone*0.15);
   }
@@ -693,12 +705,12 @@ void main(){
     float hr=smoothstep(0.35,0.65,mRoof), hg=smoothstep(0.35,0.65,mGrass),
           hf=smoothstep(0.35,0.65,mFol),  hk=smoothstep(0.35,0.65,mRock),
           hp=smoothstep(0.35,0.65,mPath);
-    float patch = fbm(uv*vec2(18.0*u_aspect,18.0));
+    float snowPatch = fbm(uv*vec2(18.0*u_aspect,18.0));
     float cover = hr*smoothstep(0.00,0.80,u_snow)
                 + hg*smoothstep(0.05,0.85,u_snow)
                 + hf*smoothstep(0.15,1.00,u_snow)*0.8
                 + hk*smoothstep(0.20,1.00,u_snow)*0.9
-                + hp*smoothstep(0.35,1.00,u_snow)*(0.4+0.6*smoothstep(0.25,0.75,patch));
+                + hp*smoothstep(0.35,1.00,u_snow)*(0.4+0.6*smoothstep(0.25,0.75,snowPatch));
     cover = clamp(cover,0.0,1.0);
     cover *= clamp(1.0 - trail.r*0.9 - trail.a*1.2, 0.0, 1.0);  // Fußdellen & Feuerschmelze
     float sparkleS = smoothstep(0.997,1.0,hash(floor(uv*vec2(500.0*u_aspect,500.0))+vec2(floor(t*3.0))));
@@ -737,7 +749,7 @@ void main(){
 
   // --- Rinnsale / Wasserflussnetz auf Pfaden (bei Regen) ---
   float rainy = u_rain * clamp(u_wet*1.6,0.0,1.0);
-  vec4 erefG = texture2D(u_emis, uv - vec2(0.0,0.05));
+  vec4 erefG = texture(u_emis, uv - vec2(0.0,0.05));
   if(rainy>0.004){
     float ang = phys.g*6.2832;
     vec2 dir = vec2(cos(ang),sin(ang));
@@ -772,9 +784,9 @@ void main(){
     vec2 rip = vec2(vnoise(uv*vec2(150.0*u_aspect,150.0)+vec2(0.0,t*1.3)),
                     vnoise(uv*vec2(120.0*u_aspect,120.0)-vec2(t*0.9,0.0))) - 0.5;
     vec2 roff = rip*(0.003 + 0.009*u_rain) * (1.0-icy);   // Eis kräuselt nicht
-    vec3 refl = grade(texture2D(u_scene, vec2(uv.x, uv.y-0.055)+roff).rgb);
+    vec3 refl = grade(texture(u_scene, vec2(uv.x, uv.y-0.055)+roff).rgb);
     vec3 pcol = mix(refl*0.75, sky, 0.45);
-    vec4 eref = texture2D(u_emis, uv - vec2(0.0,0.045) + roff*2.0);
+    vec4 eref = texture(u_emis, uv - vec2(0.0,0.045) + roff*2.0);
     pcol += eref.rgb * u_glow * (0.35 + 1.9*night);  // DER Schlüssel-Shot: Fenster spiegeln
     // gefroren: heller, matter Spiegel mit Frostmuster, Warmlicht gedämpft & statisch
     if(icy>0.003){
@@ -800,7 +812,7 @@ void main(){
 
   // --- Tropfkanten unter Dächern ---
   if(u_rain>0.004){
-    float dripEdge = clamp(texture2D(u_maskA, uv-vec2(0.0,0.007)).b - mRoof, 0.0, 1.0);
+    float dripEdge = clamp(texture(u_maskA, uv-vec2(0.0,0.007)).b - mRoof, 0.0, 1.0);
     float colid = floor(uv.x*180.0*u_aspect);
     float drip = step(0.90, fract(uv.y*34.0 - t*2.2 + hash(vec2(colid,1.0))*7.0))
                * step(hash(vec2(colid,2.0)), 0.6);
@@ -808,7 +820,7 @@ void main(){
   }
 
   // --- Fensterlicht: jedes Fenster hat eigene Wärme, Helligkeit & Flacker-Rhythmus ---
-  vec4 emis = texture2D(u_emis,uv);
+  vec4 emis = texture(u_emis,uv);
   float winId = hash(floor(uv*vec2(36.0*u_aspect,36.0)));   // ~1 Zelle pro Fenster
   float flick = 0.80 + 0.20*vnoise(vec2(t*(1.6+winId*1.6), winId*9.0));
   float lamp = u_glow * (0.22 + 0.78*night) * flick
@@ -897,7 +909,7 @@ void main(){
   col *= 1.0 + 0.012*sin(t*0.45);
   col *= 1.0 - (0.30*night + 0.10*u_storm) * pow(length(uv-0.5)*1.42, 1.8);
 
-  gl_FragColor = vec4(clamp(col,0.0,1.0),1.0);
+  fragColor = vec4(clamp(col,0.0,1.0),1.0);
 }`;
 
 function compile(src,type){
@@ -919,7 +931,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
- 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone','u_intrinsic',
+ 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone','u_material','u_intrinsic',
  'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold',  'u_runeGlow','u_bloodStain','u_mudStain',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
@@ -934,11 +946,11 @@ function mkTex(unit){
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   return t;
 }
-const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7) };
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7), material:mkTex(8) };
 gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
 gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);  gl.uniform1i(U.u_trail,5);
 gl.uniform1i(U.u_depth,6); gl.uniform2f(U.u_parallax,0,0);
-gl.uniform1i(U.u_zone,7);
+gl.uniform1i(U.u_zone,7); gl.uniform1i(U.u_material,8);
 gl.uniform1f(U.u_fireCount,0);
 
 // === Runde 4: Trail-/Störungstextur (Unit 5) ===
@@ -1057,7 +1069,6 @@ let intrinsicConf=null;           // Float32Array AW*AH – Konfidenz je Pixel
 let intrinsicBase=null;           // Ergebnis des eingebauten Backends (für reset())
 let intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false};
 let intrinsicStrength=0;          // u_intrinsic; 0 = Fallback identity-albedo
-let zoneSoftCache=null;           // K1-Zonen (weich) für erneutes Packen ohne analyze()
 
 // Beleuchtungsschätzung aus dem Quellbild. spx = RGBA-Pixel in Analyseauflösung.
 function decomposeIntrinsicBaseline(spx,w,h){
@@ -1084,19 +1095,19 @@ function decomposeIntrinsicBaseline(spx,w,h){
   return {shading, conf, confidence:+(cm/n).toFixed(4)};
 }
 
-// Zonen-Textur (Unit 7) neu packen: R = K1-Zonen, G = Shading, B = Konfidenz.
+// Material-Textur (Unit 8) packen: R = Shading, G = Konfidenz, B/A reserviert.
 // Wird von analyze() und von window.SHADED.intrinsic.* benutzt – EIN Pfad.
-function uploadZoneTexture(){
-  if(!zoneSoftCache) return false;
-  const n=AW*AH, tZ=new Uint8Array(n*4);
+// Eigene Unit statt Huckepack im Zonen-Kanal: WebGL 2 garantiert >= 16 Sampler.
+function uploadMaterialTexture(){
+  if(!AW||!AH) return false;
+  const n=AW*AH, tM=new Uint8Array(n*4);
   const q=v=>Math.max(0,Math.min(255,Math.round(v*255)));
   for(let j=0;j<n;j++){
-    tZ[j*4]=q(zoneSoftCache[j]);
-    tZ[j*4+1]=q((intrinsicShading?intrinsicShading[j]:1)*0.5); // 0.5 = neutral
-    tZ[j*4+2]=q(intrinsicConf?intrinsicConf[j]:0);
-    tZ[j*4+3]=255;
+    tM[j*4]=q((intrinsicShading?intrinsicShading[j]:1)*0.5); // 0.5 = neutral
+    tM[j*4+1]=q(intrinsicConf?intrinsicConf[j]:0);
+    tM[j*4+3]=255;
   }
-  uploadTex(7,TEX.zone,AW,AH,tZ);
+  uploadTex(8,TEX.material,AW,AH,tM);
   return true;
 }
 
@@ -1842,7 +1853,6 @@ function analyze(){
   const zoneSoft=new Float32Array(AW*AH);
   for(let j=0;j<AW*AH;j++) zoneSoft[j]=zoneGrid[j];
   boxBlur(zoneSoft,AW,AH,2,2);
-  zoneSoftCache=zoneSoft;
 
   // Materialschicht: Beleuchtung schätzen. Läuft NACH der Klassifikation und
   // schreibt ausschließlich in die Beleuchtungskanäle – nie in classGrid.
@@ -1853,7 +1863,8 @@ function analyze(){
 
   // 5) In Texturen packen
   const tA=new Uint8Array(AW*AH*4), tB=new Uint8Array(AW*AH*4),
-        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4);
+        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4),
+        tZ=new Uint8Array(AW*AH*4);
   const q=v=>Math.max(0,Math.min(255,Math.round(v*255)));
   for(let j=0;j<AW*AH;j++){
     tA[j*4]=q(m[G][j]); tA[j*4+1]=q(m[F][j]); tA[j*4+2]=q(m[R][j]); tA[j*4+3]=q(m[P][j]);
@@ -1861,12 +1872,14 @@ function analyze(){
     tP[j*4]=q(depthMap[j]); tP[j*4+1]=q(flow[j]); tP[j*4+2]=q(bleed[j]); tP[j*4+3]=q(Math.min(1,dPath[j]/scale));
     tE[j*4]=q(gR1[j]*0.85+eR[j]*0.6); tE[j*4+1]=q(gG1[j]*0.85+eG[j]*0.6);
     tE[j*4+2]=q(gB1[j]*0.85+eB[j]*0.6); tE[j*4+3]=q(sharpWin[j]);
+    tZ[j*4]=q(zoneSoft[j]); tZ[j*4+3]=255;
   }
   uploadTex(1,TEX.maskA,AW,AH,tA);
   uploadTex(2,TEX.maskB,AW,AH,tB);
   uploadTex(3,TEX.phys,AW,AH,tP);
   uploadTex(4,TEX.emis,AW,AH,tE);
-  uploadZoneTexture();
+  uploadTex(7,TEX.zone,AW,AH,tZ);
+  uploadMaterialTexture();
   ready=true;
 }
 
@@ -2752,7 +2765,11 @@ function addActor(opts){
   const actor={img:null, imgReady:false, depthImg:null, depthReady:false, manifest:null,
                 x:opts.x??0.5, y:opts.y??0.6, scale:opts.scale||1,
                 anim:opts.anim||null, frameT:0, visible:true, depthLayer:opts.depthLayer||'mid',
-                blood:!!opts.blood};
+                blood:!!opts.blood,
+                // SWIFT v1.5: Emissive-Sheet und Weltzustands-Varianten. Diese Felder
+                // MÜSSEN hier stehen – setWorldState() schreibt sonst in undefined.
+                emissiveImg:null, emissiveReady:false,
+                worldStateImgs:{}, worldState:null, _baseImg:null};
   actors.push(actor);
   if(opts.manifest){
     actor.manifest=parseActorManifest(typeof opts.manifest==='string'?JSON.parse(opts.manifest):opts.manifest);
@@ -3460,7 +3477,7 @@ window.SHADED = {
     // Externes Backend (RGB→X, IntrinsicReal, De-Lighter …) liefert das Feld.
     // shading: Image | Canvas | ImageData (128 = neutral) oder Array (1.0 = neutral)
     set:(opt)=>{
-      if(!ready||!zoneSoftCache) throw new Error('intrinsic.set: erst nach erstellen()');
+      if(!ready) throw new Error('intrinsic.set: erst nach erstellen()');
       if(!opt||opt.shading==null) throw new Error('intrinsic.set: shading fehlt');
       const sh=resampleShading(opt.shading);
       if(!sh) return false;
@@ -3480,7 +3497,7 @@ window.SHADED = {
         confidence: opt.confidence!=null ? +opt.confidence : 0,
         accepted: false
       };
-      uploadZoneTexture();
+      uploadMaterialTexture();
       return true;
     },
     // Nutzer bestätigt die Hypothese als kanonisch
@@ -3493,13 +3510,13 @@ window.SHADED = {
                          intrinsicMeta={...INTRINSIC_BASELINE, confidence:intrinsicBase.confidence, accepted:false}; }
       else { intrinsicShading=null; intrinsicConf=null;
              intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false}; intrinsicStrength=0; }
-      uploadZoneTexture();
+      uploadMaterialTexture();
       return true;
     },
     // Providerausfall: Feld fällt weg, Rendering fällt auf den heutigen Zustand
     clear:()=>{ intrinsicShading=null; intrinsicConf=null; intrinsicBase=null; intrinsicStrength=0;
                 intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false};
-                uploadZoneTexture(); return true; },
+                uploadMaterialTexture(); return true; },
     // Beleuchtungswert an UV (1.0 = neutral) – für Debug und Tests
     sample:(u,v)=>{
       if(!intrinsicShading) return 1;

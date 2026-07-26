@@ -12,9 +12,9 @@ Die vollständige Entscheidung steht in:
 
 ## Ausgangsbefund
 
-- Die Runtime besitzt **keine** Materialkanäle: kein Albedo, keine Rauheit, keine Metallizität, keine Normalen, keine BRDF-Auswertung.
-- Das Quellbild enthält **eingebackenes Licht**. Jedes Weltgesetz multipliziert heute auf diese Beleuchtung → Doppelbeschattung.
-- `index.html` läuft auf **WebGL 1** mit **8 von 8** garantierten Texture Units belegt (0 scene, 1 maskA, 2 maskB, 3 phys, 4 emis, 5 trail, 6 depth, 7 zone). Kein freier Sampler, keine MRT.
+- Das Quellbild enthält **eingebackenes Licht**. Ohne Trennung multipliziert jedes Weltgesetz darauf → Doppelbeschattung. Genau dagegen existiert die Materialschicht.
+- Vorhanden ist bisher **ein** Kanal: `shading` (plus Konfidenz). Es gibt weiterhin **keine** Rauheit, Metallizität, Normalen und keine BRDF-Auswertung.
+- `index.html` läuft auf **WebGL 2 / GLSL ES 3.00** (seit dem Kontextwechsel; vorher WebGL 1 mit 8 von 8 belegten Samplern). Belegt: 0 scene, 1 maskA, 2 maskB, 3 phys, 4 emis, 5 trail, 6 depth, 7 zone, **8 material**. Real 32 Sampler, 23 frei, 6 Draw-Buffer. **Kein WebGL-1-Fallback** – zwei Shader-Quellen wären zwei Wahrheiten.
 - DeepBump ist als **einziger** Material Worker herabgestuft auf `MesoSurfaceProvider`.
 
 ## Ebenen nicht vermischen
@@ -46,6 +46,8 @@ Anwendbar auf SHADED sind vor allem **Intrinsic Decomposition** (arbeitet auf Sz
 
 Ein Kanal ohne Farbraum, Wertebereich und Provenienz ist ungültig.
 
+Ablage heute: Unit 8, R = Shading (0.5 = neutral), G = Konfidenz, B/A frei.
+
 ```text
 observedColor  sRGB    Pflicht
 albedo         linear  Fallback = observedColor
@@ -76,30 +78,34 @@ Gemeinsam erzeugte Kanäle teilen eine `channelSetId`. Gemischte Sätze werden a
 - **Keine MaterialX-Laufzeit-Codegen.** Das würde eine zweite Shader-Erzeugung neben den SHADED-Pässen etablieren und Invariante 1 gegen eine Toolchain stellen.
 - MaterialX kann seit 1.39.4 (2025-09-15) WGSL erzeugen; relevant erst nach einer WebGPU-Entscheidung.
 
-## Kontextentscheidung
+## Kontextentscheidung (erledigt)
 
 ```text
-A  Kanalpackung in WebGL 1   → Notlösung, reicht für den ersten Schnitt
-B  WebGL 2                   → empfohlener Zielkontext (MRT, Sampler, Float-Targets)
-C  WebGPU/WGSL               → erst nach B, eigener Beweisritt
+A  Kanalpackung in WebGL 1   → verworfen, war nur Notlösung
+B  WebGL 2 / GLSL ES 3.00    → UMGESETZT
+C  WebGPU/WGSL               → offen, eigener Beweisritt nach B
 ```
 
-Kein neuer Materialkanal ohne dokumentierte Texture-Unit-Belegung.
+Neue Materialkanäle bekommen eine **eigene Texture Unit** statt Huckepack-Packung;
+B/A der Material-Textur (Unit 8) sind für Rauheit und AO reserviert. Kein neuer
+Kanal ohne dokumentierte Unit-Belegung – `tools/verify.js` prüft Kontext und Zahl.
 
-## Erster vertikaler Schnitt
+## Was steht (erster vertikaler Schnitt, umgesetzt)
 
 ```text
-Import → IntrinsicDecompositionProvider (Worker)
-→ albedo + shading, Provenienz INFERRED
+Import → eingebautes Backend (deterministische Baseline) in analyze()
+→ shading + Konfidenz auf Unit 8, Provenienz INFERRED
 → Quellbild und Unit 0 unangetastet
-→ albedo in freien RGBA-Kanal packen
-→ GENAU EIN Weltgesetz umstellen: Nässe liest albedo statt Quellfarbe
-→ A/B-Schalter im Editor
-→ Verify beider Zustände, Klassenzählung identisch
+→ GENAU EIN Weltgesetz rechnet auf Albedo: Nässe
+→ A/B über window.SHADED.intrinsic.setStrength(0..1), Regler im Editor
 → Nutzer akzeptiert / verwirft / bestätigt (USER_APPROVED)
+→ Metadaten persistieren im Projektvertrag
 ```
 
-Nicht Teil davon: Rauheit, Metallizität, Materialbibliothek, MaterialX-Runtime, WebGL-2-Portierung, Relighting, Normal-Map-Rendering (es gibt keinen Licht-Pass).
+Beweis: `node tools/verify-intrinsic.js` (18 Prüfungen).
+
+**Noch nicht vorhanden:** Rauheit, Metallizität, Materialbibliothek, MaterialX-Runtime,
+Relighting, Normal-Map-Rendering (es gibt weiterhin keinen Licht-Pass).
 
 ## Vor jedem Material-Commit prüfen
 
