@@ -71,11 +71,28 @@ Erfolg (`status: "ok"`) — der reale Debug-Snapshot aus
   "ready": true,
   "actorCount": 1,
   "storyboardSteps": 1,
+  "intrinsic": {
+    "provider": "material.intrinsic.retinex-baseline",
+    "providerVersion": "1.0.0",
+    "channelSetId": "intrinsic.v1",
+    "provenance": "INFERRED",
+    "colorSpace": { "albedo": "sRGB", "shading": "linear" },
+    "confidence": 0.8187,
+    "accepted": false,
+    "strength": 0,
+    "hasShading": true,
+    "resolution": { "w": 768, "h": 432 }
+  },
   "params": { "dayNight": 0.7, "fog": 0.4, "...": "..." },
   "actors": [ { "id": 1, "label": "actor-sheet.png", "x": 0.5, "y": 0.6, "scale": 1, "anim": "walk", "depthLayer": "mid" } ],
   "storyboard": [ { "name": "Akt 1", "dur": 4, "p": { "fog": 0.4 } } ]
 }
 ```
+
+`intrinsic` ist der Zustand der Materialschicht
+(`docs/neuronale-materialien-svbrdf-pbr.md`): welcher Provider die Licht/Material-
+Trennung erzeugt hat, mit welcher Provenienz und Konfidenz, und wie stark sie
+wirkt (`strength: 0` = Fallback identity-albedo, rendert wie ohne Zerlegung).
 
 Fehler (`status: "error"`):
 
@@ -100,8 +117,18 @@ Fehler (`status: "error"`):
   über `window.SHADED_ORCHESTRATOR` (`editor/app.js`) auf.
 - `exportProject()`/der zurückgegebene Snapshot können die ursprünglichen
   Bild-/Manifest-BYTES nicht erneut emittieren — nur den strukturellen Zustand
-  (Parameter, Actor-Positionen/Metadaten, Storyboard). Ein erneutes
-  `loadProject()` braucht wieder echte Dateien.
+  (Parameter, Actor-Positionen/Metadaten, Storyboard, Materialschicht-Metadaten).
+  Ein erneutes `loadProject()` braucht wieder echte Dateien.
+
+## Bekannte Lücke: fremdes Shading-Feld
+
+`SceneEditorFacade.loadProject()` akzeptiert `assets.intrinsicShading` (das
+Shading-Feld eines externen Backends wie RGB→X oder IntrinsicReal). Die
+Request-Datei von `orchestrate.js` kann es **noch nicht** referenzieren — über
+die CLI gilt daher immer das eingebaute Backend, und aus `project.intrinsic`
+werden nur `strength` und die Nutzerentscheidung wiederhergestellt. Das ist eine
+offene Vertragslücke, keine Absicht: sie wird geschlossen, sobald ein externer
+Provider tatsächlich angebunden wird.
 
 ## Verifikation
 

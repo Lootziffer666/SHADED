@@ -41,8 +41,15 @@ Daraus folgt:
    Verify-Screenshots gegen die Zielbilder, unveränderte Klassenzählung, keine
    Konsolenfehler — nicht an seiner Modernität.
 4. **Formatunabhängig bleiben die Verträge an den Grenzen:** `window.SHADED`,
-   Provider-Verträge, Kanalvertrag, Scene-Project-Schema. Sie sind die Bridge; sie
-   überleben jeden Backendwechsel und werden zuerst geschrieben.
+   Provider-Verträge, Kanalvertrag, Scene-Project-Schema, CLI-Vertrag. Sie sind die
+   Bridge; sie überleben jeden Backendwechsel und werden zuerst geschrieben.
+
+**Das ausgearbeitete Bridge-Muster steht in `docs/ORCHESTRATION.md`** und gilt für jede
+weitere Brücke: eine echte Engine statt einer zweiten, ausschließlich real existierende
+API-Methoden statt erfundener, eine ausdrückliche Aussage darüber, was der Vertrag NICHT
+tragen kann, Konventionen aus dem Nachbar-Repo gespiegelt statt neu erfunden, und ein
+End-to-End-Beweis (Exit-Code + Snapshot) statt einer Zusicherung. Die Übersetzung
+passiert an dieser Grenze — nicht vorher im Kern.
 
 Architekturschicht dazu: `docs/rendergraph-lastverteilung.md` §3 (Ausführungs-Backends)
 und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).

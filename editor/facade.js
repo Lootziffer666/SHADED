@@ -185,7 +185,7 @@ export class SceneEditorFacade {
       params: this.isReady() ? this.getParams() : null,
       actors: this.actorBundles.map(({ id, label, x, y, scale, anim, depthLayer }) => ({ id, label, x, y, scale, anim, depthLayer })),
       storyboard: this.isEngineLoaded() ? this.win.SHADED.story.board() : [],
-      intrinsic: this.getIntrinsicState(),
+      // `intrinsic` kommt bereits aus getRuntimeStatus() – nicht doppelt abfragen.
     };
   }
 
