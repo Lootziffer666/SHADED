@@ -42,7 +42,7 @@ const server = http.createServer((req, res) => {
   const notFound = [];
   page.on('response', r => { if (r.status() === 404) notFound.push(r.url()); });
   const isOptionalCompanion = u => /_depth\.(png|jpe?g|webp)(\?|$)/i.test(u);
-  let classFailures = 0, actorFailures = 0, trailFailures = 0;
+  let classFailures = 0, actorFailures = 0, trailFailures = 0, linkFailures = 0;
 
   // Screenshot via Viewport-Clip (kein "element stability"-Wait, der auf dauerhaft
   // animierenden WebGL-Canvas hängt). Semantik der Verifikation bleibt unverändert.
@@ -96,6 +96,18 @@ const server = http.createServer((req, res) => {
   console.log(`Kontext: WebGL 2, ${ctx.fragUnits} Fragment-Sampler (${USED_UNITS} belegt, ` +
               `${ctx.fragUnits - USED_UNITS} frei), ${ctx.drawBuffers} Draw-Buffer`);
   if (ctx.fragUnits < 16) { console.log('✗ FAIL: weniger Sampler als von WebGL 2 garantiert'); process.exit(1); }
+
+  // Der Editor muss von der Runtime aus erreichbar sein - sonst existiert er
+  // fuer jeden, der nicht die URL kennt, schlicht nicht.
+  const editorLink = await page.evaluate(() => {
+    const a = document.getElementById('link-editor');
+    return a ? a.getAttribute('href') : null;
+  });
+  const editorReachable = editorLink
+    ? (await page.request.get(`http://localhost:8931/${editorLink}`)).status() === 200
+    : false;
+  console.log(`Editor-Link: ${editorLink || 'FEHLT'} -> ${editorReachable ? 'erreichbar' : 'NICHT erreichbar'}`);
+  if (!editorReachable) linkFailures++;
 
   await page.setInputFiles('#f-scene', BASE_IMG);
   // Szene mit Depth-Companion: Auto-Load ueberschreibt den Status fast sofort
@@ -280,9 +292,9 @@ const server = http.createServer((req, res) => {
   if (badNotFound.length) console.log('Unerwartete 404:', badNotFound.join(' | '));
   console.log('Konsole-Fehler:', realErrors.length ? realErrors.join(' | ') : 'keine');
 
-  const failed = classFailures || actorFailures || trailFailures || realErrors.length || badNotFound.length;
+  const failed = classFailures || actorFailures || trailFailures || linkFailures || realErrors.length || badNotFound.length;
   console.log(failed
-    ? `\n✗ Verifikation FEHLGESCHLAGEN (${classFailures} Klassen-Regression(en), ${actorFailures} Actor-Fehler, ${trailFailures} Trail-Fehler, ${realErrors.length} Konsolenfehler, ${badNotFound.length} unerwartete 404)`
+    ? `\n✗ Verifikation FEHLGESCHLAGEN (${classFailures} Klassen-Regression(en), ${actorFailures} Actor-Fehler, ${trailFailures} Trail-Fehler, ${linkFailures} fehlende Verlinkung, ${realErrors.length} Konsolenfehler, ${badNotFound.length} unerwartete 404)`
     : '\n✓ Verifikation bestanden – Screenshots in tools/verify-out/ jetzt visuell gegen die Zielbilder prüfen.');
 
   await browser.close();

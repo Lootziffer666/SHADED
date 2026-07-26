@@ -56,6 +56,15 @@ body.cinema #exit-cinema{display:block}
 <div id="sidebar">
   <h1>SHADED</h1>
   <div class="sub">Ein Bild. Erstellen. Lebendig.</div>
+  <!-- Der Editor ist ein eigenes Autorenwerkzeug (editor/), das diese Seite
+       unveraendert per iframe einbettet. Ohne diesen Link ist er nur ueber eine
+       manuell getippte URL erreichbar - er sah dadurch aus, als gaebe es ihn nicht. -->
+  <a id="link-editor" href="editor/index.html"
+     style="display:block;margin:6px 0 2px;padding:6px 8px;border:1px solid #2b3550;border-radius:4px;
+            color:#8fb4ff;text-decoration:none;font-size:11px;text-align:center">
+    🎛️ SHADED Editor öffnen
+  </a>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Parameter-Tuning, Marker malen, Actor-Platzierung, Story-Timeline, Materialschicht.</div>
 
   <h2>1 · Bild</h2>
   <input type="file" id="f-scene" accept="image/*" title="Szenenbild laden">
