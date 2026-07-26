@@ -141,6 +141,31 @@ export class SceneEditorFacade {
     return entry;
   }
 
+  /**
+   * Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md): Licht/Material-Trennung.
+   * Reine Durchreiche auf `window.SHADED.intrinsic` — der Editor rechnet hier nichts
+   * selbst und kennt weder Shading-Feld noch Materialklassen.
+   */
+  getIntrinsicState() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return null;
+    return this.win.SHADED.intrinsic.state();
+  }
+
+  setIntrinsicStrength(strength) {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return null;
+    return this.win.SHADED.intrinsic.setStrength(strength);
+  }
+
+  acceptIntrinsic() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return false;
+    return this.win.SHADED.intrinsic.accept();
+  }
+
+  resetIntrinsic() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return false;
+    return this.win.SHADED.intrinsic.reset();
+  }
+
   /** Reiner Laufzeit-Status, ausschließlich aus echten Engine-/Buchführungswerten — nichts erfunden. */
   getRuntimeStatus() {
     return {
@@ -148,6 +173,7 @@ export class SceneEditorFacade {
       ready: this.isReady(),
       actorCount: this.actorBundles.length,
       storyboardSteps: this.isEngineLoaded() ? this.win.SHADED.story.board().length : 0,
+      intrinsic: this.getIntrinsicState(),
     };
   }
 
@@ -159,6 +185,7 @@ export class SceneEditorFacade {
       params: this.isReady() ? this.getParams() : null,
       actors: this.actorBundles.map(({ id, label, x, y, scale, anim, depthLayer }) => ({ id, label, x, y, scale, anim, depthLayer })),
       storyboard: this.isEngineLoaded() ? this.win.SHADED.story.board() : [],
+      intrinsic: this.getIntrinsicState(),
     };
   }
 
@@ -172,12 +199,28 @@ export class SceneEditorFacade {
     if (!this.isReady()) {
       throw new Error('exportProject() verlangt eine bereits erstellte Szene (erst create()/waitUntilReady()).');
     }
-    return {
+    const project = {
       schema: 'shaded.scene-project/v1',
       params: this.getParams(),
       actors: this.actorBundles.map(({ label, x, y, scale, anim, depthLayer }) => ({ label, x, y, scale, anim, depthLayer })),
       storyboard: this.win.SHADED.story.board(),
     };
+    // Materialschicht: nur Metadaten. Das Shading-Feld selbst ist ein Bildartefakt
+    // und wird — wie Sprite-Sheets — beim Laden wieder out-of-band übergeben.
+    const intrinsic = this.getIntrinsicState();
+    if (intrinsic) {
+      project.intrinsic = {
+        provider: intrinsic.provider,
+        providerVersion: intrinsic.providerVersion,
+        channelSetId: intrinsic.channelSetId,
+        provenance: intrinsic.provenance,
+        confidence: intrinsic.confidence,
+        colorSpace: intrinsic.colorSpace,
+        strength: intrinsic.strength,
+        accepted: intrinsic.accepted,
+      };
+    }
+    return project;
   }
 
   /**
@@ -211,6 +254,27 @@ export class SceneEditorFacade {
       const board = this.win.SHADED.story.board();
       board.length = 0;
       project.storyboard.forEach((step) => board.push(step));
+    }
+
+    // Materialschicht wiederherstellen. Ein fremdes Shading-Feld muss über
+    // assets.intrinsicShading erneut geliefert werden — sonst gilt das
+    // eingebaute Backend, und nur Stärke/Nutzerentscheidung werden übernommen.
+    if (project.intrinsic && this.win.SHADED.intrinsic) {
+      if (assets.intrinsicShading) {
+        this.win.SHADED.intrinsic.set({
+          shading: assets.intrinsicShading,
+          provider: project.intrinsic.provider,
+          providerVersion: project.intrinsic.providerVersion,
+          channelSetId: project.intrinsic.channelSetId,
+          provenance: project.intrinsic.provenance,
+          confidence: project.intrinsic.confidence,
+          colorSpace: project.intrinsic.colorSpace,
+        });
+      }
+      if (typeof project.intrinsic.strength === 'number') {
+        this.setIntrinsicStrength(project.intrinsic.strength);
+      }
+      if (project.intrinsic.accepted) this.acceptIntrinsic();
     }
 
     return this.getDebugSnapshot();

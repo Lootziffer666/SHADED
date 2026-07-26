@@ -31,6 +31,24 @@
     <h2>Parameter</h2>
     <div id="sliders"></div>
     <div id="editor-status">Noch keine Szene geladen.</div>
+
+    <h2>Materialschicht (Licht/Material-Trennung)</h2>
+    <p class="hint">
+      Das Quellbild enthält eingebackenes Licht. Ohne Trennung multipliziert jedes
+      Weltgesetz darauf – Schatten werden doppelt beschattet. Bei 0 rendert die Szene
+      exakt wie bisher (Fallback identity-albedo).
+    </p>
+    <div class="row">
+      <label for="intrinsic-strength">Trennung</label>
+      <input id="intrinsic-strength" type="range" min="0" max="1" step="0.01" value="0">
+      <output id="intrinsic-value">0.00</output>
+    </div>
+    <div class="row">
+      <button id="btn-intrinsic-ab" type="button">A/B umschalten</button>
+      <button id="btn-intrinsic-accept" type="button">Als kanonisch bestätigen</button>
+      <button id="btn-intrinsic-reset" type="button">Verwerfen</button>
+    </div>
+    <div id="intrinsic-status">Noch keine Zerlegung.</div>
   </section>
 
   <section class="panel">

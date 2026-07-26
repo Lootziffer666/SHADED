@@ -549,9 +549,11 @@ Laufzeit, Peak-VRAM, erzeugte Kanäle, Verhalten an harten Schlagschatten, Verha
 
 ---
 
-## 12. Erster vertikaler Schnitt
+## 12. Erster vertikaler Schnitt — umgesetzt
 
-Ziel ist **nicht** PBR. Ziel ist der Beweis, dass SHADED Licht und Material trennen kann, ohne die Materialwahrheit anzutasten.
+**Status: implementiert.** Beweis: `node tools/verify-intrinsic.js` (18/18 Prüfungen).
+
+Ziel war **nicht** PBR, sondern der Beweis, dass SHADED Licht und Material trennen kann, ohne die Materialwahrheit anzutasten.
 
 ### Eingabe
 
@@ -571,6 +573,28 @@ Ziel ist **nicht** PBR. Ziel ist der Beweis, dass SHADED Licht und Material tren
 8. Verify-Durchlauf beider Zustände, Klassenzählung muss identisch bleiben
 9. Nutzer kann die Zerlegung annehmen, verwerfen oder als USER_APPROVED bestätigen
 10. Save/Reload erhält Provider, Version, Konfidenz und Nutzerentscheidung
+```
+
+### Was tatsächlich gebaut wurde — und wo es vom Plan abweicht
+
+| Planschritt | Umsetzung |
+|---|---|
+| Provider im Worker | **Abweichung:** das eingebaute Backend läuft inline in `analyze()`. Es ist die klassische deterministische Baseline (homomorphe Tiefpasstrennung der log-Luminanz) und kostet drei Box-Blurs – ein Worker wäre reine Zeremonie. Gelernte Backends kommen über `window.SHADED.intrinsic.set()` von außen herein; genau dafür existiert der Vertrag. |
+| `albedo` in freien RGBA-Kanal packen | Gespeichert wird **`shading`**, nicht `albedo` – ein Skalar statt drei Kanälen. Der Shader gewinnt `albedo = col / shade` zurück. Ablage: `u_zone.g` (0.5 = neutral), Konfidenz in `u_zone.b`. Damit blieb Weg A ohne Kontextwechsel möglich. |
+| Ein Weltgesetz umstellen | Nässe (`u_wet`). Sonst nichts. |
+| A/B-Schalter | `window.SHADED.intrinsic.setStrength(0..1)` plus Regler und A/B-Knopf im Editor. |
+| Verify mit gleicher Klassenzählung | `tools/verify-intrinsic.js`; Klassenzählung bei an/aus exakt identisch. |
+| Nutzer akzeptiert/verwirft/bestätigt | `accept()` → `USER_APPROVED`, `reset()` → eingebautes Backend, `clear()` → identity-albedo. |
+| Save/Reload | `intrinsic`-Block in `contracts/shaded-scene-project.schema.json`; `facade.exportProject()`/`loadProject()`. Metadaten und Stärke persistieren; ein **fremdes** Shading-Feld muss wie Sprite-Sheets erneut out-of-band übergeben werden (`assets.intrinsicShading`) – JSON trägt keine Bildbytes. |
+
+Gemessen (Akt `danach`, eingefrorene Zeit):
+
+```text
+Restdrift zweier Frames        Δ 0.003
+Fremdfeld bei strength=0       Δ 0.006   → Fallback greift wirklich
+Zerlegung bei strength=1       Δ 2.699   → 900× über der Drift
+Schattenboden bei Nässe        32.4 → 35.5 (dunkelste 20 % saufen nicht mehr ab)
+Klassenzählung an/aus          identisch
 ```
 
 ### Warum ausgerechnet Nässe
@@ -602,6 +626,16 @@ Nässe ist der Effekt, bei dem der Doppelbeschattungsfehler am deutlichsten sich
 - [ ] Lizenz von Code **und** Checkpoint ist je Provider dokumentiert.
 - [ ] Der visuelle Verify-Durchlauf zeigt A/B mit unveränderter Klassenzählung.
 - [ ] Die Texture-Unit-Belegung ist nach der Änderung dokumentiert und begründet.
+
+**Durch den ersten Schnitt bereits erfüllt** (`node tools/verify-intrinsic.js`):
+Trennung von beobachteter Farbe und Albedo · vollständige Pflichtmetadaten am
+Kanal · keine Schreibzugriffe auf `classGrid` · Weltzustände bleiben Laufzeit ·
+Providerausfall mit `identity-albedo` · Materialarbeit bei Import statt im
+Frame-Loop · A/B mit unveränderter Klassenzählung · dokumentierte Unit-Belegung
+(CLAUDE.md Invariante 7).
+
+**Noch offen:** gemischte Kanalsätze (es existiert erst einer), OpenPBR-Benennung
+der BRDF-Kanäle (es existiert noch kein BRDF-Kanal), MaterialX-Export.
 
 ---
 

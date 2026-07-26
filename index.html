@@ -212,6 +212,10 @@ uniform float u_fireCount;
 uniform sampler2D u_depth;  // 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern); ohne Upload 1x1 schwarz = flach
 uniform vec2 u_parallax;    // Maus-/Kamera-Versatz (0,0 ohne Interaktion -> deterministische Frames)
 uniform sampler2D u_zone;   // K1: Gebäudezonen (R; 1 = Fachwerk-Gebäude) – maskiert Bodeneffekte
+                            // G: Shading (eingebackene Beleuchtung, 0.5 = neutral), B: Konfidenz
+// Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md): 0 = beobachtete Farbe
+// (Fallback identity-albedo, exakt das bisherige Verhalten), 1 = Licht/Material getrennt.
+uniform float u_intrinsic;
 // Aufsummierte Phasen (CPU): Intensitäten dürfen NIE im Phasenterm t*f(wind)
 // stehen – sinkt der Wind, liefe die Phase rückwärts (Regen-"Rewind").
 uniform float u_rainPhase;  // ∫(1 + 0.4*wind) dt
@@ -277,8 +281,12 @@ void main(){
   float mWood=mB.r,  mWin=mB.g,  mWater=mB.b, mRock=mB.a;
   vec4 phys = texture2D(u_phys,uv);  // r=Pfützentiefe g=Flusswinkel b=Bleed a=Pfad-Distanz
   vec4 trail = texture2D(u_trail,uv);// r=Delle g=Impuls b=Trampelpfad a=Hitze/Brand
-  float zone = texture2D(u_zone,uv).r; // K1: 1 = Gebäude -> Bodeneffekte hier verboten
+  vec4 zoneTex = texture2D(u_zone,uv);
+  float zone = zoneTex.r;              // K1: 1 = Gebäude -> Bodeneffekte hier verboten
   float noZone = 1.0 - zone;
+  // Eingebackene Beleuchtung des Quellbilds: <1 Schatten, >1 Licht, 1 neutral.
+  // Bei u_intrinsic == 0 ist shade EXAKT 1.0 -> Albedo == beobachtete Farbe.
+  float shade = mix(1.0, max(zoneTex.g*2.0, 0.18), u_intrinsic);
   float veg = clamp(mGrass+mFol,0.0,1.0);
   float ground = clamp(mPath+mGrass+mRock,0.0,1.0);
 
@@ -405,9 +413,19 @@ void main(){
   }
 
   // --- Nässe: poröse Materialien dunkeln stark ab, Farben sättigen ---
+  // Ein Wasserfilm senkt die REFLEKTANZ der Oberfläche. Er senkt nicht das Licht,
+  // das an dieser Stelle ohnehin schon fehlt – deshalb läuft der Term auf dem
+  // Albedo, nicht auf der beobachteten Farbe (sonst wird jeder Schatten doppelt
+  // beschattet). Bei u_intrinsic == 0 ist shade == 1.0 und wetGain == 1.0; dann
+  // ist das hier algebraisch exakt das frühere col *= 1.0 - porous*u_wet.
   float porous = mRoof*0.50 + mWood*0.50 + mPath*0.44 + mRock*0.42 + mGrass*0.28 + mFol*0.22 + mWin*0.10;
-  col *= 1.0 - porous*u_wet;
-  col = mix(vec3(lum(col)), col, 1.0 + 0.35*u_wet);
+  vec3 alb = col / shade;
+  // Gedämpft wird, was an Reflektanz da ist: ein dunkles Material wird nass kaum
+  // dunkler, ein heller Putz dramatisch. Ohne Zerlegung bleibt der Faktor 1.0.
+  float wetGain = mix(1.0, smoothstep(0.02, 0.45, lum(alb)), u_intrinsic);
+  alb *= 1.0 - porous*u_wet*wetGain;
+  alb = mix(vec3(lum(alb)), alb, 1.0 + 0.35*u_wet);
+  col = alb * shade;
 
   // --- Trampelpfade (Runde 4): wiederholtes Begehen macht Gras zu Matsch ---
   float mud = smoothstep(0.10,0.72, trail.b) * mGrass * noZone;
@@ -901,7 +919,7 @@ gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
 
 const U={};
 ['u_scene','u_maskA','u_maskB','u_phys','u_emis','u_px','u_time','u_aspect','u_flash',
- 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone',
+ 'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone','u_intrinsic',
  'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold',  'u_runeGlow','u_bloodStain','u_mudStain',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
@@ -1014,6 +1032,105 @@ let sceneImg=null, matImg=null, ready=false;
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
 let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
 let zoneGrid=null;                // K1: Gebäudezonen (1 = Fachwerk-Gebäude)
+
+/* --- Materialschicht: Intrinsic Decomposition -----------------------------
+   Siehe docs/neuronale-materialien-svbrdf-pbr.md. Das Quellbild enthält
+   eingebackenes Licht; ohne Trennung multipliziert jedes Weltgesetz darauf.
+   Hier entsteht NUR ein Beleuchtungsfeld (shading) – keine zweite
+   Klassifikation. classGrid und getMaterialTypeAt bleiben unberührt.
+
+   Das eingebaute Backend ist bewusst die klassische, deterministische
+   Baseline (homomorphe Tiefpasstrennung von log-Luminanz, das Verfahren der
+   De-Lighting-Werkzeuge). Ein gelerntes Backend (RGB→X, IntrinsicReal, …)
+   liefert dasselbe Artefakt über window.SHADED.intrinsic.set().            */
+const INTRINSIC_BASELINE = Object.freeze({
+  provider:'material.intrinsic.retinex-baseline', providerVersion:'1.0.0',
+  channelSetId:'intrinsic.v1', provenance:'INFERRED',
+  colorSpace:{albedo:'sRGB', shading:'linear'}
+});
+const INTRINSIC_IDENTITY = Object.freeze({
+  provider:'none', providerVersion:'0', channelSetId:'identity.v1',
+  provenance:'OBSERVED', colorSpace:{albedo:'sRGB', shading:'linear'}
+});
+let intrinsicShading=null;        // Float32Array AW*AH – 1.0 = neutral, <1 Schatten
+let intrinsicConf=null;           // Float32Array AW*AH – Konfidenz je Pixel
+let intrinsicBase=null;           // Ergebnis des eingebauten Backends (für reset())
+let intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false};
+let intrinsicStrength=0;          // u_intrinsic; 0 = Fallback identity-albedo
+let zoneSoftCache=null;           // K1-Zonen (weich) für erneutes Packen ohne analyze()
+
+// Beleuchtungsschätzung aus dem Quellbild. spx = RGBA-Pixel in Analyseauflösung.
+function decomposeIntrinsicBaseline(spx,w,h){
+  const n=w*h, logL=new Float32Array(n), conf=new Float32Array(n);
+  for(let j=0;j<n;j++){
+    const l=(spx[j*4]*0.299+spx[j*4+1]*0.587+spx[j*4+2]*0.114)/255;
+    logL[j]=Math.log(Math.max(l,0.004));
+  }
+  // Tiefpass = Beleuchtung. Radius skaliert mit der Analyseauflösung, nie mit
+  // einer festen Rastergröße (dieselbe Regel wie bei den Kanon-Detektoren).
+  const r=Math.max(4, Math.round(w/24));
+  const logS=Float32Array.from(logL);
+  boxBlur(logS,w,h,r,3);
+  // Mittelwert normalisieren -> 1.0 ist neutral, das Bild wird global nicht heller.
+  let mean=0; for(let j=0;j<n;j++) mean+=logS[j]; mean/=n;
+  const shading=new Float32Array(n);
+  for(let j=0;j<n;j++){
+    shading[j]=Math.max(0.18, Math.min(2.0, Math.exp(logS[j]-mean)));
+    // Konfidenz sinkt, wo Residuum und Tiefpass weit auseinanderliegen –
+    // typisch für harte Schlagschattenkanten, an denen die Zerlegung rät.
+    conf[j]=Math.max(0, 1-Math.min(1, Math.abs(logL[j]-logS[j])*0.55));
+  }
+  let cm=0; for(let j=0;j<n;j++) cm+=conf[j];
+  return {shading, conf, confidence:+(cm/n).toFixed(4)};
+}
+
+// Zonen-Textur (Unit 7) neu packen: R = K1-Zonen, G = Shading, B = Konfidenz.
+// Wird von analyze() und von window.SHADED.intrinsic.* benutzt – EIN Pfad.
+function uploadZoneTexture(){
+  if(!zoneSoftCache) return false;
+  const n=AW*AH, tZ=new Uint8Array(n*4);
+  const q=v=>Math.max(0,Math.min(255,Math.round(v*255)));
+  for(let j=0;j<n;j++){
+    tZ[j*4]=q(zoneSoftCache[j]);
+    tZ[j*4+1]=q((intrinsicShading?intrinsicShading[j]:1)*0.5); // 0.5 = neutral
+    tZ[j*4+2]=q(intrinsicConf?intrinsicConf[j]:0);
+    tZ[j*4+3]=255;
+  }
+  uploadTex(7,TEX.zone,AW,AH,tZ);
+  return true;
+}
+
+// Externes Shading-Feld eines fremden Providers auf Analyseauflösung bringen.
+// Erlaubt: Image/Canvas/ImageData (8 bit, 128 = neutral) oder Zahlen-Array
+// (bereits linear, 1.0 = neutral). Alles andere wird abgelehnt.
+function resampleShading(src){
+  if(!AW||!AH) return null;
+  const n=AW*AH, out=new Float32Array(n);
+  if(src instanceof Float32Array || src instanceof Float64Array || Array.isArray(src)){
+    if(src.length!==n) throw new Error('intrinsic.set: shading-Array muss '+n+' Werte haben (AW*AH)');
+    for(let j=0;j<n;j++) out[j]=Math.max(0.18,Math.min(2.0,src[j]));
+    return out;
+  }
+  let data=null;
+  if(typeof ImageData!=='undefined' && src instanceof ImageData && src.width===AW && src.height===AH){
+    data=src.data;
+  }else{
+    const c=document.createElement('canvas'); c.width=AW; c.height=AH;
+    const cx=c.getContext('2d',{willReadFrequently:true});
+    if(typeof ImageData!=='undefined' && src instanceof ImageData){
+      const tmp=document.createElement('canvas'); tmp.width=src.width; tmp.height=src.height;
+      tmp.getContext('2d').putImageData(src,0,0); cx.drawImage(tmp,0,0,AW,AH);
+    }else{
+      cx.drawImage(src,0,0,AW,AH);   // wirft bei ungeeigneten Quellen selbst
+    }
+    data=cx.getImageData(0,0,AW,AH).data;
+  }
+  for(let j=0;j<n;j++){
+    const l=(data[j*4]*0.299+data[j*4+1]*0.587+data[j*4+2]*0.114)/255;
+    out[j]=Math.max(0.18,Math.min(2.0,l*2.0));   // 128 -> 1.0 (neutral)
+  }
+  return out;
+}
 
 function rgbToHsl(r,g,b){
   r/=255;g/=255;b/=255;
@@ -1725,11 +1842,18 @@ function analyze(){
   const zoneSoft=new Float32Array(AW*AH);
   for(let j=0;j<AW*AH;j++) zoneSoft[j]=zoneGrid[j];
   boxBlur(zoneSoft,AW,AH,2,2);
+  zoneSoftCache=zoneSoft;
+
+  // Materialschicht: Beleuchtung schätzen. Läuft NACH der Klassifikation und
+  // schreibt ausschließlich in die Beleuchtungskanäle – nie in classGrid.
+  intrinsicBase=decomposeIntrinsicBaseline(spx,AW,AH);
+  intrinsicShading=intrinsicBase.shading;
+  intrinsicConf=intrinsicBase.conf;
+  intrinsicMeta={...INTRINSIC_BASELINE, confidence:intrinsicBase.confidence, accepted:false};
 
   // 5) In Texturen packen
   const tA=new Uint8Array(AW*AH*4), tB=new Uint8Array(AW*AH*4),
-        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4),
-        tZ=new Uint8Array(AW*AH*4);
+        tP=new Uint8Array(AW*AH*4), tE=new Uint8Array(AW*AH*4);
   const q=v=>Math.max(0,Math.min(255,Math.round(v*255)));
   for(let j=0;j<AW*AH;j++){
     tA[j*4]=q(m[G][j]); tA[j*4+1]=q(m[F][j]); tA[j*4+2]=q(m[R][j]); tA[j*4+3]=q(m[P][j]);
@@ -1737,13 +1861,12 @@ function analyze(){
     tP[j*4]=q(depthMap[j]); tP[j*4+1]=q(flow[j]); tP[j*4+2]=q(bleed[j]); tP[j*4+3]=q(Math.min(1,dPath[j]/scale));
     tE[j*4]=q(gR1[j]*0.85+eR[j]*0.6); tE[j*4+1]=q(gG1[j]*0.85+eG[j]*0.6);
     tE[j*4+2]=q(gB1[j]*0.85+eB[j]*0.6); tE[j*4+3]=q(sharpWin[j]);
-    tZ[j*4]=q(zoneSoft[j]); tZ[j*4+3]=255;
   }
   uploadTex(1,TEX.maskA,AW,AH,tA);
   uploadTex(2,TEX.maskB,AW,AH,tB);
   uploadTex(3,TEX.phys,AW,AH,tP);
   uploadTex(4,TEX.emis,AW,AH,tE);
-  uploadTex(7,TEX.zone,AW,AH,tZ);
+  uploadZoneTexture();
   ready=true;
 }
 
@@ -3241,6 +3364,8 @@ function frame(now){
     gl.uniform1f(U.u_blessCurse,blessCurse);
     gl.uniform1f(U.u_bloodStain, ready? bloodStain : 0);
     gl.uniform1f(U.u_mudStain, ready? mudStain : 0);
+    // Materialschicht: ohne Zerlegung (oder vor analyze()) exakt 0 -> identity-albedo
+    gl.uniform1f(U.u_intrinsic, (ready && intrinsicShading) ? intrinsicStrength : 0);
     gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
     PARAM_META.forEach(([key])=>gl.uniform1f(U['u_'+key], ready? CUR[key] : (key==='dayNight'||key==='storm'?CUR[key]:0)));
     lastFlash = ready ? tickLightning(time) : 0;
@@ -3322,7 +3447,67 @@ window.SHADED = {
   // als optische Akteure hinzufügen. Rein additiv, rührt classGrid nicht an.
   addActor,
   // Runde 7: Ökosystem-Integration
-  ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) }
+  ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) },
+  // Materialschicht: Licht/Material-Trennung (docs/neuronale-materialien-svbrdf-pbr.md).
+  // Rein optisch – schreibt NIE in classGrid oder getMaterialTypeAt (Invariante 2).
+  intrinsic:{
+    // Zustand inkl. aller Pflichtmetadaten des Kanalvertrags
+    state:()=>({...intrinsicMeta, strength:intrinsicStrength,
+                hasShading: !!intrinsicShading, resolution:{w:AW,h:AH}}),
+    // 0 = beobachtete Farbe (Fallback identity-albedo), 1 = volle Trennung
+    setStrength:(s)=>{ intrinsicStrength=Math.max(0,Math.min(1,+s||0)); return intrinsicStrength; },
+    getStrength:()=>intrinsicStrength,
+    // Externes Backend (RGB→X, IntrinsicReal, De-Lighter …) liefert das Feld.
+    // shading: Image | Canvas | ImageData (128 = neutral) oder Array (1.0 = neutral)
+    set:(opt)=>{
+      if(!ready||!zoneSoftCache) throw new Error('intrinsic.set: erst nach erstellen()');
+      if(!opt||opt.shading==null) throw new Error('intrinsic.set: shading fehlt');
+      const sh=resampleShading(opt.shading);
+      if(!sh) return false;
+      intrinsicShading=sh;
+      intrinsicConf=null;
+      if(opt.confidenceMap!=null){
+        const cm=resampleShading(opt.confidenceMap);
+        intrinsicConf=new Float32Array(AW*AH);
+        for(let j=0;j<AW*AH;j++) intrinsicConf[j]=Math.max(0,Math.min(1,cm[j]*0.5));
+      }
+      intrinsicMeta={
+        provider: opt.provider || 'material.intrinsic.external',
+        providerVersion: opt.providerVersion || 'unknown',
+        channelSetId: opt.channelSetId || 'intrinsic.external',
+        provenance: opt.provenance || 'INFERRED',
+        colorSpace: opt.colorSpace || {albedo:'sRGB', shading:'linear'},
+        confidence: opt.confidence!=null ? +opt.confidence : 0,
+        accepted: false
+      };
+      uploadZoneTexture();
+      return true;
+    },
+    // Nutzer bestätigt die Hypothese als kanonisch
+    accept:()=>{ if(!intrinsicShading) return false;
+                 intrinsicMeta={...intrinsicMeta, provenance:'USER_APPROVED', accepted:true};
+                 return true; },
+    // Verwerfen: zurück auf das eingebaute Backend; ohne dieses auf identity-albedo
+    reset:()=>{
+      if(intrinsicBase){ intrinsicShading=intrinsicBase.shading; intrinsicConf=intrinsicBase.conf;
+                         intrinsicMeta={...INTRINSIC_BASELINE, confidence:intrinsicBase.confidence, accepted:false}; }
+      else { intrinsicShading=null; intrinsicConf=null;
+             intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false}; intrinsicStrength=0; }
+      uploadZoneTexture();
+      return true;
+    },
+    // Providerausfall: Feld fällt weg, Rendering fällt auf den heutigen Zustand
+    clear:()=>{ intrinsicShading=null; intrinsicConf=null; intrinsicBase=null; intrinsicStrength=0;
+                intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false};
+                uploadZoneTexture(); return true; },
+    // Beleuchtungswert an UV (1.0 = neutral) – für Debug und Tests
+    sample:(u,v)=>{
+      if(!intrinsicShading) return 1;
+      const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+      const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+      return intrinsicShading[y*AW+x];
+    }
+  }
 };
 </script>
 </body>

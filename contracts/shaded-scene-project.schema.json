@@ -47,6 +47,25 @@
         }
       }
     },
+    "intrinsic": {
+      "type": "object",
+      "description": "Material layer metadata (docs/neuronale-materialien-svbrdf-pbr.md): the light/material separation currently attached to the scene. METADATA ONLY — the shading field itself is an image artefact and, exactly like sprite sheets, must be handed to loadProject() out-of-band as assets.intrinsicShading. Without it the built-in baseline backend applies and only 'strength'/'accepted' are restored. Absent means the scene was never decomposed.",
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "description": "Provider id, e.g. 'material.intrinsic.retinex-baseline' or an external worker id." },
+        "providerVersion": { "type": "string" },
+        "channelSetId": { "type": "string", "description": "Channels produced together in one run; mixing sources requires a new set id." },
+        "provenance": { "type": "string", "enum": ["MEASURED", "OBSERVED", "RECONSTRUCTED", "INFERRED", "GENERATED", "USER_APPROVED"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "colorSpace": {
+          "type": "object",
+          "description": "Colour space per channel. A channel without a colour space is invalid.",
+          "additionalProperties": { "type": "string" }
+        },
+        "strength": { "type": "number", "minimum": 0, "maximum": 1, "description": "u_intrinsic. 0 = identity-albedo fallback (renders exactly like an undecomposed scene)." },
+        "accepted": { "type": "boolean", "description": "User confirmed the hypothesis as canonical (provenance USER_APPROVED)." }
+      }
+    },
     "storyboard": {
       "type": "array",
       "description": "Verbatim contents of window.SHADED.story.board() — the same live array StoryboardTimeline and playStory()/tickStory() already share, not a second storyboard truth.",

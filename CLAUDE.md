@@ -78,6 +78,16 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    `setWorldState(name|null)`, `getWorldStates()`, `getWorldState()`.
    `normalImage`/`worldStates` werden aus dem Manifest geparst; Normal-Maps werden
    derzeit nicht gerendert (Canvas-2D hat keinen Licht-Pass) – Feld ist reserviert.
+   **v1.6.0+ (Materialschicht):** `window.SHADED.intrinsic` trennt Licht und Material
+   (`state, setStrength, getStrength, set, accept, reset, clear, sample`). Das
+   Quellbild enthält eingebackenes Licht; ohne Trennung multipliziert jedes
+   Weltgesetz darauf. `setStrength(0)` ist der Fallback **identity-albedo** und
+   rendert exakt wie zuvor – das ist auch der Default und der Zustand nach
+   Providerausfall. `set()` nimmt das Shading-Feld eines externen Backends
+   (RGB→X, IntrinsicReal, De-Lighter …) entgegen; das eingebaute Backend ist die
+   klassische deterministische Baseline. Provider erzeugen **Parameter, nie
+   Klassen** – `classGrid`/`getMaterialTypeAt` bleiben unberührt (Invariante 2).
+   Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
@@ -97,10 +107,15 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    5 Trail-/Störungstextur (Runde 4: R Delle 1.5 s Halbwertszeit, G Impuls 0.4 s,
    B Trampelpfad permanent, A Hitze/Brand ~25 s), 6 Tiefenkarte (2.5D-Parallaxe;
    ohne Upload 1×1 schwarz = flach; `u_parallax` ist ohne Mausbewegung (0,0) –
-   verify-Frames bleiben deterministisch), 7 Gebäudezonen (K1: R-Kanal 1 =
-   Fachwerk-Gebäude; maskiert puddle/riv/creep/mud; bodenverankerte Pfad-/
-   Fels-Komponenten sind für Zonen tabu). Trail-Decay wirkt IMMER direkt
+   verify-Frames bleiben deterministisch), 7 Gebäudezonen + Materialschicht
+   (R-Kanal 1 = Fachwerk-Gebäude nach K1; maskiert puddle/riv/creep/mud;
+   bodenverankerte Pfad-/Fels-Komponenten sind für Zonen tabu. **G-Kanal =
+   Shading** (eingebackene Beleuchtung des Quellbilds, 0.5 = neutral),
+   **B-Kanal = Konfidenz** der Zerlegung). Trail-Decay wirkt IMMER direkt
    auf den Pixeldaten – nie über Canvas-Composite-Tricks.
+   **Damit sind alle 8 garantierten WebGL-1-Sampler belegt.** Ein weiterer
+   Materialkanal erzwingt eine Kontextentscheidung (WebGL 2) – siehe
+   `docs/neuronale-materialien-svbrdf-pbr.md` §10.
 
 ## SHADED Editor (`editor/`)
 
@@ -190,6 +205,12 @@ ohne Map (Heuristik) UND mit gemalter Map (`1782824829119.png`).
 verify.js vergleicht außerdem die Klassenzählung aller fünf Szenen gegen
 `tools/expected-classes.json` (±10 %) – bei GEWOLLTEN Verschiebungen die Baseline
 bewusst aktualisieren (nach visueller Prüfung!), nie blind.
+
+**Material-Tests:** Bei Änderungen an der Materialschicht (`u_intrinsic`, Shading-Kanal,
+`window.SHADED.intrinsic`, Weltgesetze die auf Albedo rechnen) `node tools/verify-intrinsic.js`
+laufen lassen. Der Test beweist Fallback (identity-albedo), Wirkung, unveränderte
+Klassenzählung, externen Provider, Nutzerbestätigung und Providerausfall; Exit ≠ 0 bei
+FAIL oder Konsolenfehlern. Für stabile Frame-Vergleiche `setTime(t, true)` (freeze) nutzen.
 
 **Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zuerst
 `node tools/verify-actors.js` laufen lassen (deckt API, Depth-Kopplung und die
