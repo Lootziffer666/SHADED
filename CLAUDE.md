@@ -16,6 +16,37 @@ Diese werden via `window.SHADED.addActor()` als rein optische Overlay-Ebene gela
 NICHT `classGrid` oder `getMaterialTypeAt()`. Die Scene-Analyse wird nur vom Hintergrund
 bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
 
+## Ziel statt Format
+
+SHADED arbeitet auf ein **Ziel** hin, nicht auf ein **Format**. Das Ziel ist die lebendige,
+atmende Szene und die Weltgesetze, die sie tragen. Grafik-APIs, Shader-Sprachen und
+Austauschformate — GLSL, WGSL, TSL, MaterialX, ReShade-FX, glTF, USD — sind die **letzte
+Meile**: austauschbare Ausgabe- und Ausführungsformen, nie der Zweck.
+
+Historie, damit sie nicht wieder verloren geht: SHADED ist aus einem **KorGE**-Projekt
+entstanden; Three.js/TSL lag deshalb als **Entwicklungswerkzeug** am nächsten. Das war
+eine Werkzeugwahl für die Entwicklung, nie eine Festlegung der ausgelieferten Runtime.
+
+Daraus folgt:
+
+1. **Kein Format wird zur Invariante erklärt.** Invariant ist, dass es EINE Shader-Quelle,
+   EINE Material-Wahrheit und EINEN API-Vertrag gibt — nicht, in welcher Sprache oder
+   gegen welche API sie ausgedrückt sind. Wer ein Backend dokumentiert, dokumentiert den
+   *aktuellen Stand der letzten Meile* (siehe Invariante 7), nicht ein Gesetz.
+2. **Entwicklungswerkzeug ≠ Laufzeit-Abhängigkeit.** Three.js/TSL, Node-Editoren,
+   Python-Worker und Build-Schritte dürfen beim Autorenwerkzeug und in der Entwicklung
+   stehen — dieselbe Trennung, die `editor/` gegenüber `index.html` schon hat.
+3. **Ein Formatwechsel ersetzt, er ergänzt nicht.** Ein neues Backend löst das alte
+   vollständig ab (sonst zwei Wahrheiten) und wird an den **Zielkriterien** gemessen —
+   Verify-Screenshots gegen die Zielbilder, unveränderte Klassenzählung, keine
+   Konsolenfehler — nicht an seiner Modernität.
+4. **Formatunabhängig bleiben die Verträge an den Grenzen:** `window.SHADED`,
+   Provider-Verträge, Kanalvertrag, Scene-Project-Schema. Sie sind die Bridge; sie
+   überleben jeden Backendwechsel und werden zuerst geschrieben.
+
+Architekturschicht dazu: `docs/rendergraph-lastverteilung.md` §3 (Ausführungs-Backends)
+und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
+
 ## Unverhandelbare Invarianten
 
 1. **Single-File, kein Build-Step — für `index.html`.** `index.html` bleibt die komplette
@@ -114,12 +145,19 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    Zerlegung; B/A reserviert für kommende Kanäle wie Rauheit und AO).
    Trail-Decay wirkt IMMER direkt auf den Pixeldaten – nie über
    Canvas-Composite-Tricks.
-   **Grafikkontext ist WebGL 2 mit GLSL ES 3.00** (`#version 300 es`, `in`/`out`,
-   `texture()`, `fragColor`). Es gibt bewusst **keinen** zweiten WebGL-1-Pfad –
-   zwei Shader-Quellen wären zwei Wahrheiten; fehlt WebGL 2, bricht `index.html`
-   mit klarer Meldung ab. WebGL 2 garantiert ≥ 16 Fragment-Sampler (real 32 im
-   Verify-Chromium), von denen 9 belegt sind. Neue Kanäle bekommen eine eigene
-   Unit statt Huckepack-Packung; `tools/verify.js` prüft Kontext und Belegung.
+   **Es gibt genau EINE Shader-Quelle.** Das ist die Invariante – nicht die Sprache,
+   in der sie ausgedrückt ist. Zwei parallele Shader-Quellen wären zwei Wahrheiten;
+   ein neues Ausführungs-Backend ersetzt die bestehende Quelle vollständig, es tritt
+   nie neben sie.
+   **Aktuelles Ausführungs-Backend:** WebGL 2 mit GLSL ES 3.00 (`#version 300 es`,
+   `in`/`out`, `texture()`, `fragColor`); fehlt WebGL 2, bricht `index.html` mit
+   klarer Meldung ab. Es ist die unterste Schicht laut
+   `docs/rendergraph-lastverteilung.md` §3 („Ausführungs-Backends: WebGL 1 · WebGL 2 ·
+   später WebGPU") und ausdrücklich austauschbar – eine spätere Autorensprache
+   (TSL, eigene Node-IR, MaterialX) darf sie ablösen.
+   WebGL 2 garantiert ≥ 16 Fragment-Sampler (real 32 im Verify-Chromium), von denen
+   9 belegt sind. Neue Kanäle bekommen eine eigene Unit statt Huckepack-Packung;
+   `tools/verify.js` prüft Kontext und Belegung.
    Begründung: `docs/neuronale-materialien-svbrdf-pbr.md` §10.
 
 ## SHADED Editor (`editor/`)

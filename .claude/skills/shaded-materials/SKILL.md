@@ -14,7 +14,7 @@ Die vollständige Entscheidung steht in:
 
 - Das Quellbild enthält **eingebackenes Licht**. Ohne Trennung multipliziert jedes Weltgesetz darauf → Doppelbeschattung. Genau dagegen existiert die Materialschicht.
 - Vorhanden ist bisher **ein** Kanal: `shading` (plus Konfidenz). Es gibt weiterhin **keine** Rauheit, Metallizität, Normalen und keine BRDF-Auswertung.
-- `index.html` läuft auf **WebGL 2 / GLSL ES 3.00** (seit dem Kontextwechsel; vorher WebGL 1 mit 8 von 8 belegten Samplern). Belegt: 0 scene, 1 maskA, 2 maskB, 3 phys, 4 emis, 5 trail, 6 depth, 7 zone, **8 material**. Real 32 Sampler, 23 frei, 6 Draw-Buffer. **Kein WebGL-1-Fallback** – zwei Shader-Quellen wären zwei Wahrheiten.
+- Aktuelles **Ausführungs-Backend** ist WebGL 2 / GLSL ES 3.00 (vorher WebGL 1 mit 8 von 8 belegten Samplern) – austauschbar laut `docs/rendergraph-lastverteilung.md` §3, nicht Invariante. Invariante ist nur: **eine** Shader-Quelle, ein Backend ersetzt sie ganz. Belegt: 0 scene, 1 maskA, 2 maskB, 3 phys, 4 emis, 5 trail, 6 depth, 7 zone, **8 material**. Real 32 Sampler, 23 frei, 6 Draw-Buffer.
 - DeepBump ist als **einziger** Material Worker herabgestuft auf `MesoSurfaceProvider`.
 
 ## Ebenen nicht vermischen
