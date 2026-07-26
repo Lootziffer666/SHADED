@@ -147,6 +147,22 @@ function fail(code, payload) {
   const consoleErrors = [];
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   page.on('pageerror', (e) => consoleErrors.push('PAGEERROR: ' + e.message));
+// Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
+// "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
+// ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404. Genau
+// diese Treffer werden abgezogen, jeder andere 404 bleibt ein echter Fehler.
+const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+const dropCompanion404 = (list, count) => {
+  let out = list.slice();
+  for (let i = 0; i < count; i++) {
+    const idx = out.findIndex((e) => /status of 404|HTTP 404/.test(e));
+    if (idx < 0) break;
+    out = out.filter((_, k) => k !== idx);
+  }
+  return out;
+};
+  let benign404 = 0;
+  page.on('response', (r) => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
 
   let result;
   try {
@@ -192,8 +208,9 @@ function fail(code, payload) {
   await browser.close();
   await new Promise((r) => server.close(r));
 
-  if (consoleErrors.length > 0) {
-    fail(1, { message: 'Konsolen-/Seitenfehler während der Orchestrierung.', consoleErrors });
+  const realConsoleErrors = dropCompanion404(consoleErrors, benign404);
+  if (realConsoleErrors.length > 0) {
+    fail(1, { message: 'Konsolen-/Seitenfehler während der Orchestrierung.', consoleErrors: realConsoleErrors });
     return;
   }
 

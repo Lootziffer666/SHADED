@@ -46,6 +46,13 @@ const server = http.createServer((req, res) => {
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
+  // Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
+  // "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
+  // ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404.
+  const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+  let benign404 = 0;
+  page.on('response', (r) => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
+
 
   console.log('=== SHADED Actor-System Verifikation ===\n');
 
@@ -222,11 +229,17 @@ const server = http.createServer((req, res) => {
   console.log(`  ${wsSwapOk ? '✓ PASS' : '✗ FAIL'}: Varianten-Sheet aktiv (Basis r=${emisTest.day[0]} → dust r=${emisTest.dustPx[0]})`);
   const test7Failed = !(emissiveOk && wsParsedOk && wsSwapOk);
 
-  console.log('\nKonsolen-Fehler:', errors.length ? errors.join(' | ') : 'keine');
+  let realErrors = errors.slice();
+  for (let i = 0; i < benign404; i++) {
+    const idx = realErrors.findIndex(e => /status of 404/.test(e));
+    if (idx < 0) break;
+    realErrors = realErrors.filter((_, k) => k !== idx);
+  }
+  console.log('\nKonsolen-Fehler:', realErrors.length ? realErrors.join(' | ') : 'keine');
   console.log('\n✓ Actor-Verifikation abgeschlossen.');
   console.log('  Screenshots in tools/verify-out/shot_actor_*.png');
 
   await browser.close();
   server.close();
-  if (test7Failed || errors.length) process.exit(1);
+  if (test7Failed || realErrors.length) process.exit(1);
 })().catch(e => { console.error(e); process.exit(1); });

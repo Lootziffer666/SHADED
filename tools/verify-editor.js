@@ -47,6 +47,22 @@ function check(label, cond) {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
+// Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
+// "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
+// ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404. Genau
+// diese Treffer werden abgezogen, jeder andere 404 bleibt ein echter Fehler.
+const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+const dropCompanion404 = (list, count) => {
+  let out = list.slice();
+  for (let i = 0; i < count; i++) {
+    const idx = out.findIndex((e) => /status of 404|HTTP 404/.test(e));
+    if (idx < 0) break;
+    out = out.filter((_, k) => k !== idx);
+  }
+  return out;
+};
+  let benign404 = 0;
+  page.on('response', (r) => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
 
   try {
     await page.goto('http://localhost:8932/editor/index.html', { waitUntil: 'load' });
@@ -217,8 +233,9 @@ function check(label, cond) {
     check(`Unerwarteter Fehler: ${e.message}`, false);
   }
 
-  check('Keine Konsolen-/Seitenfehler', errors.length === 0);
-  if (errors.length) console.log('Fehler:', errors);
+  const realErrors = dropCompanion404(errors, benign404);
+  check('Keine Konsolen-/Seitenfehler', realErrors.length === 0);
+  if (realErrors.length) console.log('Fehler:', realErrors);
 
   await browser.close();
   await new Promise((r) => server.close(r));

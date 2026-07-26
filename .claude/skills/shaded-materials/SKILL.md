@@ -48,6 +48,11 @@ Ein Kanal ohne Farbraum, Wertebereich und Provenienz ist ungültig.
 
 Ablage heute: Unit 8, R = Shading (0.5 = neutral), G = Konfidenz, B/A frei.
 
+Herkunft des Feldes, in dieser Reihenfolge: `<szene>_shading.png` neben dem Bild
+(Companion, aktiviert die Trennung) → `intrinsic.set()` eines externen Providers →
+eingebautes Backend → `identity-albedo`. Das eingebaute Backend braucht keine GPU;
+Hardware entscheidet über Qualität, nie über Benutzbarkeit.
+
 ```text
 observedColor  sRGB    Pflicht
 albedo         linear  Fallback = observedColor

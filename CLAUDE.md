@@ -125,6 +125,13 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
    (RGB→X, IntrinsicReal, De-Lighter …) entgegen; das eingebaute Backend ist die
    klassische deterministische Baseline. Provider erzeugen **Parameter, nie
    Klassen** – `classGrid`/`getMaterialTypeAt` bleiben unberührt (Invariante 2).
+   **Companion-Konvention:** liegt neben `bild.png` eine `bild_shading.png`
+   (8 Bit, 128 = neutral), wird sie automatisch geladen, ersetzt das eingebaute
+   Backend und aktiviert die Trennung — dieselbe Konvention wie `bild_depth.png`.
+   Ein Autor mit GPU backt das Feld einmal, alle anderen laden es mit. Hardware
+   entscheidet damit über die Qualität, nie über die Benutzbarkeit. Eine neue Szene
+   erbt das Feld NICHT. Werkzeuge dürfen den 404 einer fehlenden Companion-Datei
+   nicht als Fehler werten (`isCompanionProbe` in den Verify-Skripten).
    Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).

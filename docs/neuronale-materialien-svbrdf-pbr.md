@@ -619,6 +619,31 @@ Schattenboden bei Nässe        32.4 → 35.5 (dunkelste 20 % saufen nicht mehr 
 Klassenzählung an/aus          identisch
 ```
 
+### Hardware ist Autorenfrage, nicht Nutzungsfrage
+
+Das eingebaute Backend läuft im Browser: drei Box-Blurs auf ein 768×432-Feld, einmal beim
+Import. Keine GPU, kein Python, kein Checkpoint. Wer `index.html` öffnet, bekommt die
+Zerlegung — auf jedem Gerät, das WebGL 2 kann.
+
+Ein externes Modell ist **keine Abhängigkeit, sondern eine Qualitätsstufe**. Und weil das
+Ergebnis nur ein PNG ist, ist es verteilbar:
+
+```text
+Autor mit GPU
+  → Provider einmal laufen lassen
+  → Feld als "<szene>_shading.png" neben das Bild legen
+  → jeder Nutzer laedt es mit, ohne ein Modell auszufuehren
+```
+
+Die Engine sucht die Datei automatisch — dieselbe Konvention wie `<szene>_depth.png` für
+die Tiefenkarte. Format: 8 Bit, **128 = neutral**, dunkler = Schatten. Wird eine gefunden,
+ersetzt sie das eingebaute Backend und die Trennung wird aktiviert (Provider
+`material.intrinsic.companion-file`, sichtbar in der Statuszeile — nie stillschweigend).
+Eine neue Szene erbt das Feld nicht.
+
+Damit gilt: **Hardware entscheidet über die Qualität der Zerlegung, nie über die
+Benutzbarkeit von SHADED.**
+
 ### Warum ausgerechnet Nässe
 
 Nässe ist der Effekt, bei dem der Doppelbeschattungsfehler am deutlichsten sichtbar ist: poröse Materialien sollen dunkler werden, aber ein bereits schwarzer Schattenbereich darf nicht noch einmal abgedunkelt werden. Der Unterschied ist im Screenshot-Vergleich unmittelbar erkennbar – das ist die Voraussetzung dafür, dass der Schnitt überhaupt beweisbar ist.

@@ -71,7 +71,7 @@ body.cinema #exit-cinema{display:block}
   <input type="file" id="f-mat" accept="image/*" title="Optional: gemalte Material-Map">
   <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional – zwei Formate: volle Material-Map (kanonische Palette) ODER eine Kopie der Szene, in der nur die Fenster pink (#F972E9) übermalt sind. Ohne Zweitbild analysiert SHADED alles selbst.</div>
   <input type="file" id="f-depth" accept="image/*" title="Optional: 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern)">
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Dritte Datei optional: Tiefenkarte (Weiß = nah) für 2.5D-Parallaxe – die Maus schwenkt dann die Kamera. Liegt neben <code>bild.png</code> eine <code>bild_depth.png</code> auf dem Server, wird sie automatisch geladen.</div>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Dritte Datei optional: Tiefenkarte (Weiß = nah) für 2.5D-Parallaxe – die Maus schwenkt dann die Kamera. Liegt neben <code>bild.png</code> eine <code>bild_depth.png</code> auf dem Server, wird sie automatisch geladen – ebenso eine <code>bild_shading.png</code> (Beleuchtungsfeld, 128 = neutral) für die Materialschicht. Beides ist optional; ohne die Dateien rechnet SHADED selbst.</div>
   <button id="btn-demo" style="width:100%">🖼️ Demo-Dorf laden (aus Repo)</button>
 
   <h2>Akteur (SWIFT)</h2>
@@ -1144,6 +1144,7 @@ const INTRINSIC_IDENTITY = Object.freeze({
   provider:'none', providerVersion:'0', channelSetId:'identity.v1',
   provenance:'OBSERVED', colorSpace:{albedo:'sRGB', shading:'linear'}
 });
+let pendingShading=null;          // gefundenes "<szene>_shading.png", wartet auf analyze()
 let intrinsicShading=null;        // Float32Array AW*AH – 1.0 = neutral, <1 Schatten
 let intrinsicConf=null;           // Float32Array AW*AH – Konfidenz je Pixel
 let intrinsicBase=null;           // Ergebnis des eingebauten Backends (für reset())
@@ -1188,6 +1189,26 @@ function uploadMaterialTexture(){
     tM[j*4+3]=255;
   }
   uploadTex(8,TEX.material,AW,AH,tM);
+  return true;
+}
+
+// Ein neben der Szene gefundenes Shading-Feld anwenden. Läuft NACH analyze(),
+// weil vorher weder Analyseauflösung noch Zonen-/Materialtextur existieren.
+// Der Fund ist eine Ansage des Autors, deshalb wird die Trennung aktiviert –
+// sichtbar in der Statuszeile, nie stillschweigend.
+function applyPendingShading(){
+  if(!pendingShading||!AW||!AH) return false;
+  let sh=null;
+  try{ sh=resampleShading(pendingShading.img); }catch(e){ sh=null; }
+  if(!sh){ setStatus('Shading-Feld nicht lesbar – eingebautes Backend bleibt aktiv.'); return false; }
+  intrinsicShading=sh;
+  intrinsicConf=null;
+  intrinsicMeta={provider:'material.intrinsic.companion-file', providerVersion:'1.0.0',
+                 channelSetId:'intrinsic.companion', provenance:'INFERRED',
+                 colorSpace:{albedo:'sRGB', shading:'linear'}, confidence:0, accepted:false};
+  intrinsicStrength=1;
+  uploadMaterialTexture();
+  setStatus('Shading-Feld übernommen ('+pendingShading.name+') – Licht und Material sind getrennt.');
   return true;
 }
 
@@ -1961,6 +1982,7 @@ function analyze(){
   uploadTex(7,TEX.zone,AW,AH,tZ);
   uploadMaterialTexture();
   ready=true;
+  applyPendingShading();   // ueberschreibt das eingebaute Backend, wenn ein Feld daneben lag
 }
 
 // CPU-Materialabfrage – identische Wahrheit wie die GPU-Masken (für Runde 2–4)
@@ -3161,6 +3183,7 @@ function loadImageFile(file,isMat){
       // UND alte Tiefenkarte weg (sonst wird Bild B mit Daten von Bild A gerendert!)
       if(matImg){ matImg=null; const fm=document.getElementById('f-mat'); if(fm) fm.value=''; }
       clearDepth();
+      pendingShading=null;   // sonst bekaeme Bild B das Beleuchtungsfeld von Bild A
       canvas.width=img.width; canvas.height=img.height;
       ov.width=img.width; ov.height=img.height;
       gl.viewport(0,0,img.width,img.height);
@@ -3172,12 +3195,23 @@ function loadImageFile(file,isMat){
       setStatus('Szene geladen ('+img.width+'×'+img.height+'). Drücke „✨ Erstellen“.');
       // Auto-Suche: liegt neben "dorf.png" eine "dorf_depth.png" auf dem Server,
       // wird sie geladen (2.5D an). Findet nichts -> Szene bleibt einfach flach.
+      // Dieselbe Konvention gilt für "dorf_shading.png": das Beleuchtungsfeld eines
+      // externen Backends. Wer die Hardware hat, backt es EINMAL und legt es daneben;
+      // alle anderen laden es mit, ohne selbst ein Modell auszuführen.
       if(file.name&&/\.\w+$/.test(file.name)){
         const depthName=file.name.replace(/(\.\w+)$/,'_depth$1');
         const dImg=new Image();
         dImg.onload=()=>setDepth(dImg,depthName+' (auto)');
         dImg.onerror=()=>{};
         dImg.src=depthName;
+
+        const shName=file.name.replace(/(\.\w+)$/,'_shading$1');
+        const sImg=new Image();
+        // Angewendet wird erst NACH analyze() – vorher gibt es keine Analyseauflösung.
+        sImg.onload=()=>{ pendingShading={img:sImg,name:shName};
+                          setStatus('Shading-Feld gefunden ('+shName+') – wird beim Erstellen angewendet.'); };
+        sImg.onerror=()=>{};
+        sImg.src=shName;
       }
     }
     URL.revokeObjectURL(img.src);

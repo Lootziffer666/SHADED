@@ -36,12 +36,13 @@ const server = http.createServer((req, res) => {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 
-  // Die Engine sucht neben "bild.png" automatisch eine "bild_depth.png". Fehlt sie,
-  // ist das ein GEWOLLTER Fehlversuch – Chromium loggt ihn trotzdem als 404. Solche
-  // Treffer werden hier gezielt abgezogen, alle anderen 404 bleiben echte Fehler.
+  // Die Engine sucht neben "bild.png" automatisch "bild_depth.png" (2.5D) und
+  // "bild_shading.png" (Materialschicht). Fehlen sie, ist das ein GEWOLLTER
+  // Fehlversuch – Chromium loggt ihn trotzdem als 404. Solche Treffer werden hier
+  // gezielt abgezogen, alle anderen 404 bleiben echte Fehler.
   const notFound = [];
   page.on('response', r => { if (r.status() === 404) notFound.push(r.url()); });
-  const isOptionalCompanion = u => /_depth\.(png|jpe?g|webp)(\?|$)/i.test(u);
+  const isOptionalCompanion = u => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
   let classFailures = 0, actorFailures = 0, trailFailures = 0, linkFailures = 0;
 
   // Screenshot via Viewport-Clip (kein "element stability"-Wait, der auf dauerhaft
@@ -288,7 +289,7 @@ const server = http.createServer((req, res) => {
     if (idx < 0) break;
     realErrors = realErrors.filter((_, k) => k !== idx);
   }
-  if (benignCount) console.log(`Optionale Tiefenkarten nicht vorhanden (erwartet): ${benignCount}`);
+  if (benignCount) console.log(`Optionale Companion-Dateien nicht vorhanden (erwartet): ${benignCount}`);
   if (badNotFound.length) console.log('Unerwartete 404:', badNotFound.join(' | '));
   console.log('Konsole-Fehler:', realErrors.length ? realErrors.join(' | ') : 'keine');
 
