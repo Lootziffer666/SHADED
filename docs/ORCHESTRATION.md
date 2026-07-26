@@ -44,7 +44,15 @@ Verzeichnis der Request-Datei selbst):
       "label": "hero"
     }
   ],
-  "storyboard": [ { "name": "Akt 1", "dur": 4, "p": { "fog": 0.4 } } ]
+  "storyboard": [ { "name": "Akt 1", "dur": 4, "p": { "fog": 0.4 } } ],
+  "intrinsic": {
+    "shading": "path/to/shading.png",
+    "provider": "material.intrinsic.rgbx",
+    "providerVersion": "1.0.0",
+    "provenance": "INFERRED",
+    "confidence": 0.7,
+    "strength": 1
+  }
 }
 ```
 
@@ -120,15 +128,37 @@ Fehler (`status: "error"`):
   (Parameter, Actor-Positionen/Metadaten, Storyboard, Materialschicht-Metadaten).
   Ein erneutes `loadProject()` braucht wieder echte Dateien.
 
-## Bekannte Lücke: fremdes Shading-Feld
+## Materialschicht: externes Shading-Feld anbinden
 
-`SceneEditorFacade.loadProject()` akzeptiert `assets.intrinsicShading` (das
-Shading-Feld eines externen Backends wie RGB→X oder IntrinsicReal). Die
-Request-Datei von `orchestrate.js` kann es **noch nicht** referenzieren — über
-die CLI gilt daher immer das eingebaute Backend, und aus `project.intrinsic`
-werden nur `strength` und die Nutzerentscheidung wiederhergestellt. Das ist eine
-offene Vertragslücke, keine Absicht: sie wird geschlossen, sobald ein externer
-Provider tatsächlich angebunden wird.
+Ein externes Intrinsic-Backend (RGB→X, IntrinsicReal, De-Lighter …) liefert sein
+Ergebnis als Bilddatei; die Request-Datei referenziert sie im `intrinsic`-Block:
+
+```json
+"intrinsic": {
+  "shading": "path/to/shading.png",
+  "provider": "material.intrinsic.rgbx",
+  "providerVersion": "1.0.0",
+  "channelSetId": "intrinsic.rgbx",
+  "provenance": "INFERRED",
+  "confidence": 0.7,
+  "strength": 1,
+  "accepted": false
+}
+```
+
+- **Format:** 8-bit-Bild, **128 = neutral** (Wert 1.0). Dunkler = Schatten,
+  heller = Licht. Wird auf Analyseauflösung resampled.
+- **`shading` ist der einzige Pfad im Block** — alles andere sind Metadaten des
+  Kanalvertrags und landen unverändert in `getDebugSnapshot().intrinsic`.
+- **`strength: 0`** lässt die Szene rendern wie ohne Zerlegung
+  (Fallback identity-albedo). Ohne `intrinsic`-Block gilt das eingebaute Backend.
+- Fehlt die Datei, bricht der Lauf mit Exit-Code `2` ab wie jedes andere fehlende
+  Asset.
+
+Übergeben wird eine **URL, kein Bildobjekt**: `SceneEditorFacade` erzeugt das
+`<img>` im Engine-Realm (`setIntrinsicFromImage`). Ein Bild aus dem Editor-Realm
+scheitert an den Typprüfungen der Engine — dieselbe Realm-Falle, die
+`ActorPlacer` bei `addActor` schon umgeht.
 
 ## Verifikation
 
@@ -137,4 +167,6 @@ Provider tatsächlich angebunden wird.
 `window.SHADED_ORCHESTRATOR` (gleiches Headless-Server+Chromium-Muster wie
 `tools/verify-editor.js`). `node tools/orchestrate.js --project
 tools/orchestrate-example-request.json --json` ist der End-to-End-Beweis für
-den vollständigen CLI-Vertrag (Exit-Code + stdout-JSON).
+den vollständigen CLI-Vertrag (Exit-Code + stdout-JSON) — die Beispiel-Request
+enthält bewusst auch einen `intrinsic`-Block, damit der Materialschicht-Pfad
+bei jedem Lauf mitgeprüft wird.
