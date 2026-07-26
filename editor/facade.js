@@ -141,6 +141,54 @@ export class SceneEditorFacade {
     return entry;
   }
 
+  /**
+   * Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md): Licht/Material-Trennung.
+   * Reine Durchreiche auf `window.SHADED.intrinsic` — der Editor rechnet hier nichts
+   * selbst und kennt weder Shading-Feld noch Materialklassen.
+   */
+  getIntrinsicState() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return null;
+    return this.win.SHADED.intrinsic.state();
+  }
+
+  setIntrinsicStrength(strength) {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return null;
+    return this.win.SHADED.intrinsic.setStrength(strength);
+  }
+
+  acceptIntrinsic() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return false;
+    return this.win.SHADED.intrinsic.accept();
+  }
+
+  resetIntrinsic() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return false;
+    return this.win.SHADED.intrinsic.reset();
+  }
+
+  /**
+   * Lädt ein Shading-Feld (URL, Blob-URL oder File) und übergibt es der Engine.
+   * Das `<img>` wird bewusst im ENGINE-Realm erzeugt (`this.doc`), nicht im
+   * Editor-Realm: `resampleShading()` zeichnet es auf ein Engine-Canvas, und
+   * realm-fremde Objekte scheitern an genau solchen Prüfungen — dieselbe Falle,
+   * die ActorPlacer schon bei `addActor` umgeht.
+   */
+  async setIntrinsicFromImage(source, meta = {}) {
+    if (!this.isReady() || !this.win.SHADED.intrinsic) return false;
+    const url = typeof source === 'string' ? source : URL.createObjectURL(source);
+    const img = this.doc.createElement('img');
+    try {
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error(`Shading-Feld nicht ladbar: ${url}`));
+        img.src = url;
+      });
+      return this.win.SHADED.intrinsic.set({ ...meta, shading: img });
+    } finally {
+      if (typeof source !== 'string') URL.revokeObjectURL(url);
+    }
+  }
+
   /** Reiner Laufzeit-Status, ausschließlich aus echten Engine-/Buchführungswerten — nichts erfunden. */
   getRuntimeStatus() {
     return {
@@ -148,6 +196,7 @@ export class SceneEditorFacade {
       ready: this.isReady(),
       actorCount: this.actorBundles.length,
       storyboardSteps: this.isEngineLoaded() ? this.win.SHADED.story.board().length : 0,
+      intrinsic: this.getIntrinsicState(),
     };
   }
 
@@ -159,6 +208,7 @@ export class SceneEditorFacade {
       params: this.isReady() ? this.getParams() : null,
       actors: this.actorBundles.map(({ id, label, x, y, scale, anim, depthLayer }) => ({ id, label, x, y, scale, anim, depthLayer })),
       storyboard: this.isEngineLoaded() ? this.win.SHADED.story.board() : [],
+      // `intrinsic` kommt bereits aus getRuntimeStatus() – nicht doppelt abfragen.
     };
   }
 
@@ -172,12 +222,28 @@ export class SceneEditorFacade {
     if (!this.isReady()) {
       throw new Error('exportProject() verlangt eine bereits erstellte Szene (erst create()/waitUntilReady()).');
     }
-    return {
+    const project = {
       schema: 'shaded.scene-project/v1',
       params: this.getParams(),
       actors: this.actorBundles.map(({ label, x, y, scale, anim, depthLayer }) => ({ label, x, y, scale, anim, depthLayer })),
       storyboard: this.win.SHADED.story.board(),
     };
+    // Materialschicht: nur Metadaten. Das Shading-Feld selbst ist ein Bildartefakt
+    // und wird — wie Sprite-Sheets — beim Laden wieder out-of-band übergeben.
+    const intrinsic = this.getIntrinsicState();
+    if (intrinsic) {
+      project.intrinsic = {
+        provider: intrinsic.provider,
+        providerVersion: intrinsic.providerVersion,
+        channelSetId: intrinsic.channelSetId,
+        provenance: intrinsic.provenance,
+        confidence: intrinsic.confidence,
+        colorSpace: intrinsic.colorSpace,
+        strength: intrinsic.strength,
+        accepted: intrinsic.accepted,
+      };
+    }
+    return project;
   }
 
   /**
@@ -211,6 +277,32 @@ export class SceneEditorFacade {
       const board = this.win.SHADED.story.board();
       board.length = 0;
       project.storyboard.forEach((step) => board.push(step));
+    }
+
+    // Materialschicht wiederherstellen. Ein fremdes Shading-Feld muss über
+    // assets.intrinsicShading erneut geliefert werden — sonst gilt das
+    // eingebaute Backend, und nur Stärke/Nutzerentscheidung werden übernommen.
+    if (project.intrinsic && this.win.SHADED.intrinsic) {
+      if (assets.intrinsicShading) {
+        const meta = {
+          provider: project.intrinsic.provider,
+          providerVersion: project.intrinsic.providerVersion,
+          channelSetId: project.intrinsic.channelSetId,
+          provenance: project.intrinsic.provenance,
+          confidence: project.intrinsic.confidence,
+          colorSpace: project.intrinsic.colorSpace,
+        };
+        // URL/File werden geladen; alles andere (Array, ImageData) geht direkt durch.
+        if (typeof assets.intrinsicShading === 'string' || assets.intrinsicShading instanceof Blob) {
+          await this.setIntrinsicFromImage(assets.intrinsicShading, meta);
+        } else {
+          this.win.SHADED.intrinsic.set({ ...meta, shading: assets.intrinsicShading });
+        }
+      }
+      if (typeof project.intrinsic.strength === 'number') {
+        this.setIntrinsicStrength(project.intrinsic.strength);
+      }
+      if (project.intrinsic.accepted) this.acceptIntrinsic();
     }
 
     return this.getDebugSnapshot();

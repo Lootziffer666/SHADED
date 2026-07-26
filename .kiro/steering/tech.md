@@ -2,7 +2,7 @@
 
 ## Stack
 
-- **Eine Datei:** `index.html` – Vanilla JS + WebGL 1, kein Framework, kein
+- **Eine Datei:** `index.html` – Vanilla JS + WebGL 2 (GLSL ES 3.00), kein Framework, kein
   Build-Step, keine Laufzeit-Dependencies. Muss per Doppelklick und per
   `python3 -m http.server` laufen.
 - Tests: Playwright (nur dev, nie committen) + `tools/verify.js`.

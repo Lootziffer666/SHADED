@@ -120,6 +120,7 @@ document.getElementById('btn-erstellen').addEventListener('click', async () => {
     syncSlidersFromEngine();
     renderActorMarkers();
     renderTimeline();
+    renderIntrinsic();
     setStatus('✅ Szene bereit — Parameter sind jetzt live einstellbar.');
   } catch (err) {
     setStatus(`⚠️ ${err.message}`);
@@ -426,6 +427,57 @@ document.getElementById('btn-timeline-stop').addEventListener('click', () => {
   if (facade.isEngineLoaded()) timeline.stop();
 });
 document.getElementById('btn-timeline-refresh').addEventListener('click', () => renderTimeline());
+
+// ─────────────────────────── Materialschicht (A/B) ───────────────────────────
+// Reine UI-Verdrahtung auf die Fassade. Der Editor kennt weder das Shading-Feld
+// noch Materialklassen — er stellt nur die Stärke ein und zeigt den Kanalvertrag.
+const intrinsicRange = document.getElementById('intrinsic-strength');
+const intrinsicValue = document.getElementById('intrinsic-value');
+const intrinsicStatus = document.getElementById('intrinsic-status');
+
+function renderIntrinsic() {
+  const st = facade.getIntrinsicState();
+  if (!st) {
+    intrinsicStatus.textContent = 'Noch keine Zerlegung.';
+    return;
+  }
+  intrinsicRange.value = String(st.strength);
+  intrinsicValue.textContent = Number(st.strength).toFixed(2);
+  intrinsicStatus.textContent = st.hasShading
+    ? `${st.provider}@${st.providerVersion} · ${st.channelSetId} · ${st.provenance}` +
+      ` · Konfidenz ${Number(st.confidence).toFixed(2)} · ${st.resolution.w}×${st.resolution.h}` +
+      (st.accepted ? ' · bestätigt' : '')
+    : 'Kein Shading-Feld — Fallback identity-albedo (rendert wie ohne Materialschicht).';
+}
+
+intrinsicRange.addEventListener('input', () => {
+  const v = Number(intrinsicRange.value);
+  intrinsicValue.textContent = v.toFixed(2);
+  if (facade.isReady()) facade.setIntrinsicStrength(v);
+});
+
+document.getElementById('btn-intrinsic-ab').addEventListener('click', () => {
+  if (!facade.isReady()) { setStatus('⚠️ Erst eine Szene erstellen.'); return; }
+  const st = facade.getIntrinsicState();
+  const next = st && st.strength > 0 ? 0 : 1;
+  facade.setIntrinsicStrength(next);
+  renderIntrinsic();
+  setStatus(next ? 'Materialschicht AN — Weltgesetze rechnen auf Albedo.' : 'Materialschicht AUS — beobachtete Farbe wie bisher.');
+});
+
+document.getElementById('btn-intrinsic-accept').addEventListener('click', () => {
+  if (!facade.isReady()) { setStatus('⚠️ Erst eine Szene erstellen.'); return; }
+  facade.acceptIntrinsic();
+  renderIntrinsic();
+  setStatus('Zerlegung als kanonisch bestätigt (USER_APPROVED).');
+});
+
+document.getElementById('btn-intrinsic-reset').addEventListener('click', () => {
+  if (!facade.isReady()) { setStatus('⚠️ Erst eine Szene erstellen.'); return; }
+  facade.resetIntrinsic();
+  renderIntrinsic();
+  setStatus('Zerlegung verworfen — eingebautes Backend wiederhergestellt.');
+});
 
 // ─────────────────────────── Headless-Orchestrierungs-API ───────────────────────────
 // Debug-/Orchestrierungs-Fassade für tools/orchestrate.js (Real Golden Run R-09/R-10):

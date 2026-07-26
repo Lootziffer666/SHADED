@@ -35,6 +35,18 @@ Diese Liste dient als Prüfraster gegen veraltete Fundamententscheidungen. Sie e
 - Unsicherheit, Provenienz und Konfliktauflösung zwischen Rekonstruktionsmodellen
 - lokale 12-GB-VRAM-Modelle gegenüber Cloud-/Worker-Pipelines
 
+## Bereits entschiedene Themen
+
+| Themenblock | Entscheidung |
+|---|---|
+| Monokulare Depth, Point Maps, Single-Image-to-3D, Novel View, World Completion | [`einzelbild-raeumlichkeit-providerlandschaft.md`](./einzelbild-raeumlichkeit-providerlandschaft.md) |
+| SDF, UDF, TSDF, differenzierbare Mesh-Extraktion, SDF–Gaussian-Hybride | [`sdf-geometrie-stand-2026.md`](./sdf-geometrie-stand-2026.md) |
+| Neural Materials, SVBRDF, PBR-Maps, Intrinsic Decomposition, Materialstandards | [`neuronale-materialien-svbrdf-pbr.md`](./neuronale-materialien-svbrdf-pbr.md) |
+| Rendergraph, Pass-Fusion, Lastverteilung | [`rendergraph-lastverteilung.md`](./rendergraph-lastverteilung.md) |
+| Provider-Verträge, Provenienz, World Surface Graph | [`reconstruction-provider-und-world-surface-graph.md`](./reconstruction-provider-und-world-surface-graph.md) |
+
+Offen bleiben unter anderem: WebGPU/WGSL-Kontextwechsel, Relighting und relightable Gaussians, Open-Vocabulary-Segmentierung, Panorama/Fisheye, Mesh-Optimierung und LOD, Neural Physics sowie systematische Konfliktauflösung zwischen Rekonstruktionsmodellen.
+
 Bei jeder größeren Architekturentscheidung ist mindestens zu prüfen:
 
 1. Welche Modell- oder Repräsentationsklasse ist aktuell?
