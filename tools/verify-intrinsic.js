@@ -10,6 +10,8 @@
 //   5. Externer Provider          – intrinsic.set() nimmt ein fremdes Feld an
 //   6. Providerausfall            – clear() fällt auf den Ausgangszustand zurück
 //   7. Provenienz/Metadaten       – Kanalvertrag ist vollständig und persistent
+//   8. Dykstra-Projektion         – Energieneutralität UND Albedo-Gamut gleichzeitig,
+//                                   fremde Felder werden gemessen statt verbogen
 const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
@@ -148,6 +150,16 @@ const dropCompanion404 = (list, count) => {
                     typeof st0.confidence === 'number' && st0.resolution.w > 0);
   check(metaOk, 'Kanalvertrag vollständig (provider/version/channelSet/colorSpace/confidence/resolution)',
         `${st0.provider}@${st0.providerVersion}, conf=${st0.confidence}`);
+  // Dykstra-Projektion: erfüllt das Feld BEIDE konvexen Bedingungen gleichzeitig?
+  const proj = st0.projection || {};
+  check(proj.algorithm === 'dykstra' && proj.iterations > 0 && proj.iterations <= 60,
+        'Shading-Feld ist Dykstra-projiziert und konvergiert', `${proj.iterations} Iterationen`);
+  check(typeof proj.meanError === 'number' && proj.meanError < 0.01,
+        'Energieneutralität: Mittelwert trifft das Ziel', `mean=${proj.meanShading}, Fehler=${proj.meanError}`);
+  check(st0.gamut && st0.gamut.pixels === 0,
+        'Kein Pixel mit Reflektanz über 1 (Albedo-Gamut erfüllt)',
+        `${st0.gamut ? st0.gamut.percent : '?'} %`);
+
   const shSpread = await page.evaluate(() => {
     let mn = 9, mx = -9;
     for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
@@ -245,6 +257,11 @@ const dropCompanion404 = (list, count) => {
         ext.state.providerVersion === '9.9.9' && ext.state.confidence === 0.42,
         'Fremdes Shading-Feld inkl. Metadaten übernommen', `${ext.state.provider}@${ext.state.providerVersion}`);
   check(Math.abs(ext.sample - 0.6) < 0.01, 'Übernommenes Feld ist abtastbar', `sample=${ext.sample}`);
+  check(ext.state.projection === null,
+        'Fremdes Feld wird NICHT nachprojiziert – die Hypothese gehört dem Provider');
+  check(ext.state.gamut && ext.state.gamut.pixels > 0,
+        'Gamut-Verletzung eines fremden Feldes wird gemessen statt verschwiegen',
+        `${ext.state.gamut ? ext.state.gamut.percent : '?'} % , schlimmster Albedo ${ext.state.gamut ? ext.state.gamut.worstAlbedo : '?'}`);
   const accepted = await page.evaluate(() => {
     window.SHADED.intrinsic.accept();
     return window.SHADED.intrinsic.state();
@@ -257,6 +274,9 @@ const dropCompanion404 = (list, count) => {
   });
   check(afterReset.provider === 'material.intrinsic.retinex-baseline' && afterReset.accepted === false,
         'reset() verwirft die Fremdhypothese und stellt das eingebaute Backend her');
+  check(afterReset.projection && afterReset.projection.algorithm === 'dykstra' &&
+        afterReset.gamut.pixels === 0,
+        'Nach reset() gilt wieder die projizierte Baseline (Gamut sauber)');
 
   // --- 7) Providerausfall ---------------------------------------------------
   console.log('\n7) Providerausfall');

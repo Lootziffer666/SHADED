@@ -1148,32 +1148,110 @@ let pendingShading=null;          // gefundenes "<szene>_shading.png", wartet au
 let intrinsicShading=null;        // Float32Array AW*AH – 1.0 = neutral, <1 Schatten
 let intrinsicConf=null;           // Float32Array AW*AH – Konfidenz je Pixel
 let intrinsicBase=null;           // Ergebnis des eingebauten Backends (für reset())
+let intrinsicCeil=null;           // Float32Array – untere Schranke aus dem Albedo-Gamut
+let intrinsicProjection=null;     // Diagnose der Dykstra-Projektion (nur eingebautes Backend)
 let intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false};
 let intrinsicStrength=0;          // u_intrinsic; 0 = Fallback identity-albedo
+
+const SHADE_MIN=0.18, SHADE_MAX=2.0;
+
+/* Dykstra-Projektion auf den Schnitt zweier konvexer Mengen.
+
+   C_box   lo(x) <= s(x) <= hi
+           Enthält BEIDES: den zulässigen Wertebereich und den Albedo-Gamut.
+           albedo = col/s <= 1  <=>  s >= max(col_r,col_g,col_b)  -> lo(x).
+           Reflektanz über 1 ist physikalisch unmöglich und clippt später zu Weiß.
+   C_mean  mittelwert(s) = target
+           Energieneutralität: das Zuschalten der Trennung darf die Gesamt-
+           helligkeit der Szene nicht verschieben.
+
+   Warum nicht einfach clampen und dann normalisieren: dabei erfüllt man nur die
+   LETZTE Bedingung, die vorherige wird zerstört. Dykstra führt Residuen (p,q)
+   mit, die den Rückweg korrigieren, und konvergiert gegen den Punkt im Schnitt,
+   der der Ausgangsschätzung am NÄCHSTEN liegt - also minimale Verzerrung der
+   Messung statt irgendeiner zulässigen Lösung.
+
+   Bewusst nur zwei Mengen mit exakter Projektion. Eine Glattheitsmenge wäre als
+   "Feld gleicht seinem Tiefpass" nicht konvex; als ||grad s|| <= tau bräuchte sie
+   eine TV-Prox. Die Glattheit steckt stattdessen in der Startschätzung, und beide
+   Projektionen sind mild (Box trifft nur verletzende Pixel, Mean ist ein
+   gleichmäßiger Versatz), erhalten sie also weitgehend. */
+function projectShadingDykstra(est, lo, hi, target, maxIter){
+  const n=est.length;
+  const x=Float32Array.from(est), y=new Float32Array(n);
+  const p=new Float32Array(n), q=new Float32Array(n);
+  let iter=0, meanErr=0;
+  for(; iter<maxIter; iter++){
+    // P_box
+    for(let j=0;j<n;j++){
+      const v=x[j]+p[j];
+      const lj=lo[j]<hi?lo[j]:hi;                 // hi gewinnt, falls lo darüber liegt
+      const c=v<lj?lj:(v>hi?hi:v);
+      y[j]=c; p[j]=v-c;
+    }
+    // P_mean: Projektion auf die affine Hyperebene = gleichmäßiger Versatz
+    let m=0; for(let j=0;j<n;j++) m+=y[j]+q[j]; m/=n;
+    const d=target-m;
+    for(let j=0;j<n;j++){ const v=y[j]+q[j]; const c=v+d; x[j]=c; q[j]=v-c; }
+    // Konvergenz messen
+    let boxViol=0, mean2=0;
+    for(let j=0;j<n;j++){
+      mean2+=x[j];
+      const lj=lo[j]<hi?lo[j]:hi;
+      const viol = x[j]<lj ? lj-x[j] : (x[j]>hi ? x[j]-hi : 0);
+      if(viol>boxViol) boxViol=viol;
+    }
+    meanErr=Math.abs(mean2/n-target);
+    if(boxViol<1e-4 && meanErr<1e-4){ iter++; break; }
+  }
+  // Abschluss: die HARTEN Bedingungen (Gamut, Wertebereich) werden garantiert,
+  // die Energiebedingung bleibt auf dem erreichten Rest-Fehler. Welche der beiden
+  // exakt gilt, ist damit dokumentiert statt Zufall.
+  let mean3=0;
+  for(let j=0;j<n;j++){
+    const lj=lo[j]<hi?lo[j]:hi;
+    if(x[j]<lj) x[j]=lj; else if(x[j]>hi) x[j]=hi;
+    mean3+=x[j];
+  }
+  return {shading:x, iterations:iter, meanShading:+(mean3/n).toFixed(4),
+          meanError:+Math.abs(mean3/n-target).toFixed(4)};
+}
 
 // Beleuchtungsschätzung aus dem Quellbild. spx = RGBA-Pixel in Analyseauflösung.
 function decomposeIntrinsicBaseline(spx,w,h){
   const n=w*h, logL=new Float32Array(n), conf=new Float32Array(n);
+  const ceil=new Float32Array(n);   // untere Schranke für s, damit albedo <= 1
   for(let j=0;j<n;j++){
-    const l=(spx[j*4]*0.299+spx[j*4+1]*0.587+spx[j*4+2]*0.114)/255;
+    const R=spx[j*4]/255, G=spx[j*4+1]/255, B=spx[j*4+2]/255;
+    const l=R*0.299+G*0.587+B*0.114;
     logL[j]=Math.log(Math.max(l,0.004));
+    ceil[j]=Math.max(SHADE_MIN, R>G?(R>B?R:B):(G>B?G:B));
   }
   // Tiefpass = Beleuchtung. Radius skaliert mit der Analyseauflösung, nie mit
   // einer festen Rastergröße (dieselbe Regel wie bei den Kanon-Detektoren).
   const r=Math.max(4, Math.round(w/24));
   const logS=Float32Array.from(logL);
   boxBlur(logS,w,h,r,3);
-  // Mittelwert normalisieren -> 1.0 ist neutral, das Bild wird global nicht heller.
-  let mean=0; for(let j=0;j<n;j++) mean+=logS[j]; mean/=n;
-  const shading=new Float32Array(n);
+  // Startschätzung: geometrisch auf 1 zentriert, noch ohne harte Bedingungen.
+  let gm=0; for(let j=0;j<n;j++) gm+=logS[j]; gm/=n;
+  const est=new Float32Array(n);
   for(let j=0;j<n;j++){
-    shading[j]=Math.max(0.18, Math.min(2.0, Math.exp(logS[j]-mean)));
+    est[j]=Math.exp(logS[j]-gm);
     // Konfidenz sinkt, wo Residuum und Tiefpass weit auseinanderliegen –
     // typisch für harte Schlagschattenkanten, an denen die Zerlegung rät.
     conf[j]=Math.max(0, 1-Math.min(1, Math.abs(logL[j]-logS[j])*0.55));
   }
+  // Zielmittelwert 1.0, aber niemals unter dem, was der Gamut erzwingt –
+  // sonst wäre der Schnitt leer und die Iteration liefe ins Nichts.
+  let ceilMean=0; for(let j=0;j<n;j++) ceilMean+=ceil[j]; ceilMean/=n;
+  const target=Math.max(1.0, ceilMean);
+  const proj=projectShadingDykstra(est, ceil, SHADE_MAX, target, 60);
   let cm=0; for(let j=0;j<n;j++) cm+=conf[j];
-  return {shading, conf, confidence:+(cm/n).toFixed(4)};
+  return {shading:proj.shading, conf, confidence:+(cm/n).toFixed(4),
+          projection:{algorithm:'dykstra', sets:['box+gamut','mean'],
+                      iterations:proj.iterations, target:+target.toFixed(4),
+                      meanShading:proj.meanShading, meanError:proj.meanError},
+          ceil};
 }
 
 // Material-Textur (Unit 8) packen: R = Shading, G = Konfidenz, B/A reserviert.
@@ -1192,6 +1270,24 @@ function uploadMaterialTexture(){
   return true;
 }
 
+// Verletzt ein Shading-Feld den Albedo-Gamut? Wird für FREMDE Felder nur GEMESSEN,
+// nicht korrigiert: die Hypothese eines Providers gehört dem Provider. Das eingebaute
+// Backend erfüllt die Bedingung per Konstruktion (Dykstra), fremde nachweislich oft nicht.
+function intrinsicGamutViolations(){
+  if(!intrinsicShading||!intrinsicCeil) return null;
+  let over=0, worst=0;
+  for(let j=0;j<intrinsicShading.length;j++){
+    const need=intrinsicCeil[j];
+    if(intrinsicShading[j] < need-1e-4){
+      over++;
+      const alb=need/Math.max(intrinsicShading[j],1e-4);
+      if(alb>worst) worst=alb;
+    }
+  }
+  return {pixels:over, percent:+(100*over/intrinsicShading.length).toFixed(2),
+          worstAlbedo:+worst.toFixed(3)};
+}
+
 // Ein neben der Szene gefundenes Shading-Feld anwenden. Läuft NACH analyze(),
 // weil vorher weder Analyseauflösung noch Zonen-/Materialtextur existieren.
 // Der Fund ist eine Ansage des Autors, deshalb wird die Trennung aktiviert –
@@ -1203,6 +1299,7 @@ function applyPendingShading(){
   if(!sh){ setStatus('Shading-Feld nicht lesbar – eingebautes Backend bleibt aktiv.'); return false; }
   intrinsicShading=sh;
   intrinsicConf=null;
+  intrinsicProjection=null;   // fremdes Feld ist nicht Dykstra-projiziert
   intrinsicMeta={provider:'material.intrinsic.companion-file', providerVersion:'1.0.0',
                  channelSetId:'intrinsic.companion', provenance:'INFERRED',
                  colorSpace:{albedo:'sRGB', shading:'linear'}, confidence:0, accepted:false};
@@ -1960,6 +2057,8 @@ function analyze(){
   intrinsicBase=decomposeIntrinsicBaseline(spx,AW,AH);
   intrinsicShading=intrinsicBase.shading;
   intrinsicConf=intrinsicBase.conf;
+  intrinsicCeil=intrinsicBase.ceil;
+  intrinsicProjection=intrinsicBase.projection;
   intrinsicMeta={...INTRINSIC_BASELINE, confidence:intrinsicBase.confidence, accepted:false};
 
   // 5) In Texturen packen
@@ -3598,7 +3697,9 @@ window.SHADED = {
   intrinsic:{
     // Zustand inkl. aller Pflichtmetadaten des Kanalvertrags
     state:()=>({...intrinsicMeta, strength:intrinsicStrength,
-                hasShading: !!intrinsicShading, resolution:{w:AW,h:AH}}),
+                hasShading: !!intrinsicShading, resolution:{w:AW,h:AH},
+                projection:intrinsicProjection,          // null = nicht projiziert (fremdes Feld)
+                gamut:intrinsicGamutViolations()}),       // albedo>1: gemessen, nie stillschweigend
     // 0 = beobachtete Farbe (Fallback identity-albedo), 1 = volle Trennung
     setStrength:(s)=>{ intrinsicStrength=Math.max(0,Math.min(1,+s||0)); return intrinsicStrength; },
     getStrength:()=>intrinsicStrength,
@@ -3611,6 +3712,7 @@ window.SHADED = {
       if(!sh) return false;
       intrinsicShading=sh;
       intrinsicConf=null;
+      intrinsicProjection=null;   // fremdes Feld ist nicht Dykstra-projiziert
       if(opt.confidenceMap!=null){
         const cm=resampleShading(opt.confidenceMap);
         intrinsicConf=new Float32Array(AW*AH);
@@ -3635,6 +3737,7 @@ window.SHADED = {
     // Verwerfen: zurück auf das eingebaute Backend; ohne dieses auf identity-albedo
     reset:()=>{
       if(intrinsicBase){ intrinsicShading=intrinsicBase.shading; intrinsicConf=intrinsicBase.conf;
+                         intrinsicProjection=intrinsicBase.projection;
                          intrinsicMeta={...INTRINSIC_BASELINE, confidence:intrinsicBase.confidence, accepted:false}; }
       else { intrinsicShading=null; intrinsicConf=null;
              intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false}; intrinsicStrength=0; }
@@ -3643,6 +3746,7 @@ window.SHADED = {
     },
     // Providerausfall: Feld fällt weg, Rendering fällt auf den heutigen Zustand
     clear:()=>{ intrinsicShading=null; intrinsicConf=null; intrinsicBase=null; intrinsicStrength=0;
+                intrinsicProjection=null; intrinsicCeil=null;
                 intrinsicMeta={...INTRINSIC_IDENTITY, confidence:0, accepted:false};
                 uploadMaterialTexture(); return true; },
     // Beleuchtungswert an UV (1.0 = neutral) – für Debug und Tests

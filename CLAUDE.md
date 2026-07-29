@@ -132,7 +132,15 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
    entscheidet damit über die Qualität, nie über die Benutzbarkeit. Eine neue Szene
    erbt das Feld NICHT. Werkzeuge dürfen den 404 einer fehlenden Companion-Datei
    nicht als Fehler werten (`isCompanionProbe` in den Verify-Skripten).
-   Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`.
+   **Constraint-Projektion:** das eingebaute Shading-Feld wird per **Dykstra** auf den
+   Schnitt zweier konvexer Mengen projiziert — Wertebereich samt Albedo-Gamut
+   (`s ≥ max(col)`, sonst wäre Reflektanz > 1) und Energieneutralität
+   (`mean(s) = target`). Sequenzielles Clampen-dann-Normalisieren erfüllt nur die
+   LETZTE Bedingung; genau daran hatte die erste Fassung 7 % Helligkeitsversatz und
+   1,84 % unmögliche Reflektanz. Fremde Felder (Provider, Companion) werden **gemessen,
+   nicht nachprojiziert** — die Hypothese gehört dem Provider (`state().gamut`).
+   Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`,
+   `docs/raeumliche-algorithmen-arsenal.md`.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
