@@ -160,6 +160,28 @@ Noch nicht Teil dieses Schnitts:
 - Contact Solver,
 - kompletter Lumo-artiger Node Editor.
 
+## Raumrekonstruktion: Dykstra und Dijkstra
+
+Vollständig in [`docs/raumrekonstruktion-dykstra-dijkstra.md`](../../../docs/raumrekonstruktion-dykstra-dijkstra.md).
+
+```text
+Point Map → Indizes → Registrierung → Struktur → DYKSTRA → Distanzfelder → DIJKSTRA
+            kd/Octree  ICP/GICP       RANSAC     Raumhülle  EDT/Minkowski  Begehbarkeit
+```
+
+- **Dykstra:** Rohgeometrie → konsistenter Raum. Rechnet auf **Ebenenparametern**
+  (Azimut, Offset, Höhen), nicht auf der Punktwolke.
+- **Dijkstra:** konsistenter Raum → nutzbarer Raum (Türen, Korridore, Wegkosten).
+
+**Konvexitätsfalle:** „auf irgendeine Ebene", „Einheitsnormale vertikal", „parallel oder
+antiparallel", „Mindestbreite" sind **nicht** konvex. Erst nach der kombinatorischen
+Zuordnung werden sie affin. Struktur festlegen → projizieren → Residuen prüfen →
+Struktur revidieren, wie bei ICP. Vertikalität verschwindet ganz, wenn eine Wand über
+Azimut statt über eine Normale parametrisiert wird.
+
+**Eingangsbedingung:** ohne `MetricPointMapProvider` ist Schritt 1 nicht ehrlich baubar.
+ICP wird erst mit mehreren Ansichten fällig. Der Solver (`dykstraProject`) steht schon.
+
 ## Vor jedem Rekonstruktions-Commit prüfen
 
 - Welche Information ist gemessen, beobachtet, rekonstruiert oder generiert?

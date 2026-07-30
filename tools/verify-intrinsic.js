@@ -10,6 +10,8 @@
 //   5. Externer Provider          – intrinsic.set() nimmt ein fremdes Feld an
 //   6. Providerausfall            – clear() fällt auf den Ausgangszustand zurück
 //   7. Provenienz/Metadaten       – Kanalvertrag ist vollständig und persistent
+//   8. Dykstra-Projektion         – Energieneutralität UND Albedo-Gamut gleichzeitig,
+//                                   fremde Felder werden gemessen statt verbogen
 const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
@@ -21,9 +23,22 @@ fs.mkdirSync(OUT, { recursive: true });
 const BASE_IMG = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579.png');
 const MARKER_IMG = path.join(REPO, 'file_00000000c84071f4bcd6ff9afdba7246.png');
 
+// Schalter fuer den Companion-Test: erst im zweiten Durchgang liefert der Server
+// eine "<szene>_shading.png" aus. Als Inhalt dienen die Bytes der vorhandenen
+// Tiefenkarte - ein echtes Graustufenbild, kein neues Binaerfile im Repo.
+let serveShadingCompanion = false;
+const SHADING_URL = 'file_00000000974871f49fe71f6b456f9579_shading.png';
+const DEPTH_IMG = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579_depth.png');
+
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '');
   if (urlPath === 'favicon.ico') { res.writeHead(204); res.end(); return; }
+  if (urlPath === SHADING_URL) {
+    if (!serveShadingCompanion) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': 'image/png' });
+    res.end(fs.readFileSync(DEPTH_IMG));
+    return;
+  }
   let p = path.join(REPO, urlPath || 'index.html');
   if (p === REPO + '/' || p === REPO) p = path.join(REPO, 'index.html');
   try {
@@ -49,6 +64,22 @@ function check(ok, label, detail) {
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
+// Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
+// "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
+// ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404. Genau
+// diese Treffer werden abgezogen, jeder andere 404 bleibt ein echter Fehler.
+const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+const dropCompanion404 = (list, count) => {
+  let out = list.slice();
+  for (let i = 0; i < count; i++) {
+    const idx = out.findIndex((e) => /status of 404|HTTP 404/.test(e));
+    if (idx < 0) break;
+    out = out.filter((_, k) => k !== idx);
+  }
+  return out;
+};
+  let benign404 = 0;
+  page.on('response', r => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
 
   console.log('=== SHADED Materialschicht-Verifikation (Intrinsic Decomposition) ===\n');
 
@@ -119,6 +150,16 @@ function check(ok, label, detail) {
                     typeof st0.confidence === 'number' && st0.resolution.w > 0);
   check(metaOk, 'Kanalvertrag vollständig (provider/version/channelSet/colorSpace/confidence/resolution)',
         `${st0.provider}@${st0.providerVersion}, conf=${st0.confidence}`);
+  // Dykstra-Projektion: erfüllt das Feld BEIDE konvexen Bedingungen gleichzeitig?
+  const proj = st0.projection || {};
+  check(proj.algorithm === 'dykstra' && proj.iterations > 0 && proj.iterations <= 60,
+        'Shading-Feld ist Dykstra-projiziert und konvergiert', `${proj.iterations} Iterationen`);
+  check(typeof proj.meanError === 'number' && proj.meanError < 0.01,
+        'Energieneutralität: Mittelwert trifft das Ziel', `mean=${proj.meanShading}, Fehler=${proj.meanError}`);
+  check(st0.gamut && st0.gamut.pixels === 0,
+        'Kein Pixel mit Reflektanz über 1 (Albedo-Gamut erfüllt)',
+        `${st0.gamut ? st0.gamut.percent : '?'} %`);
+
   const shSpread = await page.evaluate(() => {
     let mn = 9, mx = -9;
     for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
@@ -216,6 +257,11 @@ function check(ok, label, detail) {
         ext.state.providerVersion === '9.9.9' && ext.state.confidence === 0.42,
         'Fremdes Shading-Feld inkl. Metadaten übernommen', `${ext.state.provider}@${ext.state.providerVersion}`);
   check(Math.abs(ext.sample - 0.6) < 0.01, 'Übernommenes Feld ist abtastbar', `sample=${ext.sample}`);
+  check(ext.state.projection === null,
+        'Fremdes Feld wird NICHT nachprojiziert – die Hypothese gehört dem Provider');
+  check(ext.state.gamut && ext.state.gamut.pixels > 0,
+        'Gamut-Verletzung eines fremden Feldes wird gemessen statt verschwiegen',
+        `${ext.state.gamut ? ext.state.gamut.percent : '?'} % , schlimmster Albedo ${ext.state.gamut ? ext.state.gamut.worstAlbedo : '?'}`);
   const accepted = await page.evaluate(() => {
     window.SHADED.intrinsic.accept();
     return window.SHADED.intrinsic.state();
@@ -228,6 +274,9 @@ function check(ok, label, detail) {
   });
   check(afterReset.provider === 'material.intrinsic.retinex-baseline' && afterReset.accepted === false,
         'reset() verwirft die Fremdhypothese und stellt das eingebaute Backend her');
+  check(afterReset.projection && afterReset.projection.algorithm === 'dykstra' &&
+        afterReset.gamut.pixels === 0,
+        'Nach reset() gilt wieder die projizierte Baseline (Gamut sauber)');
 
   // --- 7) Providerausfall ---------------------------------------------------
   console.log('\n7) Providerausfall');
@@ -247,7 +296,51 @@ function check(ok, label, detail) {
   check(JSON.stringify(classesCleared) === JSON.stringify(classesOff),
         'Providerausfall löscht keine Materialwahrheit');
 
+  // --- 8) Companion-Konvention: <szene>_shading.png -------------------------
+  console.log('\n8) Companion-Datei <szene>_shading.png');
+  serveShadingCompanion = true;
+  await page.goto('http://localhost:8933/index.html');
+  await page.setInputFiles('#f-scene', BASE_IMG);
+  await page.waitForFunction(() => /Shading-Feld gefunden/.test(document.getElementById('status').textContent),
+    { timeout: 10000 }).catch(() => {});
+  const foundMsg = await page.textContent('#status');
+  check(/Shading-Feld gefunden/.test(foundMsg), 'Companion-Datei wird neben der Szene gefunden',
+        foundMsg.trim().slice(0, 60));
+  // Gleiche Eingabe wie im Hauptlauf (Szene + Marker-Overlay), sonst waere die
+  // Klassenzaehlung unten nicht vergleichbar - andere Eingabe, andere Klassen.
+  await page.setInputFiles('#f-mat', MARKER_IMG);
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForTimeout(300);
+  const compState = await page.evaluate(() => window.SHADED.intrinsic.state());
+  check(compState.provider === 'material.intrinsic.companion-file',
+        'Companion-Feld ersetzt das eingebaute Backend', compState.provider);
+  check(compState.strength === 1,
+        'Trennung ist aktiv – der Autor hat die Datei bewusst danebengelegt', `strength=${compState.strength}`);
+  check(compState.hasShading === true && compState.channelSetId === 'intrinsic.companion',
+        'Kanalsatz ist als Companion gekennzeichnet', compState.channelSetId);
+  const compClasses = await classes();
+  check(JSON.stringify(compClasses) === JSON.stringify(classesOff),
+        'Companion-Feld ändert die Materialwahrheit nicht');
+  // Zweite Szene ohne Companion darf das Feld NICHT erben
+  serveShadingCompanion = false;
+  await page.setInputFiles('#f-scene', MARKER_IMG);
+  await page.waitForTimeout(400);
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForTimeout(300);
+  const nextState = await page.evaluate(() => window.SHADED.intrinsic.state());
+  check(nextState.provider === 'material.intrinsic.retinex-baseline',
+        'Neue Szene ohne Companion erbt das alte Feld nicht', nextState.provider);
+
   // --- Visuelle Referenz: Sturmnacht A/B fuer den Screenshot-Vergleich -------
+  await page.goto('http://localhost:8933/index.html');
+  await page.setInputFiles('#f-scene', BASE_IMG);
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
+  await page.click('#btn-create');
+  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.evaluate(() => window.SHADED.parallax.set(0, 0));
   await page.evaluate(() => window.SHADED.intrinsic.reset());
   await setAct('sturmnacht', 6);
   await shot('shot_intrinsic_sturmnacht_off.png');
@@ -255,12 +348,13 @@ function check(ok, label, detail) {
   await setAct('sturmnacht', 6);
   await shot('shot_intrinsic_sturmnacht_on.png');
 
-  const failed = results.filter(r => !r).length;
-  console.log('\nKonsolen-Fehler:', errors.length ? errors.join(' | ') : 'keine');
+  const realErrors = dropCompanion404(errors, benign404);
+  const failed = results.filter(r => !r).length || realErrors.length;
+  console.log('\nKonsolen-Fehler:', realErrors.length ? realErrors.join(' | ') : 'keine');
   console.log(`\n${failed ? '✗' : '✓'} ${results.length - failed}/${results.length} Prüfungen bestanden.`);
   console.log('  Screenshots: tools/verify-out/shot_intrinsic_{off,on,cleared,sturmnacht_off,sturmnacht_on}.png');
 
   await browser.close();
   server.close();
-  if (failed || errors.length) process.exit(1);
+  if (failed) process.exit(1);
 })().catch(e => { console.error(e); process.exit(1); });

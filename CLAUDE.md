@@ -125,7 +125,22 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
    (RGB→X, IntrinsicReal, De-Lighter …) entgegen; das eingebaute Backend ist die
    klassische deterministische Baseline. Provider erzeugen **Parameter, nie
    Klassen** – `classGrid`/`getMaterialTypeAt` bleiben unberührt (Invariante 2).
-   Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`.
+   **Companion-Konvention:** liegt neben `bild.png` eine `bild_shading.png`
+   (8 Bit, 128 = neutral), wird sie automatisch geladen, ersetzt das eingebaute
+   Backend und aktiviert die Trennung — dieselbe Konvention wie `bild_depth.png`.
+   Ein Autor mit GPU backt das Feld einmal, alle anderen laden es mit. Hardware
+   entscheidet damit über die Qualität, nie über die Benutzbarkeit. Eine neue Szene
+   erbt das Feld NICHT. Werkzeuge dürfen den 404 einer fehlenden Companion-Datei
+   nicht als Fehler werten (`isCompanionProbe` in den Verify-Skripten).
+   **Constraint-Projektion:** das eingebaute Shading-Feld wird per **Dykstra** auf den
+   Schnitt zweier konvexer Mengen projiziert — Wertebereich samt Albedo-Gamut
+   (`s ≥ max(col)`, sonst wäre Reflektanz > 1) und Energieneutralität
+   (`mean(s) = target`). Sequenzielles Clampen-dann-Normalisieren erfüllt nur die
+   LETZTE Bedingung; genau daran hatte die erste Fassung 7 % Helligkeitsversatz und
+   1,84 % unmögliche Reflektanz. Fremde Felder (Provider, Companion) werden **gemessen,
+   nicht nachprojiziert** — die Hypothese gehört dem Provider (`state().gamut`).
+   Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`,
+   `docs/raeumliche-algorithmen-arsenal.md`.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in

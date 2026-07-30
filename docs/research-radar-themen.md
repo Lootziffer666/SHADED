@@ -33,6 +33,9 @@ Diese Liste dient als Prüfraster gegen veraltete Fundamententscheidungen. Sie e
 - Scene Representation Standards: glTF, USD, MaterialX und OpenPBR
 - 3D Foundation Models und multimodale Geometriemodelle
 - Unsicherheit, Provenienz und Konfliktauflösung zwischen Rekonstruktionsmodellen
+- Projektionsmethoden auf konvexe Mengen und Constraint-Satisfaction auf Feldern
+- Klassische räumliche Algorithmen: Distanztransformationen, Graphen, Tessellationen
+- Raumrekonstruktion aus Innenraumaufnahmen: Ebenen, Layout, Öffnungen, Begehbarkeit
 - lokale 12-GB-VRAM-Modelle gegenüber Cloud-/Worker-Pipelines
 
 ## Bereits entschiedene Themen
@@ -42,6 +45,8 @@ Diese Liste dient als Prüfraster gegen veraltete Fundamententscheidungen. Sie e
 | Monokulare Depth, Point Maps, Single-Image-to-3D, Novel View, World Completion | [`einzelbild-raeumlichkeit-providerlandschaft.md`](./einzelbild-raeumlichkeit-providerlandschaft.md) |
 | SDF, UDF, TSDF, differenzierbare Mesh-Extraktion, SDF–Gaussian-Hybride | [`sdf-geometrie-stand-2026.md`](./sdf-geometrie-stand-2026.md) |
 | Neural Materials, SVBRDF, PBR-Maps, Intrinsic Decomposition, Materialstandards | [`neuronale-materialien-svbrdf-pbr.md`](./neuronale-materialien-svbrdf-pbr.md) |
+| Raumrekonstruktion: Ebenen, Hülle, Begehbarkeit, Raumgraph | [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md) |
+| Räumliche Algorithmen, Constraint-Projektion auf Felder | [`raeumliche-algorithmen-arsenal.md`](./raeumliche-algorithmen-arsenal.md) |
 | Rendergraph, Pass-Fusion, Lastverteilung | [`rendergraph-lastverteilung.md`](./rendergraph-lastverteilung.md) |
 | Provider-Verträge, Provenienz, World Surface Graph | [`reconstruction-provider-und-world-surface-graph.md`](./reconstruction-provider-und-world-surface-graph.md) |
 

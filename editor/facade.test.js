@@ -50,7 +50,27 @@ function check(label, cond) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
   page.on('requestfailed', (r) => errors.push(`REQUESTFAILED: ${r.url()} (${r.failure()?.errorText})`));
-  page.on('response', (r) => { if (r.status() >= 400) errors.push(`HTTP ${r.status()}: ${r.url()}`); });
+  page.on('response', (r) => {
+    // Companion-Proben (bild_depth.png / bild_shading.png) duerfen fehlen - sie
+    // wuerden hier sonst DOPPELT zaehlen (Response-Handler und Konsole).
+    if (r.status() >= 400 && !isCompanionProbe(r.url())) errors.push(`HTTP ${r.status()}: ${r.url()}`);
+  });
+// Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
+// "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
+// ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404. Genau
+// diese Treffer werden abgezogen, jeder andere 404 bleibt ein echter Fehler.
+const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+const dropCompanion404 = (list, count) => {
+  let out = list.slice();
+  for (let i = 0; i < count; i++) {
+    const idx = out.findIndex((e) => /status of 404|HTTP 404/.test(e));
+    if (idx < 0) break;
+    out = out.filter((_, k) => k !== idx);
+  }
+  return out;
+};
+  let benign404 = 0;
+  page.on('response', (r) => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
 
   try {
     await page.goto('http://localhost:8933/editor/index.html', { waitUntil: 'load' });
@@ -172,7 +192,9 @@ function check(label, cond) {
     check(`Unerwarteter Fehler: ${e.message}`, false);
   }
 
-  check('Keine Konsolen-/Seitenfehler', errors.length === 0);
+  const realErrors = dropCompanion404(errors, benign404);
+  check('Keine Konsolen-/Seitenfehler', realErrors.length === 0);
+  if (realErrors.length) console.log('Fehler:', realErrors);
   if (errors.length) console.log('Fehler:', errors);
 
   await browser.close();

@@ -48,6 +48,11 @@ Ein Kanal ohne Farbraum, Wertebereich und Provenienz ist ungültig.
 
 Ablage heute: Unit 8, R = Shading (0.5 = neutral), G = Konfidenz, B/A frei.
 
+Herkunft des Feldes, in dieser Reihenfolge: `<szene>_shading.png` neben dem Bild
+(Companion, aktiviert die Trennung) → `intrinsic.set()` eines externen Providers →
+eingebautes Backend → `identity-albedo`. Das eingebaute Backend braucht keine GPU;
+Hardware entscheidet über Qualität, nie über Benutzbarkeit.
+
 ```text
 observedColor  sRGB    Pflicht
 albedo         linear  Fallback = observedColor
@@ -61,6 +66,26 @@ height + scaleMeters · ao · curvature · emissive · transmission · sheen · 
 Pflichtmetadaten je Kanal: `provider`, `providerVersion`, `channelSetId`, `provenance`, `confidence`, `resolution`, `colorSpace`.
 
 Gemeinsam erzeugte Kanäle teilen eine `channelSetId`. Gemischte Sätze werden als `mixed = true` mit Herkunft je Kanal markiert – SHADED löst Modellkonflikte nicht automatisch, verschweigt sie aber nie.
+
+## Constraint-Projektion (Dykstra)
+
+Das eingebaute Feld erfüllt zwei konvexe Bedingungen **gleichzeitig**, nicht nacheinander:
+
+```text
+C_box   lo(x) <= s(x) <= hi     lo(x) = max(SHADE_MIN, max(col_rgb))  -> albedo <= 1
+C_mean  mittelwert(s) = target  target = max(1, mean(lo))             -> Schnitt nie leer
+```
+
+Clampen-dann-Normalisieren erfüllt nur die letzte Bedingung. Nach der Iteration wird die
+Box noch einmal exakt angewandt: Gamut und Wertebereich sind **hart garantiert**, die
+Energiebedingung gilt auf dem berichteten `meanError`.
+
+Neue Bedingungen nur, wenn sie **konvex** sind und eine **exakte** Projektion haben —
+sonst gehört das Problem zu einem Optimierer, nicht zu Dykstra. Keine Glattheitsmenge:
+nicht konvex bzw. TV-Prox nötig; Glattheit steckt in der Startschätzung.
+
+**Fremde Felder werden gemessen, nicht verbogen.** `state().projection === null` und
+`state().gamut` beziffert die Verletzung. Provenienzregel: die Hypothese gehört dem Provider.
 
 ## Harte Regeln (Invariante 2)
 
