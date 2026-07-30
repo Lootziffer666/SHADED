@@ -1155,66 +1155,73 @@ let intrinsicStrength=0;          // u_intrinsic; 0 = Fallback identity-albedo
 
 const SHADE_MIN=0.18, SHADE_MAX=2.0;
 
-/* Dykstra-Projektion auf den Schnitt zweier konvexer Mengen.
+/* Dykstra-Projektion auf den Schnitt konvexer Mengen — generisch.
 
-   C_box   lo(x) <= s(x) <= hi
-           Enthält BEIDES: den zulässigen Wertebereich und den Albedo-Gamut.
-           albedo = col/s <= 1  <=>  s >= max(col_r,col_g,col_b)  -> lo(x).
-           Reflektanz über 1 ist physikalisch unmöglich und clippt später zu Weiß.
-   C_mean  mittelwert(s) = target
-           Energieneutralität: das Zuschalten der Trennung darf die Gesamt-
-           helligkeit der Szene nicht verschieben.
+   Jede Menge liefert zwei Funktionen:
+     project(src, dst)  exakte Projektion, schreibt nach dst, laesst src unberuehrt
+     violation(v)       Abstand von der Menge (0 = erfuellt), fuer die Konvergenz
 
-   Warum nicht einfach clampen und dann normalisieren: dabei erfüllt man nur die
-   LETZTE Bedingung, die vorherige wird zerstört. Dykstra führt Residuen (p,q)
-   mit, die den Rückweg korrigieren, und konvergiert gegen den Punkt im Schnitt,
-   der der Ausgangsschätzung am NÄCHSTEN liegt - also minimale Verzerrung der
-   Messung statt irgendeiner zulässigen Lösung.
+   Warum nicht einfach hintereinander projizieren: dabei erfuellt man nur die
+   LETZTE Bedingung, die vorherige wird zerstoert (POCS-Blindheit). Dykstra fuehrt
+   pro Menge ein Residuum mit, das den Rueckweg korrigiert, und konvergiert gegen
+   den Punkt im Schnitt, der dem Startwert am NAECHSTEN liegt — also minimale
+   Verzerrung der Messung statt irgendeiner zulaessigen Loesung.
 
-   Bewusst nur zwei Mengen mit exakter Projektion. Eine Glattheitsmenge wäre als
-   "Feld gleicht seinem Tiefpass" nicht konvex; als ||grad s|| <= tau bräuchte sie
-   eine TV-Prox. Die Glattheit steckt stattdessen in der Startschätzung, und beide
-   Projektionen sind mild (Box trifft nur verletzende Pixel, Mean ist ein
-   gleichmäßiger Versatz), erhalten sie also weitgehend. */
-function projectShadingDykstra(est, lo, hi, target, maxIter){
-  const n=est.length;
-  const x=Float32Array.from(est), y=new Float32Array(n);
-  const p=new Float32Array(n), q=new Float32Array(n);
-  let iter=0, meanErr=0;
+   BEDINGUNG: jede Menge muss konvex sein UND eine exakte Projektion haben. Ist sie
+   das nicht (Einheitsnormalen, "liegt auf IRGENDEINER Ebene", Oder-Verknuepfungen),
+   gehoert der kombinatorische Teil VOR den Solver — siehe
+   docs/raeumliche-algorithmen-arsenal.md §4.
+
+   `finish` nennt die Mengen, die am Ende noch exakt angewandt werden: die sind dann
+   hart garantiert, alle anderen gelten auf dem berichteten Restfehler. Welche das
+   ist, bleibt damit dokumentiert statt Zufall. */
+function dykstraProject(x0, sets, opts){
+  const n=x0.length, m=sets.length;
+  const maxIter=(opts&&opts.maxIter)||60, tol=(opts&&opts.tol)||1e-4;
+  const x=Float32Array.from(x0), out=new Float32Array(n);
+  const res=[], tmp=[];
+  for(let i=0;i<m;i++){ res.push(new Float32Array(n)); tmp.push(new Float32Array(n)); }
+  let iter=0, viol=Infinity;
   for(; iter<maxIter; iter++){
-    // P_box
-    for(let j=0;j<n;j++){
-      const v=x[j]+p[j];
-      const lj=lo[j]<hi?lo[j]:hi;                 // hi gewinnt, falls lo darüber liegt
-      const c=v<lj?lj:(v>hi?hi:v);
-      y[j]=c; p[j]=v-c;
+    for(let i=0;i<m;i++){
+      const p=res[i], t=tmp[i];
+      for(let j=0;j<n;j++) t[j]=x[j]+p[j];
+      sets[i].project(t,out);
+      for(let j=0;j<n;j++){ p[j]=t[j]-out[j]; x[j]=out[j]; }
     }
-    // P_mean: Projektion auf die affine Hyperebene = gleichmäßiger Versatz
-    let m=0; for(let j=0;j<n;j++) m+=y[j]+q[j]; m/=n;
-    const d=target-m;
-    for(let j=0;j<n;j++){ const v=y[j]+q[j]; const c=v+d; x[j]=c; q[j]=v-c; }
-    // Konvergenz messen
-    let boxViol=0, mean2=0;
-    for(let j=0;j<n;j++){
-      mean2+=x[j];
-      const lj=lo[j]<hi?lo[j]:hi;
-      const viol = x[j]<lj ? lj-x[j] : (x[j]>hi ? x[j]-hi : 0);
-      if(viol>boxViol) boxViol=viol;
-    }
-    meanErr=Math.abs(mean2/n-target);
-    if(boxViol<1e-4 && meanErr<1e-4){ iter++; break; }
+    viol=0;
+    for(let i=0;i<m;i++){ const v=sets[i].violation(x); if(v>viol) viol=v; }
+    if(viol<tol){ iter++; break; }
   }
-  // Abschluss: die HARTEN Bedingungen (Gamut, Wertebereich) werden garantiert,
-  // die Energiebedingung bleibt auf dem erreichten Rest-Fehler. Welche der beiden
-  // exakt gilt, ist damit dokumentiert statt Zufall.
-  let mean3=0;
-  for(let j=0;j<n;j++){
-    const lj=lo[j]<hi?lo[j]:hi;
-    if(x[j]<lj) x[j]=lj; else if(x[j]>hi) x[j]=hi;
-    mean3+=x[j];
-  }
-  return {shading:x, iterations:iter, meanShading:+(mean3/n).toFixed(4),
-          meanError:+Math.abs(mean3/n-target).toFixed(4)};
+  const finish=(opts&&opts.finish)||[];
+  for(const i of finish){ sets[i].project(x,out); x.set(out); }
+  const residual={};
+  for(let i=0;i<m;i++) residual[sets[i].label||('set'+i)]=+sets[i].violation(x).toFixed(6);
+  return {x, iterations:iter, violation:+viol.toFixed(6), residual};
+}
+
+// Menge: lo(x) <= s(x) <= hi. Enthaelt BEIDES — zulaessiger Wertebereich und
+// Albedo-Gamut: albedo = col/s <= 1 <=> s >= max(col_rgb) -> lo(x). Reflektanz
+// ueber 1 ist physikalisch unmoeglich und clippt spaeter zu Weiss.
+function shadeBoxSet(lo,hi){
+  const cap=j=>lo[j]<hi?lo[j]:hi;      // hi gewinnt, falls lo darueber liegt
+  return {label:'box+gamut',
+    project:(v,o)=>{ for(let j=0;j<v.length;j++){ const l=cap(j);
+                       o[j]= v[j]<l?l:(v[j]>hi?hi:v[j]); } },
+    violation:(v)=>{ let mx=0; for(let j=0;j<v.length;j++){ const l=cap(j);
+                       const d = v[j]<l ? l-v[j] : (v[j]>hi ? v[j]-hi : 0);
+                       if(d>mx) mx=d; } return mx; }};
+}
+
+// Menge: mittelwert(s) = target. Energieneutralitaet — das Zuschalten der Trennung
+// darf die Gesamthelligkeit der Szene nicht verschieben. Projektion auf eine affine
+// Hyperebene ist ein gleichmaessiger Versatz.
+function meanSet(target){
+  return {label:'mean',
+    project:(v,o)=>{ let m=0; for(let j=0;j<v.length;j++) m+=v[j]; m/=v.length;
+                     const d=target-m; for(let j=0;j<v.length;j++) o[j]=v[j]+d; },
+    violation:(v)=>{ let m=0; for(let j=0;j<v.length;j++) m+=v[j];
+                     return Math.abs(m/v.length-target); }};
 }
 
 // Beleuchtungsschätzung aus dem Quellbild. spx = RGBA-Pixel in Analyseauflösung.
@@ -1245,12 +1252,16 @@ function decomposeIntrinsicBaseline(spx,w,h){
   // sonst wäre der Schnitt leer und die Iteration liefe ins Nichts.
   let ceilMean=0; for(let j=0;j<n;j++) ceilMean+=ceil[j]; ceilMean/=n;
   const target=Math.max(1.0, ceilMean);
-  const proj=projectShadingDykstra(est, ceil, SHADE_MAX, target, 60);
+  // Box zuerst, Mean danach; Box wird am Ende exakt nachgezogen (hart garantiert).
+  const sets=[shadeBoxSet(ceil, SHADE_MAX), meanSet(target)];
+  const proj=dykstraProject(est, sets, {maxIter:60, tol:1e-4, finish:[0]});
+  let ms=0; for(let j=0;j<n;j++) ms+=proj.x[j];
   let cm=0; for(let j=0;j<n;j++) cm+=conf[j];
-  return {shading:proj.shading, conf, confidence:+(cm/n).toFixed(4),
-          projection:{algorithm:'dykstra', sets:['box+gamut','mean'],
+  return {shading:proj.x, conf, confidence:+(cm/n).toFixed(4),
+          projection:{algorithm:'dykstra', sets:sets.map(x=>x.label),
                       iterations:proj.iterations, target:+target.toFixed(4),
-                      meanShading:proj.meanShading, meanError:proj.meanError},
+                      meanShading:+(ms/n).toFixed(4),
+                      meanError:proj.residual.mean, guaranteed:['box+gamut']},
           ceil};
 }
 

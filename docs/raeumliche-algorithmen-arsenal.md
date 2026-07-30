@@ -2,11 +2,13 @@
 
 **Status:** Einordnung eines Algorithmen-Katalogs gegen den tatsächlichen Stand von SHADED
 **Stand:** 2026-07-26
-**Umgesetzt daraus:** Dykstra-Projektion in der Materialschicht (§3)
+**Umgesetzt daraus:** generischer Dykstra-Solver + Anwendung in der Materialschicht (§3)
 
-> Der Katalog ist gut, aber er beschreibt überwiegend ein Szenario, das SHADED nicht hat:
-> mehrere Ansichten, Punktwolken, Bewegung, Sensorik. SHADED hat **ein Standbild**.
-> Genau ein Eintrag traf einen Defekt, der heute im Code steckt — und der ist behoben.
+> Der Katalog trifft SHADED auf zwei Zeitachsen. **Jetzt:** ein Eintrag deckte einen
+> Defekt auf, der im Code steckte — behoben (§2/§3). **Danach:** der größere Teil ist die
+> Werkzeugkette der Raumrekonstruktion und wartet nur auf seine Eingabe, nicht auf eine
+> Rechtfertigung (§1.4, ausgearbeitet in
+> [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md)).
 
 ---
 
@@ -40,19 +42,34 @@ begrenzende Faktor. **Kein Handlungsbedarf, nur eine Option.**
 | Multi-Output Gaussian Processes, Uncertainty-Densifizierung | [`einzelbild-raeumlichkeit-providerlandschaft.md`](./einzelbild-raeumlichkeit-providerlandschaft.md) §3.3, §8 |
 | Optical Flow (Horn-Schunck, Lucas-Kanade) | `TemporalDepthProvider` in [`reconstruction-provider-und-world-surface-graph.md`](./reconstruction-provider-und-world-surface-graph.md) §4 |
 
-### 1.4 Löst ein Problem, das SHADED nicht hat
+### 1.4 Noch nicht fällig, weil die Eingabe fehlt
 
-| Verfahren | Warum nicht |
-|---|---|
-| **ICP, GICP, PCR-Pro, LiDAR-SLAM, FLi-SLAM** | Registrierung braucht **mehrere** Aufnahmen oder Sensorik. SHADED bekommt ein Standbild ohne Kamerapose. |
-| **Dijkstra, A\*, ALT, All-Pairs-Shortest-Path** | Es gibt keine Navigation und keinen Graphen. Die Figur bewegt sich frei über UV, Kollision ist ein Feld, kein Netz. |
-| **Voronoi, Delaunay, kd-Tree, R\*-Tree, Octree, Convex Hull** | Räumliche Indizes beschleunigen Nachbarschaftssuche in **unregelmäßigen** Punktmengen. SHADED rechnet auf einem regelmäßigen Raster fester Größe (`AW`×`AH`); Nachbarn sind Arrayindizes. Relevant erst, wenn Punktwolken ankommen. |
-| **ParVoro++, verteilte Tessellation** | Zielt auf Hunderte Millionen Partikel. SHADEDs Analysefeld hat 331 776 Zellen. |
-| **Minkowski-Summen, Straight Skeleton, Offset-Polygone** | Setzen Polygongeometrie voraus. SHADED hat Masken, keine Polygone. |
+> **Korrektur.** Diese Spalte hieß zuerst „löst ein Problem, das SHADED nicht hat".
+> Das war gegen die **heutige Runtime** geprüft statt gegen den **dokumentierten Scope**:
+> [`reconstruction-provider-und-world-surface-graph.md`](./reconstruction-provider-und-world-surface-graph.md)
+> §1 nennt SHADED ausdrücklich einen Rekonstrukteur, §5.4 nennt die Architekturlücke
+> beim Namen. Die Verfahren sind Bestandteil der **Raumrekonstruktion** — siehe
+> [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md).
+> Sie warten auf ihre Eingabe, nicht auf eine Rechtfertigung.
 
-Das ist kein Abwerten der Quellen — es ist die Feststellung, dass sie eine andere
-Eingabe erwarten. Kommt ein Multi-View- oder Point-Cloud-Provider, wandern sie aus
-dieser Spalte heraus.
+| Verfahren | Rolle in der Raumrekonstruktion | Eingangsbedingung |
+|---|---|---|
+| **kd-Tree, Octree, R\*-Tree** | Nachbarschaften für RANSAC, Normalenschätzung, Ebenenzuordnung | Point Map / Punktwolke |
+| **ICP, GICP, PCR-Pro, LiDAR-SLAM** | mehrere Ansichten zu einem konsistenten Raum zusammenführen | **mehrere** Aufnahmen — SHADED hat ein Standbild |
+| **Voronoi, Delaunay, Alpha Shapes, Convex Hull** | Struktur und stabile Beziehungen zwischen Punkten, erste Raumhülle | Punktwolke |
+| **EDT, exakter Parabola-Lower-Envelope** | Abstände, Kollision, Raumgrenzen, Clearance-Kostenfeld | begehbare Maske aus der Hülle |
+| **Minkowski-Summen, Offset-Polygone** | begehbare Fläche mit Sicherheitsabstand | Raumhülle als Polygon |
+| **Dijkstra, A\***  | Begehbarkeit, Türen, Korridore, Raumverbindungen | Raumgraph |
+| **ParVoro++, verteilte Tessellation** | erst bei sehr großen Welten relevant | Hunderte Millionen Punkte |
+
+Der Reihenfolgezwang dahinter:
+
+```text
+Point Map → Indizes → Registrierung → Struktur → Dykstra → Distanzfelder → Dijkstra
+```
+
+Priorität ist deshalb der `MetricPointMapProvider` — ohne metrische Point Map ist der
+erste Schritt nicht ehrlich baubar.
 
 ### 1.5 Ehrlicher Kandidat für eine spätere Runde
 
@@ -89,8 +106,9 @@ wurde nie darauf geprüft, ob es im Gamut bleibt.
 
 ## 3. Umsetzung
 
-`projectShadingDykstra()` in `index.html` projiziert die Startschätzung auf den Schnitt
-**zweier** konvexer Mengen:
+`dykstraProject(x0, sets, {maxIter, tol, finish})` in `index.html` ist generisch über N
+Mengen; jede liefert `project(src,dst)` und `violation(v)`. Die Materialschicht ruft ihn
+mit `shadeBoxSet()` und `meanSet()` auf — dem Schnitt **zweier** konvexer Mengen:
 
 ```text
 C_box    lo(x) <= s(x) <= hi
@@ -102,7 +120,7 @@ C_mean   mittelwert(s) = target
          nicht verschieben.
 ```
 
-Iteration mit Residuen, wie im Katalog:
+Iteration mit Residuen, wie im Katalog (hier für zwei Mengen, im Code zyklisch für N):
 
 ```text
 y = P_box(x + p);    p = x + p - y
@@ -150,11 +168,21 @@ sondern ein **wiederverwendbarer Constraint-Löser für jedes Feld, das SHADED s
 | **Tiefenkarte** | Wertebereich, `UNKNOWN`-Maske respektieren, Rand-/Himmelanker (K7) | Companion-Depth und geschätzte Depth widerspruchsfrei zusammenführen |
 | **Rauheit** (nächster Kanal) | `[0,1]`, Klassen-Prior-Intervall je Materialklasse, Konsistenz mit Nässe | Klassen-Prior als **Bedingung** statt als hart codierte Konstante |
 | **Kanalsatz insgesamt** | gemeinsame Konsistenz mehrerer Kanäle | genau die Inkonsistenz, gegen die Chord die verkettete Vorhersage einsetzt — nur nachgelagert und deterministisch |
+| **Raumhülle** | Ecken affin, Höhen-Halbraum, Bounding Box (bei fixierter Struktur) | Wände senkrecht, Ecken geschlossen — siehe [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md) §3 |
 | **Höhen-/Druckfeld** | Monotonie, Randbedingungen | Kontaktfelder ohne Artefakte an Blobgrenzen |
 
 Regel dafür: **Bedingungen müssen konvex sein und eine exakte Projektion haben.** Sonst
 gehört das Problem zu einem Optimierer, nicht zu Dykstra — und das wäre eine eigene
 Entscheidung, keine stille Erweiterung.
+
+Der Solver ist dafür generisch: `dykstraProject(x0, sets, {maxIter, tol, finish})` nimmt
+N Mengen mit je `project(src,dst)` und `violation(v)`. Die Materialschicht ist der erste
+Aufrufer, die Raumhülle wäre der zweite.
+
+**Häufigste Falle:** viele natürlich formulierte Bedingungen sind erst nach einer
+*kombinatorischen* Entscheidung konvex („diese beiden Wände sind parallel", „diese Seite
+ist innen"). Die Entscheidung gehört VOR den Solver; danach alternieren wie bei ICP.
+Ausgearbeitet in [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md) §3.
 
 ---
 
