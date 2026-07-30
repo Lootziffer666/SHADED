@@ -35,6 +35,7 @@ tech.md) die automatische Analyse übersteuern.
 2. Runde 2: Jahreszeiten & Klima → Spec `round-2-seasons-climate`
 3. Runde 3: Material Fatigue & Verfall → Spec `round-3-material-fatigue`
 4. Runde 4: Interaktion & Ökosystem → Spec `round-4-interaction-ecosystem`
+5. ✅ Runde 8: Wally-Monokel (Inspektions-Linsen) → Spec `round-8-inspection-lenses`
 
 Die Specs in `.kiro/specs/` sind verbindlich („Build by specs“:
 requirements → design → tasks).

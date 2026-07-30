@@ -26,7 +26,21 @@ Tiefenkarte 2.5D (optional; Weiß=nah; 1×1 schwarz = flach)   → Unit 6
   UV-Versatz `uv += u_parallax * depth` GANZ AM ANFANG von main(), vor allen
   Lookups (eine Material-Wahrheit!). Overlay folgt der Bodenebene (OV_DEPTH),
   nur wenn hasDepth. API: SHADED.parallax{set,get,hasDepth,setDepthImage,clearDepth}.
+Klang-Wellenfeld (Runde 8, 256², CPU-Uint8Array, dirty-Upload,        → Unit 8
+  nur R-Kanal, HWZ ≈ 0.35 s — eigene Textur, weil Trail (Unit 5) bereits
+  4/4 Kanälen belegt und Klang konzeptionell kein Bodenkontakt ist)
+  API: SHADED.sound{emit(u,v,strength),clear()}
 ```
+
+## Wally-Monokel (Runde 8, Inspektions-Linsen)
+
+`u_lens` (0..5) schaltet EINEN Block ganz am Ende von `main()` frei,
+NACH der vollen Komposition — jede Linse sieht dieselbe fertige Welt.
+1 Schmutz/Abnutzung (`trail.b`+`u_touchWear`), 2 Belastung
+(`u_pressureDim`), 3 Klang (`u_sound`), 4 unverändert (das Normalbild
+IST diese Linse), 5 Kanten (`|∇maskA|+|∇maskB|`). API:
+`SHADED.lens{set(n),get()}`; Tasten 1–5 togglen. Details:
+`.kiro/specs/round-8-inspection-lenses/`.
 
 Runde-4-Laufzeitwelt (CPU + Overlay-Canvas `#ov`, deckungsgleich über `#gl`):
 Spieler (WASD/Dash, materialabhängig via `getMaterialTypeAt`, Eis-Trägheit,

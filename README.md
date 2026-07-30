@@ -19,6 +19,8 @@ python3 -m http.server 8000
 Steuerung: `K` = Kino-Modus (UI aus), Akt-Buttons springen zu Stimmungen, „Experten-Regler" für Feintuning, 📸 PNG-Snapshot, 🔴 WebM-Aufnahme, Storyboard-Editor für eigene Abläufe.
 Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Schneedellen), `Leertaste` Sprint (Laub stiebt, Früchte fallen), `F` bzw. 🔥 Feuer-Tool entzündet Lagerfeuer (Warmlicht, Rauch, Brandspuren; Regen löscht). Ohne Eingabe bleibt SHADED ein reines Ambient-Stück.
 
+**Wally-Monokel (Runde 8):** Tasten `1`–`5` schalten Inspektions-Linsen um (erneutes Drücken = aus): 1 Schmutz/Abnutzung, 2 Belastung, 3 Klang (`SHADED.sound.emit(u,v,strength)` stempelt eine abklingende Welle), 4 Materialtreue (= unverändertes Bild), 5 Kanten. API: `SHADED.lens.set(n)`/`.get()`.
+
 **Ökosystem-Verwaltung (Runde 7):** 4 neue Buttons in der Tools-Leiste laden jeweils einen Charaktergruppen-Satz:
 - 🐱 **Katzen-Schwarm** (4 animierte Sprite-Actor): bunt gemischte Animationen (laufen, fressen, faulenzen)
 - 👿 **Feinde** (3 statische Charaktere): GAIME-Monster mit räumlich korrektem Depth-Layer
