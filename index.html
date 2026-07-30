@@ -3546,7 +3546,8 @@ window.addEventListener('keydown', e=>{
   if(dialogueIndex>=0 && (e.key===' '||e.key==='Enter')){ e.preventDefault(); dialogueAdvance(); }
 });
 
-// =========================== Agent-/Test-API (nicht entfernen!) ====================window.SHADED = {
+// =========================== Agent-/Test-API (nicht entfernen!) ===========================
+window.SHADED = {
   version:'1.4.0',
   erstellen,
   applyAct:(id)=>applyAct(id,true),
@@ -3614,7 +3615,7 @@ window.addEventListener('keydown', e=>{
   ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) },
   // Runde 8: Wally-Monokel (Inspektions-Linsen) + Klang-Wellenfeld
   lens:{ set:(n)=>{ lensState=Math.max(0,Math.min(5,n|0)); }, get:()=>lensState },
-  sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear }
+  sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear },
   // Materialschicht: Licht/Material-Trennung (docs/neuronale-materialien-svbrdf-pbr.md).
   // Rein optisch – schreibt NIE in classGrid oder getMaterialTypeAt (Invariante 2).
   intrinsic:{
@@ -3674,7 +3675,7 @@ window.addEventListener('keydown', e=>{
       const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
       return intrinsicShading[y*AW+x];
     }
-  }
+  },
   sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear },
   // Runde 10: Dialog-Engine (motorseitig generisch, Inhalte kommen separat, z.B. content/*.js)
   dialogue:{
