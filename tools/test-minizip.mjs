@@ -7,6 +7,7 @@ import { crc32, buildZipStore } from './minizip.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 let failures = 0;
 function assert(cond, msg) { if (!cond) { console.error('✗ FAIL:', msg); failures++; } else { console.log('✓ ok:', msg); } }
@@ -17,7 +18,8 @@ assert(crc32(knownVector) === 0xcbf43926, `crc32("123456789") == 0xCBF43926 (0x$
 assert(crc32(new Uint8Array(0)) === 0, `crc32("") == 0 (${crc32(new Uint8Array(0))})`);
 
 console.log('\nTest 2: ZIP bauen, mit Pythons unabhängigem zipfile-Reader validieren');
-const OUT = path.join(import.meta.dirname, 'verify-out');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const OUT = path.join(__dirname, 'verify-out');
 mkdirSync(OUT, { recursive: true });
 const files = [
   { name: 'guybrush-idle.json', data: new TextEncoder().encode(JSON.stringify({ hello: 'world', n: 42 })) },
