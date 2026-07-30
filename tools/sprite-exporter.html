@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>SHADED — Sprite-Exporter (lokal, offline)</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;background:#15171c;color:#e8e8ea;max-width:900px;margin:0 auto;padding:24px}
+  h1{font-size:20px}
+  .box{background:#1e2129;border:1px solid #333846;border-radius:8px;padding:16px;margin:14px 0}
+  .warn{background:#332615;border-color:#7a5a20;color:#f0c674}
+  button{background:#3a4a6b;color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:14px}
+  button:disabled{opacity:.4;cursor:default}
+  button:hover:not(:disabled){background:#4a5c85}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}
+  td,th{border-bottom:1px solid #2a2e38;padding:4px 8px;text-align:left}
+  .muted{color:#8a8f9c}
+  canvas{image-rendering:pixelated;border:1px solid #333846;max-width:100%}
+</style>
+</head>
+<body>
+<h1>SHADED — Sprite-Exporter <span class="muted">(Runde 10, lokal &amp; offline)</span></h1>
+
+<div class="box warn">
+  <b>Läuft komplett lokal.</b> Keine Datei verlässt diesen Rechner. Schreibt echte Bilddaten
+  (Sprite-Sheet-PNGs) aus deiner Ressourcendatei — das ist bewusst der eine Schritt, der auf
+  deiner Maschine bleibt, nicht in einer Entwicklungs-Session. Farben sind Platzhalter-
+  Graustufen (Palettenindex → Grauwert), <b>nicht</b> die echte VGA-Palette — die liegt in
+  einer separaten globalen Ressource, die dieses Werkzeug nicht anfasst. Ersetze die Farben
+  bei Bedarf selbst, z. B. per Bildbearbeitung, bevor du das Sheet in SHADED lädst.
+</div>
+
+<div class="box">
+  <div>Ressourcendatei (z. B. MONKEY2.001 / monkey.001): <input type="file" id="f-res"></div>
+  <div style="margin-top:8px">Kostüm-Browser-Export (costume-labels.json): <input type="file" id="f-labels"></div>
+  <p id="status" class="muted">Beide Dateien laden, um zu starten.</p>
+  <table id="preview"><thead><tr><th>Label</th><th>Cels gefunden</th><th>Sheet-Größe</th></tr></thead><tbody></tbody></table>
+  <button id="export" style="margin-top:12px" disabled>Sprite-Sheets als ZIP exportieren</button>
+</div>
+
+<script>
+// ============ Kern-Logik (identisch zu tools/cost-format.mjs — siehe dortige Tests) ============
+function xorDecode(bytes){ const out=new Uint8Array(bytes.length); for(let i=0;i<bytes.length;i++) out[i]=bytes[i]^0x69; return out; }
+function tagAt(dv,off){ return String.fromCharCode(dv.getUint8(off),dv.getUint8(off+1),dv.getUint8(off+2),dv.getUint8(off+3)); }
+function headerAt(dv,offset,end){
+  if(offset+8>end) throw new Error('truncated chunk header at '+offset);
+  const tag=tagAt(dv,offset), size=dv.getUint32(offset+4,false);
+  if(!/^[A-Z0-9 ]{4}$/.test(tag)) throw new Error('invalid tag at '+offset);
+  if(size<8||offset+size>end) throw new Error('invalid size at '+offset);
+  return {tag,size,offset,dataOffset:offset+8,end:offset+size};
+}
+function parseStream(dv,start,end){ const chunks=[]; let offset=start; while(offset<end){ const c=headerAt(dv,offset,end); chunks.push(c); offset=c.end; } return chunks; }
+function findCostChunks(decoded){
+  const dv=new DataView(decoded.buffer,decoded.byteOffset,decoded.byteLength);
+  const root=headerAt(dv,0,decoded.length);
+  if(root.tag!=='LECF') throw new Error('keine SCUMM-LECF-Ressourcendatei');
+  const top=parseStream(dv,root.dataOffset,root.end);
+  const ROOM_CONTAINERS=new Set(['ROOM','RMIM','OBIM','OBCD']);
+  const found=[];
+  for(const lflf of top.filter(c=>c.tag==='LFLF')){
+    let children; try{ children=parseStream(dv,lflf.dataOffset,lflf.end); }catch(e){ continue; }
+    for(const c of children) if(c.tag==='COST') found.push({...c,room:lflf.offset});
+    const room=children.find(c=>c.tag==='ROOM'); if(!room) continue;
+    let roomChildren; try{ roomChildren=parseStream(dv,room.dataOffset,room.end); }catch(e){ continue; }
+    for(const c of roomChildren) if(c.tag==='COST') found.push({...c,room:lflf.offset});
+    for(const c of roomChildren){
+      if(!ROOM_CONTAINERS.has(c.tag)) continue;
+      try{ for(const n of parseStream(dv,c.dataOffset,c.end)) if(n.tag==='COST') found.push({...n,room:lflf.offset}); }catch(e){}
+    }
+  }
+  return found;
+}
+function parseCostumeHeader(decoded,chunk){
+  const dv=new DataView(decoded.buffer,decoded.byteOffset+chunk.dataOffset,chunk.size-8);
+  const numAnim=dv.getUint8(0), formatByte=dv.getUint8(1);
+  const format=formatByte&0x7f, numColors=(format&0x01)?32:16, bitsPerPixel=numColors===16?4:5;
+  const palette=[]; for(let i=0;i<numColors&&2+i<dv.byteLength;i++) palette.push(dv.getUint8(2+i));
+  return {numAnim,format,numColors,bitsPerPixel,palette};
+}
+function decodeCel(decoded,celByteOffset,maxBytes,bitsPerPixel){
+  const avail=decoded.byteLength-celByteOffset;
+  if(avail<10) throw new Error('zu wenig Bytes für Cel-Header');
+  const dv=new DataView(decoded.buffer,decoded.byteOffset+celByteOffset,Math.min(maxBytes,avail));
+  const width=dv.getUint16(0,true), height=dv.getUint16(2,true);
+  if(width===0||height===0||width>512||height>512) throw new Error('unplausible Cel-Maße');
+  const pixels=new Uint8Array(width*height);
+  let src=10, dst=0, bitBuf=0, bitCount=0;
+  const mask=(1<<bitsPerPixel)-1;
+  function readIndex(){
+    while(bitCount<bitsPerPixel){ if(src>=dv.byteLength) throw new Error('Cel-Stream zu kurz'); bitBuf|=dv.getUint8(src++)<<bitCount; bitCount+=8; }
+    const v=bitBuf&mask; bitBuf>>>=bitsPerPixel; bitCount-=bitsPerPixel; return v;
+  }
+  let guard=pixels.length*4+64;
+  while(dst<pixels.length){
+    if(guard--<=0) throw new Error('Decoder-Sicherung ausgelöst');
+    if(src>=dv.byteLength) throw new Error('Cel-Stream zu kurz (Kontrollbyte)');
+    const ctrl=dv.getUint8(src++), repeat=(ctrl&0x80)!==0;
+    let run=ctrl&0x7f; if(run===0) run=128;
+    if(repeat){ const idx=readIndex(); for(let i=0;i<run&&dst<pixels.length;i++) pixels[dst++]=idx; }
+    else { for(let i=0;i<run&&dst<pixels.length;i++) pixels[dst++]=readIndex(); }
+    bitBuf=0; bitCount=0;
+  }
+  return {width,height,pixels,bytesUsed:src};
+}
+function scanForCels(decoded, chunk, header){
+  const results=[];
+  const start=chunk.dataOffset+2+header.numColors;
+  const end=Math.min(chunk.end, start+20000);
+  let lastGoodEnd=-1;
+  for(let off=start; off<end && results.length<24; off++){
+    if(off<lastGoodEnd) continue;
+    try{
+      const cel=decodeCel(decoded, off, chunk.end-off, header.bitsPerPixel);
+      if(cel.width>=2 && cel.height>=2 && cel.width*cel.height>=8){ results.push(cel); lastGoodEnd=off+cel.bytesUsed; }
+    }catch(e){}
+  }
+  return results;
+}
+
+// ============ ZIP (STORE-only, self-tested separately — see tools/test-minizip.mjs) ============
+const CRC_TABLE=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function crc32(bytes){ let c=0xffffffff; for(let i=0;i<bytes.length;i++) c=CRC_TABLE[(c^bytes[i])&0xff]^(c>>>8); return (c^0xffffffff)>>>0; }
+function u16(n){ return [n&255,(n>>8)&255]; }
+function u32(n){ return [n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255]; }
+function nameBytes(name){ return Array.from(name).map(c=>c.charCodeAt(0)&0xff); }
+function buildZipStore(files){
+  const chunks=[], central=[]; let offset=0;
+  const DT=[0,0], DD=[0x21,0x00];
+  for(const f of files){
+    const name=nameBytes(f.name), crc=crc32(f.data);
+    const local=new Uint8Array([0x50,0x4b,0x03,0x04,20,0,0,0,0,0,...DT,...DD,...u32(crc),...u32(f.data.length),...u32(f.data.length),...u16(name.length),...u16(0),...name]);
+    chunks.push(local,f.data);
+    central.push({name,crc,size:f.data.length,offset});
+    offset+=local.length+f.data.length;
+  }
+  const cdStart=offset; const cdChunks=[];
+  for(const e of central){
+    const rec=new Uint8Array([0x50,0x4b,0x01,0x02,20,0,20,0,0,0,0,0,...DT,...DD,...u32(e.crc),...u32(e.size),...u32(e.size),...u16(e.name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(e.offset),...e.name]);
+    cdChunks.push(rec); offset+=rec.length;
+  }
+  const cdSize=offset-cdStart;
+  const eocd=new Uint8Array([0x50,0x4b,0x05,0x06,0,0,0,0,...u16(central.length),...u16(central.length),...u32(cdSize),...u32(cdStart),...u16(0)]);
+  const total=chunks.reduce((s,c)=>s+c.length,0)+cdChunks.reduce((s,c)=>s+c.length,0)+eocd.length;
+  const out=new Uint8Array(total); let p=0;
+  for(const c of [...chunks,...cdChunks,eocd]){ out.set(c,p); p+=c.length; }
+  return out;
+}
+
+// ============ UI / Packing ============
+let decodedRes=null, labelsDoc=null, packed=[];
+const statusEl=document.getElementById('status');
+function tryRun(){
+  if(!decodedRes||!labelsDoc) return;
+  const costumes=findCostChunks(decodedRes);
+  packed=[];
+  const tbody=document.querySelector('#preview tbody'); tbody.innerHTML='';
+  for(const entry of (labelsDoc.labels||[])){
+    let chunk = costumes[entry.index];
+    if(!chunk || chunk.offset!==entry.offset) chunk = costumes.find(c=>c.offset===entry.offset);
+    if(!chunk){ tbody.insertAdjacentHTML('beforeend', `<tr><td>${entry.name}</td><td colspan=2 class="muted">Chunk nicht wiedergefunden (falsche Datei?)</td></tr>`); continue; }
+    let header, cels;
+    try{ header=parseCostumeHeader(decodedRes, chunk); cels=scanForCels(decodedRes, chunk, header); }
+    catch(err){ tbody.insertAdjacentHTML('beforeend', `<tr><td>${entry.name}</td><td colspan=2 class="muted">Fehler: ${err.message}</td></tr>`); continue; }
+    if(!cels.length){ tbody.insertAdjacentHTML('beforeend', `<tr><td>${entry.name}</td><td colspan=2 class="muted">keine Cels gefunden</td></tr>`); continue; }
+    const cellW=Math.max(...cels.map(c=>c.width)), cellH=Math.max(...cels.map(c=>c.height));
+    const cols=Math.ceil(Math.sqrt(cels.length)), rows=Math.ceil(cels.length/cols);
+    const sheetW=cellW*cols, sheetH=cellH*rows;
+    const cv=document.createElement('canvas'); cv.width=sheetW; cv.height=sheetH;
+    const ctx=cv.getContext('2d');
+    const img=ctx.createImageData(sheetW,sheetH);
+    const frames=[], frameRects={};
+    cels.forEach((cel,i)=>{
+      const gx=(i%cols)*cellW, gy=Math.floor(i/cols)*cellH;
+      for(let y=0;y<cel.height;y++) for(let x=0;x<cel.width;x++){
+        const idx=cel.pixels[y*cel.width+x], g=(idx*16)%256;
+        const di=((gy+y)*sheetW+(gx+x))*4;
+        img.data[di]=g; img.data[di+1]=g; img.data[di+2]=g; img.data[di+3]=idx===0?0:255;
+      }
+      const id='F'+String(i+1).padStart(2,'0');
+      frames.push({id, key:entry.name+'_'+i});
+      frameRects[id]={x:gx,y:gy,w:cel.width,h:cel.height};
+    });
+    ctx.putImageData(img,0,0);
+    const manifest={
+      mappingVersion:'1.4.0',
+      sourceImage:{w:sheetW,h:sheetH},
+      frames, frameRects,
+      animations:{ [entry.name]: { frames: frames.map(f=>f.id), fps:8, loop:true } },
+      notes:['Platzhalter-Graustufen statt echter VGA-Palette — siehe Hinweis oben.',
+             'Experimenteller Decoder (tools/cost-format.mjs) — Cels ggf. per Hand nachsortieren.'],
+    };
+    packed.push({label:entry.name, canvas:cv, manifest});
+    tbody.insertAdjacentHTML('beforeend', `<tr><td>${entry.name}</td><td>${cels.length}</td><td>${sheetW}×${sheetH}</td></tr>`);
+  }
+  document.getElementById('export').disabled = packed.length===0;
+  statusEl.textContent = `${packed.length} von ${(labelsDoc.labels||[]).length} Labels gepackt.`;
+}
+document.getElementById('f-res').addEventListener('change', async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  decodedRes = xorDecode(new Uint8Array(await file.arrayBuffer()));
+  tryRun();
+});
+document.getElementById('f-labels').addEventListener('change', async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  labelsDoc = JSON.parse(await file.text());
+  tryRun();
+});
+document.getElementById('export').onclick=async ()=>{
+  const files=[];
+  for(const p of packed){
+    const pngBlob=await new Promise(res=>p.canvas.toBlob(res,'image/png'));
+    files.push({name:p.label+'.png', data:new Uint8Array(await pngBlob.arrayBuffer())});
+    files.push({name:p.label+'.json', data:new TextEncoder().encode(JSON.stringify(p.manifest,null,2))});
+  }
+  const zipBytes=buildZipStore(files);
+  const blob=new Blob([zipBytes], {type:'application/zip'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sprite-sheets.zip'; a.click();
+  URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>

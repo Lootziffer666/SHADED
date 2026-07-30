@@ -21,6 +21,10 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 
 **Wally-Monokel (Runde 8):** Tasten `1`–`5` schalten Inspektions-Linsen um (erneutes Drücken = aus): 1 Schmutz/Abnutzung, 2 Belastung, 3 Klang (`SHADED.sound.emit(u,v,strength)` stempelt eine abklingende Welle), 4 Materialtreue (= unverändertes Bild), 5 Kanten. API: `SHADED.lens.set(n)`/`.get()`.
 
+**Dialog-Engine (Runde 10):** `SHADED.dialogue.play(beats)` spielt eine Liste von Text-/Trigger-Beats mit Schreibmaschinen-Effekt ab (Leertaste/Enter/Klick = weiter). Die Engine kennt keinen Inhalt – echte Erzähltexte liegen separat in `content/*.js` (z. B. `content/prolog-act1.js`, optional per `<script>` einbinden) und werden nie automatisch geladen.
+
+**Asset-Werkzeuge (Runde 9–10, alle offline, lokal, kein Netzwerkzugriff):** `tools/costume-browser.html` benennt SCUMM-Kostümressourcen aus einer selbst bereitgestellten Ressourcendatei; `tools/sprite-exporter.html` macht daraus echte Sprite-Sheet-PNGs + Manifeste (ZIP-Download). Keines der beiden lädt oder sendet Dateien über das Netzwerk – siehe `docs/round-9-asset-boundary.md`.
+
 **Ökosystem-Verwaltung (Runde 7):** 4 neue Buttons in der Tools-Leiste laden jeweils einen Charaktergruppen-Satz:
 - 🐱 **Katzen-Schwarm** (4 animierte Sprite-Actor): bunt gemischte Animationen (laufen, fressen, faulenzen)
 - 👿 **Feinde** (3 statische Charaktere): GAIME-Monster mit räumlich korrektem Depth-Layer
