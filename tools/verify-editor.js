@@ -176,6 +176,43 @@ function check(label, cond) {
     await page.click('#btn-timeline-stop');
     check('Play/Stop der Timeline ohne Absturz', true);
     await page.screenshot({ path: path.join(OUT, 'editor_timeline.png') });
+
+    // --- Materialschicht: A/B-Schalter und Statuszeile im Editor ---
+    // Das Panel liegt unter den Slidern, also erst hinscrollen (siehe CLAUDE.md).
+    const abBtn = page.locator('#btn-intrinsic-ab');
+    await abBtn.scrollIntoViewIfNeeded();
+    const engineStrength = () => page.evaluate(
+      () => document.getElementById('engine-frame').contentWindow.SHADED.intrinsic.getStrength());
+    const strengthBefore = await engineStrength();
+    await abBtn.click();
+    await page.waitForTimeout(150);
+    const afterOn = await engineStrength();
+    check(`A/B-Schalter setzt die Wirkstärke in der ECHTEN Engine (${strengthBefore} -> ${afterOn})`,
+      strengthBefore === 0 && afterOn === 1);
+    await abBtn.click();
+    await page.waitForTimeout(150);
+    const afterOff = await engineStrength();
+    check(`A/B-Schalter schaltet zurück auf identity-albedo (${afterOn} -> ${afterOff})`, afterOff === 0);
+
+    const slider = page.locator('#intrinsic-strength');
+    await slider.fill('0.5');
+    await slider.dispatchEvent('input');
+    await page.waitForTimeout(150);
+    const afterSlider = await engineStrength();
+    check(`Regler überträgt Zwischenwerte an die Engine (strength=${afterSlider})`,
+      Math.abs(afterSlider - 0.5) < 1e-6);
+
+    const statusText = await page.locator('#intrinsic-status').textContent();
+    check(`Statuszeile zeigt den echten Kanalvertrag ("${statusText.trim().slice(0, 60)}…")`,
+      statusText.includes('material.intrinsic.') && statusText.includes('INFERRED'));
+
+    await page.click('#btn-intrinsic-accept');
+    await page.waitForTimeout(100);
+    const provenance = await page.evaluate(
+      () => document.getElementById('engine-frame').contentWindow.SHADED.intrinsic.state().provenance);
+    check(`"Als kanonisch bestätigen" setzt USER_APPROVED in der Engine (${provenance})`,
+      provenance === 'USER_APPROVED');
+    await page.screenshot({ path: path.join(OUT, 'editor_intrinsic.png') });
   } catch (e) {
     check(`Unerwarteter Fehler: ${e.message}`, false);
   }

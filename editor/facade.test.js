@@ -64,7 +64,7 @@ function check(label, cond) {
       statusBefore.ready === false && statusBefore.actorCount === 0);
 
     // --- loadProject(): echte Szene + echter Actor + echte Parameter, alles über den realen Facade-Code ---
-    const snapshot = await page.evaluate(async ({ scenePath, sheetPath, manifestPath }) => {
+    const snapshot = await page.evaluate(async ({ scenePath, sheetPath, manifestPath, shadingPath }) => {
       const fetchFile = async (url, name, type) => {
         const res = await fetch(url);
         const blob = await res.blob();
@@ -82,14 +82,24 @@ function check(label, cond) {
         actors: [{ label: 'test-actor', x: 0.5, y: 0.6, anim: 'idle' }],
         storyboard: [{ name: 'Akt 1', dur: 4, p: { fog: 0.4 } }],
       };
+      // Materialschicht: fremdes Shading-Feld als URL. Die Fassade laedt es im
+      // ENGINE-Realm - ein Bild aus diesem Realm wuerde an den Typpruefungen
+      // der Engine scheitern (dieselbe Falle wie bei addActor).
+      project.intrinsic = {
+        provider: 'material.intrinsic.test-cli', providerVersion: '2.0.0',
+        channelSetId: 'intrinsic.cli', provenance: 'INFERRED',
+        confidence: 0.66, strength: 1, accepted: false,
+      };
       return window.SHADED_ORCHESTRATOR.loadProject(project, {
         sceneFile,
         actorFiles: [{ sheetFile, manifestFile }],
+        intrinsicShading: shadingPath,
       });
     }, {
       scenePath: '/file_00000000974871f49fe71f6b456f9579.png',
       sheetPath: '/tools/verify-test-actor.png',
       manifestPath: '/tools/verify-test-actor.json',
+      shadingPath: '/file_00000000974871f49fe71f6b456f9579_depth.png',
     });
 
     check(`loadProject() liefert ready=true (${JSON.stringify({ ready: snapshot.ready, actorCount: snapshot.actorCount, storyboardSteps: snapshot.storyboardSteps })})`,
@@ -97,6 +107,27 @@ function check(label, cond) {
     check(`loadProject() hat den Actor wirklich hinzugefügt (actorCount=${snapshot.actorCount})`, snapshot.actorCount === 1);
     check(`loadProject() hat die Storyboard-Schritte übernommen (storyboardSteps=${snapshot.storyboardSteps})`, snapshot.storyboardSteps === 1);
     check(`loadProject() hat die Parameter wirklich in der Engine gesetzt (fog=${snapshot.params.fog})`, Math.abs(snapshot.params.fog - 0.4) < 1e-6);
+
+    // --- Materialschicht: fremdes Shading-Feld ueber den Vertrag angekommen? ---
+    const intr = snapshot.intrinsic || {};
+    check(`loadProject() hat das fremde Shading-Feld uebernommen (${intr.provider}@${intr.providerVersion}, hasShading=${intr.hasShading})`,
+      intr.provider === 'material.intrinsic.test-cli' && intr.providerVersion === '2.0.0' && intr.hasShading === true);
+    check(`loadProject() hat Provenienz und Konfidenz des Providers erhalten (${intr.provenance}, conf=${intr.confidence})`,
+      intr.provenance === 'INFERRED' && Math.abs(intr.confidence - 0.66) < 1e-6);
+    check(`loadProject() hat die Wirkstaerke der Materialschicht gesetzt (strength=${intr.strength})`,
+      Math.abs(intr.strength - 1) < 1e-6);
+    // Das Feld muss wirklich aus dem Bild stammen, nicht aus dem eingebauten Backend:
+    const shadingSpread = await page.evaluate(() => {
+      const win = document.getElementById('engine-frame').contentWindow;
+      let mn = 9, mx = -9;
+      for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+        const v = win.SHADED.intrinsic.sample((x + 0.5) / 24, (y + 0.5) / 24);
+        mn = Math.min(mn, v); mx = Math.max(mx, v);
+      }
+      return { mn: +mn.toFixed(3), mx: +mx.toFixed(3) };
+    });
+    check(`Geladenes Shading-Feld ist abtastbar und nicht konstant (${shadingSpread.mn} … ${shadingSpread.mx})`,
+      shadingSpread.mx - shadingSpread.mn > 0.05);
 
     // --- addActorBundle() direkt (zweiter Actor, unabhängig von loadProject) ---
     const afterSecondActor = await page.evaluate(async ({ sheetPath, manifestPath }) => {

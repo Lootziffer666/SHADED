@@ -27,7 +27,13 @@
 //       { "sheet": "path/to/sheet.png", "manifest": "path/to/manifest.json",
 //         "x": 0.5, "y": 0.6, "scale": 1, "anim": "walk", "depthLayer": "mid", "label": "hero" }
 //     ],
-//     "storyboard": [ { "name": "Akt 1", "dur": 4, "p": { "fog": 0.4 } } ]  // optional
+//     "storyboard": [ { "name": "Akt 1", "dur": 4, "p": { "fog": 0.4 } } ], // optional
+//     "intrinsic": {                                            // optional
+//       "shading": "path/to/shading.png",   // 8 bit, 128 = neutral; Feld eines
+//                                           // externen Backends (RGB->X, ...)
+//       "provider": "material.intrinsic.rgbx", "providerVersion": "1.0.0",
+//       "provenance": "INFERRED", "confidence": 0.7, "strength": 1
+//     }
 //   }
 const { chromium } = require('playwright');
 const http = require('http');
@@ -93,10 +99,11 @@ function fail(code, payload) {
     return { url: `/_orchestrate-asset/${routeIndex}`, name: path.basename(abs) };
   };
 
-  let sceneRoute, materialRoute, actorRoutes;
+  let sceneRoute, materialRoute, actorRoutes, shadingRoute;
   try {
     sceneRoute = resolveAsset(request.scene, 'Szenenbild');
     materialRoute = resolveAsset(request.material, 'Material-Map');
+    shadingRoute = resolveAsset(request.intrinsic && request.intrinsic.shading, 'Shading-Feld');
     actorRoutes = (request.actors || []).map((a, i) => ({
       sheet: resolveAsset(a.sheet, `Actor #${i} Sprite-Sheet`),
       manifest: resolveAsset(a.manifest, `Actor #${i} Manifest`),
@@ -146,7 +153,7 @@ function fail(code, payload) {
     await page.goto(`http://localhost:${port}/editor/index.html`, { waitUntil: 'load' });
     await page.waitForFunction(() => typeof window.SHADED_ORCHESTRATOR === 'object', { timeout: 10000 });
 
-    result = await page.evaluate(async ({ sceneRoute, materialRoute, actorRoutes, params, storyboard }) => {
+    result = await page.evaluate(async ({ sceneRoute, materialRoute, actorRoutes, params, storyboard, shadingRoute, intrinsic }) => {
       const fetchFile = async (asset, type) => {
         const res = await fetch(asset.url);
         if (!res.ok) throw new Error(`Asset-Fetch fehlgeschlagen (${res.status}): ${asset.url}`);
@@ -164,8 +171,17 @@ function fail(code, payload) {
         actorSpecs.push({ x: a.x, y: a.y, scale: a.scale, anim: a.anim, depthLayer: a.depthLayer, label: a.label });
       }
       const project = { schema: 'shaded.scene-project/v1', params: params || {}, actors: actorSpecs, storyboard: storyboard || [] };
-      return window.SHADED_ORCHESTRATOR.loadProject(project, { sceneFile, materialFile, actorFiles });
-    }, { sceneRoute, materialRoute, actorRoutes, params: request.params, storyboard: request.storyboard });
+      // Materialschicht: das Shading-Feld wird als URL uebergeben, nicht als
+      // Objekt aus diesem Realm - die Fassade laedt es im Engine-Realm.
+      if (intrinsic || shadingRoute) {
+        project.intrinsic = { ...(intrinsic || {}) };
+        delete project.intrinsic.shading;
+      }
+      const assets = { sceneFile, materialFile, actorFiles };
+      if (shadingRoute) assets.intrinsicShading = shadingRoute.url;
+      return window.SHADED_ORCHESTRATOR.loadProject(project, assets);
+    }, { sceneRoute, materialRoute, actorRoutes, params: request.params, storyboard: request.storyboard,
+         shadingRoute, intrinsic: request.intrinsic });
   } catch (e) {
     await browser.close();
     await new Promise((r) => server.close(r));

@@ -16,6 +16,44 @@ Diese werden via `window.SHADED.addActor()` als rein optische Overlay-Ebene gela
 NICHT `classGrid` oder `getMaterialTypeAt()`. Die Scene-Analyse wird nur vom Hintergrund
 bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
 
+## Ziel statt Format
+
+SHADED arbeitet auf ein **Ziel** hin, nicht auf ein **Format**. Das Ziel ist die lebendige,
+atmende Szene und die Weltgesetze, die sie tragen. Grafik-APIs, Shader-Sprachen und
+Austauschformate — GLSL, WGSL, TSL, MaterialX, ReShade-FX, glTF, USD — sind die **letzte
+Meile**: austauschbare Ausgabe- und Ausführungsformen, nie der Zweck.
+
+Historie, damit sie nicht wieder verloren geht: SHADED ist aus einem **KorGE**-Projekt
+entstanden; Three.js/TSL lag deshalb als **Entwicklungswerkzeug** am nächsten. Das war
+eine Werkzeugwahl für die Entwicklung, nie eine Festlegung der ausgelieferten Runtime.
+
+Daraus folgt:
+
+1. **Kein Format wird zur Invariante erklärt.** Invariant ist, dass es EINE Shader-Quelle,
+   EINE Material-Wahrheit und EINEN API-Vertrag gibt — nicht, in welcher Sprache oder
+   gegen welche API sie ausgedrückt sind. Wer ein Backend dokumentiert, dokumentiert den
+   *aktuellen Stand der letzten Meile* (siehe Invariante 7), nicht ein Gesetz.
+2. **Entwicklungswerkzeug ≠ Laufzeit-Abhängigkeit.** Three.js/TSL, Node-Editoren,
+   Python-Worker und Build-Schritte dürfen beim Autorenwerkzeug und in der Entwicklung
+   stehen — dieselbe Trennung, die `editor/` gegenüber `index.html` schon hat.
+3. **Ein Formatwechsel ersetzt, er ergänzt nicht.** Ein neues Backend löst das alte
+   vollständig ab (sonst zwei Wahrheiten) und wird an den **Zielkriterien** gemessen —
+   Verify-Screenshots gegen die Zielbilder, unveränderte Klassenzählung, keine
+   Konsolenfehler — nicht an seiner Modernität.
+4. **Formatunabhängig bleiben die Verträge an den Grenzen:** `window.SHADED`,
+   Provider-Verträge, Kanalvertrag, Scene-Project-Schema, CLI-Vertrag. Sie sind die
+   Bridge; sie überleben jeden Backendwechsel und werden zuerst geschrieben.
+
+**Das ausgearbeitete Bridge-Muster steht in `docs/ORCHESTRATION.md`** und gilt für jede
+weitere Brücke: eine echte Engine statt einer zweiten, ausschließlich real existierende
+API-Methoden statt erfundener, eine ausdrückliche Aussage darüber, was der Vertrag NICHT
+tragen kann, Konventionen aus dem Nachbar-Repo gespiegelt statt neu erfunden, und ein
+End-to-End-Beweis (Exit-Code + Snapshot) statt einer Zusicherung. Die Übersetzung
+passiert an dieser Grenze — nicht vorher im Kern.
+
+Architekturschicht dazu: `docs/rendergraph-lastverteilung.md` §3 (Ausführungs-Backends)
+und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
+
 ## Unverhandelbare Invarianten
 
 1. **Single-File, kein Build-Step — für `index.html`.** `index.html` bleibt die komplette
@@ -78,6 +116,16 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    `setWorldState(name|null)`, `getWorldStates()`, `getWorldState()`.
    `normalImage`/`worldStates` werden aus dem Manifest geparst; Normal-Maps werden
    derzeit nicht gerendert (Canvas-2D hat keinen Licht-Pass) – Feld ist reserviert.
+   **v1.6.0+ (Materialschicht):** `window.SHADED.intrinsic` trennt Licht und Material
+   (`state, setStrength, getStrength, set, accept, reset, clear, sample`). Das
+   Quellbild enthält eingebackenes Licht; ohne Trennung multipliziert jedes
+   Weltgesetz darauf. `setStrength(0)` ist der Fallback **identity-albedo** und
+   rendert exakt wie zuvor – das ist auch der Default und der Zustand nach
+   Providerausfall. `set()` nimmt das Shading-Feld eines externen Backends
+   (RGB→X, IntrinsicReal, De-Lighter …) entgegen; das eingebaute Backend ist die
+   klassische deterministische Baseline. Provider erzeugen **Parameter, nie
+   Klassen** – `classGrid`/`getMaterialTypeAt` bleiben unberührt (Invariante 2).
+   Architektur: `docs/neuronale-materialien-svbrdf-pbr.md`.
 6. **High-Level-Parameter statt Effekt-Schalter.** Neue Stimmungen entstehen aus den
    13 Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`, alle 0..1).
    Neue Systeme (z. B. Schnee) bekommen eigene Parameter im selben Stil und werden in
@@ -99,8 +147,25 @@ bestimmt. Actors sind Rendering-Dekoration, keine Physik-Änderung.
    ohne Upload 1×1 schwarz = flach; `u_parallax` ist ohne Mausbewegung (0,0) –
    verify-Frames bleiben deterministisch), 7 Gebäudezonen (K1: R-Kanal 1 =
    Fachwerk-Gebäude; maskiert puddle/riv/creep/mud; bodenverankerte Pfad-/
-   Fels-Komponenten sind für Zonen tabu). Trail-Decay wirkt IMMER direkt
-   auf den Pixeldaten – nie über Canvas-Composite-Tricks.
+   Fels-Komponenten sind für Zonen tabu), 8 Materialschicht (R = Shading /
+   eingebackene Beleuchtung des Quellbilds, 0.5 = neutral; G = Konfidenz der
+   Zerlegung; B/A reserviert für kommende Kanäle wie Rauheit und AO).
+   Trail-Decay wirkt IMMER direkt auf den Pixeldaten – nie über
+   Canvas-Composite-Tricks.
+   **Es gibt genau EINE Shader-Quelle.** Das ist die Invariante – nicht die Sprache,
+   in der sie ausgedrückt ist. Zwei parallele Shader-Quellen wären zwei Wahrheiten;
+   ein neues Ausführungs-Backend ersetzt die bestehende Quelle vollständig, es tritt
+   nie neben sie.
+   **Aktuelles Ausführungs-Backend:** WebGL 2 mit GLSL ES 3.00 (`#version 300 es`,
+   `in`/`out`, `texture()`, `fragColor`); fehlt WebGL 2, bricht `index.html` mit
+   klarer Meldung ab. Es ist die unterste Schicht laut
+   `docs/rendergraph-lastverteilung.md` §3 („Ausführungs-Backends: WebGL 1 · WebGL 2 ·
+   später WebGPU") und ausdrücklich austauschbar – eine spätere Autorensprache
+   (TSL, eigene Node-IR, MaterialX) darf sie ablösen.
+   WebGL 2 garantiert ≥ 16 Fragment-Sampler (real 32 im Verify-Chromium), von denen
+   9 belegt sind. Neue Kanäle bekommen eine eigene Unit statt Huckepack-Packung;
+   `tools/verify.js` prüft Kontext und Belegung.
+   Begründung: `docs/neuronale-materialien-svbrdf-pbr.md` §10.
 
 ## SHADED Editor (`editor/`)
 
@@ -190,6 +255,12 @@ ohne Map (Heuristik) UND mit gemalter Map (`1782824829119.png`).
 verify.js vergleicht außerdem die Klassenzählung aller fünf Szenen gegen
 `tools/expected-classes.json` (±10 %) – bei GEWOLLTEN Verschiebungen die Baseline
 bewusst aktualisieren (nach visueller Prüfung!), nie blind.
+
+**Material-Tests:** Bei Änderungen an der Materialschicht (`u_intrinsic`, Shading-Kanal,
+`window.SHADED.intrinsic`, Weltgesetze die auf Albedo rechnen) `node tools/verify-intrinsic.js`
+laufen lassen. Der Test beweist Fallback (identity-albedo), Wirkung, unveränderte
+Klassenzählung, externen Provider, Nutzerbestätigung und Providerausfall; Exit ≠ 0 bei
+FAIL oder Konsolenfehlern. Für stabile Frame-Vergleiche `setTime(t, true)` (freeze) nutzen.
 
 **Actor-Tests:** Bei Änderungen an `addActor()` oder `drawActors()` zuerst
 `node tools/verify-actors.js` laufen lassen (deckt API, Depth-Kopplung und die

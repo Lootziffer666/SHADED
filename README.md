@@ -122,7 +122,7 @@ Depth-Map (optional, Phase B2): 8-bit Grayscale PNG (gleiche Größe wie RGB-She
 
 ## Architektur (Kurzfassung)
 
-Single-File-App (`index.html`), WebGL 1, kein Build-Step.
+Single-File-App (`index.html`), WebGL 2 / GLSL ES 3.00, kein Build-Step.
 
 1. **Analyse (CPU, einmalig bei „Erstellen”):** Segmentierung in 8 Klassen → weiche Masken-Texturen; Chamfer-Distanz im Pfad → Pfützen-Tiefe („Wasser sammelt sich in Senken”); Blur-Gradient → Flussfeld; Fenster → Emissiv-Glow (energie-normalisiert). CPU-Wahrheit `classGrid` bleibt für Gameplay-Abfragen (`SHADED.getMaterialTypeAt`) erhalten – **identisch** zu dem, was die GPU sieht.
 2. **Shader (GLSL, 1 Fragment-Pass):** gesteuert von 13 High-Level-Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`). Zusätzlich 19 simulierte Weltgesetze-Uniforms (Phase C). Effekte: Nässe-Abdunklung + Sättigung, Pfützen-Spiegelung (Szene + Himmel + Fenster-Warmlicht), Rinnsal-Netz entlang des Flussfelds, Regenschlieren + Aufprallringe + Tropfkanten, fbm-Nebel, Blitz-Doppelschläge, Wolkenschatten, Fensterflackern, Moos/Überwucherung, Glitzern am Tag danach, permanentes „Atmen” (Wind-Sway, Mikro-Exposure), plus 20 Weltgesetze-Effekte (Trocknung, Hitzeverzug, Rost, Rauchschichtung, Temperaturgradienten, etc.).

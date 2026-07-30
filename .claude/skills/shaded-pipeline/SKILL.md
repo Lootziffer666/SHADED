@@ -1,12 +1,14 @@
 ---
 name: shaded-pipeline
-description: Architekturwissen für Änderungen an SHADEDs Analyse-Pipeline und Shader (index.html) – Texturbelegung, Uniforms, Klassen/Palette, wo neue Effekte andocken. Nutzen, bevor irgendetwas an analyze() oder am Fragment-Shader geändert wird.
+description: Architekturwissen für Änderungen an SHADEDs Analyse-Pipeline, Rendergraph und Shadern – Materialwahrheit, Pass-Verträge, Lastverteilung, Texturbelegung, Uniforms, Klassen/Palette und Andockpunkte. Nutzen, bevor irgendetwas an analyze(), Render-Pässen oder Shadern geändert wird.
 ---
 
 # SHADED-Pipeline: Wo was lebt
 
-Alles ist in `index.html`. Reihenfolge im File: CSS → Sidebar-DOM → JS
+Die aktuelle Runtime liegt in `index.html`. Reihenfolge im File: CSS → Sidebar-DOM → JS
 (Palette/Params → Shader-Quelltext → GL-Setup → Analyse → Storyboard → Blitze → UI → Render-Loop → `window.SHADED`).
+
+**Wichtig:** Der heutige große Fragmentshader ist eine funktionierende Ausgangsimplementierung, aber keine dauerhafte Systemgrenze. Die verbindliche Zielarchitektur steht in [`docs/rendergraph-lastverteilung.md`](../../../docs/rendergraph-lastverteilung.md).
 
 ## Datenfluss
 
@@ -31,6 +33,76 @@ Tiefenkarte 2.5D (optional; Weiß=nah; 1×1 schwarz = flach)   → Unit 6
   Lookups (eine Material-Wahrheit!). Overlay folgt der Bodenebene (OV_DEPTH),
   nur wenn hasDepth. API: SHADED.parallax{set,get,hasDepth,setDepthImage,clearDepth}.
 ```
+
+Diese Units beschreiben **nur den aktuellen Legacy-Pass**. Sie sind kein globales SHADED-Limit. Texture Units gelten pro Pass; Zwischenresultate dürfen über Framebuffer-Texturen an weitere Pässe übergeben werden.
+
+## Unverhandelbare Rendergraph-Invariante
+
+1. **Kein neuer Effekt wird automatisch in den bestehenden Fragmentshader geschrieben.** Zuerst wird entschieden, ob er ein eigener Pass, ein geteiltes Feld, ein CPU-Prozess, ein Ereignis oder tatsächlich eine kleine Erweiterung eines bestehenden Passes ist.
+2. **Weltzustand ist nicht GPU-Bindung.** Persistente Spuren, Rost, Geruch oder Brandnarben dürfen logisch bestehen, ohne permanent als Textur gebunden zu sein.
+3. **Nie alle Weltgesetze gleichzeitig rendern.** Ein World-Law Scheduler bestimmt aktive Gesetze aus Ursache, Sichtbarkeit, mechanischer Relevanz, Abhängigkeiten und Budget.
+4. **Texture Slots werden nach Lebensdauer wiederverwendet.** Keine dauerhafte Slot-Zuteilung pro Weltgesetz.
+5. **Mehrere Pässe sind ausdrücklich vorgesehen.** Ping-Pong-Buffer, reduzierte Auflösungen, Dirty Regions und unterschiedliche Update-Frequenzen sind Kernarchitektur, keine späteren Optimierungen.
+6. **ReShade ist keine Kernabhängigkeit.** Es kann später als Fremdspiel-/Exportadapter dienen, ersetzt aber nicht SHADEDs internen Rendergraph.
+7. **Keine zweite Materialwahrheit.** Alle Pässe lesen dieselben aus `analyze()` abgeleiteten Masken oder daraus deterministisch erzeugte Felder.
+
+## Lastverteilung – Pflichtangaben pro Weltgesetz
+
+Jedes neue oder wesentlich erweiterte Weltgesetz dokumentiert vor der Implementierung:
+
+```text
+Ursache / Aktivierungsbedingung:
+Mechanische Leser:
+Sichtbarkeitsbedingung:
+Eingaben:
+Ausgaben:
+Pass-Phase: simulation | material | lighting | atmosphere | composite | post
+Update: frame | fixedHz | event | onDirty
+Frequenz:
+Auflösung: 1.0 | 0.5 | 0.25 | tiles
+Lokalität: fullscreen | bounds | dirty-tiles | offscreen-logical
+Persistenz: transient | cached | world-state
+Abhängigkeiten:
+Fallback:
+Messgröße / Budget:
+Test-Fixture:
+```
+
+Fehlen diese Angaben, ist das Weltgesetz architektonisch noch nicht implementierungsbereit.
+
+### Empfohlene Frequenzklassen
+
+- **pro Frame:** finales Composite, Kamera-Parallaxe, schnelle sichtbare Reaktionen.
+- **20–30 Hz:** Wasserwellen, aktive Rauchbewegung, Windfelder.
+- **10–15 Hz:** Geruch, Nebeldichte, Wärmeausbreitung.
+- **1–5 Hz:** Trocknung, Rost, Moos, Materialermüdung, Jahreszeiten.
+- **ereignisgesteuert:** Fußabdruck, Berührung, Einschlag, Zündung, Reinigung, Reparatur.
+- **beim Laden/Dirty:** Segmentierung, Gebäudezonen, statische Distanzfelder.
+
+Langsamere Prozesse werden zwischen Updates visuell interpoliert. `tickWorld` und `setTime` bleiben deterministisch.
+
+### Degradation unter Last
+
+Reihenfolge der erlaubten Reduktion:
+
+1. Auflösung eines Feldes oder Passes senken,
+2. Aktualisierungsfrequenz reduzieren,
+3. teure Passvariante gegen Fallback tauschen,
+4. nur indirekte Spuren darstellen,
+5. Darstellung vorübergehend aussetzen und Zustand persistieren.
+
+**Verboten:** Weltzustand löschen oder Kausalität brechen, nur um Renderbudget einzuhalten.
+
+## Migrationsregel
+
+Der aktuelle Shader wird zunächst als `LegacyCompositePass` behandelt. Neue Infrastruktur muss ihn unverändert ausführen können. Danach werden klar abgegrenzte Teile schrittweise extrahiert – kein Big-Bang-Rewrite.
+
+Bevorzugte erste Extraktionskandidaten:
+
+- finales Grading/Bloom/Glitzern,
+- Nebel,
+- Hitzeverzug,
+- danach ein echtes Ping-Pong-Feld wie Wasser, Rauch oder Reaction Diffusion.
 
 Runde-4-Laufzeitwelt (CPU + Overlay-Canvas `#ov`, deckungsgleich über `#gl`):
 Spieler (WASD/Dash, materialabhängig via `getMaterialTypeAt`, Eis-Trägheit,
@@ -81,7 +153,9 @@ Klassen-Indizes: G=0 grass, F=1 foliage, R=2 roof, P=3 path, W=4 wood, N=5 windo
 u_puddle, u_fog, u_wind, u_glow, u_decay` + `u_flash` (Blitz-Envelope, CPU-seitig
 in `tickLightning()`). Alle 0..1. CUR (geblendet) wird gerendert, PARAMS ist der Slider-Zustand.
 
-## Effekt-Reihenfolge im Shader (nicht umsortieren ohne Grund)
+## Effekt-Reihenfolge im LegacyCompositePass
+
+Diese Reihenfolge gilt für den **heutigen Legacy-Pass**. Sie ist zu bewahren, solange ein Effekt noch nicht kontrolliert in einen eigenen Rendergraph-Pass extrahiert wurde.
 
 1. Wind-Sway (Domain-Warp, nur Vegetation) → Basisfarbe
 2. Nässe-Abdunklung (`porous`-Gewichte) + Sättigungs-Boost
@@ -94,16 +168,14 @@ in `tickLightning()`). Alle 0..1. CUR (geblendet) wird gerendert, PARAMS ist der
 9. Nebel (2×fbm, Rand-gewichtet) → Regenschlieren (3 Parallax-Schichten) → Blitz
 10. Glitzern (Tag danach) → Atmen (Mikro-Exposure) → Nacht-Vignette
 
-## Neuen Effekt andocken
+## Neuen Effekt oder ein neues Weltgesetz andocken
 
-1. Parameter in `PARAMS` + `PARAM_META` ergänzen (Slider & Uniform entstehen automatisch;
-   Uniform-Name = `u_<key>`).
-2. In relevante `ACTS` und Default-Storyboard-Schritte eintragen.
-3. Effekt an der stimmigen Stelle der Shader-Reihenfolge einbauen; Materialbezug immer
-   über die Masken, nie über Farbvergleiche im Shader.
-4. Bewegungsphasen: Intensitäten (wind/rain/…) NIE in den Phasenterm `t*f(intensität)`
-   multiplizieren – beim Abklingen liefe die Phase rückwärts („Regen-Rewind“).
-   Stattdessen Phase auf der CPU aufsummieren (`u_rainPhase`, `u_windDrift` in
-   `tickWorld`; `setTime` setzt sie deterministisch). Intensität steuert nur
-   Amplitude/Dichte/Deckkraft.
-5. `node tools/verify.js` + Screenshots ansehen (siehe Skill shaded-visual-verify).
+1. **Zuerst Pass-/Lastvertrag ausfüllen.** Nicht mit Shadercode beginnen.
+2. Entscheiden: bestehender Pass, eigener Pass, geteiltes Feld, CPU-Logik, Ereignis oder Overlay.
+3. Parameter in `PARAMS` + `PARAM_META` ergänzen, wenn es ein echter High-Level-Weltparameter ist. Keine Effekt-Schalter-Sammlung aufbauen.
+4. In relevante `ACTS` und Default-Storyboard-Schritte eintragen.
+5. Materialbezug immer über kanonische Masken, nie über neue Farbvergleiche im Pass.
+6. Bewegungsphasen: Intensitäten (wind/rain/…) NIE in den Phasenterm `t*f(intensität)` multiplizieren – beim Abklingen liefe die Phase rückwärts („Regen-Rewind“). Stattdessen Phase auf der CPU aufsummieren (`u_rainPhase`, `u_windDrift` in `tickWorld`; `setTime` setzt sie deterministisch). Intensität steuert nur Amplitude/Dichte/Deckkraft.
+7. Falls eigener Pass: Inputs, Outputs, Format, Auflösung, Frequenz, Lebensdauer, Fallback und Timing-Test definieren.
+8. `node tools/verify.js` + Screenshots ansehen (siehe Skill shaded-visual-verify).
+9. Bei Rendergraph-Arbeit zusätzlich prüfen: keine unnötigen Pässe bei inaktiven Gesetzen, keine Ressourcenleaks, deterministische Budget-Degradation und visuelle Parität.
