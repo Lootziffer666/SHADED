@@ -57,6 +57,13 @@ summary{cursor:pointer;font-size:10px;color:#7dd3fc;text-transform:uppercase;let
 #exit-cinema{position:absolute;top:16px;right:16px;display:none;z-index:10;border-radius:50%;width:38px;height:38px;font-size:15px}
 body.cinema #exit-cinema{display:block}
 #rec{position:absolute;top:16px;left:16px;display:none;background:rgba(239,68,68,.92);color:#fff;padding:5px 12px;border-radius:5px;font-size:10px;font-weight:700;animation:blink 1s infinite;z-index:10}
+#showcase-card{position:absolute;left:24px;bottom:24px;max-width:min(420px,calc(100% - 48px));padding:14px 16px;border:1px solid rgba(125,211,252,.35);
+  border-radius:12px;background:linear-gradient(135deg,rgba(7,10,20,.82),rgba(17,24,39,.62));box-shadow:0 18px 50px rgba(0,0,0,.55);
+  backdrop-filter:blur(4px);opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease;pointer-events:none;z-index:9}
+#showcase-card.show{opacity:1;transform:translateY(0)}
+#showcase-kicker{font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:2px;margin-bottom:5px}
+#showcase-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:4px}
+#showcase-copy{font-size:12px;line-height:1.45;color:#cbd5e1}
 @keyframes blink{50%{opacity:.35}}
 @media(max-width:720px){body{flex-direction:column}#sidebar{width:100%;height:52vh;order:2}#stage{height:48vh;order:1}}
 </style>
@@ -114,6 +121,7 @@ body.cinema #exit-cinema{display:block}
     <button data-act="fruehling">🌸 Frühlingsmorgen</button>
     <button data-act="herbst">🍁 Goldener Herbst</button>
     <button data-act="schnee">❄️ Erster Schnee</button>
+    <button id="btn-showcase">🎪 Showcase (90s)</button>
     <button id="btn-year">📅 Ein Jahr (Loop)</button>
     <button id="btn-timelapse">⏳ Zeitraffer-Verfall</button>
     <button id="btn-drama">⚡ Drama-Spektakel (20s)</button>
@@ -125,6 +133,41 @@ body.cinema #exit-cinema{display:block}
     <button id="btn-fire">🔥 Feuer-Tool</button>
     <button id="btn-clear-world">🧹 Spuren löschen</button>
   </div>
+
+  <h2>Elemente · Weltgesetze</h2>
+  <div class="btnrow">
+    <button data-element="fluid">💧 Flüssigkeit</button>
+    <button data-element="steam">♨️ Dampf</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="pressure">🫧 Druck</button>
+    <button data-element="heat">🔥 Hitze</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="mud">🟤 Matsch</button>
+    <button data-element="ice">🧊 Eis</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="snow">❄️ Schnee</button>
+    <button data-element="fire">🔥 Feuer</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="smoke">🌫️ Rauch</button>
+    <button data-element="ember">🪵 Glut</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="lava">🌋 Lava</button>
+    <button data-element="rain">🌧️ Regen</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="hail">🧊 Hagel</button>
+    <button data-element="leaves">🍂 Blätter</button>
+  </div>
+  <div class="btnrow">
+    <button data-element="lightning">⚡ Blitze</button>
+    <button id="btn-elements-clear">🧼 Reset</button>
+  </div>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Presets sind keine importierten Tool-Kopien: sie treiben SHADEDs eigene Parameter, Trail-Textur, Partikel und World-Law-Uniforms an.</div>
 
   <h2>Storyboard</h2>
   <div class="btnrow">
@@ -140,7 +183,10 @@ body.cinema #exit-cinema{display:block}
     <button id="btn-png">📸 PNG</button>
     <button id="btn-rec">🔴 WebM</button>
   </div>
-  <div class="btnrow"><button id="btn-json">💾 Parameter (JSON)</button></div>
+  <div class="btnrow">
+    <button id="btn-json">💾 Parameter (JSON)</button>
+    <button id="btn-pointcloud">🌌 PointCloud</button>
+  </div>
 
   <details>
     <summary>Experten-Regler</summary>
@@ -151,6 +197,11 @@ body.cinema #exit-cinema{display:block}
 <div id="stage">
   <div id="rec">🔴 REC</div>
   <button id="exit-cinema" title="Kino-Modus verlassen">⚙️</button>
+  <div id="showcase-card" aria-live="polite">
+    <div id="showcase-kicker">SHADED Showcase</div>
+    <div id="showcase-title">Ein Bild wird Welt.</div>
+    <div id="showcase-copy">Weltgesetze, Tiefe, Wetter, Spuren und Figuren greifen ineinander.</div>
+  </div>
   <div id="canvas-wrap">
     <canvas id="gl" width="16" height="9"></canvas>
     <canvas id="ov" width="16" height="9"></canvas>
@@ -279,6 +330,9 @@ uniform float u_mudStain;     // Übertragene Schlamm-Schicht auf Schuhen (#2: S
 // Runde 8: Wally-Monokel (Inspektions-Linsen)
 uniform float u_lens;         // 0=aus, 1=Schmutz/Abnutzung, 2=Belastung, 3=Klang, 4=Materialtreue, 5=Kanten (#7)
 uniform sampler2D u_sound;    // Klang als sichtbare Wellen (#7): r=Wellenfeld, CPU-Stempel+Decay wie Trail
+// Elemente-Spielplatz: transiente Intensitäten aus UI/API. Diese Werte steuern
+// Materialreaktionen im Fragment-Pass, nicht nur Canvas-Partikel.
+uniform float u_elementWetBurst,u_elementHeatBurst,u_elementPressureBurst,u_elementAshBurst,u_elementHailBurst,u_elementLavaBurst;
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -366,6 +420,27 @@ void main(){
 
   float tempC = u_temperature*50.0 - 20.0;          // 0..1 -> −20..+30 °C
   float icy = 1.0 - smoothstep(-1.5, 1.0, tempC);   // gefroren um 0 °C
+
+  // --- Shader-Expertise-Pass: Bump/Normal, AO, Multi-Step-Shading ----------
+  // Keine zweite Asset-Wahrheit: Normal/Bump werden aus Szene + Tiefenkarte
+  // abgeleitet. Gibt es eine echte Depth-Map, trägt sie Relief; sonst nimmt die
+  // Luminanz das Mikrorelief. Das bleibt Ein-Bild-kompatibel.
+  float hC = mix(lum(base), depthVal, step(0.001,depthVal));
+  float hX = mix(lum(texture(u_scene,clamp(suv+vec2(u_px.x,0.0),0.001,0.999)).rgb),
+                 texture(u_depth,clamp(uv+vec2(u_px.x,0.0),0.001,0.999)).r, step(0.001,depthVal));
+  float hY = mix(lum(texture(u_scene,clamp(suv+vec2(0.0,u_px.y),0.001,0.999)).rgb),
+                 texture(u_depth,clamp(uv+vec2(0.0,u_px.y),0.001,0.999)).r, step(0.001,depthVal));
+  float bumpStrength = 0.65 + u_wet*0.35 + u_snow*0.22;
+  vec3 nrm = normalize(vec3((hC-hX)*bumpStrength*u_aspect, (hC-hY)*bumpStrength, 0.035));
+  vec3 lightDir = normalize(vec3(-0.42 + 0.28*u_dayNight, -0.58, 0.70));
+  float ndl = clamp(dot(nrm,lightDir)*0.5+0.5,0.0,1.0);
+  float stepShade = floor(ndl*3.0)/3.0; // bewusst mehrstufig: lesbar statt grauer Brei
+  float aoDepth = max(0.0, (texture(u_depth,clamp(uv+vec2(u_px.x*3.0,u_px.y*2.0),0.001,0.999)).r - depthVal));
+  float aoMask = clamp(mRoof+mWood+mRock+mPath+zone,0.0,1.0);
+  float ambientOcc = clamp(1.0 - (0.08 + aoDepth*1.8 + (1.0-ndl)*0.10)*aoMask, 0.62, 1.0);
+  col *= mix(1.0, ambientOcc*(0.86+0.22*stepShade), 0.42);
+  float rim = pow(1.0-clamp(dot(nrm,vec3(0.0,0.0,1.0)),0.0,1.0),2.0);
+  col += rim*vec3(0.08,0.11,0.16)*(0.20+0.45*u_wet+0.30*u_fog);
 
   // --- Herbst: Kronen & Gras färben sich pro Zelle golden bis rostrot ---
   if(u_autumn>0.003){
@@ -469,6 +544,25 @@ void main(){
     vec3 mudCol = mix(u_grassAvg*0.55, vec3(0.32,0.23,0.14), 0.7)*(0.45+0.85*lum(base));
     col = mix(col, mudCol, mud*0.85);
   }
+
+  // --- Elemente: kleckernde Materialreaktionen im Shader ------------------
+  // Dellen (trail.r), Klang-/Druckfeld (u_sound) und Brandwärme (trail.a)
+  // werden hier direkt in das Material gemischt. Dadurch sind die Element-
+  // Buttons keine Overlay-Spielerei: sie verändern Glanz, Albedo, Wasserfilm,
+  // Hitzeemission und Mikrospritzer im selben Fragment-Pass wie die Welt.
+  float soundWave = texture(u_sound,uv).r;
+  float splatCells = hash(floor(uv*vec2(180.0*u_aspect,180.0)) + vec2(floor(t*5.0)));
+  float microSplat = smoothstep(0.965,1.0,splatCells) * ground * noZone;
+  float wetImpulse = clamp(u_elementWetBurst + u_rain*0.35 + trail.r*0.75,0.0,1.0);
+  col = mix(col, col*0.72 + vec3(0.34,0.42,0.52), microSplat*wetImpulse*(0.30+0.70*u_wet));
+  float pressureRing = smoothstep(0.05,0.55,soundWave) * (0.35+0.65*ground) * u_elementPressureBurst;
+  col += pressureRing * vec3(0.18,0.42,0.72) * (0.20 + 0.55*u_wet);
+  // Hagel ist hart: helle Kontaktpunkte + kleine "gequetschte" dunkle Krater
+  // auf nassen/kalten Bodenflächen, gesteuert durch u_elementHailBurst.
+  float hailCell = hash(floor(uv*vec2(95.0*u_aspect,95.0)) + vec2(floor(t*14.0)));
+  float hailHit = smoothstep(0.985,1.0,hailCell) * ground * u_elementHailBurst;
+  col += hailHit * vec3(0.75,0.86,1.0) * (0.40 + 0.35*u_wet);
+  col = mix(col, col*0.62, hailHit*0.22);
 
   // === Weltgesetz #2 (vertieft): oberflächenspezifische, lesbare Spuren ===
   // R = frische Störung/Delle (transient), B = permanenter Trampelpfad.
@@ -771,6 +865,24 @@ void main(){
   vec3 sunColor = mix(vec3(1.0,0.8,0.2), vec3(0.85,0.85,1.0), night);  // gelb -> silber
   sky = mix(sky, sunColor, sunGlow*0.8*(1.0-u_fog*0.4));  // Sonne schwächer in Nebel
 
+  // --- Godrays + volumetrische Wolken/Licht -------------------------------
+  // Single-pass Raymarch-Fake: radial samples laufen zur Sonne/Mondposition,
+  // Wolkenvolumen moduliert die Lichtschächte. Das ist keine UI-Attrappe,
+  // sondern pro Fragment integriertes Streulicht.
+  float ray = 0.0;
+  vec2 rayDir = sunPos - uv;
+  for(int ri=1;ri<=7;ri++){
+    float k=float(ri)/7.0;
+    vec2 ruv = clamp(uv + rayDir*k*0.72,0.001,0.999);
+    float cvol = fbm(ruv*vec2(3.6*u_aspect,3.6) + vec2(t*0.035+u_windDrift*0.02,-t*0.010));
+    float gap = 1.0 - smoothstep(0.50,0.82,cvol);
+    ray += gap * (1.0-k) * smoothstep(0.08,0.95,length(rayDir));
+  }
+  ray = ray/7.0 * (0.30+0.70*u_fog) * (0.25+0.75*(1.0-u_storm)) * (0.25+0.75*(1.0-night));
+  col += sunColor * ray * 0.32;
+  float volCloud = smoothstep(0.48,0.76, fbm(uv*vec2(4.4*u_aspect,4.4)+vec2(t*0.025+u_windDrift*0.018,t*0.008)));
+  col = mix(col, mix(col*0.72, sky+0.10, 0.35), volCloud*u_fog*(0.18+0.34*u_storm));
+
   // --- Rinnsale / Wasserflussnetz auf Pfaden (bei Regen) ---
   float rainy = u_rain * clamp(u_wet*1.6,0.0,1.0);
   vec4 erefG = texture(u_emis, uv - vec2(0.0,0.05));
@@ -872,6 +984,20 @@ void main(){
     col += vec3(1.0,0.85,0.45) * smoothstep(fdef.w*0.35,0.0,dd) * fdef.z * ffl * 0.5;
   }
 
+  // --- Glut/Lava: Blackbody-Schicht aus Brandspur + Lava-Burst ------------
+  // trail.a ist die persistente Wärme/Brandspur. Lava hebt diese Schicht auf
+  // "flüssig heiß": gelber Kern, orange Mantel, dunkle Kruste am Rand.
+  float heatField = smoothstep(0.10,0.92,trail.a) * (0.35+0.65*u_elementHeatBurst);
+  float lavaNoise = fbm(uv*vec2(65.0*u_aspect,65.0) + vec2(t*0.7,-t*0.35));
+  float lavaCore = smoothstep(0.62,0.92,lavaNoise) * heatField * u_elementLavaBurst;
+  float crust = smoothstep(0.30,0.72,lavaNoise) * heatField * (0.35+0.65*u_elementLavaBurst);
+  col = mix(col, vec3(0.05,0.035,0.025), crust*0.35*(1.0-mWater));
+  col += vec3(1.0,0.22,0.035) * heatField * (0.18+0.55*night);
+  col += vec3(1.0,0.78,0.22) * lavaCore * (0.65+0.65*night);
+  // Hitzeflimmern als lokaler Kontrast/Chromatik-Fake ohne zweiten Texture-Pass.
+  float heatShimmer = sin((uv.x+uv.y*0.7)*210.0 + t*18.0) * heatField * u_elementHeatBurst;
+  col.r += heatShimmer*0.035; col.b -= heatShimmer*0.025;
+
   // --- Nebelschleier (fbm-Schichten, dünn und transparent bei niedrigen Werten) ---
   if(u_fog>0.005){
     float f1 = fbm(uv*vec2(3.2*u_aspect,3.2) + vec2((t*0.5+u_windDrift)*0.060, -t*0.010));
@@ -933,6 +1059,37 @@ void main(){
   col *= 1.0 + 0.012*sin(t*0.45);
   col *= 1.0 - (0.30*night + 0.10*u_storm) * pow(length(uv-0.5)*1.42, 1.8);
 
+  // --- Post-ish Shader Stack: Bloom, Distortion, Chromatic Aberration, Point Clouds ---
+  float bright = smoothstep(0.62,1.05,lum(col)) + texture(u_emis,uv).a*u_glow*(0.35+night);
+  vec3 bloomCol = vec3(0.0);
+  for(int bi=0;bi<6;bi++){
+    float a=float(bi)*6.2831/6.0;
+    vec2 o=vec2(cos(a),sin(a))*u_px*(6.0+18.0*u_bloom+10.0*night);
+    bloomCol += grade(texture(u_scene,clamp(uv+o,0.001,0.999)).rgb);
+  }
+  bloomCol/=6.0;
+  col += bloomCol * bright * (0.10 + 0.45*u_bloom + 0.22*u_glow*night);
+  float distortAmt = (u_storm*0.25 + u_elementHeatBurst*0.45 + u_elementLavaBurst*0.55 + trail.a*0.35);
+  vec2 warp = (vec2(vnoise(uv*vec2(42.0*u_aspect,42.0)+t*1.7),
+                    vnoise(uv*vec2(39.0*u_aspect,39.0)-t*1.3))-0.5) * u_px * 18.0 * distortAmt;
+  vec3 warped = texture(u_scene,clamp(uv+warp,0.001,0.999)).rgb;
+  col = mix(col, grade(warped), distortAmt*0.08);
+  float edgeCA = pow(length(uv-0.5)*1.55,2.0) * (0.20+0.55*u_storm+0.40*u_elementHeatBurst);
+  vec2 ca = normalize(uv-0.5+vec2(0.0001)) * u_px * edgeCA * 10.0;
+  vec3 caCol = vec3(texture(u_scene,clamp(uv+ca,0.001,0.999)).r,
+                    col.g,
+                    texture(u_scene,clamp(uv-ca,0.001,0.999)).b);
+  col = mix(col, grade(caCol), clamp(edgeCA,0.0,0.28));
+  // Point-Cloud-Fake: depth-aware floating dust/embers/snow motes, clipped by fog/light.
+  vec2 pcGrid = uv*vec2(90.0*u_aspect,90.0);
+  vec2 pcId=floor(pcGrid), pcF=fract(pcGrid)-0.5;
+  float pcRnd=hash(pcId);
+  float pcDepth = texture(u_depth,clamp(uv,0.001,0.999)).r;
+  vec2 pcOff=(vec2(hash(pcId+1.7),hash(pcId+2.9))-0.5)*0.55 + vec2(sin(t+pcRnd*6.0),cos(t*0.7+pcRnd))*0.10;
+  float pcDot=smoothstep(0.070,0.015,length(pcF-pcOff)) * step(0.965 - u_fog*0.08 - u_elementAshBurst*0.12, pcRnd);
+  vec3 pcCol=mix(vec3(0.65,0.75,0.95),vec3(1.0,0.42,0.12),u_elementAshBurst+trail.a);
+  col += pcCol * pcDot * (0.16+0.45*u_fog+0.55*u_elementAshBurst) * (0.45+0.55*pcDepth);
+
   // === Runde 8: Wally-Monokel — isolierte Inspektions-Linsen, ersetzt col am Ende ===
   // (nach der vollen Komposition, damit jede Linse dieselbe Welt sieht wie das normale Bild).
   if(u_lens>0.5){
@@ -983,6 +1140,7 @@ const U={};
  'u_grassAvg','u_mossBoost','u_trail','u_fireCount','u_fires[0]','u_depth','u_parallax','u_zone','u_material','u_intrinsic',
  'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold',  'u_runeGlow','u_bloodStain','u_mudStain',
  'u_lens','u_sound',
+ 'u_elementWetBurst','u_elementHeatBurst','u_elementPressureBurst','u_elementAshBurst','u_elementHailBurst','u_elementLavaBurst',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -2166,6 +2324,26 @@ function dramaStoryboard(){
   storyboard.forEach(s => {s.p = {...DEFAULTS, ...s.p};});
   renderStory();
 }
+function showcaseStoryboard(){
+  // 90-Sekunden-Regie: nicht nur "ein Bild mit Filter", sondern eine
+  // lesbare Kette aus Weltgesetzen. Jeder Schritt beantwortet: Was kann SHADED?
+  storyboard = [
+    {name:'🎬 Aus einem Bild erwacht eine Bühne', dur:7, p:{...ACTS.morgen.p, dayNight:0.86, storm:0.05, rain:0, wet:0.62, puddle:0.45, fog:0.42, wind:0.22, glow:0.75}},
+    {name:'☀️ Materialtreue: Holz, Dach, Gras, Wasser', dur:8, p:{...ACTS.tag.p, wet:0.08, puddle:0.06, bloom:0.18}},
+    {name:'🌬️ Atmosphäre bewegt sich, ohne das Bild zu brechen', dur:8, p:{...ACTS.aufzug.p, rain:0.08, wet:0.25, puddle:0.16, fog:0.22, wind:0.95}},
+    {name:'🌧️ Regen schreibt Physik in Pfade und Grasränder', dur:10, p:{...ACTS.aufzug.p, rain:0.78, wet:0.82, puddle:0.72, fog:0.30, wind:0.80, glow:0.55}},
+    {name:'⛈️ Nacht: Fenster spiegeln warm in Pfützen', dur:10, p:{...ACTS.sturmnacht.p, puddle:0.96, fog:0.36}},
+    {name:'⚡ Blitz zeigt Volumen, Kanten und nasse Dächer', dur:5, p:{...ACTS.blitz.p, flash:1, puddle:0.98}},
+    {name:'🔥 Ereignisse hinterlassen Brand, Rauch und Wärme', dur:8, p:{...ACTS.blitz.p, rain:0.35, wet:0.55, fog:0.28, glow:1, decay:0.32, temperature:0.92}},
+    {name:'🐾 Figuren betreten dieselbe Welt und machen Spuren', dur:8, p:{...ACTS.morgen.p, rain:0.10, wet:0.62, puddle:0.50, fog:0.24, wind:0.45, glow:0.55}},
+    {name:'🍂 Zeit vergeht: Herbst, Müdigkeit, Patina', dur:8, p:{...ACTS.herbst.p, wet:0.38, puddle:0.24, decay:0.48}},
+    {name:'❄️ Klima kippt: Schnee deckt Material, Atem wird sichtbar', dur:8, p:{...ACTS.schnee_dicke.p, fog:0.32, glow:0.62}},
+    {name:'🌸 Welt heilt: Frühling wächst über alte Spuren', dur:8, p:{...ACTS.fruehling.p, wet:0.26, puddle:0.12, bloom:1, decay:0.20}},
+    {name:'✨ Der Beweis: Das Ausgangsbild lebt weiter', dur:10, p:{...ACTS.danach.p, wet:0.78, puddle:0.60, bloom:0.16, fog:0.04}}
+  ];
+  storyboard.forEach(s => {s.p = {...DEFAULTS, ...s.p};});
+  renderStory();
+}
 function renderStory(){
   const list=document.getElementById('story-list'); list.innerHTML='';
   storyboard.forEach((s,i)=>{
@@ -2400,12 +2578,30 @@ function fireUniforms(){
 }
 
 // --- Partikel-Ökosystem (Overlay; rückwärts splicen!) ---
-let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[],raindrops=[];
+let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[],raindrops=[],hailstones=[],steamPuffs=[],pressureBursts=[],lavaFlows=[];
 function initEco(){
-  leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];
+  leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];hailstones=[];steamPuffs=[];pressureBursts=[];lavaFlows=[];
   for(let i=0;i<90;i++) leaves.push({u:Math.random(),v:Math.random(),
     vu:0,vv:0,z:0,vz:0,ang:Math.random()*6.28,va:0,s:0.5+Math.random()*0.5,
     col:['#c96f10','#b7420e','#a3320b','#8a6d1c'][i&3]});
+}
+function spawnElementParticles(kind,u=0.5,v=0.62,count=1){
+  if(kind==='steam') for(let i=0;i<count;i++) steamPuffs.push({u:u+(Math.random()-0.5)*0.10,v:v+(Math.random()-0.5)*0.05,
+    vu:(Math.random()-0.5)*0.010+CUR.wind*0.014,vv:-0.028-Math.random()*0.018,r:0.006+Math.random()*0.010,life:1});
+  if(kind==='pressure') for(let i=0;i<count;i++) pressureBursts.push({u:u+(Math.random()-0.5)*0.08,v:v+(Math.random()-0.5)*0.05,
+    r:0.008+Math.random()*0.014,life:1,seed:Math.random()*6.28});
+  if(kind==='hail') for(let i=0;i<count;i++) hailstones.push({u:Math.random(),v:-0.1-Math.random()*0.25,
+    vu:CUR.wind*0.22+(Math.random()-0.5)*0.08,vv:0.75+Math.random()*0.45,r:0.003+Math.random()*0.004,
+    bounce:1,life:1,depth:Math.random()});
+  if(kind==='lava') for(let i=0;i<count;i++){
+    const a=(Math.random()*6.283), d=Math.random()*0.055;
+    lavaFlows.push({u:u+Math.cos(a)*d,v:v+Math.sin(a)*d*0.7,vu:Math.cos(a)*0.010+CUR.wind*0.006,
+      vv:0.018+Math.random()*0.018,r:0.010+Math.random()*0.012,heat:1,life:1});
+  }
+  if(kind==='leaves') for(let i=0;i<count;i++) leaves.push({u:Math.random(),v:-0.05-Math.random()*0.4,
+    vu:(Math.random()-0.5)*0.05,vv:0.02+Math.random()*0.05,z:0.2+Math.random()*0.7,vz:0,
+    ang:Math.random()*6.28,va:(Math.random()-0.5)*10,s:0.6+Math.random()*0.8,
+    col:['#e07a12','#c2410c','#92400e','#f59e0b','#7c2d12'][i%5]});
 }
 function ecoTick(dt){
   const windU=CUR.wind*0.010;
@@ -2510,6 +2706,24 @@ function ecoTick(dt){
     const b=breaths[i]; b.life-=dt*1.1;
     if(b.life<=0){breaths.splice(i,1);continue;}
     b.u+=b.vu*dt; b.v+=b.vv*dt; b.r+=dt*0.008;
+  }
+  for(let i=steamPuffs.length-1;i>=0;i--){
+    const s=steamPuffs[i]; s.life-=dt*0.38;
+    if(s.life<=0){steamPuffs.splice(i,1);continue;}
+    s.u+=s.vu*dt; s.v+=s.vv*dt; s.r+=dt*(0.014+heatWarp*0.002); s.vu+=CUR.wind*0.006*dt;
+  }
+  for(let i=pressureBursts.length-1;i>=0;i--){
+    const p=pressureBursts[i]; p.life-=dt*0.85;
+    if(p.life<=0){pressureBursts.splice(i,1);continue;}
+    p.r+=dt*(0.10+CUR.puddle*0.05);
+  }
+  for(let i=lavaFlows.length-1;i>=0;i--){
+    const l=lavaFlows[i]; l.life-=dt*0.10; l.heat*=Math.pow(0.72,dt);
+    if(l.life<=0||l.heat<0.05){lavaFlows.splice(i,1);continue;}
+    l.u+=l.vu*dt; l.v+=l.vv*dt; l.vv+=dt*0.012; l.r+=dt*0.002;
+    trailStamp(l.u,l.v,l.r,3,0.45*dt);
+    if(Math.random()<0.35) sparks.push({u:l.u,v:l.v,vu:(Math.random()-0.5)*0.025+CUR.wind*0.02,vv:-0.04-Math.random()*0.04,life:0.9});
+    if(CUR.wet>0.25||CUR.rain>0.1) spawnElementParticles('steam',l.u,l.v,1);
   }
 }
 
@@ -2672,6 +2886,28 @@ function rainTick(dt){
   }
 }
 
+function hailTick(dt){
+  const targetHail = Math.ceil(Math.max(0, CUR.storm*CUR.rain - 0.35) * 70);
+  while(hailstones.length < targetHail && Math.random()<0.45) spawnElementParticles('hail',0.5,0,1);
+  for(let i=hailstones.length-1;i>=0;i--){
+    const h=hailstones[i];
+    h.life-=dt*0.08;
+    h.vv+=dt*0.38;
+    h.v+=h.vv*dt;
+    h.u+=h.vu*dt;
+    if(hasDepth){ const d=getDepthAt(h.u,h.v); if(d!==null) h.depth=1-d; }
+    if(h.v>0.92 && h.bounce>0){
+      h.v=0.92+Math.random()*0.06;
+      h.vv=-h.vv*(0.20+Math.random()*0.18);
+      h.vu+=(Math.random()-0.5)*0.08;
+      h.bounce--;
+      pressureBursts.push({u:h.u,v:h.v,r:0.006,life:0.45,seed:Math.random()*6.28});
+      trailStamp(h.u,h.v,0.009,0,0.35);
+    }
+    if(h.u<-0.1||h.u>1.1||h.v>1.15||h.life<=0) hailstones.splice(i,1);
+  }
+}
+
 // --- Overlay-Rendering (deckungsgleich über dem GL-Canvas) ---
 function drawOverlay(dt){
   const W=ov.width,H=ov.height;
@@ -2723,6 +2959,32 @@ function drawOverlay(dt){
     ovx.fillStyle='rgba(235,245,255,1)';
     ovx.beginPath(); ovx.arc(b.u*W,b.v*H,b.r*W,0,6.283); ovx.fill();
   });
+  steamPuffs.forEach(s=>{
+    const g=ovx.createRadialGradient(s.u*W,s.v*H,0,s.u*W,s.v*H,s.r*W);
+    g.addColorStop(0,`rgba(245,248,255,${0.34*s.life})`);
+    g.addColorStop(0.55,`rgba(200,215,225,${0.18*s.life})`);
+    g.addColorStop(1,'rgba(200,215,225,0)');
+    ovx.globalAlpha=1;
+    ovx.fillStyle=g;
+    ovx.beginPath(); ovx.arc(s.u*W,s.v*H,s.r*W,0,6.283); ovx.fill();
+  });
+  pressureBursts.forEach(p=>{
+    ovx.globalAlpha=Math.max(0,p.life)*0.55;
+    ovx.strokeStyle='rgba(160,220,255,1)';
+    ovx.lineWidth=Math.max(1,2*S*p.life);
+    ovx.beginPath();
+    ovx.arc(p.u*W,p.v*H,p.r*W*(1+0.06*Math.sin(time*18+p.seed)),0,6.283);
+    ovx.stroke();
+  });
+  lavaFlows.forEach(l=>{
+    const g=ovx.createRadialGradient(l.u*W,l.v*H,0,l.u*W,l.v*H,l.r*W);
+    g.addColorStop(0,`rgba(255,245,170,${0.92*l.heat})`);
+    g.addColorStop(0.35,`rgba(255,90,20,${0.78*l.heat})`);
+    g.addColorStop(1,`rgba(90,20,10,${0.18*l.heat})`);
+    ovx.globalAlpha=1;
+    ovx.fillStyle=g;
+    ovx.beginPath(); ovx.arc(l.u*W,l.v*H,l.r*W,0,6.283); ovx.fill();
+  });
   // Schneeflocken: Tiefenvarianz (vordere größer/sichtbar, hintere kleiner/subtil)
   snowflakes.forEach(sn=>{
     // Tiefe (echte Karte oder Pseudo-Tiefe, 0=fern..1=nah) steuert Größe/Transparenz
@@ -2766,6 +3028,14 @@ function drawOverlay(dt){
     ovx.moveTo(x1, y1);
     ovx.lineTo(x2, y2);
     ovx.stroke();
+  });
+  hailstones.forEach(h=>{
+    const depthScale=0.65+h.depth*0.55;
+    ovx.globalAlpha=0.45+0.45*h.life;
+    ovx.fillStyle='rgba(225,240,255,1)';
+    ovx.strokeStyle='rgba(90,140,180,.65)';
+    ovx.lineWidth=Math.max(0.6,S);
+    ovx.beginPath(); ovx.arc(h.u*W,h.v*H,h.r*W*depthScale,0,6.283); ovx.fill(); ovx.stroke();
   });
   ovx.globalAlpha=1;
   if(player.active) drawPlayer(W,H,S,dt);
@@ -3237,7 +3507,112 @@ ov.addEventListener('click',e=>{
 });
 document.getElementById('btn-clear-world').onclick=()=>{
   trailClear(); fires.length=0; smoke.length=0; sparks.length=0;
+  steamPuffs.length=0; pressureBursts.length=0; lavaFlows.length=0; hailstones.length=0;
+  Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧹 Spuren, Matsch und Brandflecken entfernt.');
+};
+
+function ensureElementScene(){
+  if(!ready){ setStatus('⚠️ Erst Bild laden und „Erstellen“ drücken – dann simulieren die Elemente auf den analysierten Materialien.'); return false; }
+  stopStory(); stopShowcase();
+  return true;
+}
+function elementPreset(kind){
+  if(!ensureElementScene()) return;
+  const apply=p=>{ Object.assign(PARAMS,{...PARAMS,...p}); Object.assign(CUR,{...CUR,...p}); syncSliders(); };
+  const burst=p=>Object.assign(elementBurst,{...elementBurst,...p});
+  const center={u:player.active?player.u:0.5, v:player.active?player.v:0.62};
+  if(kind==='fluid'){
+    burst({wet:1,pressure:0.45});
+    apply({rain:0.72, wet:1, puddle:0.96, fog:0.20, storm:0.55, wind:0.45, temperature:0.58});
+    for(let i=0;i<28;i++) trailStamp(0.18+Math.random()*0.64,0.58+Math.random()*0.30,0.014,0,0.35);
+    spawnElementParticles('pressure',0.50,0.72,5);
+    setStatus('💧 Flüssigkeit: Pfützenfüllstand, Rinnsale, nasse Grasränder und Druckringe aktiv.');
+  } else if(kind==='steam'){
+    burst({wet:0.45,heat:0.85});
+    apply({rain:0.05, wet:0.55, puddle:0.45, fog:0.46, wind:0.35, temperature:0.94, glow:0.45});
+    spawnElementParticles('steam',center.u,center.v,28);
+    igniteFire(center.u,center.v);
+    setStatus('♨️ Dampf: heiße nasse Oberfläche erzeugt aufsteigende, windgetriebene Nebelpuffs.');
+  } else if(kind==='pressure'){
+    burst({pressure:1,wet:0.35});
+    apply({wet:0.75, puddle:0.70, rain:0.18, fog:0.10, wind:0.25});
+    spawnElementParticles('pressure',center.u,center.v,16);
+    soundStamp(center.u,center.v,1);
+    setStatus('🫧 Druck: konzentrische Impulswellen, Sound-Feld und Dellen in derselben Welt.');
+  } else if(kind==='heat'){
+    burst({heat:1,ash:0.35});
+    apply({temperature:1, wet:0.18, rain:0, fog:0.16, glow:0.75, storm:0.08, wind:0.28});
+    igniteFire(center.u,center.v);
+    spawnElementParticles('steam',center.u,center.v,8);
+    setStatus('🔥 Hitze: Feuerlicht, Wärmeflimmern, Trocknung und Funken.');
+  } else if(kind==='mud'){
+    burst({wet:0.8,pressure:0.35});
+    apply({rain:0.28, wet:0.92, puddle:0.68, fog:0.16, wind:0.20, temperature:0.55});
+    for(let i=0;i<38;i++) trailStamp(0.16+Math.random()*0.68,0.58+Math.random()*0.34,0.018,2,0.15,235);
+    if(!player.active) spawnPlayer();
+    setStatus('🟤 Matsch: permanente Trampelpfad-/Schlammspur im Trail-Kanal, durch Regen glänzend.');
+  } else if(kind==='ice'){
+    burst({wet:0.65,hail:0.35,pressure:0.25});
+    apply({temperature:0.08, snow:0.18, snowfall:0.05, wet:0.95, puddle:0.86, rain:0.06, fog:0.32, dayNight:0.56, glow:0.65});
+    spawnElementParticles('pressure',center.u,center.v,4);
+    setStatus('🧊 Eis: Pfützen gefrieren, Reflexionen werden matt, Bewegung wird glatter/gefährlicher.');
+  } else if(kind==='snow'){
+    burst({hail:0.22,wet:0.25});
+    apply({temperature:0.14, snow:0.92, snowfall:0.88, rain:0, wet:0.28, puddle:0.36, fog:0.28, wind:0.38, glow:0.48});
+    setStatus('❄️ Schnee: fallende und liegende Flocken mit Tiefenvarianz und Schmelzlogik.');
+  } else if(kind==='fire'){
+    burst({heat:1,ash:0.7});
+    apply({temperature:0.88, rain:0, wet:0.12, fog:0.14, wind:0.35, glow:0.95, dayNight:0.72});
+    for(let i=0;i<4;i++) igniteFire(center.u+(Math.random()-0.5)*0.12,center.v+(Math.random()-0.5)*0.08);
+    setStatus('🔥 Feuer: Brennstoff, Brandspur, Funken, Rauch und Wet-Dousing laufen zusammen.');
+  } else if(kind==='smoke'){
+    burst({ash:0.7,heat:0.25});
+    apply({fog:0.72, wind:0.42, storm:0.24, rain:0.06, wet:0.20, temperature:0.72, glow:0.50});
+    for(let i=0;i<24;i++) smoke.push({u:center.u+(Math.random()-0.5)*0.08,v:center.v+(Math.random()-0.5)*0.04,
+      vu:(Math.random()-0.5)*0.004+CUR.wind*0.012, vv:-0.012-Math.random()*0.014, r:0.006+Math.random()*0.008, life:1});
+    setStatus('🌫️ Rauch: Schichtung, Winddrift und Nebelkopplung.');
+  } else if(kind==='ember'){
+    burst({heat:0.95,ash:1});
+    apply({temperature:0.82, rain:0, wet:0.06, fog:0.10, glow:1, dayNight:0.86, wind:0.25});
+    for(let i=0;i<46;i++) sparks.push({u:center.u+(Math.random()-0.5)*0.08,v:center.v+(Math.random()-0.5)*0.04,
+      vu:(Math.random()-0.5)*0.035+CUR.wind*0.018, vv:-0.045-Math.random()*0.055, life:0.5+Math.random()*0.7});
+    trailStamp(center.u,center.v,0.045,3,0.8);
+    setStatus('🪵 Glut: glühende Partikel plus bleibende Brandwärme im Trail-A-Kanal.');
+  } else if(kind==='lava'){
+    burst({heat:1,lava:1,ash:0.8});
+    apply({temperature:1, rain:0, wet:0.22, puddle:0.22, fog:0.28, glow:1, dayNight:0.88, wind:0.18, decay:0.35});
+    spawnElementParticles('lava',center.u,center.v,20);
+    setStatus('🌋 Lava: zäh fließende heiße Flecken, Glut, Brandspur und Dampf bei Nässe.');
+  } else if(kind==='rain'){
+    burst({wet:1,pressure:0.45});
+    apply({rain:1, wet:1, puddle:0.92, storm:0.92, fog:0.35, wind:0.86, dayNight:0.76, glow:0.80});
+    setStatus('🌧️ Regen: Tiefenregen, Dachablauf, Ringe, Rinnsale und warme Nassreflexe.');
+  } else if(kind==='hail'){
+    burst({hail:1,pressure:0.8,wet:0.55});
+    apply({rain:0.95, wet:0.85, puddle:0.72, storm:1, fog:0.22, wind:0.76, temperature:0.20, snow:0.22});
+    spawnElementParticles('hail',0.5,0,45);
+    setStatus('🧊 Hagel: harte Körner fallen mit Tiefe, prallen ab und stempeln Druck/Dellen.');
+  } else if(kind==='leaves'){
+    burst({pressure:0.18});
+    apply({autumn:1, wind:0.92, storm:0.30, rain:0.04, wet:0.12, fog:0.10, temperature:0.52});
+    spawnElementParticles('leaves',0.5,0,70);
+    setStatus('🍂 Blätter: Wirbel, Settle-Zonen, Aufwirbeln durch Sturm und Spieler.');
+  } else if(kind==='lightning'){
+    burst({pressure:1,heat:0.6,wet:0.6,hail:0.35});
+    apply({dayNight:1, storm:1, rain:0.86, wet:0.94, puddle:0.88, fog:0.28, wind:1, glow:1});
+    flashPulses.push(time,time+0.10,time+0.22);
+    spawnElementParticles('pressure',0.50,0.55,10);
+    soundStamp(0.50,0.55,1);
+    setStatus('⚡ Blitze: Doppelschlag, Kameraruck, Druckwelle, Licht auf nasser Physik.');
+  }
+}
+document.querySelectorAll('[data-element]').forEach(b=>b.onclick=()=>elementPreset(b.dataset.element));
+document.getElementById('btn-elements-clear').onclick=()=>{
+  if(!ready) return;
+  trailClear(); fires.length=0; smoke.length=0; sparks.length=0; steamPuffs.length=0; pressureBursts.length=0; lavaFlows.length=0; hailstones.length=0;
+  Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
+  setStatus('🧼 Element-Partikel, Druckringe, Lava, Hagel, Feuer und Spuren zurückgesetzt.');
 };
 
 // =========================== UI ====================const setStatus=s=>document.getElementById('status').textContent=s;
@@ -3287,6 +3662,86 @@ function tickActBlend(dt){
   const k=Math.min(1,actBlend.t/2.2), e=k*k*(3-2*k);
   for(const key in PARAMS) CUR[key]=actBlend.from[key]+(actBlend.to[key]-actBlend.from[key])*e;
   if(k>=1) actBlend=null;
+}
+
+const showcaseCard=document.getElementById('showcase-card');
+const SHOWCASE_BEATS=[
+  {t:0, title:'Ein Bild wird Welt.', copy:'SHADED lädt nur ein flaches Bild – und baut daraus Materialmasken, Lichtquellen, Senken, Flussfelder und Tiefe.'},
+  {t:7, title:'Material ist die Wahrheit.', copy:'Dach, Holz, Gras, Fenster und Wasser bleiben dieselbe CPU/GPU-Wahrheit. Kein zweiter Klassifikator, kein Trick-Fork.'},
+  {t:15, title:'Atmosphäre bewegt die Szene.', copy:'Wind, Nebel, Belichtung und Parallaxe lassen die Vorlage atmen, statt sie als statischen Screenshot zu behandeln.'},
+  {t:23, title:'Regen folgt Regeln.', copy:'Wasser sammelt sich in Pfadsenken, blutet in Grasränder und läuft von Dächern ab – sichtbar, aber bildtreu.'},
+  {t:33, title:'Nacht erzählt mit Licht.', copy:'Fenster glühen, spiegeln warm in Pfützen und geben der Szene einen lesbaren filmischen Fokus.'},
+  {t:43, title:'Ereignisse haben Konsequenzen.', copy:'Blitz, Feuer, Rauch, Nässe und Temperatur verändern die Weltzustände statt nur Overlays einzublenden.'},
+  {t:51, title:'Figuren gehören zur Welt.', copy:'Akteure liegen in Tiefenschichten, werden von Nebel/Nacht gedämpft und hinterlassen Spuren auf passendem Material.'},
+  {t:59, title:'Zeit ist ein Shader-Gesetz.', copy:'Herbst, Patina, Verfall und Weltmüdigkeit laufen über dieselbe Parameter-Sprache wie Wetter und Licht.'},
+  {t:67, title:'Klima ist kein Skin.', copy:'Schnee, Kälte, Eis und Frostatem verändern Lesbarkeit, Bewegung und Oberflächen – nicht nur die Farbpalette.'},
+  {t:75, title:'Die Welt kann heilen.', copy:'Frühling, Bloom und der nasse Tag danach zeigen den Bogen zurück ins Lebendige.'}
+];
+let showcase=null;
+function setShowcaseCaption(title,copy){
+  document.getElementById('showcase-title').textContent=title;
+  document.getElementById('showcase-copy').textContent=copy;
+  showcaseCard.classList.add('show');
+}
+function stopShowcase(){
+  showcase=null;
+  showcaseCard.classList.remove('show');
+}
+async function loadDemoScene(){
+  const scene='file_00000000974871f49fe71f6b456f9579.png';
+  const marker='file_00000000c84071f4bcd6ff9afdba7246.png';
+  const r1=await fetch(scene); if(!r1.ok)throw new Error('scene');
+  const b1=new File([await r1.blob()],scene,{type:'image/png'});
+  loadImageFile(b1,false);
+  const r2=await fetch(marker);
+  if(r2.ok) loadImageFile(await r2.blob(),true);
+}
+function waitForReady(timeoutMs=5000){
+  const start=performance.now();
+  return new Promise(resolve=>{
+    const check=()=>{
+      if(sceneImg || performance.now()-start>timeoutMs) resolve(!!sceneImg);
+      else requestAnimationFrame(check);
+    };
+    check();
+  });
+}
+async function startShowcase(){
+  try{
+    if(!sceneImg){
+      setStatus('🎪 Lade Demo-Dorf für den Showcase …');
+      await loadDemoScene();
+      await waitForReady();
+    }
+    if(!ready && !erstellen()) return;
+    document.body.classList.add('cinema');
+    showcaseStoryboard();
+    playStory();
+    spawnEcosystem('gaime_npcs');
+    if(!player.active) spawnPlayer();
+    igniteFire(0.58,0.62);
+    soundStamp(0.50,0.58,1);
+    showcase={t:0, beat:-1};
+    setShowcaseCaption(SHOWCASE_BEATS[0].title,SHOWCASE_BEATS[0].copy);
+    setStatus('🎪 Showcase läuft: 90 Sekunden Weltgesetze, Figuren, Wetter und Zeit.');
+  }catch(_){
+    setStatus('Showcase-Demo nur über einen lokalen Server verfügbar (python3 -m http.server).');
+  }
+}
+function tickShowcase(dt){
+  if(!showcase)return;
+  showcase.t+=dt;
+  let bi=0;
+  for(let i=0;i<SHOWCASE_BEATS.length;i++) if(showcase.t>=SHOWCASE_BEATS[i].t) bi=i;
+  if(bi!==showcase.beat){
+    showcase.beat=bi;
+    setShowcaseCaption(SHOWCASE_BEATS[bi].title,SHOWCASE_BEATS[bi].copy);
+    soundStamp(0.18+0.08*(bi%5),0.62,0.55);
+  }
+  if(showcase.t>92){
+    stopShowcase();
+    setStatus('🎪 Showcase beendet. PNG/WebM-Aufnahme kann denselben Ablauf festhalten.');
+  }
 }
 
 function loadImageFile(file,isMat){
@@ -3347,6 +3802,53 @@ function getDepthAt(u,v){
   const y=Math.max(0,Math.min(depthSample.h-1, (v*depthSample.h)|0));
   return depthSample.data[(y*depthSample.w+x)*4]/255; // R-Kanal reicht (Graustufen)
 }
+function buildSpatialPointCloud(opt){
+  opt=opt||{};
+  if(!sceneImg) throw new Error('Keine Szene geladen.');
+  if(!depthSample) throw new Error('Keine Tiefenkarte geladen. Lade eine *_depth.png Companion-Datei oder den Demo-Ort.');
+  const srcW=depthSample.w, srcH=depthSample.h;
+  const step=Math.max(1, opt.step|0 || Math.ceil(Math.sqrt((srcW*srcH)/65000)));
+  const fov=((opt.fovDegrees||60)*Math.PI)/180;
+  const fx=srcW/(2*Math.tan(fov/2)), fy=fx, cx=srcW/2, cy=srcH/2;
+  const cv=document.createElement('canvas'); cv.width=srcW; cv.height=srcH;
+  const c=cv.getContext('2d',{willReadFrequently:true});
+  c.drawImage(sceneImg,0,0,srcW,srcH);
+  const rgba=c.getImageData(0,0,srcW,srcH).data;
+  const pts=[];
+  for(let y=0;y<srcH;y+=step)for(let x=0;x<srcW;x+=step){
+    const i=(y*srcW+x)*4;
+    const d=depthSample.data[i]/255;
+    if(d<0.02) continue;
+    // Companion-Konvention: weiß = nah. Für ein stabileres JSON liegt z in 0..1,
+    // wobei kleinere Werte weiter entfernt und größere näher sind.
+    const z=d;
+    pts.push({
+      x:((x-cx)*z/fx), y:((cy-y)*z/fy), z,
+      r:rgba[i], g:rgba[i+1], b:rgba[i+2],
+      size:0.006+0.010*z, alpha:0.35+0.55*z,
+      confidence:z, synthesized:false
+    });
+  }
+  return {
+    format:'SHADED.spatial-point-cloud.v1',
+    source:{w:sceneImg.width,h:sceneImg.height},
+    depth:{w:srcW,h:srcH, convention:'white-near'},
+    camera:{fovDegrees:opt.fovDegrees||60, step},
+    productRule:'Single-image point clouds expose visible surfaces only; hidden backsides/disocclusions are not measured.',
+    points:pts
+  };
+}
+function downloadSpatialPointCloud(){
+  try{
+    const pc=buildSpatialPointCloud();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(pc,null,2)],{type:'application/json'}));
+    a.download='SHADED_pointcloud_'+Date.now()+'.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus(`🌌 PointCloud exportiert (${pc.points.length} Punkte, step ${pc.camera.step}).`);
+  }catch(e){ setStatus('⚠️ PointCloud: '+e.message); }
+}
 function setDepth(img,label){
   uploadTex(6,TEX.depth,0,0,img);
   hasDepth=true;
@@ -3393,13 +3895,7 @@ document.getElementById('btn-demo').onclick=async()=>{
   try{
     // Kanonisches Demo-Paar: Szene + Fenster-Marker-Overlay. Der Blob bekommt
     // den Dateinamen, damit die _depth-Auto-Suche greift (2.5D fürs Demo).
-    const scene='file_00000000974871f49fe71f6b456f9579.png';
-    const marker='file_00000000c84071f4bcd6ff9afdba7246.png';
-    const r1=await fetch(scene); if(!r1.ok)throw 0;
-    const b1=new File([await r1.blob()],scene,{type:'image/png'});
-    loadImageFile(b1,false);
-    const r2=await fetch(marker);
-    if(r2.ok) loadImageFile(await r2.blob(),true);
+    await loadDemoScene();
   }catch(_){ setStatus('Demo nur über einen lokalen Server verfügbar (python3 -m http.server).'); }
 };
 
@@ -3475,6 +3971,7 @@ document.getElementById('btn-json').onclick=()=>{
   a.download='shaded_params.json'; a.click();
   URL.revokeObjectURL(a.href);
 };
+document.getElementById('btn-pointcloud').onclick=downloadSpatialPointCloud;
 document.getElementById('btn-play').onclick=()=>playing?stopStory():playStory();
 document.getElementById('btn-year').onclick=()=>{
   yearStoryboard(); playStory(); setStatus('📅 Ein Jahr im Loop – Frühling bis Tauwetter.');
@@ -3491,6 +3988,7 @@ document.getElementById('btn-timelapse').onclick=()=>{
 document.getElementById('btn-drama').onclick=()=>{
   dramaStoryboard(); playStory(); setStatus('⚡ Weltgesetze im Extremis – 20 Sekunden reines Drama mit Sturm + Blitz + Verfall.');
 };
+document.getElementById('btn-showcase').onclick=startShowcase;
 document.getElementById('btn-add').onclick=()=>{
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
 };
@@ -3504,6 +4002,7 @@ let rainPhase=0, windDrift=0, dryPhase=0, heatWarp=0, rustAccum=0, smokeAmount=0
 let breathAmount=0, pressureDim=0, pollutionGlow=0, moonBright=0, shelfShadow=0;
 let vegFade=0, moodTint=0, worldTired=0, forbiddenCold=0, runeGlow=0;
 let shadowAge=0, smellDrift=0, touchWear=0, repairMark=0, blessCurse=0;
+const elementBurst={wet:0,heat:0,pressure:0,ash:0,hail:0,lava:0};
 // 2.5D-Parallaxe: Ziel folgt der Maus, Ist wird im Frame sanft nachgezogen.
 // hasDepth gate: ohne Tiefenkarte bleibt ALLES flach (auch das Overlay),
 // sonst liefe die Spielfigur bei Mausbewegung neben der starren Szene her.
@@ -3539,6 +4038,12 @@ function tickWorld(dt){
     touchWear+=dt*0.05; // konstantes Abnutzen
     repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
+    elementBurst.wet*=Math.pow(0.55,dt);
+    elementBurst.heat*=Math.pow(0.74,dt);
+    elementBurst.pressure*=Math.pow(0.28,dt);
+    elementBurst.ash*=Math.pow(0.70,dt);
+    elementBurst.hail*=Math.pow(0.38,dt);
+    elementBurst.lava*=Math.pow(0.82,dt);
 
     // === Camera Shake System: Wind/Sturm sanftes Wiegen, Blitz kurzer scharfer Ruck ===
     // Vorher: reiner Pro-Frame-Zufallsimpuls, der sich aufsummierte - das sah nach
@@ -3562,6 +4067,7 @@ function tickWorld(dt){
     cameraShake.y = swayY + cameraShake.jy;
   }
   tickStory(dt);
+  tickShowcase(dt);
   tickActBlend(dt);
   if(!playing&&!actBlend) for(const key in PARAMS) CUR[key]+= (PARAMS[key]-CUR[key])*Math.min(1,dt*4);
     if(ready){
@@ -3574,6 +4080,7 @@ function tickWorld(dt){
     ecoTick(dt);
     snowTick(dt);
     rainTick(dt);
+    hailTick(dt);
     trailTick(dt);
     soundTick(dt);
   }
@@ -3625,6 +4132,12 @@ function frame(now){
     gl.uniform1f(U.u_bloodStain, ready? bloodStain : 0);
     gl.uniform1f(U.u_mudStain, ready? mudStain : 0);
     gl.uniform1f(U.u_lens, ready? lensState : 0);
+    gl.uniform1f(U.u_elementWetBurst, ready? elementBurst.wet : 0);
+    gl.uniform1f(U.u_elementHeatBurst, ready? elementBurst.heat : 0);
+    gl.uniform1f(U.u_elementPressureBurst, ready? elementBurst.pressure : 0);
+    gl.uniform1f(U.u_elementAshBurst, ready? elementBurst.ash : 0);
+    gl.uniform1f(U.u_elementHailBurst, ready? elementBurst.hail : 0);
+    gl.uniform1f(U.u_elementLavaBurst, ready? elementBurst.lava : 0);
     // Materialschicht: ohne Zerlegung (oder vor analyze()) exakt 0 -> identity-albedo
     gl.uniform1f(U.u_intrinsic, (ready && intrinsicShading) ? intrinsicStrength : 0);
     gl.uniform2f(U.u_parallax, pxWithShake.x, pxWithShake.y);
@@ -3722,6 +4235,9 @@ window.SHADED = {
   isReady:()=>ready,
   getMaterialTypeAt,
   story:{ play:playStory, stop:stopStory, board:()=>storyboard },
+  showcase:{ start:startShowcase, stop:stopShowcase, board:showcaseStoryboard },
+  elements:{ trigger:elementPreset, clear:()=>document.getElementById('btn-elements-clear').click() },
+  spatial:{ pointCloud:buildSpatialPointCloud, downloadPointCloud:downloadSpatialPointCloud },
   loadImageFile,
   // Runde 4
   player:{ enable:spawnPlayer, pos:()=>({u:player.u,v:player.v,active:player.active,wet:player.wet}),

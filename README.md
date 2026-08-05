@@ -19,6 +19,14 @@ python3 -m http.server 8000
 Steuerung: `K` = Kino-Modus (UI aus), Akt-Buttons springen zu Stimmungen, „Experten-Regler" für Feintuning, 📸 PNG-Snapshot, 🔴 WebM-Aufnahme, Storyboard-Editor für eigene Abläufe.
 Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Schneedellen), `Leertaste` Sprint (Laub stiebt, Früchte fallen), `F` bzw. 🔥 Feuer-Tool entzündet Lagerfeuer (Warmlicht, Rauch, Brandspuren; Regen löscht). Ohne Eingabe bleibt SHADED ein reines Ambient-Stück.
 
+**Spatial Export:** Der Button **🌌 PointCloud** exportiert aus Szenenfarbe + geladener Tiefenkarte ein lokales JSON-Point-Cloud-Format (`SHADED.spatial-point-cloud.v1`) mit Position, Farbe, Punktgröße, Alpha und Confidence. Programmatic API: `SHADED.spatial.pointCloud({step,fovDegrees})` und `SHADED.spatial.downloadPointCloud()`. Das übernimmt aus dem Zip nur die funktional nützliche Depth→Point-Cloud-Idee – ohne Android-/Three.js-Runtime und ohne verdeckte Rückseiten vorzutäuschen.
+
+**Showcase-Modus:** Der neue Button **🎪 Showcase (90s)** lädt bei Bedarf das Demo-Dorf, schaltet in den Kino-Modus und spielt eine kuratierte 90-Sekunden-Regie ab: Materialtreue, 2.5D-Parallaxe, Wind/Nebel, Regenphysik, Fensterreflexionen, Blitz/Feuer, Figuren-Spuren, Verfall, Schnee und Frühling. Das ist die schnelle Antwort auf „mehr als ein Bild = irgendwas”: `SHADED.showcase.start()` startet denselben Ablauf programmatisch, `SHADED.showcase.board()` legt die Schritte in den editierbaren Storyboard-Editor.
+
+**Elemente-Spielplatz:** Die UI hat jetzt direkte Weltgesetze-Presets für 💧 Flüssigkeit, ♨️ Dampf, 🫧 Druck, 🔥 Hitze, 🟤 Matsch, 🧊 Eis, ❄️ Schnee, 🔥 Feuer, 🌫️ Rauch, 🪵 Glut, 🌋 Lava, 🌧️ Regen, 🧊 Hagel, 🍂 Blätter und ⚡ Blitze. Diese Buttons kopieren kein externes Tool: sie treiben SHADEDs eigene Parameter, Trail-Textur, Partikel, Feuer-/Rauch-/Schnee-/Regen-Systeme und Shader-Uniforms an, damit Material, Wetter, Temperatur und Spuren sichtbar miteinander reagieren.
+Die “kleckernd klotzen”-Schicht läuft im Fragment-Shader selbst: transiente Element-Uniforms verstärken kleckernde Nass-Splatter, Druckwellen im Sound-Feld, Hagel-Einschläge, Glut-/Lava-Blackbody-Glow und Hitze-Chromatik, statt alles nur als Canvas-Overlay über das Bild zu legen.
+Darüber liegt ein zusätzlicher Shader-Stack für Godrays, abgeleitetes Bump-/Normal-Mapping, Ambient Occlusion, mehrstufige Lichtquantisierung, volumetrische Wolken/Lichtschächte, Bloom-Halos, Spatial Distortion, Chromatic Aberration und depth-aware Point-Cloud-Motes – alles aus dem Einzelbild, der optionalen Tiefenkarte und den bestehenden World-Law-Kanälen.
+
 **Wally-Monokel (Runde 8):** Tasten `1`–`5` schalten Inspektions-Linsen um (erneutes Drücken = aus): 1 Schmutz/Abnutzung, 2 Belastung, 3 Klang (`SHADED.sound.emit(u,v,strength)` stempelt eine abklingende Welle), 4 Materialtreue (= unverändertes Bild), 5 Kanten. API: `SHADED.lens.set(n)`/`.get()`.
 
 **Dialog-Engine (Runde 10):** `SHADED.dialogue.play(beats)` spielt eine Liste von Text-/Trigger-Beats mit Schreibmaschinen-Effekt ab (Leertaste/Enter/Klick = weiter). Die Engine kennt keinen Inhalt – echte Erzähltexte liegen separat in `content/*.js` (z. B. `content/prolog-act1.js`, optional per `<script>` einbinden) und werden nie automatisch geladen.
@@ -125,6 +133,10 @@ SHADED ist das **Rendering-Ziel für prozedural generierte Charaktere** aus dem 
 ```
 
 Depth-Map (optional, Phase B2): 8-bit Grayscale PNG (gleiche Größe wie RGB-Sheet). Dunklere Pixel = näher Betrachter (warm), hellere = ferner (cool). Ermöglicht räumliche Fake-3D-Tiefenordnung auf dem Canvas.
+
+## Fähigkeiten und Einordnung
+
+SHADED ist nicht nur eine Liste von Rendering-Techniken. Die aktuelle Fähigkeitsmatrix und die ehrlichste Produkt-Einordnung stehen in [`docs/shaded-faehigkeiten.md`](docs/shaded-faehigkeiten.md): Materialwahrheit, Weltgesetze, Bildverstehen, Interaktion, Storytelling und Shader-Fidelity als eine zusammenhängende 2D-Weltsimulation.
 
 ## Architektur (Kurzfassung)
 

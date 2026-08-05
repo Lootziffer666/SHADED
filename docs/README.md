@@ -11,6 +11,10 @@
 - [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md) – Ebenenkandidaten, Raumhülle per Constraint-Projektion, Begehbarkeit und Raumgraph
 - [`research-radar-themen.md`](./research-radar-themen.md) – Prüfraster für größere Forschungs- und Technologieklassen
 
+## Produkt-Einordnung
+
+- [`shaded-faehigkeiten.md`](./shaded-faehigkeiten.md) – Produkt-Einordnung: SHADED als materialbewusste 2D-Weltsimulation statt reine Shader-Effektliste
+
 ## Bestehende Fachgrundlagen
 
 - [`shader-referenzmatrix.md`](./shader-referenzmatrix.md)
