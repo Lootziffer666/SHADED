@@ -1,19 +1,12 @@
-// Hard UX contract for the authoring shell.
-// This file intentionally sits after app.js/ui-shell.js and owns only interaction
-// state. It exists so a stale older shell cannot leave Inspector + Story stacked
-// over the viewport again.
-
+// Hard UX contract for the authoring shell. The viewport stays visible and only
+// the requested inspector section opens over it.
 const body = document.body;
 const iframe = document.getElementById('engine-frame');
-const inspector = document.getElementById('inspector');
 const status = document.getElementById('editor-status');
 
 const railButtons = () => [...document.querySelectorAll('.rail-btn[data-target]')];
 const sections = () => [...document.querySelectorAll('.inspector-section')];
-
-function setStatus(text) {
-  if (status) status.textContent = text;
-}
+const setStatus = text => { if (status) status.textContent = text; };
 
 function closeInspector() {
   body.classList.remove('inspector-open');
@@ -21,9 +14,7 @@ function closeInspector() {
   document.getElementById('btn-inspector-toggle')?.setAttribute('aria-expanded', 'false');
   document.getElementById('btn-inspector-mobile')?.setAttribute('aria-expanded', 'false');
 }
-
 function openInspector(targetId) {
-  body.classList.remove('story-open');
   body.classList.remove('inspector-collapsed');
   body.classList.add('inspector-open');
   document.getElementById('btn-inspector-toggle')?.setAttribute('aria-expanded', 'true');
@@ -32,48 +23,19 @@ function openInspector(targetId) {
   const target = document.getElementById(targetId);
   if (target) requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
 }
+function clearActive() { railButtons().forEach(button => button.classList.remove('active')); }
+function closeChrome() { closeInspector(); clearActive(); }
 
-function closeStory() {
-  body.classList.remove('story-open');
-}
-
-function clearActive() {
-  railButtons().forEach(button => button.classList.remove('active'));
-}
-
-function closeChrome() {
-  closeInspector();
-  closeStory();
-  clearActive();
-}
-
-// Start from the only acceptable idle state: scene visible, tools absent.
 sections().forEach(section => section.classList.add('section-collapsed'));
 closeChrome();
 
-// Capture before older/stale shell handlers can run. One tap always toggles the
-// requested tool; a second tap on the same tool always closes it.
 document.addEventListener('click', event => {
   const rail = event.target.closest('.rail-btn[data-target]');
   if (rail) {
     event.preventDefault();
     event.stopImmediatePropagation();
     const target = rail.dataset.target;
-    const sameActive = rail.classList.contains('active');
-
-    if (target === 'timeline-dock') {
-      const shouldOpen = !(sameActive && body.classList.contains('story-open'));
-      closeInspector();
-      closeStory();
-      clearActive();
-      if (shouldOpen) {
-        body.classList.add('story-open');
-        rail.classList.add('active');
-      }
-      return;
-    }
-
-    const shouldOpen = !(sameActive && body.classList.contains('inspector-open'));
+    const shouldOpen = !(rail.classList.contains('active') && body.classList.contains('inspector-open'));
     closeChrome();
     if (shouldOpen) {
       rail.classList.add('active');
@@ -101,43 +63,14 @@ document.addEventListener('click', event => {
       world?.classList.add('active');
       openInspector('panel-world');
     }
-    return;
-  }
-
-  if (event.target.closest('#btn-story-close')) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    closeChrome();
-    return;
-  }
-
-  const room = event.target.closest('#btn-room-view');
-  if (room) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    closeChrome();
-    const doc = iframe?.contentDocument;
-    const button = doc?.getElementById('btn-spatial-view');
-    if (!button) {
-      setStatus('⚠️ Raumansicht ist noch nicht bereit.');
-      return;
-    }
-    button.click();
-    // The spatial runtime itself switches to walk mode after its own reconstruction.
-    setTimeout(() => {
-      try { iframe.contentWindow?.SHADED?.spatial?.viewer?.setMode?.('walk'); } catch {}
-    }, 30);
-    return;
   }
 }, true);
 
-// Escape and a tap into the actual renderer dismiss authoring chrome.
 window.addEventListener('keydown', event => { if (event.key === 'Escape') closeChrome(); });
 
 function installEngineHooks() {
   const doc = iframe?.contentDocument;
   if (!doc?.head || !doc.body) return;
-
   if (!doc.querySelector('script[data-solid-runtime]')) {
     const script = doc.createElement('script');
     script.type = 'module';
@@ -145,25 +78,18 @@ function installEngineHooks() {
     script.dataset.solidRuntime = '1';
     doc.head.appendChild(script);
   }
-
   if (!doc.body.dataset.editorDismissHook) {
     doc.body.dataset.editorDismissHook = '1';
     doc.addEventListener('pointerdown', event => {
-      // Do not interpret taps on room controls as an outer-editor dismiss action;
-      // RAUM already starts with outer chrome closed anyway.
       if (event.target.closest?.('#spatial-viewer')) return;
       closeChrome();
     }, true);
   }
 }
-
 iframe?.addEventListener('load', installEngineHooks);
 if (iframe?.contentDocument?.readyState === 'complete') installEngineHooks();
 
-// ---- Material correction canvas -------------------------------------------------
-// This was previously exposed as generic "Paint" although it is actually SHADED's
-// marker/material correction overlay. Seed it from the current live scene so it is
-// immediately paintable instead of presenting an inert checkerboard.
+// Material correction canvas
 const paintCanvas = document.getElementById('paint-canvas');
 const paintCtx = paintCanvas?.getContext('2d', { willReadFrequently: true });
 let correctionBase = null;
@@ -212,7 +138,6 @@ function canvasPoint(event) {
     y: (event.clientY - rect.top) * paintCanvas.height / Math.max(1, rect.height)
   };
 }
-
 function correctionPaint(event) {
   if (!correctionBase || !paintCtx) return;
   const { x, y } = canvasPoint(event);
@@ -224,52 +149,39 @@ function correctionPaint(event) {
   paintCtx.fill();
   correctionChanged = true;
 }
-
 paintCanvas?.addEventListener('pointerdown', event => {
   if (!correctionBase && !seedCorrectionCanvasFromScene()) return;
   correctionPainting = true;
   paintCanvas.setPointerCapture?.(event.pointerId);
   correctionPaint(event);
 }, true);
-paintCanvas?.addEventListener('pointermove', event => {
-  if (correctionPainting) correctionPaint(event);
-}, true);
+paintCanvas?.addEventListener('pointermove', event => { if (correctionPainting) correctionPaint(event); }, true);
 paintCanvas?.addEventListener('pointerup', () => { correctionPainting = false; }, true);
 paintCanvas?.addEventListener('pointercancel', () => { correctionPainting = false; }, true);
 
-// If the user explicitly loads another correction source, snapshot that as our base
-// after the existing MarkerPainter has decoded it.
 document.getElementById('f-paint-source')?.addEventListener('change', () => {
   setTimeout(() => {
     if (!paintCtx || !paintCanvas.width || !paintCanvas.height) return;
     try { correctionBase = paintCtx.getImageData(0, 0, paintCanvas.width, paintCanvas.height); correctionChanged = false; } catch {}
   }, 120);
 });
-
 document.getElementById('btn-paint-clear')?.addEventListener('click', event => {
   if (!correctionBase || !paintCtx) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  paintCtx.putImageData(correctionBase, 0, 0);
-  correctionChanged = false;
-  setStatus('Korrektur zurückgesetzt.');
+  event.preventDefault(); event.stopImmediatePropagation();
+  paintCtx.putImageData(correctionBase, 0, 0); correctionChanged = false; setStatus('Korrektur zurückgesetzt.');
 }, true);
-
 document.getElementById('btn-paint-apply')?.addEventListener('click', event => {
   if (!correctionChanged || !paintCanvas) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
+  event.preventDefault(); event.stopImmediatePropagation();
   paintCanvas.toBlob(async blob => {
     if (!blob) return;
     const win = iframe?.contentWindow;
-    if (!win?.SHADED?.loadImageFile) { setStatus('⚠️ Engine ist noch nicht bereit.'); return; }
+    if (!win?.SHADED?.loadImageFile) return setStatus('⚠️ Engine ist noch nicht bereit.');
     try {
       const file = new File([blob], 'marker-overlay.png', { type: 'image/png' });
       await win.SHADED.loadImageFile(file, true);
       setStatus('Materialkorrektur übernommen — „Erstellen“ aktualisiert die Szene.');
       correctionChanged = false;
-    } catch (error) {
-      setStatus(`⚠️ Korrektur konnte nicht übernommen werden: ${error.message}`);
-    }
+    } catch (error) { setStatus(`⚠️ Korrektur konnte nicht übernommen werden: ${error.message}`); }
   }, 'image/png');
 }, true);
