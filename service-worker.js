@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v12';
+const CACHE = 'shaded-shell-v13';
 const SHELL = [
   './',
   './index.html',
@@ -21,20 +21,21 @@ const SHELL = [
   './editor/drawer-handle.css?v=1',
   './editor/world-studio.css?v=1',
   './editor/world-studio-shell.css?v=1',
+  './editor/world-studio-imports.css?v=1',
   './editor/app.js',
   './editor/ui-shell.js',
-  './editor/app.js?v=7',
+  './editor/app.js?v=8',
   './editor/ui-shell.js?v=7',
   './editor/ux-fixes.js?v=7',
+  './editor/world-room-gate.js?v=1',
   './editor/drawer-handle.js?v=1',
-  './editor/world-studio.js?v=2',
+  './editor/world-studio.js?v=3',
   './editor/world-studio-bridge-settings.js?v=1',
   './editor/material-preview-live.js?v=1',
   './editor/world-studio-expert.js?v=1',
   './editor/facade.js',
   './editor/markerPainter.js',
-  './editor/actorPlacer.js',
-  './editor/storyboardTimeline.js'
+  './editor/actorPlacer.js'
 ];
 
 self.addEventListener('install', (event) => {
