@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/editor/drawer-handle.css?v=1">
 <link rel="stylesheet" href="/editor/world-studio.css?v=1">
 <link rel="stylesheet" href="/editor/world-studio-shell.css?v=1">
+<link rel="stylesheet" href="/editor/world-studio-imports.css?v=1">
 </head>
 <body>
 <header class="topbar">
@@ -21,7 +22,7 @@
   <div class="engine-state" id="engine-state"><span class="state-dot"></span><span>ENGINE</span></div>
   <div class="top-actions">
     <button class="ghost compact" id="btn-install" type="button" hidden title="SHADED als Windows-App installieren">INSTALLIEREN</button>
-    <button class="ghost compact" id="btn-room-view" type="button" title="Raum direkt betreten">RAUM</button>
+    <button class="ghost compact" id="btn-room-view" type="button" title="Welt erzeugen/beitreten">RAUM</button>
     <button class="primary compact" id="btn-erstellen" type="button">ERSTELLEN</button>
   </div>
 </header>
@@ -32,7 +33,6 @@
     <button class="rail-btn" type="button" data-target="panel-world" title="Welt"><span>◎</span><b>Welt</b></button>
     <button class="rail-btn" type="button" data-target="panel-paint" title="Material korrigieren"><span>✎</span><b>Korr.</b></button>
     <button class="rail-btn" type="button" data-target="panel-actors" title="Akteure"><span>♟</span><b>Actor</b></button>
-    <button class="rail-btn" id="tool-story" type="button" data-target="timeline-dock" title="Story"><span>▶</span><b>Story</b></button>
   </nav>
 
   <section class="viewport" aria-label="Live Vorschau">
@@ -51,10 +51,7 @@
 
   <aside class="inspector" id="inspector" aria-label="Inspector">
     <div class="inspector-head">
-      <div>
-        <span class="eyebrow">INSPECTOR</span>
-        <strong>Scene / World</strong>
-      </div>
+      <div><span class="eyebrow">INSPECTOR</span><strong>Scene / World</strong></div>
       <button class="inspector-toggle" id="btn-inspector-toggle" type="button" aria-label="Inspector ein-/ausklappen" aria-expanded="false">⌄</button>
     </div>
     <div class="inspector-scroll">
@@ -95,21 +92,15 @@
 
       <section class="inspector-section section-collapsed" id="panel-paint">
         <div class="section-title"><span>04</span><h2>Materialkorrektur</h2></div>
-        <p class="hint">Kein Zeichenprogramm: Hier markierst du falsch erkannte Materialbereiche. Die aktuelle Szene wird beim Öffnen automatisch übernommen.</p>
+        <p class="hint">Hier markierst du falsch erkannte Materialbereiche. Die aktuelle Szene wird beim Öffnen automatisch übernommen.</p>
         <div class="action-grid two">
           <label class="file-btn"><span>Anderes Bild</span><input id="f-paint-source" type="file" accept="image/*"></label>
           <button id="btn-paint-clear" type="button">Zurücksetzen</button>
         </div>
         <div id="palette-buttons"></div>
-        <div class="brush-row">
-          <label for="brush-size">Pinsel</label>
-          <input id="brush-size" type="range" min="2" max="60" value="12">
-        </div>
+        <div class="brush-row"><label for="brush-size">Pinsel</label><input id="brush-size" type="range" min="2" max="60" value="12"></div>
         <canvas id="paint-canvas" width="640" height="360"></canvas>
-        <div class="action-grid two">
-          <button id="btn-paint-export" type="button">PNG exportieren</button>
-          <button class="accent" id="btn-paint-apply" type="button">Auf Szene anwenden</button>
-        </div>
+        <div class="action-grid two"><button id="btn-paint-export" type="button">PNG exportieren</button><button class="accent" id="btn-paint-apply" type="button">Auf Szene anwenden</button></div>
       </section>
 
       <section class="inspector-section section-collapsed" id="panel-actors">
@@ -124,28 +115,15 @@
       </section>
     </div>
   </aside>
-
-  <section class="timeline-dock" id="timeline-dock" aria-label="Story Timeline">
-    <div class="timeline-head">
-      <div><span class="eyebrow">STORY</span><strong>Timeline</strong></div>
-      <div class="timeline-actions">
-        <button id="btn-timeline-add" type="button">+ Schritt</button>
-        <button id="btn-timeline-play" type="button">▶</button>
-        <button id="btn-timeline-stop" type="button">■</button>
-        <button id="btn-timeline-refresh" type="button">↻</button>
-        <button id="btn-story-close" class="mobile-only" type="button">×</button>
-      </div>
-    </div>
-    <div id="timeline"></div>
-  </section>
 </main>
 
 <script type="module" src="/runtime/install.js?v=8"></script>
-<script type="module" src="/editor/app.js?v=7"></script>
+<script type="module" src="/editor/app.js?v=8"></script>
+<script type="module" src="/editor/world-room-gate.js?v=1"></script>
 <script type="module" src="/editor/ui-shell.js?v=7"></script>
 <script type="module" src="/editor/ux-fixes.js?v=7"></script>
 <script type="module" src="/editor/drawer-handle.js?v=1"></script>
-<script type="module" src="/editor/world-studio.js?v=2"></script>
+<script type="module" src="/editor/world-studio.js?v=3"></script>
 <script type="module" src="/editor/world-studio-bridge-settings.js?v=1"></script>
 <script type="module" src="/editor/material-preview-live.js?v=1"></script>
 <script type="module" src="/editor/world-studio-expert.js?v=1"></script>
