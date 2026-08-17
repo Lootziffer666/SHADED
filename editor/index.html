@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050505">
 <title>SHADED Editor</title>
-<link rel="stylesheet" href="/editor/editor.css">
+<link rel="stylesheet" href="/editor/editor.css?v=7">
+<link rel="stylesheet" href="/editor/viewport-first.css?v=7">
 </head>
 <body>
 <header class="topbar">
@@ -15,16 +16,16 @@
   </div>
   <div class="engine-state" id="engine-state"><span class="state-dot"></span><span>ENGINE</span></div>
   <div class="top-actions">
-    <button class="ghost compact" id="btn-room-view" type="button" title="Raumansicht öffnen">RAUM</button>
+    <button class="ghost compact" id="btn-room-view" type="button" title="Raum direkt betreten">RAUM</button>
     <button class="primary compact" id="btn-erstellen" type="button">ERSTELLEN</button>
   </div>
 </header>
 
 <main class="editor-shell">
   <nav class="tool-rail" aria-label="Werkzeuge">
-    <button class="rail-btn active" type="button" data-target="panel-source" title="Quelle"><span>◫</span><b>Quelle</b></button>
+    <button class="rail-btn" type="button" data-target="panel-source" title="Quelle"><span>◫</span><b>Quelle</b></button>
     <button class="rail-btn" type="button" data-target="panel-world" title="Welt"><span>◎</span><b>Welt</b></button>
-    <button class="rail-btn" type="button" data-target="panel-paint" title="Malen"><span>✎</span><b>Paint</b></button>
+    <button class="rail-btn" type="button" data-target="panel-paint" title="Material korrigieren"><span>✎</span><b>Korr.</b></button>
     <button class="rail-btn" type="button" data-target="panel-actors" title="Akteure"><span>♟</span><b>Actor</b></button>
     <button class="rail-btn" id="tool-story" type="button" data-target="timeline-dock" title="Story"><span>▶</span><b>Story</b></button>
   </nav>
@@ -49,10 +50,10 @@
         <span class="eyebrow">INSPECTOR</span>
         <strong>Scene / World</strong>
       </div>
-      <button class="inspector-toggle" id="btn-inspector-toggle" type="button" aria-label="Inspector ein-/ausklappen" aria-expanded="true">⌄</button>
+      <button class="inspector-toggle" id="btn-inspector-toggle" type="button" aria-label="Inspector ein-/ausklappen" aria-expanded="false">⌄</button>
     </div>
     <div class="inspector-scroll">
-      <section class="inspector-section" id="panel-source">
+      <section class="inspector-section section-collapsed" id="panel-source">
         <div class="section-title"><span>01</span><h2>Quelle & Szene</h2></div>
         <div class="action-grid two">
           <button id="btn-demo" type="button">Demo laden</button>
@@ -67,12 +68,12 @@
         <div id="editor-status" class="status-line">Noch keine Szene geladen.</div>
       </section>
 
-      <section class="inspector-section" id="panel-world">
+      <section class="inspector-section section-collapsed" id="panel-world">
         <div class="section-title"><span>02</span><h2>Weltparameter</h2></div>
         <div id="sliders" class="param-stack"></div>
       </section>
 
-      <section class="inspector-section material-section" id="panel-material">
+      <section class="inspector-section material-section section-collapsed" id="panel-material">
         <div class="section-title"><span>03</span><h2>Material / Licht</h2></div>
         <p class="hint">Trennt eingebackenes Licht von Materialwirkung. 0 bleibt der unveränderte Fallback.</p>
         <div class="material-control">
@@ -87,10 +88,11 @@
         <div id="intrinsic-status" class="status-line subtle">Noch keine Zerlegung.</div>
       </section>
 
-      <section class="inspector-section" id="panel-paint">
-        <div class="section-title"><span>04</span><h2>Marker / Palette</h2></div>
+      <section class="inspector-section section-collapsed" id="panel-paint">
+        <div class="section-title"><span>04</span><h2>Materialkorrektur</h2></div>
+        <p class="hint">Kein Zeichenprogramm: Hier markierst du falsch erkannte Materialbereiche. Die aktuelle Szene wird beim Öffnen automatisch übernommen.</p>
         <div class="action-grid two">
-          <label class="file-btn"><span>Bild laden</span><input id="f-paint-source" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Anderes Bild</span><input id="f-paint-source" type="file" accept="image/*"></label>
           <button id="btn-paint-clear" type="button">Zurücksetzen</button>
         </div>
         <div id="palette-buttons"></div>
@@ -105,7 +107,7 @@
         </div>
       </section>
 
-      <section class="inspector-section" id="panel-actors">
+      <section class="inspector-section section-collapsed" id="panel-actors">
         <div class="section-title"><span>05</span><h2>Akteure</h2></div>
         <div class="action-grid two">
           <label class="file-btn"><span>Sprite Sheet</span><input id="f-actor-sheet" type="file" accept="image/*"></label>
@@ -133,7 +135,8 @@
   </section>
 </main>
 
-<script type="module" src="/editor/app.js"></script>
-<script type="module" src="/editor/ui-shell.js"></script>
+<script type="module" src="/editor/app.js?v=7"></script>
+<script type="module" src="/editor/ui-shell.js?v=7"></script>
+<script type="module" src="/editor/ux-fixes.js?v=7"></script>
 </body>
 </html>
