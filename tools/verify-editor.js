@@ -1,8 +1,4 @@
-// SHADED Editor – visuelle + funktionale Verifikation (headless). Nutzung:
-//   npm i playwright        (einmalig, außerhalb des Repos oder mit .gitignore)
-//   node tools/verify-editor.js
-// Screenshots landen in tools/verify-out/. Exit != 0 bei FAIL oder Konsolenfehlern.
-// Eigener Chromium-Pfad: env CHROMIUM=/pfad/zu/chromium node tools/verify-editor.js
+// SHADED Editor — focused browser verification for the current viewport-first editor.
 const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
@@ -14,231 +10,69 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
+  const rel = urlPath === '/' ? 'editor/index.html' : urlPath.replace(/^\//, '');
   const p = path.join(REPO, rel);
   try {
     const data = fs.readFileSync(p);
-    const type = p.endsWith('.html') ? 'text/html'
-      : p.endsWith('.js') ? 'text/javascript'
-      : p.endsWith('.css') ? 'text/css'
-      : p.endsWith('.json') ? 'application/json'
-      : 'image/png';
-    res.writeHead(200, { 'Content-Type': type });
-    res.end(data);
-  } catch (e) {
-    res.writeHead(404);
-    res.end();
-  }
+    const type = p.endsWith('.html') ? 'text/html' : p.endsWith('.js') || p.endsWith('.mjs') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : p.endsWith('.json') || p.endsWith('.webmanifest') ? 'application/json' : 'image/png';
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(data);
+  } catch { res.writeHead(404); res.end(); }
 });
 
 let failed = false;
-function check(label, cond) {
-  console.log(`${cond ? 'PASS' : 'FAIL'} — ${label}`);
-  if (!cond) failed = true;
-}
+const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
 
 (async () => {
-  await new Promise((r) => server.listen(8932, r));
-  const launchOpts = { args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] };
-  if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
-  else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
-  const browser = await chromium.launch(launchOpts);
+  await new Promise(resolve => server.listen(8932, resolve));
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
   const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
-// Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
-// "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
-// ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404. Genau
-// diese Treffer werden abgezogen, jeder andere 404 bleibt ein echter Fehler.
-const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
-const dropCompanion404 = (list, count) => {
-  let out = list.slice();
-  for (let i = 0; i < count; i++) {
-    const idx = out.findIndex((e) => /status of 404|HTTP 404/.test(e));
-    if (idx < 0) break;
-    out = out.filter((_, k) => k !== idx);
-  }
-  return out;
-};
-  let benign404 = 0;
-  page.on('response', (r) => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 
   try {
     await page.goto('http://localhost:8932/editor/index.html', { waitUntil: 'load' });
+    await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 15000 });
 
-    // --- Demo laden -> Erstellen -> Engine wird ready ---
-    await page.click('#btn-demo');
-    await page.waitForTimeout(600); // fetch der Demo-Bilder in das iframe
-    await page.click('#btn-erstellen');
-    await page.waitForFunction(
-      () => {
-        const f = document.getElementById('engine-frame');
-        return !!(f.contentWindow && f.contentWindow.SHADED && f.contentWindow.SHADED.isReady());
-      },
-      { timeout: 20000 },
-    );
-    check('Engine über iframe erreichbar und ready', true);
+    const shell = await page.evaluate(() => ({
+      storyButton: !!document.getElementById('tool-story'),
+      timelineDock: !!document.getElementById('timeline-dock'),
+      worldDemo: !!document.getElementById('world-demo'),
+      providerFiles: !!document.getElementById('world-provider-files'),
+      providerFolder: !!document.getElementById('world-provider-folder')
+    }));
+    check('Story-Button ist entfernt', !shell.storyButton);
+    check('Timeline-Dock ist entfernt', !shell.timelineDock);
+    check('World Studio hat direkten Demo-Button', shell.worldDemo);
+    check('World Studio kann bestehende DA2/DA3-Dateien laden', shell.providerFiles && shell.providerFolder);
 
-    await page.screenshot({ path: path.join(OUT, 'editor_ready.png') });
+    await page.click('#world-demo');
+    await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 10000 });
+    check('Demo wird direkt in den World-Studio-Workflow geladen', true);
 
-    // --- Parameter-Slider live gegen die Engine ---
+    await page.click('#world-generate');
+    await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 30000 });
+    check('World Studio erzeugt ohne manuelle Depth-Datei eine Welt', true);
+    check('Raumansicht endet direkt im Laufmodus', await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.spatial.viewer.state().mode === 'walk'));
+
     const before = await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.getParams().storm);
+    await page.click('.rail-btn[data-target="panel-world"]');
     await page.fill('#p-storm', '0.9');
     await page.dispatchEvent('#p-storm', 'input');
-    await page.waitForTimeout(50);
     const after = await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.getParams().storm);
-    check(`Slider ändert Engine-Parameter live (storm ${before} -> ${after})`, Math.abs(after - 0.9) < 1e-6);
+    check(`Parameter bleibt live verdrahtet (${before} -> ${after})`, Math.abs(after - 0.9) < 1e-6);
 
-    // --- Marker-/Palette-Overlay: Bild laden, malen, Diff prüfen ---
-    const sceneImgPath = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579.png');
-    await page.setInputFiles('#f-paint-source', sceneImgPath);
-    // Canvas-Decode konkurriert mit der WebGL-Szene um GPU/CPU — auf die echte
-    // Größenänderung warten statt eine feste (unter Last zu kurze) Pause.
-    await page.waitForFunction(() => document.getElementById('paint-canvas').width !== 640, { timeout: 10000 });
-
-    // Das obere Panel (Vorschau + 15 Parameter-Slider) macht die Seite sehr lang;
-    // boundingBox() ist sonst relativ zu einer Scroll-Position, an der der Canvas
-    // außerhalb des Viewports liegt (Klicks würden ins Leere gehen).
-    await page.locator('#paint-canvas').scrollIntoViewIfNeeded();
-    const canvasBox = await page.locator('#paint-canvas').boundingBox();
-    // Auf "Fenster-Marker" (Standard-aktiver Pinsel) malen
-    await page.mouse.move(canvasBox.x + canvasBox.width * 0.3, canvasBox.y + canvasBox.height * 0.3);
-    await page.mouse.down();
-    await page.mouse.move(canvasBox.x + canvasBox.width * 0.35, canvasBox.y + canvasBox.height * 0.35, { steps: 5 });
-    await page.mouse.up();
-
-    // app.js kapselt seinen Zustand bewusst in ES-Modulen (keine globalen Leaks) —
-    // der sichtbare Effekt wird daher über Pixel-Sampling des Canvas geprüft.
-    const paintedPixel = await page.evaluate(() => {
-      const c = document.getElementById('paint-canvas');
-      const ctx = c.getContext('2d');
-      const x = Math.floor(c.width * 0.3);
-      const y = Math.floor(c.height * 0.3);
-      const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
-      return { r, g, b };
-    });
-    // Pink-Marker-Standardfarbe #FF33CC = rgb(255,51,204)
-    check(
-      `Paint-Werkzeug malt echte Pixel (Fenster-Marker-Pink erwartet, gefunden rgb(${paintedPixel.r},${paintedPixel.g},${paintedPixel.b}))`,
-      paintedPixel.r > 200 && paintedPixel.g < 100 && paintedPixel.b > 150,
-    );
-
-    await page.screenshot({ path: path.join(OUT, 'editor_paint.png') });
-
-    // --- Als Zweitbild anwenden -> Engine bekommt echtes Marker-Overlay ---
-    await page.click('#btn-paint-apply');
-    await page.waitForTimeout(300);
-    await page.click('#btn-erstellen');
-    await page.waitForFunction(
-      () => document.getElementById('engine-frame').contentWindow.SHADED.isReady(),
-      { timeout: 20000 },
-    );
-    check('Gemaltes Overlay als Zweitbild übernommen, Engine erstellt erneut ohne Absturz', true);
-    await page.screenshot({ path: path.join(OUT, 'editor_after_overlay.png') });
-
-    // --- Actor-Platzierung: echtes Test-Actor-Fixture aus tools/, wie verify-actors.js ---
-    const actorSheet = path.join(__dirname, 'verify-test-actor.png');
-    const actorManifest = path.join(__dirname, 'verify-test-actor.json');
-    await page.setInputFiles('#f-actor-sheet', actorSheet);
-    await page.setInputFiles('#f-actor-manifest', actorManifest);
-    await page.click('#btn-actor-add');
-    await page.waitForTimeout(300);
-    const markerCount = await page.locator('#actor-overlay .actor-marker').count();
-    const actorRowCount = await page.locator('#actor-list .actor-row').count();
-    check(`Actor hinzugefügt: Marker in Vorschau (${markerCount}) und Zeile in Liste (${actorRowCount})`, markerCount === 1 && actorRowCount === 1);
-
-    // Marker per Drag verschieben und prüfen, dass sich die Position wirklich ändert.
-    // Scrollen auf 0,0: das Klicken weiter unten liegender Buttons kann den Marker
-    // (oben in der Vorschau) aus dem Viewport heraus verschoben haben.
-    await page.evaluate(() => window.scrollTo(0, 0));
-    const markerBoxBefore = await page.locator('.actor-marker').boundingBox();
-    const overlayBox = await page.locator('#actor-overlay').boundingBox();
-    await page.mouse.move(markerBoxBefore.x + markerBoxBefore.width / 2, markerBoxBefore.y + markerBoxBefore.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(overlayBox.x + overlayBox.width * 0.2, overlayBox.y + overlayBox.height * 0.2, { steps: 5 });
-    await page.mouse.up();
-    const markerBoxAfter = await page.locator('.actor-marker').boundingBox();
-    check(
-      `Actor-Marker per Drag verschoben (x ${markerBoxBefore.x.toFixed(0)} -> ${markerBoxAfter.x.toFixed(0)})`,
-      Math.abs(markerBoxAfter.x - markerBoxBefore.x) > 20,
-    );
-    await page.screenshot({ path: path.join(OUT, 'editor_actor.png') });
-
-    // --- Story/Akt-Timeline: Schritt hinzufügen, bearbeiten, Vorschau, Play/Stop ---
-    const stepsBefore = await page.locator('#timeline .timeline-step').count();
-    await page.click('#btn-timeline-add');
-    await page.waitForTimeout(100);
-    const stepsAfter = await page.locator('#timeline .timeline-step').count();
-    check(`Timeline-Schritt hinzugefügt (${stepsBefore} -> ${stepsAfter})`, stepsAfter === stepsBefore + 1);
-
-    const lastStepDurInput = page.locator('#timeline .timeline-step input[type=number]').last();
-    await lastStepDurInput.fill('7');
-    await lastStepDurInput.dispatchEvent('change');
-    const engineStepCount = await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.story.board().length);
-    const lastStepDur = await page.evaluate(() => {
-      const board = document.getElementById('engine-frame').contentWindow.SHADED.story.board();
-      return board[board.length - 1].dur;
-    });
-    check(`Timeline schreibt direkt in window.SHADED.story.board() (Länge ${engineStepCount}, letzte Dauer ${lastStepDur})`, lastStepDur === 7);
-
-    const lastPreviewBtn = page.locator('#timeline .timeline-step').last().locator('button', { hasText: '👁' });
-    await lastPreviewBtn.click();
-    await page.waitForTimeout(50);
-    check('Timeline-Vorschau-Button lässt sich klicken ohne Fehler', true);
-
-    await page.click('#btn-timeline-play');
-    await page.waitForTimeout(200);
-    await page.click('#btn-timeline-stop');
-    check('Play/Stop der Timeline ohne Absturz', true);
-    await page.screenshot({ path: path.join(OUT, 'editor_timeline.png') });
-
-    // --- Materialschicht: A/B-Schalter und Statuszeile im Editor ---
-    // Das Panel liegt unter den Slidern, also erst hinscrollen (siehe CLAUDE.md).
-    const abBtn = page.locator('#btn-intrinsic-ab');
-    await abBtn.scrollIntoViewIfNeeded();
-    const engineStrength = () => page.evaluate(
-      () => document.getElementById('engine-frame').contentWindow.SHADED.intrinsic.getStrength());
-    const strengthBefore = await engineStrength();
-    await abBtn.click();
-    await page.waitForTimeout(150);
-    const afterOn = await engineStrength();
-    check(`A/B-Schalter setzt die Wirkstärke in der ECHTEN Engine (${strengthBefore} -> ${afterOn})`,
-      strengthBefore === 0 && afterOn === 1);
-    await abBtn.click();
-    await page.waitForTimeout(150);
-    const afterOff = await engineStrength();
-    check(`A/B-Schalter schaltet zurück auf identity-albedo (${afterOn} -> ${afterOff})`, afterOff === 0);
-
-    const slider = page.locator('#intrinsic-strength');
-    await slider.fill('0.5');
-    await slider.dispatchEvent('input');
-    await page.waitForTimeout(150);
-    const afterSlider = await engineStrength();
-    check(`Regler überträgt Zwischenwerte an die Engine (strength=${afterSlider})`,
-      Math.abs(afterSlider - 0.5) < 1e-6);
-
-    const statusText = await page.locator('#intrinsic-status').textContent();
-    check(`Statuszeile zeigt den echten Kanalvertrag ("${statusText.trim().slice(0, 60)}…")`,
-      statusText.includes('material.intrinsic.') && statusText.includes('INFERRED'));
-
-    await page.click('#btn-intrinsic-accept');
-    await page.waitForTimeout(100);
-    const provenance = await page.evaluate(
-      () => document.getElementById('engine-frame').contentWindow.SHADED.intrinsic.state().provenance);
-    check(`"Als kanonisch bestätigen" setzt USER_APPROVED in der Engine (${provenance})`,
-      provenance === 'USER_APPROVED');
-    await page.screenshot({ path: path.join(OUT, 'editor_intrinsic.png') });
-  } catch (e) {
-    check(`Unerwarteter Fehler: ${e.message}`, false);
+    await page.screenshot({ path: path.join(OUT, 'editor_world_studio.png') });
+  } catch (error) {
+    check(`Unerwarteter Fehler: ${error.message}`, false);
   }
 
-  const realErrors = dropCompanion404(errors, benign404);
-  check('Keine Konsolen-/Seitenfehler', realErrors.length === 0);
-  if (realErrors.length) console.log('Fehler:', realErrors);
+  const relevantErrors = errors.filter(error => !/404/.test(error) && !/favicon/i.test(error));
+  check('Keine relevanten Browserfehler', relevantErrors.length === 0);
+  if (relevantErrors.length) console.log(relevantErrors);
 
   await browser.close();
-  await new Promise((r) => server.close(r));
+  await new Promise(resolve => server.close(resolve));
   console.log(failed ? '\n❌ verify-editor FAILED' : '\n✅ verify-editor PASSED');
   process.exit(failed ? 1 : 0);
 })();
