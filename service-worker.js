@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v9';
+const CACHE = 'shaded-shell-v10';
 const SHELL = [
   './',
   './index.html',
@@ -26,7 +26,8 @@ const SHELL = [
   './editor/ui-shell.js?v=7',
   './editor/ux-fixes.js?v=7',
   './editor/drawer-handle.js?v=1',
-  './editor/world-studio.js?v=1',
+  './editor/world-studio.js?v=2',
+  './editor/material-preview-live.js?v=1',
   './editor/facade.js',
   './editor/markerPainter.js',
   './editor/actorPlacer.js',
