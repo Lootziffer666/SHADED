@@ -87,6 +87,47 @@ def depth_points(depth: np.ndarray, rgb: np.ndarray, fx: float, fy: float, point
     return np.concatenate((xyz, color), axis=-1).reshape(-1, 6).astype("<f4", copy=False)
 
 
+def write_preview_maps(destination: Path, point_depth: np.ndarray, normals: np.ndarray) -> dict[str, Any]:
+    """Write renderer-friendly image maps without changing the provider schema.
+
+    The canonical result.json remains renderer-neutral and schema-valid. These
+    PNGs are convenience artefacts consumed by the editor/world pipeline.
+    """
+    normalised = normalise_depth(point_depth)
+    near_white = np.clip((1.0 - normalised) * 255.0, 0, 255).astype(np.uint8)
+    height = near_white.copy()
+
+    gy, gx = np.gradient(normalised)
+    bump = np.hypot(gx, gy)
+    p98 = float(np.percentile(bump, 98)) if np.any(bump) else 1.0
+    bump = np.clip(bump / max(p98, 1e-8) * 255.0, 0, 255).astype(np.uint8)
+
+    normal_rgb = np.clip((np.asarray(normals, dtype=np.float32) * 0.5 + 0.5) * 255.0, 0, 255).astype(np.uint8)
+    files = {
+        "depthPreview": "depth-preview.png",
+        "height": "height-map.png",
+        "bump": "bump-map.png",
+        "normal": "normal-map.png",
+    }
+    Image.fromarray(near_white, mode="L").convert("RGB").save(destination / files["depthPreview"])
+    Image.fromarray(height, mode="L").convert("RGB").save(destination / files["height"])
+    Image.fromarray(bump, mode="L").convert("RGB").save(destination / files["bump"])
+    Image.fromarray(normal_rgb, mode="RGB").save(destination / files["normal"])
+
+    descriptor = {
+        "format": "SHADED.spatial-preview-maps.v1",
+        "files": files,
+        "conventions": {
+            "depthPreview": "white-near-black-far",
+            "height": "white-near/raised-black-far/recessed",
+            "bump": "gradient-magnitude",
+            "normal": "rgb-xyz-remapped-minus1-plus1-to-0-255",
+        },
+    }
+    (destination / "maps.json").write_text(json.dumps(descriptor, indent=2) + "\n", encoding="utf-8")
+    return descriptor
+
+
 def write_result(
     output: str,
     provider: str,
@@ -136,6 +177,8 @@ def write_result(
         if confidence.shape != depth.shape:
             raise ValueError(f"confidence shape {confidence.shape} does not match depth {depth.shape}")
         write_array("confidence", confidence)
+
+    write_preview_maps(destination, point_depth, normals)
 
     camera: Dict[str, Any] = {
         "intrinsics": intrinsics.tolist(),
