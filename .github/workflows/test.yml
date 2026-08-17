@@ -31,9 +31,9 @@ jobs:
       run: |
         npm run check
 
-    - name: Verify redesigned authoring editor in Chromium
+    - name: Verify viewport-first mobile editor, closing, correction and room entry
       run: |
-        node tools/verify-editor.js
+        npm run verify:mobile-editor
 
     - name: Verify service worker, offline demo, and spatial editor in Chromium
       run: |
