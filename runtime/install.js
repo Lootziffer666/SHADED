@@ -6,7 +6,7 @@ let installPrompt = null;
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
   installPrompt = event;
-  installButton.hidden = false;
+  if (installButton) installButton.hidden = false;
 });
 
 installButton?.addEventListener('click', async () => {
@@ -29,7 +29,8 @@ window.addEventListener('appinstalled', () => {
 
 if ('serviceWorker' in navigator && window.isSecureContext) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js').catch((error) => {
+    // Absolute path is intentional: the install module also runs from /editor/.
+    navigator.serviceWorker.register('/service-worker.js', { scope: '/' }).catch((error) => {
       // Installation is an enhancement. A failed worker must never stop WebGL.
       console.warn('SHADED Offline-Modus konnte nicht aktiviert werden:', error);
     });
