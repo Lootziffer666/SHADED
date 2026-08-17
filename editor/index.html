@@ -2,110 +2,138 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
 <title>SHADED Editor</title>
-<link rel="stylesheet" href="editor.css">
+<link rel="stylesheet" href="/editor/editor.css">
 </head>
 <body>
-<header>
-  <h1>SHADED Editor</h1>
-  <p>Live-Parameter-Tuning, Marker-/Palette-Overlay, Actor-Platzierung, Story/Akt-Timeline — steuert die echte Engine aus <code>../index.html</code>, dupliziert sie nicht.</p>
+<header class="topbar">
+  <div class="brand" aria-label="SHADED Editor">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span>SHADED</span><span class="brand-mode">/ EDITOR</span>
+  </div>
+  <div class="engine-state" id="engine-state"><span class="state-dot"></span><span>ENGINE</span></div>
+  <div class="top-actions">
+    <button class="ghost compact" id="btn-room-view" type="button" title="Raumansicht öffnen">RAUM</button>
+    <button class="primary compact" id="btn-erstellen" type="button">ERSTELLEN</button>
+  </div>
 </header>
 
-<div class="layout">
-  <section class="panel panel-wide">
-    <h2>Vorschau</h2>
+<main class="editor-shell">
+  <nav class="tool-rail" aria-label="Werkzeuge">
+    <button class="rail-btn active" type="button" data-target="panel-source" title="Quelle"><span>◫</span><b>Quelle</b></button>
+    <button class="rail-btn" type="button" data-target="panel-world" title="Welt"><span>◎</span><b>Welt</b></button>
+    <button class="rail-btn" type="button" data-target="panel-paint" title="Malen"><span>✎</span><b>Paint</b></button>
+    <button class="rail-btn" type="button" data-target="panel-actors" title="Akteure"><span>♟</span><b>Actor</b></button>
+    <button class="rail-btn" id="tool-story" type="button" data-target="timeline-dock" title="Story"><span>▶</span><b>Story</b></button>
+  </nav>
+
+  <section class="viewport" aria-label="Live Vorschau">
     <div id="preview-wrap">
-      <iframe id="engine-frame" src="../index.html" title="SHADED-Engine"></iframe>
+      <iframe id="engine-frame" src="/index.html" title="SHADED Engine"></iframe>
       <div id="actor-overlay"></div>
     </div>
-
-    <div class="toolbar">
-      <button id="btn-demo" type="button">Demo laden</button>
-      <label class="file-btn"><span>Szene laden…</span><input id="f-scene" type="file" accept="image/*"></label>
-      <label class="file-btn"><span>Zweitbild laden…</span><input id="f-mat" type="file" accept="image/*"></label>
-      <button id="btn-erstellen" type="button">✨ Erstellen</button>
-      <label class="file-btn"><span>Preset laden…</span><input id="f-preset" type="file" accept="application/json"></label>
-      <button id="btn-save-preset" type="button">Preset speichern</button>
+    <div class="viewport-hud hud-left">
+      <span class="hud-kicker">LIVE VIEW</span>
+      <span id="viewport-status">Engine wird geladen …</span>
     </div>
-
-    <h2>Parameter</h2>
-    <div id="sliders"></div>
-    <div id="editor-status">Noch keine Szene geladen.</div>
-
-    <h2>Materialschicht (Licht/Material-Trennung)</h2>
-    <p class="hint">
-      Das Quellbild enthält eingebackenes Licht. Ohne Trennung multipliziert jedes
-      Weltgesetz darauf – Schatten werden doppelt beschattet. Bei 0 rendert die Szene
-      exakt wie bisher (Fallback identity-albedo).
-    </p>
-    <div class="row">
-      <label for="intrinsic-strength">Trennung</label>
-      <input id="intrinsic-strength" type="range" min="0" max="1" step="0.01" value="0">
-      <output id="intrinsic-value">0.00</output>
-    </div>
-    <div class="row">
-      <button id="btn-intrinsic-ab" type="button">A/B umschalten</button>
-      <button id="btn-intrinsic-accept" type="button">Als kanonisch bestätigen</button>
-      <button id="btn-intrinsic-reset" type="button">Verwerfen</button>
-    </div>
-    <div id="intrinsic-status">Noch keine Zerlegung.</div>
-  </section>
-
-  <section class="panel">
-    <h2>Marker-/Palette-Overlay malen</h2>
-    <p class="hint">
-      Lädt eine Kopie des Szenenbilds; unveränderte Pixel bleiben unangetastet
-      (SHADEDs Marker-Erkennung ist diff-basiert). Pink = Fenster-Marker, jede
-      andere Farbe = Klassen-Korrektur — genau der Vertrag aus <code>CLAUDE.md</code>.
-    </p>
-    <div class="toolbar">
-      <label class="file-btn"><span>Bild fürs Malen laden…</span><input id="f-paint-source" type="file" accept="image/*"></label>
-      <button id="btn-paint-clear" type="button">Übermalungen zurücksetzen</button>
-    </div>
-    <div id="palette-buttons"></div>
-    <div class="brush-row">
-      <label for="brush-size">Pinselgröße</label>
-      <input id="brush-size" type="range" min="2" max="60" value="12">
-    </div>
-    <canvas id="paint-canvas" width="640" height="360"></canvas>
-    <div class="toolbar">
-      <button id="btn-paint-export" type="button">Als PNG exportieren</button>
-      <button id="btn-paint-apply" type="button">Als Zweitbild in Vorschau anwenden</button>
+    <div class="viewport-hud hud-right">
+      <button id="btn-inspector-mobile" class="hud-button" type="button" aria-expanded="false">PARAMETER</button>
     </div>
   </section>
 
-  <section class="panel">
-    <h2>Actor-Platzierung (SWIFT-Sprites)</h2>
-    <p class="hint">
-      Sprite-Sheet + Manifest wie von SWIFTs <code>render --format sprite_sheet</code>.
-      Läuft ausschließlich über <code>window.SHADED.addActor()</code> — rein optisch,
-      ändert nie <code>classGrid</code>.
-    </p>
-    <div class="toolbar">
-      <label class="file-btn"><span>Sprite-Sheet…</span><input id="f-actor-sheet" type="file" accept="image/*"></label>
-      <label class="file-btn"><span>Manifest…</span><input id="f-actor-manifest" type="file" accept="application/json"></label>
-      <button id="btn-actor-add" type="button">Actor hinzufügen</button>
+  <aside class="inspector" id="inspector" aria-label="Inspector">
+    <div class="inspector-head">
+      <div>
+        <span class="eyebrow">INSPECTOR</span>
+        <strong>Scene / World</strong>
+      </div>
+      <button class="inspector-toggle" id="btn-inspector-toggle" type="button" aria-label="Inspector ein-/ausklappen" aria-expanded="true">⌄</button>
     </div>
-    <p class="hint">Marker in der Vorschau oben ziehen, um die Position zu ändern.</p>
-    <div id="actor-list"></div>
-  </section>
+    <div class="inspector-scroll">
+      <section class="inspector-section" id="panel-source">
+        <div class="section-title"><span>01</span><h2>Quelle & Szene</h2></div>
+        <div class="action-grid two">
+          <button id="btn-demo" type="button">Demo laden</button>
+          <label class="file-btn"><span>Bild laden</span><input id="f-scene" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Zweitbild</span><input id="f-mat" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Preset laden</span><input id="f-preset" type="file" accept="application/json"></label>
+        </div>
+        <div class="action-grid two secondary-actions">
+          <button id="btn-save-preset" type="button">Preset speichern</button>
+          <button class="accent" id="btn-erstellen-panel" type="button">Erstellen</button>
+        </div>
+        <div id="editor-status" class="status-line">Noch keine Szene geladen.</div>
+      </section>
 
-  <section class="panel">
-    <h2>Story/Akt-Timeline</h2>
-    <p class="hint">
-      Bearbeitet <code>window.SHADED.story</code> direkt (dieselbe Liste, die auch
-      <code>playStory()</code> abspielt) — keine zweite Storyboard-Wahrheit.
-    </p>
-    <div class="toolbar">
-      <button id="btn-timeline-add" type="button">+ Schritt aus aktuellem Zustand</button>
-      <button id="btn-timeline-play" type="button">▶ Abspielen</button>
-      <button id="btn-timeline-stop" type="button">⏹ Stoppen</button>
-      <button id="btn-timeline-refresh" type="button">↻ Neu laden</button>
+      <section class="inspector-section" id="panel-world">
+        <div class="section-title"><span>02</span><h2>Weltparameter</h2></div>
+        <div id="sliders" class="param-stack"></div>
+      </section>
+
+      <section class="inspector-section material-section" id="panel-material">
+        <div class="section-title"><span>03</span><h2>Material / Licht</h2></div>
+        <p class="hint">Trennt eingebackenes Licht von Materialwirkung. 0 bleibt der unveränderte Fallback.</p>
+        <div class="material-control">
+          <div class="control-label"><label for="intrinsic-strength">Trennung</label><output id="intrinsic-value">0.00</output></div>
+          <input id="intrinsic-strength" type="range" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="action-grid three">
+          <button id="btn-intrinsic-ab" type="button">A/B</button>
+          <button id="btn-intrinsic-accept" type="button">Bestätigen</button>
+          <button id="btn-intrinsic-reset" type="button">Reset</button>
+        </div>
+        <div id="intrinsic-status" class="status-line subtle">Noch keine Zerlegung.</div>
+      </section>
+
+      <section class="inspector-section" id="panel-paint">
+        <div class="section-title"><span>04</span><h2>Marker / Palette</h2></div>
+        <div class="action-grid two">
+          <label class="file-btn"><span>Bild laden</span><input id="f-paint-source" type="file" accept="image/*"></label>
+          <button id="btn-paint-clear" type="button">Zurücksetzen</button>
+        </div>
+        <div id="palette-buttons"></div>
+        <div class="brush-row">
+          <label for="brush-size">Pinsel</label>
+          <input id="brush-size" type="range" min="2" max="60" value="12">
+        </div>
+        <canvas id="paint-canvas" width="640" height="360"></canvas>
+        <div class="action-grid two">
+          <button id="btn-paint-export" type="button">PNG exportieren</button>
+          <button class="accent" id="btn-paint-apply" type="button">Auf Szene anwenden</button>
+        </div>
+      </section>
+
+      <section class="inspector-section" id="panel-actors">
+        <div class="section-title"><span>05</span><h2>Akteure</h2></div>
+        <div class="action-grid two">
+          <label class="file-btn"><span>Sprite Sheet</span><input id="f-actor-sheet" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Manifest</span><input id="f-actor-manifest" type="file" accept="application/json"></label>
+        </div>
+        <button class="wide accent" id="btn-actor-add" type="button">Actor hinzufügen</button>
+        <p class="hint">Actor-Marker direkt in der Vorschau ziehen.</p>
+        <div id="actor-list"></div>
+      </section>
+    </div>
+  </aside>
+
+  <section class="timeline-dock" id="timeline-dock" aria-label="Story Timeline">
+    <div class="timeline-head">
+      <div><span class="eyebrow">STORY</span><strong>Timeline</strong></div>
+      <div class="timeline-actions">
+        <button id="btn-timeline-add" type="button">+ Schritt</button>
+        <button id="btn-timeline-play" type="button">▶</button>
+        <button id="btn-timeline-stop" type="button">■</button>
+        <button id="btn-timeline-refresh" type="button">↻</button>
+        <button id="btn-story-close" class="mobile-only" type="button">×</button>
+      </div>
     </div>
     <div id="timeline"></div>
   </section>
-</div>
+</main>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="/editor/app.js"></script>
+<script type="module" src="/editor/ui-shell.js"></script>
 </body>
 </html>
