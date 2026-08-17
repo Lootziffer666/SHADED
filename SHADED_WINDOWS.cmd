@@ -16,7 +16,7 @@ echo ---------------------------------
 echo Starte lokalen Editor und GPU-Bridge...
 echo.
 
-start "SHADED Local Bridge" cmd /k "cd /d "%~dp0" && node tools\shaded-local-bridge.mjs"
+start "SHADED Local Bridge" /D "%~dp0" cmd /k node tools\shaded-local-bridge.mjs
 
 set /a TRIES=0
 :WAIT
