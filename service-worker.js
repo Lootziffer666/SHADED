@@ -17,11 +17,13 @@ const SHELL = [
   './editor/index.html',
   './editor/editor.css?v=7',
   './editor/viewport-first.css?v=7',
+  './editor/drawer-handle.css?v=1',
   './editor/app.js',
   './editor/ui-shell.js',
   './editor/app.js?v=7',
   './editor/ui-shell.js?v=7',
   './editor/ux-fixes.js?v=7',
+  './editor/drawer-handle.js?v=1',
   './editor/facade.js',
   './editor/markerPainter.js',
   './editor/actorPlacer.js',
@@ -63,9 +65,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigation and executable/editor code are network-first. The old
-  // stale-while-revalidate policy visibly kept obsolete UI logic alive for one
-  // more page load after every deployment, which is unacceptable for an editor.
   const isCode = /\.(?:js|mjs|css)$/.test(url.pathname) || url.pathname.startsWith('/editor/');
   if (request.mode === 'navigate' || isCode) {
     event.respondWith(networkFirst(request).catch(async () => {
@@ -75,7 +74,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Large immutable-ish visual assets may still use stale-while-revalidate.
   event.respondWith(caches.match(request).then((cached) => {
     const update = fetch(request).then((response) => {
       if (response.ok) caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
