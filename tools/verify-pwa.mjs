@@ -18,7 +18,8 @@ const checks = [
   ['install module linked', /type="module" src="runtime\/install\.js"/.test(html)],
   ['spatial viewer linked', /type="module" src="runtime\/spatial-viewer\.js"/.test(html)],
   ['editor cached offline', worker.includes("'./editor/index.html'") && worker.includes("'./editor/app.js'")],
-  ['runtime modules cached offline', worker.includes("'./runtime/install.js'") && worker.includes("'./runtime/spatial-viewer.js'") && worker.includes("'./runtime/spatial-navigation.mjs'")],
+  ['runtime modules cached offline', ['./runtime/install.js','./runtime/spatial-viewer.js','./runtime/spatial-navigation.mjs','./runtime/spatial-reconstruction.mjs','./runtime/sparse-voxel-world.mjs','./runtime/surface-world-simulation.mjs'].every(file => worker.includes(`'${file}'`))],
+  ['canonical demo cached offline', ['./file_00000000974871f49fe71f6b456f9579.png','./file_00000000974871f49fe71f6b456f9579_depth.png','./file_00000000c84071f4bcd6ff9afdba7246.png'].every(file => worker.includes(`'${file}'`))],
 ];
 
 let failed = false;
@@ -27,4 +28,4 @@ for (const [label, ok] of checks) {
   failed ||= !ok;
 }
 if (failed) process.exit(1);
-console.log('✅ PWA-Vertrag vollständig');
+console.log('✅ PWA-Dateien und Cacheliste statisch geprüft (keine Browser-Installation behauptet)');

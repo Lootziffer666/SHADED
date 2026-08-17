@@ -3,12 +3,18 @@
   "$id": "https://shaded.example/contracts/spatial-provider-result-v1.json",
   "title": "SHADED renderer-neutral spatial provider result",
   "type": "object",
-  "required": ["format", "provider", "channels"],
+  "required": ["format", "provider", "modelVersion", "device", "precision", "depthConvention", "metric", "channels", "provenance"],
+  "additionalProperties": false,
   "properties": {
     "format": { "const": "SHADED.spatial-provider-result.v1" },
     "provider": { "type": "string", "minLength": 1 },
     "modelVersion": { "type": "string" },
-    "device": { "type": "string" },
+    "device": { "type": "string", "minLength": 1 },
+    "precision": { "enum": ["fp16", "fp32"] },
+    "depthConvention": {
+      "enum": ["relative-depth-higher-far", "relative-disparity-higher-near", "metric-depth-meters"]
+    },
+    "metric": { "type": "boolean" },
     "channels": {
       "type": "object",
       "required": ["depth"],
@@ -19,16 +25,53 @@
         "points": { "$ref": "#/$defs/channel" },
         "voxels": { "$ref": "#/$defs/channel" }
       },
-      "additionalProperties": { "$ref": "#/$defs/channel" }
+      "additionalProperties": false
     },
-    "camera": { "type": "object" },
+    "camera": {
+      "type": "object",
+      "properties": {
+        "intrinsics": { "type": "array", "minItems": 3, "maxItems": 3 },
+        "extrinsics": { "type": "array", "minItems": 3, "maxItems": 3 },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "fx": { "type": "number", "exclusiveMinimum": 0 },
+        "fy": { "type": "number", "exclusiveMinimum": 0 },
+        "cx": { "type": "number" },
+        "cy": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
     "timingsMs": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
-    "provenance": { "type": "object" }
+    "provenance": {
+      "type": "object",
+      "required": ["class", "sourceSha256", "sourceFile", "sourceSize", "processedSize", "provider", "modelVersion", "parameters"],
+      "properties": {
+        "class": { "const": "INFERRED" },
+        "sourceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "sourceFile": { "type": "string", "minLength": 1 },
+        "sourceSize": { "$ref": "#/$defs/size" },
+        "processedSize": { "$ref": "#/$defs/size" },
+        "provider": { "type": "string", "minLength": 1 },
+        "modelVersion": { "type": "string", "minLength": 1 },
+        "parameters": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
   },
   "$defs": {
+    "size": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
     "channel": {
       "type": "object",
       "required": ["file", "dtype", "shape"],
+      "additionalProperties": false,
       "properties": {
         "file": { "type": "string", "minLength": 1 },
         "dtype": { "enum": ["float32-le", "uint8", "uint16-le", "json"] },

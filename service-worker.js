@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v2';
+const CACHE = 'shaded-shell-v4';
 const SHELL = [
   './',
   './index.html',
@@ -6,7 +6,13 @@ const SHELL = [
   './runtime/install.js',
   './runtime/spatial-viewer.js',
   './runtime/spatial-navigation.mjs',
+  './runtime/spatial-reconstruction.mjs',
+  './runtime/sparse-voxel-world.mjs',
+  './runtime/surface-world-simulation.mjs',
   './icons/shaded.svg',
+  './file_00000000974871f49fe71f6b456f9579.png',
+  './file_00000000974871f49fe71f6b456f9579_depth.png',
+  './file_00000000c84071f4bcd6ff9afdba7246.png',
   './editor/index.html',
   './editor/editor.css',
   './editor/app.js',

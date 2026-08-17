@@ -78,6 +78,11 @@ body.cinema #exit-cinema{display:block}
 #spatial-walk{position:absolute;right:112px;top:10px;z-index:2}
 #spatial-map{position:absolute;left:12px;top:12px;width:150px;height:150px;border:1px solid #475569;border-radius:6px;background:#080b12;cursor:crosshair}
 #spatial-map[hidden]{display:none}
+#spatial-pipeline{position:absolute;left:12px;top:12px;width:224px;max-height:calc(100% - 58px);overflow:auto;padding:9px;background:#080b12dd;border:1px solid #334155;border-radius:7px;font-size:10px}
+#spatial-map:not([hidden])~#spatial-pipeline{top:174px;max-height:calc(100% - 220px)}
+#spatial-pipeline-buttons{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:6px 0}
+#spatial-pipeline button{padding:4px 5px;font-size:9px;text-align:left}#spatial-pipeline button.active{border-color:#38bdf8;color:#bae6fd;background:#0c4a6e}
+#spatial-stage-copy{color:#cbd5e1;line-height:1.35;min-height:42px}
 #spatial-laws{position:absolute;right:12px;bottom:12px;width:260px;max-height:88%;overflow:auto;padding:9px;background:#080b12dd;border:1px solid #334155;border-radius:7px;font-size:10px}
 #spatial-laws label{display:flex;justify-content:space-between;gap:8px;margin:4px 0}#spatial-laws input{width:110px}#spatial-laws select{background:#111827;color:#cbd5e1;border:1px solid #334155}
 #spatial-scene-list{display:grid;gap:3px;margin:5px 0}#spatial-scene-list div{display:flex;justify-content:space-between;background:#111827;padding:3px 5px}#spatial-log{height:82px;overflow:auto;white-space:pre-wrap;background:#030712;color:#93c5fd;padding:5px;margin-top:5px}
@@ -88,7 +93,7 @@ body.cinema #exit-cinema{display:block}
 <body>
 <div id="sidebar">
   <h1>SHADED</h1>
-  <div class="sub">Ein Bild. Erstellen. Lebendig.</div>
+  <div class="sub">Ein Bild. Shader. Raum-Prototyp.</div>
   <button id="btn-install" type="button" hidden
           style="width:100%;margin:4px 0 6px;border-color:#0ea5e9;color:#7dd3fc">
     ⬇️ SHADED installieren
@@ -155,7 +160,7 @@ body.cinema #exit-cinema{display:block}
     <button id="btn-clear-world">🧹 Spuren löschen</button>
   </div>
 
-  <h2>Elemente · Weltgesetze</h2>
+  <h2>Elemente · visuelle Regeln</h2>
   <div class="btnrow">
     <button data-element="fluid">💧 Flüssigkeit</button>
     <button data-element="steam">♨️ Dampf</button>
@@ -221,21 +226,54 @@ body.cinema #exit-cinema{display:block}
   <button id="exit-cinema" title="Kino-Modus verlassen">⚙️</button>
   <div id="showcase-card" aria-live="polite">
     <div id="showcase-kicker">SHADED Showcase</div>
-    <div id="showcase-title">Ein Bild wird Welt.</div>
-    <div id="showcase-copy">Weltgesetze, Tiefe, Wetter, Spuren und Figuren greifen ineinander.</div>
+    <div id="showcase-title">Ein Bild wird räumlicher Prototyp.</div>
+    <div id="showcase-copy">Bildshader und der getrennte begehbare Raum-Prototyp zeigen ihre erzeugten Anteile offen.</div>
   </div>
-  <div id="spatial-viewer" hidden aria-label="Freie Point-Cloud-Kamera">
+  <div id="spatial-viewer" hidden aria-label="Freie räumliche Kamera">
     <canvas id="spatial-canvas"></canvas>
     <button id="spatial-close" type="button">✕ Schließen</button>
     <button id="spatial-walk" type="button">🚶 Lauf-Modus</button>
     <canvas id="spatial-map" width="180" height="180" hidden title="Klicken, um per Dijkstra dorthin zu laufen"></canvas>
+    <div id="spatial-pipeline" aria-label="Sichtbare Stufen der Räumlichkeit">
+      <strong>So entsteht der Raum</strong>
+      <div id="spatial-pipeline-buttons">
+        <button type="button" data-spatial-stage="input">1 · Bildpunkte</button>
+        <button type="button" data-spatial-stage="depth">2 · Tiefenhinweis</button>
+        <button type="button" data-spatial-stage="normals">3 · Richtungen</button>
+        <button type="button" data-spatial-stage="components">4 · Gruppen</button>
+        <button type="button" data-spatial-stage="primitive">5 · Grobformen</button>
+        <button type="button" data-spatial-stage="mirror">6 · Spiegelhülle</button>
+        <button type="button" data-spatial-stage="voxels">7 · Raumzellen</button>
+        <button type="button" data-spatial-stage="fields">8 · Weltfelder</button>
+        <button type="button" data-spatial-stage="nav">9 · Begehbarkeit</button>
+        <button type="button" data-spatial-stage="boundary">10 · Baumgrenze</button>
+        <button type="button" data-spatial-stage="sky">11 · Himmel</button>
+        <button type="button" data-spatial-stage="final" class="active">12 · Zusammengesetzt</button>
+      </div>
+      <div id="spatial-stage-copy">Alle Stufen gemeinsam. Beobachtetes und Erzeugtes bleiben in den Daten getrennt.</div>
+    </div>
     <div id="spatial-laws">
       <label><span>Raumgrenze</span><input id="spatial-boundary" type="range" min="0" max="1" step="0.05" value="0.35"></label>
       <label><span>Form</span><select id="spatial-boundary-form"><option value="trees">Bäume</option><option value="rocks">Felsen</option></select></label>
-      <label><span>Ähnlichkeit</span><input id="spatial-similarity" type="range" min="0.85" max="0.95" step="0.01" value="0.90"></label>
-      <label><span>Reparaturstempel</span><input id="spatial-repair" type="range" min="0" max="1" step="0.05" value="0.75"></label>
+      <label><span>Geometrie-Dicke</span><input id="spatial-thickness" type="range" min="0.005" max="0.15" step="0.005" value="0.035"></label>
+      <label><span>Textur-Patchmix</span><input id="spatial-texture-blend" type="range" min="0" max="1" step="0.05" value="0.75"></label>
+      <label><span>Reproduktions-Seed</span><input id="spatial-seed" type="number" min="0" max="4294967295" step="1" value="17"></label>
+      <div id="spatial-fit-status">Geometrie noch nicht gefittet.</div>
+      <div id="spatial-performance">FPS: — · Punkte: —</div>
+      <details><summary>Voxel-Pinsel · Pointer/XP-Pen</summary>
+        <button id="spatial-paint" type="button" style="width:100%">🖊️ Malen aktivieren</button>
+        <label><span>Material</span><select id="spatial-paint-material"><option value="wood">Holz</option><option value="rock">Fels</option><option value="grass">Gras</option><option value="water">Wasser</option><option value="user">Farbe</option><option value="erase">Radieren</option></select></label>
+        <label><span>Radius</span><input id="spatial-paint-radius" type="range" min="0.01" max="0.20" step="0.005" value="0.055"></label>
+        <label><span>Deckkraft</span><input id="spatial-paint-opacity" type="range" min="0.05" max="1" step="0.05" value="0.80"></label>
+        <label><span>Farbe</span><input id="spatial-paint-color" type="color" value="#8b5a2b"></label>
+        <div id="spatial-pressure">Druck: — · Neigung: —</div>
+        <div><button id="spatial-undo" type="button">↶ Undo</button><button id="spatial-redo" type="button">↷ Redo</button></div>
+        <button id="spatial-voxel-export" type="button">Voxel-Projekt exportieren</button>
+        <input id="spatial-voxel-import" type="file" accept="application/json" title="SHADED Sparse-Voxel-Projekt oder Provider-Bundle importieren">
+      </details>
       <label><span>Vegetation</span><input id="spatial-vegetation" type="range" min="0" max="1" step="0.05" value="0.65"></label>
       <label><span>Kronenbiegung</span><input id="spatial-canopy-flex" type="range" min="0" max="1" step="0.05" value="0.60"></label>
+      <label><span>Windrichtung °</span><input id="spatial-wind-direction" type="range" min="0" max="359" step="1" value="0"></label>
       <label><span>Blitzrate</span><input id="spatial-lightning-rate" type="range" min="0" max="1" step="0.05" value="0.15"></label>
       <label><span>Tier-Urin</span><input id="spatial-urine-rate" type="range" min="0" max="1" step="0.05" value="0.08"></label>
       <label><span>Blut-Eintrag</span><input id="spatial-blood-rate" type="range" min="0" max="1" step="0.05" value="0"></label>
@@ -253,7 +291,7 @@ body.cinema #exit-cinema{display:block}
         <button id="spatial-record" type="button" style="width:100%">🔴 Showcase aufnehmen</button>
       </details>
       <details open><summary>Änderungslog</summary><pre id="spatial-log"></pre></details>
-      <div>Wasser folgt freien Bodenzellen · Himmel/Ferne werden geraymarcht</div>
+      <div>Rückseite: bewusst einfache, dunkel markierte Spiegelhülle (`GENERATED`) · Grobformen: lokale Richtungen + zusammenhängende Formschätzung</div>
     </div>
     <div id="spatial-help">Orbit: Ziehen/Shift+Ziehen/Mausrad · Laufen: WASD + Mausblick · Karte: Dijkstra-Ziel</div>
   </div>
@@ -321,7 +359,8 @@ const ACTS = {
 };
 Object.values(ACTS).forEach(a=>a.p={...DEFAULTS,...a.p});
 
-// =========================== WebGL ====================const canvas = document.getElementById('gl');
+// =========================== WebGL ====================
+const canvas = document.getElementById('gl');
 const gl = canvas.getContext('webgl2',{preserveDrawingBuffer:true});
 if(!gl){
   // Bewusst KEIN zweiter WebGL-1-Pfad: zwei Shader-Quellen waeren zwei Wahrheiten.
@@ -1156,21 +1195,21 @@ void main(){
       float press = clamp(u_pressureDim*3.0, 0.0, 1.0);
       col = grey + press*vec3(1.0,0.25,0.20);
     } else if(u_lens<3.5){                           // Linse 3: Klang als sichtbare Geometrie (#7)
-      float wave = texture2D(u_sound,uv).r;
+      float wave = texture(u_sound,uv).r;
       col = grey + wave*vec3(0.35,0.85,1.0);
     } else if(u_lens<4.5){                           // Linse 4: Materialtreue — der stabile Shader.
       // Bewusst unverändert: das normale, voll komponierte Bild IST diese Linse.
     } else {                                          // Linse 5: nur Kanten, keine Materialinformation
-      vec4 mAx = texture2D(u_maskA, uv+vec2(u_px.x,0.0)) - texture2D(u_maskA, uv-vec2(u_px.x,0.0));
-      vec4 mAy = texture2D(u_maskA, uv+vec2(0.0,u_px.y)) - texture2D(u_maskA, uv-vec2(0.0,u_px.y));
-      vec4 mBx = texture2D(u_maskB, uv+vec2(u_px.x,0.0)) - texture2D(u_maskB, uv-vec2(u_px.x,0.0));
-      vec4 mBy = texture2D(u_maskB, uv+vec2(0.0,u_px.y)) - texture2D(u_maskB, uv-vec2(0.0,u_px.y));
+      vec4 mAx = texture(u_maskA, uv+vec2(u_px.x,0.0)) - texture(u_maskA, uv-vec2(u_px.x,0.0));
+      vec4 mAy = texture(u_maskA, uv+vec2(0.0,u_px.y)) - texture(u_maskA, uv-vec2(0.0,u_px.y));
+      vec4 mBx = texture(u_maskB, uv+vec2(u_px.x,0.0)) - texture(u_maskB, uv-vec2(u_px.x,0.0));
+      vec4 mBy = texture(u_maskB, uv+vec2(0.0,u_px.y)) - texture(u_maskB, uv-vec2(0.0,u_px.y));
       float e = length(mAx)+length(mAy)+length(mBx)+length(mBy);
       col = vec3(smoothstep(0.05,0.5,e));
     }
   }
 
-  gl_FragColor = vec4(clamp(col,0.0,1.0),1.0);
+  fragColor = vec4(clamp(col,0.0,1.0),1.0);
 }`;
 
 function compile(src,type){
@@ -1344,7 +1383,8 @@ function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canva
   else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,data);
 }
 
-// =========================== Analyse-Pipeline ====================let sceneImg=null, matImg=null, ready=false;
+// =========================== Analyse-Pipeline ====================
+let sceneImg=null, matImg=null, ready=false;
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
 let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
 let zoneGrid=null;                // K1: Gebäudezonen (1 = Fachwerk-Gebäude)
@@ -2327,7 +2367,8 @@ function getMaterialTypeAt(u,v){
   return CLASSES[classGrid[y*AW+x]];
 }
 
-// =========================== Storyboard ====================let storyboard=[], playing=false, stepIdx=0, stepT=0, blendFrom=null;
+// =========================== Storyboard ====================
+let storyboard=[], playing=false, stepIdx=0, stepT=0, blendFrom=null;
 const CUR={...PARAMS};    // gerenderte (geblendete) Werte
 
 function defaultStoryboard(){
@@ -2386,7 +2427,7 @@ function showcaseStoryboard(){
     {name:'🎬 Aus einem Bild erwacht eine Bühne', dur:7, p:{...ACTS.morgen.p, dayNight:0.86, storm:0.05, rain:0, wet:0.62, puddle:0.45, fog:0.42, wind:0.22, glow:0.75}},
     {name:'☀️ Materialtreue: Holz, Dach, Gras, Wasser', dur:8, p:{...ACTS.tag.p, wet:0.08, puddle:0.06, bloom:0.18}},
     {name:'🌬️ Atmosphäre bewegt sich, ohne das Bild zu brechen', dur:8, p:{...ACTS.aufzug.p, rain:0.08, wet:0.25, puddle:0.16, fog:0.22, wind:0.95}},
-    {name:'🌧️ Regen schreibt Physik in Pfade und Grasränder', dur:10, p:{...ACTS.aufzug.p, rain:0.78, wet:0.82, puddle:0.72, fog:0.30, wind:0.80, glow:0.55}},
+    {name:'🌧️ Regen verändert Pfade und Grasränder visuell', dur:10, p:{...ACTS.aufzug.p, rain:0.78, wet:0.82, puddle:0.72, fog:0.30, wind:0.80, glow:0.55}},
     {name:'⛈️ Nacht: Fenster spiegeln warm in Pfützen', dur:10, p:{...ACTS.sturmnacht.p, puddle:0.96, fog:0.36}},
     {name:'⚡ Blitz zeigt Volumen, Kanten und nasse Dächer', dur:5, p:{...ACTS.blitz.p, flash:1, puddle:0.98}},
     {name:'🔥 Ereignisse hinterlassen Brand, Rauch und Wärme', dur:8, p:{...ACTS.blitz.p, rain:0.35, wet:0.55, fog:0.28, glow:1, decay:0.32, temperature:0.92}},
@@ -2465,7 +2506,8 @@ function tickStory(dt){
   }
 }
 
-// =========================== Blitze ====================let flashPulses=[];  // Zeitstempel
+// =========================== Blitze ====================
+let flashPulses=[];  // Zeitstempel
 let nextFlashAt=0;
 function tickLightning(t){
   if(timeFrozen){ flashPulses.length=0; nextFlashAt=t+1; return 0; }  // deterministische Frames
@@ -2483,7 +2525,8 @@ function tickLightning(t){
   return Math.min(1,f)*storm;
 }
 
-// =========================== Runde 4: Spieler, Feuer, Ökosystem ====================const ov=document.getElementById('ov');
+// =========================== Runde 4: Spieler, Feuer, Ökosystem ====================
+const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
 
 const player={active:false,u:0.5,v:0.6,vu:0,vv:0,exert:0,wet:0,age:0,
@@ -3659,7 +3702,7 @@ function elementPreset(kind){
     flashPulses.push(time,time+0.10,time+0.22);
     spawnElementParticles('pressure',0.50,0.55,10);
     soundStamp(0.50,0.55,1);
-    setStatus('⚡ Blitze: Doppelschlag, Kameraruck, Druckwelle, Licht auf nasser Physik.');
+    setStatus('⚡ Blitze: Doppelschlag, Kameraruck, Druckwelle und Licht auf nassen Flächen.');
   }
 }
 document.querySelectorAll('[data-element]').forEach(b=>b.onclick=()=>elementPreset(b.dataset.element));
@@ -3670,7 +3713,8 @@ document.getElementById('btn-elements-clear').onclick=()=>{
   setStatus('🧼 Element-Partikel, Druckringe, Lava, Hagel, Feuer und Spuren zurückgesetzt.');
 };
 
-// =========================== UI ====================const setStatus=s=>document.getElementById('status').textContent=s;
+// =========================== UI ====================
+const setStatus=s=>document.getElementById('status').textContent=s;
 
 const slidersDiv=document.getElementById('sliders');
 PARAM_META.forEach(([key,label])=>{
@@ -3781,7 +3825,7 @@ async function startShowcase(){
     soundStamp(0.50,0.58,1);
     showcase={t:0, beat:-1};
     setShowcaseCaption(SHOWCASE_BEATS[0].title,SHOWCASE_BEATS[0].copy);
-    setStatus('🎪 Showcase läuft: 90 Sekunden Weltgesetze, Figuren, Wetter und Zeit.');
+    setStatus('🎪 Showcase läuft: 90 Sekunden Shader-Regeln, Figuren, Wetter und Zeit.');
   }catch(_){
     setStatus('Showcase-Demo nur über einen lokalen Server verfügbar (python3 -m http.server).');
   }
@@ -3891,14 +3935,19 @@ function buildSpatialPointCloud(opt){
       x:((x-cx)*z/fx), y:((cy-y)*z/fy), z,
       r:rgba[i], g:rgba[i+1], b:rgba[i+2],
       size:0.006+0.010*z, alpha:0.35+0.55*z,
-      confidence:z, synthesized:false
+      u:(x+.5)/srcW, v:(y+.5)/srcH,
+      pixelX:x, pixelY:y, gridX:Math.floor(x/step), gridY:Math.floor(y/step), step,
+      sourceIndex:pts.length,
+      material:ready?getMaterialTypeAt((x+.5)/srcW,(y+.5)/srcH):null,
+      confidence:z, synthesized:false, provenance:'OBSERVED'
     });
   }
   return {
     format:'SHADED.spatial-point-cloud.v1',
     source:{w:sceneImg.width,h:sceneImg.height},
     depth:{w:srcW,h:srcH, convention:'white-near'},
-    camera:{fovDegrees:opt.fovDegrees||60, step},
+    camera:{fovDegrees:opt.fovDegrees||60, fx, fy, cx, cy, step},
+    grid:{width:Math.ceil(srcW/step),height:Math.ceil(srcH/step),step},
     productRule:'Single-image point clouds expose visible surfaces only; hidden backsides/disocclusions are not measured.',
     points:pts
   };
@@ -4051,7 +4100,7 @@ document.getElementById('btn-timelapse').onclick=()=>{
   setStatus('⏳ Zeitraffer: Das Dorf altert vor Deinen Augen (decay 0→1).');
 };
 document.getElementById('btn-drama').onclick=()=>{
-  dramaStoryboard(); playStory(); setStatus('⚡ Weltgesetze im Extremis – 20 Sekunden reines Drama mit Sturm + Blitz + Verfall.');
+  dramaStoryboard(); playStory(); setStatus('⚡ Shader-Regeln im Extrem – 20 Sekunden Sturm, Blitz und Verfallseffekt.');
 };
 document.getElementById('btn-showcase').onclick=startShowcase;
 document.getElementById('btn-add').onclick=()=>{
@@ -4171,7 +4220,10 @@ function frame(now){
   const fx = pxWithShake.x*OV_DEPTH, fy = pxWithShake.y*OV_DEPTH;   // UV-Bruchteile
   ov.style.transform = hasDepth ? `translate(${fx*ov.clientWidth}px, ${fy*ov.clientHeight}px)` : '';
 
-  if(sceneImg){
+  // Die räumliche Vollbildansicht hat einen eigenen WebGL-Kontext. Den schweren
+  // Hauptshader darunter weiterzurendern halbiert nur die Framerate und ist unsichtbar.
+  const spatialActive=!document.getElementById('spatial-viewer').hidden;
+  if(sceneImg&&!spatialActive){
     gl.uniform1f(U.u_time,time);
     gl.uniform1f(U.u_rainPhase,rainPhase);
     gl.uniform1f(U.u_windDrift,windDrift);

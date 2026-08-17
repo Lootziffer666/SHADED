@@ -18,6 +18,22 @@ jobs:
       run: |
         npm ci
 
+    - name: Install Chromium for browser verification
+      run: |
+        npx playwright install --with-deps chromium
+
+    - name: Run deterministic contract and spatial tests
+      run: |
+        npm run check
+
+    - name: Verify service worker, offline demo, and spatial editor in Chromium
+      run: |
+        npm run verify:pwa-browser
+
+    - name: Verify visible spatial stages and walk behind the house
+      run: |
+        npm run verify:walk
+
     - name: Run Actor verification
       run: |
         timeout 120 node tools/verify-actors.js || echo "⚠️ Actor test timed out (OK for headless CI)"

@@ -1,66 +1,121 @@
 import assert from 'node:assert/strict';
-import {addProceduralBoundaries,boxSet,buildPositivePrimitiveSet,buildWorldLawPoints,diskSet,dykstraProject,dijkstraGrid,mirrorPointCloud,SpatialWorldSimulation} from '../runtime/spatial-navigation.mjs';
+import {
+  addProceduralBoundaries, boxSet, buildNavigationGrid, buildSpatialEnvironment, dijkstraGrid, diskSet,
+  dykstraProject, fitGeometricPrimitives, segmentIsTraversable, SparseVoxelWorld,
+  SpatialWorldSimulation, VOXEL_STATE, worldToCell
+} from '../runtime/spatial-navigation.mjs';
 
-const projected=dykstraProject([3,0],[boxSet(-1,1,-1,1),diskSet(0,0,.5)]).point;
-assert.ok(Math.hypot(...projected)<=.500001,'Dykstra respects movement disk');
-assert.ok(projected[0]<=1&&projected[0]>=-1,'Dykstra respects world box');
+const projected = dykstraProject([3, 0], [boxSet(-1, 1, -1, 1), diskSet(0, 0, 0.5)]).point;
+assert.ok(Math.hypot(...projected) <= 0.500001, 'Dykstra respects movement disk');
+assert.ok(projected[0] <= 1 && projected[0] >= -1, 'Dykstra respects world box');
 
-const cells=new Uint8Array(25);cells[2*5+2]=1;
-const path=dijkstraGrid({size:5,cells},[1,2],[3,2]);
-assert.ok(path.length>3,'Dijkstra routes around obstacle');
-assert.ok(!path.some(([x,z])=>x===2&&z===2),'Dijkstra never crosses obstacle');
+const cells = new Uint8Array(25), costs = new Float32Array(25); costs.fill(1); costs[2 * 5 + 2] = 100;
+const weightedPath = dijkstraGrid({size: 5, cells, cost: costs}, [1, 2], [3, 2]);
+assert.ok(weightedPath.length > 3, 'Dijkstra avoids a dangerous but geometrically open cell');
+assert.ok(!weightedPath.some(([x, z]) => x === 2 && z === 2), 'dynamic world cost changes the route');
+cells[2 * 5 + 2] = 1;
+assert.equal(segmentIsTraversable({size: 5, cells}, [-0.45, 0], [0.45, 0]), false, 'continuous traversal checks intermediate cells');
 
-const environment=mirrorPointCloud([{x:.2,y:.1,z:.8,r:1,g:2,b:3,confidence:1}]);
-assert.equal(environment.points.length,2,'mirror creates one generated backside');
-assert.equal(environment.points[0].generated,false);
-assert.equal(environment.points[1].generated,true);
-assert.ok(environment.primitives.length>0&&environment.points[1].primitiveId===environment.primitives[0].id,'generated geometry comes from a positive primitive');
-assert.ok(Math.abs(environment.points[1].z+environment.points[0].z)<.08,'generated backside resembles but does not duplicate the front');
-assert.equal(typeof environment.points[1].repairSource,'number','generated texture carries a repair-stamp source');
-const loose=mirrorPointCloud([{x:.2,y:.1,z:.8,r:1,g:2,b:3}],{similarity:.85}),tight=mirrorPointCloud([{x:.2,y:.1,z:.8,r:1,g:2,b:3}],{similarity:.95});
-assert.ok(Math.abs(loose.points[1].z+loose.points[0].z)>Math.abs(tight.points[1].z+tight.points[0].z),'similarity slider controls generated deviation');
-const primitiveSet=buildPositivePrimitiveSet([{x:0,y:0,z:.2,r:10,g:20,b:30},{x:.1,y:.7,z:.3,r:20,g:30,b:40}]);
-assert.ok(primitiveSet.some(p=>['column','mass','surface','ground'].includes(p.type)),'visible data becomes typed positive primitives');
-const worldGrid={size:8,cells:new Uint8Array(64)};worldGrid.cells[3*8+3]=1;
-const boundary=addProceduralBoundaries(worldGrid,1,'rocks');
-assert.ok(boundary.length>0&&worldGrid.cells.some(Boolean),'procedural rocks create geometry and collision');
-const calmTrees=addProceduralBoundaries({size:8,cells:new Uint8Array(64)},.2,'trees',0),wildTrees=addProceduralBoundaries({size:8,cells:new Uint8Array(64)},.2,'trees',1);
-assert.ok(calmTrees.some(p=>p.kind===20)&&!calmTrees.some(p=>p.kind===22)&&wildTrees.some(p=>p.kind===22),'canopy slider selects static through strongly bending crowns');
-const water=buildWorldLawPoints(worldGrid,{rain:1,puddle:1});
-assert.ok(water.every(p=>!worldGrid.cells[Math.floor((p.z+1)*.5*8)*8+Math.floor((p.x+1)*.5*8)]),'water only exists on free cells');
-assert.ok(water.every(p=>p.kind===1&&p.y<0),'water carries material kind and stays on ground');
-const lawGrid={size:8,cells:new Uint8Array(64)},sim=new SpatialWorldSimulation(lawGrid);
-for(let i=0;i<20;i++)sim.step(.1,{params:{rain:1,wet:1,temperature:0,snowfall:1}});
-assert.ok(sim.water.some(Boolean)&&sim.snow.some(Boolean)&&sim.ice.some(Boolean),'rain, snow and cold couple into water and ice');
-for(let i=0;i<40;i++)sim.step(.1,{params:{temperature:1,wind:1},elements:{heat:1},fireCount:3});
-assert.ok(sim.fire.some(Boolean)&&sim.smoke.some(Boolean)&&sim.ember.some(Boolean),'heat and dry fuel create fire, smoke and embers');
-sim.wet.fill(.8);const wetBefore=sim.wet.reduce((a,b)=>a+b,0);for(let i=0;i<20;i++)sim.step(.1,{params:{temperature:1,wind:1}});
-assert.ok(sim.wet.reduce((a,b)=>a+b,0)<wetBefore,'heat and wind dry wet ground');
-assert.ok(sim.dry.some(Boolean),'drying becomes a persistent spatial field');
-for(let i=0;i<12;i++)sim.step(.1,{params:{rain:1},fireCount:1});
-assert.ok(sim.steam.some(Boolean)&&sim.soot.some(Boolean),'water on heat creates steam while combustion deposits soot');
-assert.ok(sim.points().some(p=>[4,5,6,8,9,10,11,12].includes(p.kind)),'coupled fields become spatial material points');
-sim.step(.1,{params:{rain:1,snowfall:1,temperature:0},elements:{hail:1}});
-assert.ok([15,16,17].every(kind=>sim.points().some(p=>p.kind===kind)),'rain, snowfall and hail exist as spatial precipitation');
-for(let i=0;i<30;i++)sim.step(.1,{params:{bloom:1,wet:1,vegetation:1}});
-sim.leafWet.fill(0);sim.dry.fill(1);for(let i=0;i<30;i++)sim.step(.1,{params:{vegetation:1,wind:1,temperature:1}});
-assert.ok(sim.grass.some(Boolean)&&sim.leafDry.some(Boolean),'wet growth creates grass and wind tears off dry leaves');
-const grassBefore=sim.grass.reduce((a,b)=>a+b,0);sim.wet.fill(1);sim.trampleAt(0,0,.9);
-assert.ok(sim.pressed.some(Boolean)&&sim.mud.some(Boolean)&&sim.grass.reduce((a,b)=>a+b,0)<grassBefore,'trampling flattens grass and creates mud depressions');
-for(let i=0;i<80;i++)sim.step(.1,{params:{rain:1}});
-assert.ok(sim.blood.some(Boolean),'blood retains a permanent residue after prolonged rain');
-const seasonal=new SpatialWorldSimulation({size:8,cells:new Uint8Array(64)});
-for(let i=0;i<50;i++)seasonal.step(.1,{params:{bloom:1,wet:1,vegetation:1,dew:1,temperature:.5}});
-assert.ok(seasonal.flower.some(Boolean)&&seasonal.dew.some(Boolean),'spring creates flower clusters and dew');
-for(let i=0;i<40;i++)seasonal.step(.1,{params:{seasonFruit:1,vegetation:1,temperature:.75}});
-assert.ok(seasonal.fruit.some(Boolean),'summer fruit grows where flowers existed');
-seasonal.wet.fill(1);seasonal.trampleAt(0,0,0);const trailBefore=seasonal.trail.reduce((a,b)=>a+b,0);
-for(let i=0;i<100;i++)seasonal.step(.1,{params:{bloom:1,wet:.6,vegetation:1}});
-assert.ok(trailBefore>0&&seasonal.trail.reduce((a,b)=>a+b,0)<trailBefore,'trampled paths subsequently grow over');
-const strikeGrid={size:12,cells:new Uint8Array(144),material:new Uint8Array(144)};addProceduralBoundaries(strikeGrid,.5,'trees',.5);const stormWorld=new SpatialWorldSimulation(strikeGrid),strike=stormWorld.strikeLightning(()=>.25);
-assert.equal(strike?.material,'wood','lightning chooses a generated wooden boundary');const strikeCell=strike.z*strikeGrid.size+strike.x,fireBefore=stormWorld.fire[strikeCell];for(let i=0;i<20;i++)stormWorld.step(.1,{params:{rain:1,rainExtinguish:2}});
-assert.ok(stormWorld.fire[strikeCell]<fireBefore,'strong rain extinguishes lightning fire');
-stormWorld.contaminateAt(0,0,'blood',1);stormWorld.contaminateAt(.2,0,'urine',1);stormWorld.water.fill(.7);stormWorld.snow.fill(.7);const contaminated=stormWorld.points();
-assert.ok(contaminated.some(p=>p.kind===25)&&contaminated.some(p=>p.kind===30),'blood and animal urine are visible spatial fields');
-assert.ok(contaminated.some(p=>p.kind===1&&p.r>45)&&contaminated.some(p=>p.kind===5&&p.b<250),'blood/urine tint water and snow');
-console.log('✅ Dykstra, Dijkstra, Spiegelgeometrie und 3D-Weltgesetze bestanden');
+const visiblePlane = [];
+for (let y = 0; y < 18; y++) for (let x = 0; x < 22; x++) visiblePlane.push({
+  x: (x - 11) * 0.025, y: (y - 9) * 0.025, z: 0.62 + Math.sin(x * 2 + y) * 0.00015,
+  r: 80 + x, g: 100 + y, b: 140, gridX: x, gridY: y, pixelX: x * 2, pixelY: y * 2,
+  material: 'wood', confidence: 0.9, provenance: 'OBSERVED'
+});
+const fitted = fitGeometricPrimitives(visiblePlane, {seed: 42});
+assert.ok(fitted.primitives.some(primitive => primitive.type === 'plane'), 'RANSAC/PCA fits an actual plane model');
+assert.ok(fitted.metrics.coverage > 0.98 && fitted.metrics.rmse < 0.001, 'fit quality is measured from residuals');
+assert.ok(fitted.normals.some(item => item.confidence > 0.5), 'surface normals are estimated from structured neighbours');
+
+const environment = buildSpatialEnvironment(visiblePlane, {seed: 42, thickness: 0.05, textureBlend: 0.8});
+assert.equal(environment.observed.length, visiblePlane.length, 'all input samples remain observed');
+assert.notEqual(environment.generated.length, environment.observed.length, 'completion is independently sampled, not one generated point per source point');
+assert.ok(environment.generated.every(point => point.provenance === 'GENERATED'), 'completion provenance is explicit');
+assert.ok(environment.generated.every(point => Array.isArray(point.textureSources) && point.textureSources.length > 0), 'generated colours carry their actual patch source indices');
+assert.ok(environment.mirroredCompletion.length > 0, 'structural pixels receive an explicit mirrored fallback shell');
+const mirroredBack = environment.mirroredCompletion.filter(point => point.generationMethod === 'mirrored-structural-shell');
+const structuralMinimumZ = Math.min(...environment.observed.filter(point => ['wood','roof','window','rock'].includes(point.material)).map(point => point.z));
+assert.ok(mirroredBack.length > 0 && mirroredBack.every(point => point.z < structuralMinimumZ), 'mirrored fallback is a real backside behind every observed structural point');
+assert.ok(environment.mirroredCompletion.some(point => point.generationMethod === 'mirrored-structural-sidewall'), 'mirror fallback closes visible structural borders with sidewalls');
+
+const walkGrid = buildNavigationGrid(environment, 36); addProceduralBoundaries(walkGrid, 0.35, 'trees', 0.6);
+const nearestOpen = ([targetX,targetZ]) => {
+  let best=null,distance=Infinity;for(let z=1;z<walkGrid.size-1;z++)for(let x=1;x<walkGrid.size-1;x++){if(walkGrid.cells[z*walkGrid.size+x])continue;const d=(x-targetX)**2+(z-targetZ)**2;if(d<distance){distance=d;best=[x,z];}}
+  return best;
+};
+const walkStart=nearestOpen([worldToCell(0,36),worldToCell(.62,36)]),walkGoal=nearestOpen([worldToCell(0,36),worldToCell(-.62,36)]),aroundHouse=dijkstraGrid(walkGrid,walkStart,walkGoal);
+assert.ok(aroundHouse.length > 2, 'a traversable route exists from the front to behind the mirrored house shell');
+assert.ok(aroundHouse.every(([x,z]) => !walkGrid.cells[z*walkGrid.size+x]), 'the front-to-back route never enters house or boundary geometry');
+
+const voxelWorld = SparseVoxelWorld.fromPointCloud(environment.points, {resolution: 32, bounds: {min: [-1, -1, -1], max: [1, 1, 1]}, cameraOrigin: [0, 0, -1]});
+const observedCell = voxelWorld.worldToGrid([environment.observed[0].x, environment.observed[0].y, environment.observed[0].z]);
+assert.equal(voxelWorld.stateAt(...observedCell), VOXEL_STATE.SURFACE, 'observed endpoint becomes a surface voxel');
+assert.ok(voxelWorld.free.size > 0, 'camera rays record known free space');
+assert.ok(voxelWorld.voxels.size > 0, 'surface voxels exist');
+const mesh = voxelWorld.extractSurfaceMesh();
+assert.ok(mesh.positions.length > 0 && mesh.indices.length > 0, 'voxel surface extraction returns a real indexed mesh');
+assert.ok(mesh.provenance.includes('OBSERVED') && mesh.provenance.includes('GENERATED'), 'mesh preserves observed/generated provenance');
+
+const providerValues = new Float32Array([-.2, 0, .5, 1, 0, 0, .2, 0, .7, 0, 1, 0]);
+const providerBytes = Buffer.from(providerValues.buffer);
+const providerBundle = {
+  format: 'SHADED.spatial-provider-bundle.v1',
+  result: {format: 'SHADED.spatial-provider-result.v1', provider: 'fixture', channels: {points: {dtype: 'float32-le', shape: [2, 6]}}},
+  channelData: {points: {encoding: 'base64', bytes: providerBytes.length, data: providerBytes.toString('base64')}}
+};
+const providerWorld = SparseVoxelWorld.fromProviderBundle(providerBundle, {resolution: 24});
+assert.ok(providerWorld.voxels.size > 0, 'self-contained provider bundle imports into the sparse voxel world');
+assert.ok(providerWorld.surfacePoints().every(point => point.provenance === 'INFERRED'), 'provider imports retain inferred provenance');
+
+const paintWorld = new SparseVoxelWorld({resolution: 24});
+const lowPressure = paintWorld.paint([0, 0, 0], {pressure: 0.2, radius: 0.2, material: 'wood', color: [90, 60, 30]});
+const lowCount = paintWorld.voxels.size;
+assert.ok(lowPressure.changed > 0 && paintWorld.undo(), 'pressure brush creates an undoable edit');
+assert.equal(paintWorld.voxels.size, 0, 'undo restores the exact prior sparse field');
+assert.ok(paintWorld.redo(), 'redo reapplies the voxel edit');
+paintWorld.undo();
+const highPressure = paintWorld.paint([0, 0, 0], {pressure: 1, radius: 0.2, tiltX: 55, material: 'wood', color: [90, 60, 30]});
+assert.ok(highPressure.changed > lowCount, 'pressure and tilt alter real brush coverage');
+
+function makeGrid(size = 10) {
+  const fields = {}, names = ['waterVolume','moisture','snowMass','iceMass','fuelMass','fireEnergy','temperatureC','smokeMass','mudMass','sootMass','grassMass','bloodMass','urineMass'];
+  for (const name of names) fields[name] = new Float32Array(size * size);
+  fields.temperatureC.fill(18);
+  const grid = {size, cells: new Uint8Array(size * size), material: new Uint8Array(size * size), height: new Float32Array(size * size), fields, syncFieldsToVoxels() { this.syncCount = (this.syncCount || 0) + 1; }};
+  for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) grid.height[z * size + x] = (size - x) * 0.02;
+  return grid;
+}
+
+const flowGrid = makeGrid(), flowWorld = new SpatialWorldSimulation(flowGrid, {seed: 9}), high = 5 * flowGrid.size + 2, low = 5 * flowGrid.size + 7;
+flowWorld.water[high] = 0.8;
+const waterBefore = flowWorld.massBudget().water;
+for (let i = 0; i < 12; i++) flowWorld.step(0.05, {params: {temperature: 0.5, wind: 0}});
+const waterAfter = flowWorld.massBudget().water;
+assert.ok(flowWorld.water[low] > 0 || flowWorld.events.some(event => event.waterMoved > 0), 'water flows through height potential');
+assert.ok(Math.abs(waterAfter - waterBefore) < 1e-4, 'internal water flow conserves volume without sources or sinks');
+
+const fireGrid = makeGrid(), fireWorld = new SpatialWorldSimulation(fireGrid, {seed: 3}), source = 5 * fireGrid.size + 5, downwind = source + 1;
+fireGrid.material[source] = 1; fireGrid.material[downwind] = 1; fireWorld.fuel[source] = 1; fireWorld.fuel[downwind] = 1; fireWorld.fire[source] = 1;
+for (let i = 0; i < 80; i++) fireWorld.step(0.05, {params: {temperature: 0.7, wind: 1, windDirectionDegrees: 0}});
+assert.ok(fireWorld.fuel[source] < 1, 'combustion consumes an explicit fuel mass');
+assert.ok(fireWorld.fire[downwind] > 0 || fireWorld.fuel[downwind] < 1, 'fire spreads to a downwind neighbouring fuel cell');
+assert.ok(fireGrid.cost[source] > 20, 'fire changes navigation cost on the same surface grid');
+const fireBeforeRain = fireWorld.fire.reduce((sum, value) => sum + value, 0);
+for (let i = 0; i < 30; i++) fireWorld.step(0.05, {params: {rain: 1, rainExtinguish: 2, temperature: 0.4}});
+assert.ok(fireWorld.fire.reduce((sum, value) => sum + value, 0) < fireBeforeRain, 'rain extinguishes active combustion');
+
+const transferred = fireWorld.transferTo(makeGrid(14));
+assert.ok(transferred.massBudget().fuel > 0 && transferred.time === fireWorld.time, 'geometry rebuild transfers world state instead of deleting it');
+
+const boundaryGrid = makeGrid(32), boundary = addProceduralBoundaries(boundaryGrid, 0.7, 'trees', 1);
+assert.ok(boundary.some(point => point.branchId > 0 && point.parentBranchId != null), 'procedural trees contain branch/leaf hierarchy');
+assert.ok(boundaryGrid.fields.fuelMass.some(Boolean), 'tree boundary writes fuel into the shared world field');
+const middle = Math.floor(boundaryGrid.size / 2);
+assert.equal(boundaryGrid.cells[middle * boundaryGrid.size + boundaryGrid.size - 3], 0, 'organic boundary keeps a real gate instead of a sealed ring');
+
+fireWorld.contaminateAt(0, 0, 'blood', 1); fireWorld.contaminateAt(0.2, 0, 'urine', 1); fireWorld.water.fill(0.7); fireWorld.snow.fill(0.7);
+const contaminated = fireWorld.points();
+assert.ok(contaminated.some(point => point.kind === 25) && contaminated.some(point => point.kind === 30), 'blood and urine are spatial surface fields');
+assert.ok(contaminated.some(point => point.kind === 1 && point.r > 45), 'contaminants tint rendered water from the same state');
+
+console.log('✅ Räumliche Rekonstruktion, Voxel, Weltzustand und Navigation bestanden');

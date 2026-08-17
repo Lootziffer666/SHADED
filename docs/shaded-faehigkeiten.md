@@ -1,89 +1,56 @@
-# SHADED-Fähigkeiten: mehr als Rendering-Effekte
+# SHADED-Fähigkeiten – ausführbarer Stand
 
-SHADED ist nicht „ein Shader-Editor mit vielen Effekten“.
+SHADED ist eine statische WebGL-2-Anwendung für die visuelle Bearbeitung eines
+Einzelbilds. Sie kombiniert heuristische Materialklassifikation, einen Fragmentshader,
+Canvas-Akteure, relative Tiefenkarten und einen getrennten räumlichen Prototyp. Die
+Bezeichnungen unten beschreiben ausführbaren Code; sie sind keine Aussage über
+physikalische Genauigkeit oder Rekonstruktionsqualität.
 
-SHADED ist eine deterministische 2D-Weltsimulation, die ein einzelnes Bild semantisch zerlegt, materialabhängig altern lässt, räumlich inszeniert und als interaktive, erzählbare Szene betreibt.
+## Browser-Anwendung
 
-Godrays, Bloom, Normal Maps, Partikel und Distortion sind dabei nur die sichtbaren Werkzeuge. Das eigentliche Alleinstellungsmerkmal ist: **Zustände hinterlassen Folgen**. Regen schaltet nicht bloß einen Filter an – er füllt Senken, verändert Materialien, löscht Feuer, erzeugt Spuren und beeinflusst spätere Zustände.
+| Bereich | Implementierter Stand | Grenze |
+|---|---|---|
+| Materialanalyse | Heuristische CPU-Klassifikation in einem kleinen Raster; Marker können Klassen korrigieren. Dieselben Klassen speisen Materialtextur und Abfragen. | Keine trainierte semantische Segmentierung und keine Garantie für beliebige Bilder. |
+| Rendering | Ein GLSL-ES-3.00-Fragmentshader für Nässe-, Wetter-, Licht-, Jahreszeit-, Verfall- und Inspektionseffekte. | Die Effekte sind visuelle Regeln, keine Energie-, Stoff- oder Strömungssimulation. |
+| 2.5D | Eine optionale relative Tiefenkarte verschiebt UVs und sortiert Akteure. | Kein metrischer Kameraraum, keine verdeckten Flächen und kein freier 6-DoF-Flug in der Hauptansicht. |
+| Akteure | Sprite-Manifeste, Animationen, Tiefenschichten, Platzierung und lokale Editor-Werkzeuge. | Akteure verändern die Materialklassifikation nicht und sind keine kollidierenden 3D-Körper. |
+| Storyboard | Parameter-Schritte mit Dauer, Übergang und Loop; Dialog-Beats sind getrennte Inhaltsdaten. | Kein Mehrspur-NLE, keine Kurvenansicht und keine Audiotimeline. |
+| Export | PNG, Canvas-WebM, Point-Cloud-JSON, Szenenprojekt- und Sprite-Werkzeuge. | WebM hängt von `MediaRecorder` und den Codecs des Browsers ab. |
 
-## Kernprinzip
+Der kanonische Chromium-Test kompiliert den Shader, lädt das Demo, öffnet die
+Raumansicht und prüft Service Worker sowie Offline-Navigation. Er bewertet keine
+ästhetische oder physikalische Glaubwürdigkeit.
 
-SHADED arbeitet auf einer Ebene oberhalb klassischer Rendering-Techniken:
+## Räumliche Runtime
 
-1. Das Bild wird in Materialien und Raumhinweise zerlegt.
-2. Jedes Material reagiert anders auf Wetter, Temperatur, Zeit, Feuer, Druck und Interaktion.
-3. Der Shader zeigt nicht nur Effekte, sondern die Konsequenzen dieser Zustände.
-4. CPU-Klassifikation und GPU-Darstellung bleiben dieselbe Materialwahrheit.
-5. Storyboard, Interaktion und Actors greifen auf dieselbe laufende Welt zu.
+| Bereich | Implementierter Stand | Grenze |
+|---|---|---|
+| Point Cloud | Sichtbare RGB-Pixel werden mit relativer Companion-Tiefe rückprojiziert. | Die Punkte sind nicht metrisch und enthalten zunächst nur sichtbare Oberflächen. |
+| Geometrische Fits | Lokale Normalen, zusammenhängende Oberflächen, RANSAC/PCA-Ebenen sowie PCA-Boxen und -Zylinder; Coverage und RMSE werden aus Residuen berechnet. | Keine semantische Objekterkennung und kein Qualitätsprozentsatz. |
+| Ergänzung | Ebenen werden mit Dicke extrudiert, Box-/Zylinderflächen neu abgetastet. Zusätzlich erzeugt die Laufdemo absichtlich eine dunkle Spiegelhülle mit Randwänden für die strukturellen Bildpunkte. Farben verwenden protokollierte nächste Quell-Patches. | Sämtliche Ergänzungen tragen `GENERATED`-Provenienz. Die Spiegelhülle ist ein begehbarer Platzhalter, keine beobachtete oder eigenständig rekonstruierte Rückseite. |
+| Sparse Voxel | `UNKNOWN`, `FREE` und `SURFACE`; Kamerastrahlen, Material, Confidence, Provenienz und Zustandskanäle. | Kein SDF, keine TSDF und kein Sparse Voxel Octree. |
+| Stiftbearbeitung | Pointer-Pressure, Tilt, Eraser, Material/Farbe, Undo/Redo, Projekt-Import/-Export und Block-Mesh-Extraktion. | Keine herstellerspezifische XP-Pen-API, Layer oder PatchMatch-Klonquelle. |
+| Weltzustand | Ein aus Voxeln abgeleitetes 2D-Oberflächenraster für Wasser, Feuchte, Schnee, Eis, Brennstoff, Feuer, Temperatur, Rauch, Matsch, Ruß, Wachstum, Blut und Urin. | Keine volumetrische 3D-Stoffphysik. |
+| Wasser/Feuer | Wasser fließt nach Höhenpotential mit internem Massenerhalt. Feuer verbraucht Brennstoff und kann nachbar- und windabhängig übergreifen; Regen löscht. | Koeffizienten haben keine kalibrierten physikalischen Einheiten. |
+| Navigation | Gewichteter 4-Nachbar-Dijkstra; dynamische Kosten für Wasser, Eis, Matsch, Feuer, Rauch und Wachstum; Segmentprüfung gegen Zwischenzellen. | Kein Navmesh und keine Continuous Collision Detection gegen Dreiecksgeometrie. |
+| Himmel | Ein richtungsabhängiger analytischer Shader erzeugt Wolkenband und Bergsilhouette im Hintergrund. | Kein SDF-Raymarching durch die Szene, keine Schattenstrahlen und keine physikalische Atmosphäre. |
+| Regie/Log | Geordnete Liste aus Saison, einem Ereignis und Dauer. UI-Events und gerundete 250-ms-Stichproben werden geloggt. | Kein lückenloses Zelljournal, keine Keyframe-Kurven und kein Mehrspur-Composer. |
 
-## Fähigkeiten nach Systembereich
+## Externe Depth-Provider
 
-| Bereich | Fähigkeiten |
-|---|---|
-| Hydrologie | Materialabhängige Nässe, Pfützenbildung in Senken, Wasserflussnetze, Rinnsale, Tropfkanten, Regeneinschläge, Ausbluten von Wasser in Grasränder, Spiegelung von Himmel und Fensterlicht, Verdunstung und Trocknungsränder |
-| Wetter | Regen, Sturmaufzug, Blitz-Doppelschläge, Nebel, Wolkenschatten, Rauch, Windbewegung und atmosphärische Sichtweitenänderung |
-| Tageszeit & Licht | Tag-Nacht-Zyklus, Mondlicht, Fensterflackern, Emissivlicht, Warmlichtreflexionen, Lichtverschmutzung, lokale Temperaturbeleuchtung und Mikro-Exposure |
-| Jahreszeiten | Schneefall, Schneebedeckung, Schneedellen, Schmelze, Frost, Eisflächen, Eiszapfen, Herbstfärbung, Laubfall, Frühlingswachstum und Sonnenbleiche |
-| Materialverhalten | Gras, Blattwerk, Dach, Pfad, Holz, Fenster, Wasser und Fels reagieren unterschiedlich auf Wasser, Temperatur, Alterung, Feuer und Belastung |
-| Verfall | Moos, Überwucherung, Rost, Risse, morsches Holz, Weltmüdigkeit, Berührungsabnutzung, Brandspuren und sichtbare Reparaturstellen |
-| Interaktion | Laufende Spielfigur, Sprint, Fußspuren, Trampelpfade, Schneedellen, aufgewirbeltes Laub, fallende Früchte, Lagerfeuer, Brandausbreitung und Löschen durch Regen |
-| Lebewesen | Atmung, Frostatem, Nässezustand sowie animierte Katzen, NPCs, Gegner und Helden mit Animationen und Tiefenschichten |
-| Räumlichkeit | Tiefenkarten-Parallaxe, Vorder-/Mittel-/Hintergrundsortierung, tiefenabhängige Actor-Helligkeit, Gebäudezonen, Dach- und Bodenanker, lokaler Depth→Point-Cloud-Export |
-| Inspektion | Umschaltbare Linsen für Abnutzung, Belastung, Klangwellen, unveränderte Materialansicht und Kantenerkennung |
-| Shader-Fidelity | Godrays, abgeleitetes Bump-/Normal-Mapping, Ambient Occlusion, mehrstufige Lichtquantisierung, volumetrische Wolken/Lichtschächte, Bloom-Halos, Spatial Distortion, Chromatic Aberration und depth-aware Point-Cloud-Motes |
+SHADED enthält konkrete Adapter für die offiziellen Python-APIs von Depth Anything V2
+und Depth Anything 3. Die Adapter führen nur dann CUDA/FP16 aus, wenn Torch CUDA meldet;
+`doctor` scheitert sonst sichtbar. Ergebnisse werden per JSON-Schema und anhand der
+Binärgrößen validiert und können als selbstenthaltendes Bundle in die Sparse-Voxel-
+Runtime importiert werden.
 
-## Ungewöhnliche Weltgesetze
+Modelle, Gewichte, Torch und CUDA sind nicht im Repository enthalten. Ein grüner
+Vertragstest beweist Prozessstart, Schema, Kanäle, Bundle und Vergleichsrechnung – keine
+Modellqualität, keinen RTX-Durchsatz und keine GPU-Verfügbarkeit.
 
-SHADED simuliert auch Zustände, die normalerweise nicht in einer Shader-Demo erwartet werden:
+## PWA
 
-- Druck und Gewicht verdunkeln belastete Bodenbereiche.
-- Geruch wird als driftende Diffusionswolke sichtbar.
-- Schattenbesitz beeinflusst, wie schnell Flächen altern.
-- Biomgrenzen werden räumlich sichtbar.
-- Verbotene Bereiche erhalten eine kalte Grenzreaktion.
-- Oberflächenrunen können auf Wasser oder Flächen erscheinen.
-- NPC-Stimmung färbt die Welt atmosphärisch.
-- Segen und Fluch verändern Helligkeit, Bloom und Verfall.
-- Vegetation reagiert auf Wind und Regen.
-- Hitze verzerrt die Luft, Rauch bildet Schichten und Temperaturen erzeugen lokale Warm-Kalt-Gradienten.
-
-Der dokumentierte Phase-C-Stand nennt 31 von 60 Weltgesetzen als aktiv implementiert. Einige davon sind bewusst visuelle Simulationen, keine vollständige mechanische Physik oder Gameplay-Logik.
-
-## Bildverstehen und Korrektur
-
-Das Bildverständnis ist mindestens so wichtig wie die Shader-Fidelity:
-
-1. Automatische Materialsegmentierung eines beliebigen Bildes.
-2. Fenstererkennung über Holzrahmen, statt „dunkler Fleck = Fenster“.
-3. Himmelserkennung, damit blaue obere Bildbereiche nicht versehentlich zu Wasser oder Fenstern werden.
-4. Gebäudeerkennung über Fachwerk- und Nachbarschaftsstrukturen.
-5. Marker-Overlay-Korrektur: Nur falsch erkannte Stellen werden angemalt; der Rest bleibt automatisch.
-6. Licht-Material-Trennung: Eingebackene Beleuchtung wird von Oberflächenfarbe getrennt, damit Wetter und Schatten nicht auf bereits vorhandene Schatten draufmultipliziert werden.
-7. Companion-Dateien für Tiefen-, Shading-, Emissiv- und Actor-Zustände.
-8. Lokaler Point-Cloud-Export aus sichtbarer Szenenfarbe und Tiefenkarte, ausdrücklich ohne behauptete Rückseitengeometrie.
-
-CPU-Klassifikation und GPU-Darstellung stammen aus derselben Materialwahrheit. Dadurch wird ausdrücklich verhindert, dass der Shader eine Fläche als Stein behandelt, während Gameplay und Tools dort Gras sehen.
-
-## Szenen- und Erzählwerkzeug
-
-SHADED kann außerdem:
-
-- filmische Akte und Presets abspielen,
-- eigene Storyboards aus Parameter-Keyframes bauen,
-- Übergänge zeitlich interpolieren und loopen,
-- Dialoge mit Schreibmaschinen-Effekt und Trigger-Beats abspielen,
-- Parameter live einstellen und Presets speichern,
-- Marker direkt malen,
-- Actors platzieren und animieren,
-- Szenen als PNG aufnehmen,
-- WebM-Aufzeichnungen erzeugen,
-- Projekte über Orchestrator- beziehungsweise CLI-Verträge laden und exportieren,
-- Sprite-Sheets und Manifeste lokal erzeugen beziehungsweise bearbeiten.
-
-Der separate Editor steuert dieselbe Engine, statt eine zweite Shader-Version zu duplizieren.
-
-## Ehrliche Einordnung
-
-SHADED ist nicht fertig „physikalisch korrekt“. Es ist eine deterministische visuelle Weltmaschine: materialbewusst, zeitorientiert, interaktiv, erzählbar und offline ausführbar.
-
-Das Ziel ist nicht, möglichst viele Renderbuzzwords zu stapeln. Das Ziel ist, dass jedes sichtbare Phänomen aus einem Zustand entsteht und wiederum Spuren für spätere Zustände hinterlässt.
+Manifest, Service Worker und Installationsmodul sind vorhanden. Der Browser-Test prüft
+einen aktiven Service Worker, gecachte Runtime-Module, das kanonische Demo,
+Offline-Navigation und erneutes Demo-Laden ohne Netzwerk. Ob ein konkretes Betriebssystem
+einen nativen Installationsdialog zeigt, bleibt eine Eigenschaft dieser Plattform.

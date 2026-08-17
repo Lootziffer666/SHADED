@@ -1,12 +1,14 @@
 {
   "providers": {
     "depth-anything-3": {
-      "command": "/absolute/path/to/da3-env/bin/python",
-      "args": ["/absolute/path/to/Depth-Anything-3/infer.py", "--input", "{input}", "--output", "{output}", "--device", "{device}"]
+      "command": "python3",
+      "args": ["tools/providers/depth_anything_3.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
+      "doctorArgs": ["tools/providers/depth_anything_3.py", "--doctor"]
     },
     "depth-anything-v2": {
-      "command": "/absolute/path/to/dav2-env/bin/python",
-      "args": ["/absolute/path/to/Depth-Anything-V2/run.py", "--input", "{input}", "--output", "{output}", "--device", "{device}"]
+      "command": "python3",
+      "args": ["tools/providers/depth_anything_v2.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
+      "doctorArgs": ["tools/providers/depth_anything_v2.py", "--doctor"]
     }
   }
 }
