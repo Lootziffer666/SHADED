@@ -18,6 +18,16 @@ function readPoints(manifestPath) {
   const buffer = fs.readFileSync(file);
   const count = channel.shape[0];
   if (buffer.length !== count * 6 * 4) throw new Error('points.f32 size does not match manifest shape.');
+
+  // shaded_provider_common.depth_points writes a regular row-major sample grid.
+  // Reconstruct that grid metadata here so spatial-reconstruction can use its
+  // structured O(n) neighbourhood path instead of the generic all-pairs fallback.
+  const width = Number(manifest.camera?.width) || 1;
+  const height = Number(manifest.camera?.height) || 1;
+  const pointBudget = Number(manifest.provenance?.parameters?.pointBudget) || count;
+  const providerStep = Math.max(1, Math.ceil(Math.sqrt((width * height) / Math.max(1, pointBudget))));
+  const gridWidth = Math.max(1, Math.ceil(width / providerStep));
+
   const points = new Array(count);
   for (let i = 0; i < count; i++) {
     const offset = i * 24;
@@ -35,11 +45,24 @@ function readPoints(manifestPath) {
       y: buffer.readFloatLE(offset + 4),
       z: buffer.readFloatLE(offset + 8),
       r, g, b, material,
+      gridX: i % gridWidth,
+      gridY: Math.floor(i / gridWidth),
       confidence: 0.72,
       sourceIndex: i,
     };
   }
-  return { manifest, points };
+  return { manifest, points, providerStep, gridWidth };
+}
+
+function reconstructionSample(points, target = 90000) {
+  if (points.length <= target) return points;
+  const factor = Math.max(2, Math.ceil(Math.sqrt(points.length / target)));
+  const sampled = [];
+  for (const point of points) {
+    if (point.gridX % factor || point.gridY % factor) continue;
+    sampled.push({ ...point, gridX: Math.floor(point.gridX / factor), gridY: Math.floor(point.gridY / factor) });
+  }
+  return sampled;
 }
 
 function writeWorldPoints(filename, points) {
@@ -63,6 +86,15 @@ function raymarchPrimitive(primitive) {
   return { id, type, confidence, center: model.center, axis: model.axis, halfHeight: model.halfHeight, radius: model.radius };
 }
 
+function copyPreviewMaps(manifestPath, output) {
+  const source = path.dirname(manifestPath);
+  const names = ['maps.json', 'depth-preview.png', 'height-map.png', 'bump-map.png', 'normal-map.png'];
+  for (const name of names) {
+    const from = path.join(source, name);
+    if (fs.existsSync(from)) fs.copyFileSync(from, path.join(output, name));
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   const manifestPath = path.resolve(option(args, 'manifest', ''));
@@ -75,7 +107,8 @@ function main() {
   const mirrorRelief = Math.max(0.01, Number(option(args, 'mirror-relief', 0.14)) || 0.14);
   const textureBlend = Math.max(0, Math.min(1, Number(option(args, 'texture-blend', 0.78)) || 0.78));
   const { manifest, points } = readPoints(manifestPath);
-  const environment = buildSpatialEnvironment(points, {
+  const fitPoints = reconstructionSample(points);
+  const environment = buildSpatialEnvironment(fitPoints, {
     mirrorShell: true,
     mirrorThickness,
     mirrorRelief,
@@ -84,8 +117,7 @@ function main() {
     maxMirrorPoints: 8000,
   });
 
-  // buildSpatialEnvironment intentionally works in a normalized local world. Radius
-  // is kept as the authored walk-boundary scale and consumed by the editor/viewer.
+  copyPreviewMaps(manifestPath, output);
   const worldPointsFile = path.join(output, 'world-points.f32');
   writeWorldPoints(worldPointsFile, environment.points);
   const previewStride = Math.max(1, Math.ceil(environment.points.length / 24000));
@@ -115,6 +147,8 @@ function main() {
     boundary: { radius },
     source: manifest.provenance,
     geometry: {
+      rawProviderPoints: points.length,
+      reconstructionPoints: fitPoints.length,
       observedPoints: environment.observed.length,
       generatedPoints: environment.generated.length,
       primitivePoints: environment.primitiveCompletion.length,
@@ -127,11 +161,15 @@ function main() {
       points: { file: 'world-points.f32', dtype: 'float32-le', shape: [environment.points.length, 6] },
       raymarch: 'raymarch-scene.json',
       maps: 'maps.json',
+      depth: 'depth-preview.png',
+      height: 'height-map.png',
+      bump: 'bump-map.png',
+      normal: 'normal-map.png',
     },
     previewPoints,
   };
   fs.writeFileSync(path.join(output, 'world.json'), JSON.stringify(world, null, 2) + '\n');
-  console.log(JSON.stringify({ output, world: 'world.json', raymarch: 'raymarch-scene.json', points: environment.points.length, mirrored: environment.mirroredCompletion.length, primitives: environment.primitives.length }, null, 2));
+  console.log(JSON.stringify({ output, world: 'world.json', raymarch: 'raymarch-scene.json', rawPoints: points.length, reconstructionPoints: fitPoints.length, points: environment.points.length, mirrored: environment.mirroredCompletion.length, primitives: environment.primitives.length }, null, 2));
 }
 
 try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
