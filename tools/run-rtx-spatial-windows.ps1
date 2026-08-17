@@ -112,7 +112,7 @@ if ($Provider -eq 'depth-anything-v2' -or $Provider -eq 'both') {
   }
 }
 if ($Provider -eq 'depth-anything-3' -or $Provider -eq 'both') {
-  if (Test-ProviderReady 'tools/providers/depth_anything_3.py') {
+  if (Test-ProviderReady 'tools/providers/shaded_depth_anything_3.py') {
     Write-Host "`nDepth Anything 3 ist bereits installiert – kein git clone/pip-Lauf." -ForegroundColor Green
   } else {
     Invoke-Checked { & $Python -m pip install -r 'tools/providers/requirements-depth-v3.txt' } 'Depth Anything 3 installieren'
