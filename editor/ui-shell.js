@@ -9,10 +9,7 @@ const createPanel = document.getElementById('btn-erstellen-panel');
 const state = document.getElementById('engine-state');
 const viewportStatus = document.getElementById('viewport-status');
 const editorStatus = document.getElementById('editor-status');
-const storyClose = document.getElementById('btn-story-close');
 
-// Load the viewport-first override after the legacy editor CSS. This deliberately
-// turns every tool surface into an overlay so the scene keeps the whole screen.
 if (!document.querySelector('link[data-viewport-first]')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -21,7 +18,6 @@ if (!document.querySelector('link[data-viewport-first]')) {
   document.head.appendChild(link);
 }
 
-const isMobile = () => matchMedia('(max-width: 860px)').matches;
 const inspectorIsOpen = () => body.classList.contains('inspector-open');
 
 function setInspector(open) {
@@ -29,11 +25,6 @@ function setInspector(open) {
   body.classList.toggle('inspector-collapsed', !open);
   inspectorToggle?.setAttribute('aria-expanded', String(!!open));
   inspectorMobile?.setAttribute('aria-expanded', String(!!open));
-}
-
-function setStory(open) {
-  body.classList.toggle('story-open', !!open);
-  if (open) setInspector(false);
 }
 
 function prepareCollapsibleSections() {
@@ -44,14 +35,10 @@ function prepareCollapsibleSections() {
     title.setAttribute('role', 'button');
     title.setAttribute('tabindex', '0');
     section.classList.add('section-collapsed');
-
     const toggle = () => section.classList.toggle('section-collapsed');
     title.addEventListener('click', toggle);
     title.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        toggle();
-      }
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
     });
   });
 }
@@ -59,22 +46,12 @@ function prepareCollapsibleSections() {
 function revealSection(id, exclusive = true) {
   const section = document.getElementById(id);
   if (!section) return;
-  if (exclusive) {
-    document.querySelectorAll('.inspector-section').forEach((candidate) => {
-      candidate.classList.toggle('section-collapsed', candidate !== section);
-    });
-  } else {
-    section.classList.remove('section-collapsed');
-  }
+  if (exclusive) document.querySelectorAll('.inspector-section').forEach(candidate => candidate.classList.toggle('section-collapsed', candidate !== section));
+  else section.classList.remove('section-collapsed');
   requestAnimationFrame(() => section.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 
 function openSection(id) {
-  if (id === 'timeline-dock') {
-    setStory(true);
-    return;
-  }
-  setStory(false);
   setInspector(true);
   revealSection(id, true);
 }
@@ -85,47 +62,24 @@ document.querySelectorAll('.rail-btn[data-target]').forEach((button) => {
   button.addEventListener('click', () => {
     const target = button.dataset.target;
     const wasActive = button.classList.contains('active');
-
-    if (target === 'timeline-dock') {
-      const shouldOpen = !(wasActive && body.classList.contains('story-open'));
-      document.querySelectorAll('.rail-btn').forEach((b) => b.classList.toggle('active', shouldOpen && b === button));
-      setStory(shouldOpen);
-      return;
-    }
-
     if (wasActive && inspectorIsOpen()) {
       setInspector(false);
       button.classList.remove('active');
       return;
     }
-
-    document.querySelectorAll('.rail-btn').forEach((b) => b.classList.toggle('active', b === button));
+    document.querySelectorAll('.rail-btn').forEach(b => b.classList.toggle('active', b === button));
     openSection(target);
   });
 });
 
-inspectorToggle?.addEventListener('click', (event) => {
-  event.stopPropagation();
-  setInspector(!inspectorIsOpen());
-});
-inspector?.querySelector('.inspector-head')?.addEventListener('click', (event) => {
-  if (event.target.closest('button')) return;
-  setInspector(!inspectorIsOpen());
-});
+inspectorToggle?.addEventListener('click', (event) => { event.stopPropagation(); setInspector(!inspectorIsOpen()); });
+inspector?.querySelector('.inspector-head')?.addEventListener('click', (event) => { if (!event.target.closest('button')) setInspector(!inspectorIsOpen()); });
 inspectorMobile?.addEventListener('click', () => {
-  if (inspectorIsOpen()) {
-    setInspector(false);
-    return;
-  }
-  document.querySelectorAll('.rail-btn').forEach((b) => b.classList.toggle('active', b.dataset.target === 'panel-world'));
+  if (inspectorIsOpen()) return setInspector(false);
+  document.querySelectorAll('.rail-btn').forEach(b => b.classList.toggle('active', b.dataset.target === 'panel-world'));
   openSection('panel-world');
 });
-storyClose?.addEventListener('click', () => {
-  setStory(false);
-  document.getElementById('tool-story')?.classList.remove('active');
-});
 
-// app.js already owns #btn-erstellen. The duplicate inside the inspector only forwards to it.
 createPanel?.addEventListener('click', () => createTop?.click());
 
 function spatialChrome(doc) {
@@ -138,39 +92,21 @@ function spatialChrome(doc) {
   toolbar.id = 'shaded-spatial-toolbar';
   toolbar.innerHTML = '<button type="button" data-spatial-panel="pipeline">PIPELINE</button><button type="button" data-spatial-panel="laws">WELT</button>';
   viewer.appendChild(toolbar);
-
   const pipeline = doc.getElementById('spatial-pipeline');
   const laws = doc.getElementById('spatial-laws');
   const buttons = [...toolbar.querySelectorAll('button[data-spatial-panel]')];
-
-  const syncButtons = () => {
-    buttons.forEach((button) => {
-      const target = button.dataset.spatialPanel === 'pipeline' ? pipeline : laws;
-      button.classList.toggle('active', !!target?.classList.contains('shaded-panel-open'));
-    });
-  };
-  const closePanels = () => {
-    pipeline?.classList.remove('shaded-panel-open');
-    laws?.classList.remove('shaded-panel-open');
-    syncButtons();
-  };
-  closePanels();
-
-  toolbar.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-spatial-panel]');
-    if (!button) return;
+  const syncButtons = () => buttons.forEach(button => {
     const target = button.dataset.spatialPanel === 'pipeline' ? pipeline : laws;
-    const wasOpen = target?.classList.contains('shaded-panel-open');
-    closePanels();
-    if (!wasOpen) target?.classList.add('shaded-panel-open');
-    syncButtons();
+    button.classList.toggle('active', !!target?.classList.contains('shaded-panel-open'));
   });
-
-  // Clicking the actual 3D view dismisses whatever panel is covering it.
-  viewer.addEventListener('pointerdown', (event) => {
-    if (event.target === doc.getElementById('spatial-canvas')) closePanels();
+  const closePanels = () => { pipeline?.classList.remove('shaded-panel-open'); laws?.classList.remove('shaded-panel-open'); syncButtons(); };
+  closePanels();
+  toolbar.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-spatial-panel]'); if (!button) return;
+    const target = button.dataset.spatialPanel === 'pipeline' ? pipeline : laws;
+    const wasOpen = target?.classList.contains('shaded-panel-open'); closePanels(); if (!wasOpen) target?.classList.add('shaded-panel-open'); syncButtons();
   });
-
+  viewer.addEventListener('pointerdown', (event) => { if (event.target === doc.getElementById('spatial-canvas')) closePanels(); });
   viewer._shadedSpatialChrome = { closePanels };
   return viewer._shadedSpatialChrome;
 }
@@ -230,23 +166,19 @@ function updateState() {
   if (loaded) injectEnginePresentation();
 }
 
-iframe?.addEventListener('load', () => {
-  injectEnginePresentation();
-  updateState();
-});
+iframe?.addEventListener('load', () => { injectEnginePresentation(); updateState(); });
 setInterval(updateState, 750);
 
+// world-room-gate.js owns RAUM in capture phase. Keep this listener only as a
+// compatibility fallback for shells that omit that file.
 roomButton?.addEventListener('click', () => {
+  if (window.SHADEDWorldStudio?.enterRoom) return;
   injectEnginePresentation();
   setInspector(false);
-  setStory(false);
-  document.querySelectorAll('.rail-btn').forEach((button) => button.classList.remove('active'));
+  document.querySelectorAll('.rail-btn').forEach(button => button.classList.remove('active'));
   const doc = iframe.contentDocument;
   const button = doc?.getElementById('btn-spatial-view');
-  if (!button) {
-    if (viewportStatus) viewportStatus.textContent = 'Raumansicht ist in diesem Engine-Zustand nicht verfügbar.';
-    return;
-  }
+  if (!button) { if (viewportStatus) viewportStatus.textContent = 'Raumansicht ist in diesem Engine-Zustand nicht verfügbar.'; return; }
   button.click();
   spatialChrome(doc)?.closePanels();
 });
@@ -257,6 +189,4 @@ if (editorStatus && 'MutationObserver' in window) {
   }).observe(editorStatus, { childList: true, characterData: true, subtree: true });
 }
 
-// Start clean: full scene, no inspector, no timeline, no room overlays.
 setInspector(false);
-setStory(false);
