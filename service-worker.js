@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v5';
+const CACHE = 'shaded-shell-v7';
 const SHELL = [
   './',
   './index.html',
@@ -9,14 +9,17 @@ const SHELL = [
   './runtime/spatial-reconstruction.mjs',
   './runtime/sparse-voxel-world.mjs',
   './runtime/surface-world-simulation.mjs',
+  './runtime/spatial-solid-runtime.js?v=7',
   './icons/shaded.svg',
   './file_00000000974871f49fe71f6b456f9579.png',
   './file_00000000974871f49fe71f6b456f9579_depth.png',
   './file_00000000c84071f4bcd6ff9afdba7246.png',
   './editor/index.html',
-  './editor/editor.css',
-  './editor/app.js',
-  './editor/ui-shell.js',
+  './editor/editor.css?v=7',
+  './editor/viewport-first.css?v=7',
+  './editor/app.js?v=7',
+  './editor/ui-shell.js?v=7',
+  './editor/ux-fixes.js?v=7',
   './editor/facade.js',
   './editor/markerPainter.js',
   './editor/actorPlacer.js',
@@ -37,24 +40,40 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw error;
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Documents prefer fresh code, but retain the exact cached editor/runtime page
-  // when offline. Static shell modules use stale-while-revalidate.
-  if (request.mode === 'navigate') {
-    event.respondWith(fetch(request)
-      .then((response) => {
-        if (response.ok) caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
-        return response;
-      })
-      .catch(async () => (await caches.match(request)) || caches.match('./index.html')));
+  // Navigation and executable/editor code are network-first. The old
+  // stale-while-revalidate policy visibly kept obsolete UI logic alive for one
+  // more page load after every deployment, which is unacceptable for an editor.
+  const isCode = /\.(?:js|mjs|css)$/.test(url.pathname) || url.pathname.startsWith('/editor/');
+  if (request.mode === 'navigate' || isCode) {
+    event.respondWith(networkFirst(request).catch(async () => {
+      if (request.mode === 'navigate') return (await caches.match(request)) || caches.match('./index.html');
+      return Response.error();
+    }));
     return;
   }
 
+  // Large immutable-ish visual assets may still use stale-while-revalidate.
   event.respondWith(caches.match(request).then((cached) => {
     const update = fetch(request).then((response) => {
       if (response.ok) caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
