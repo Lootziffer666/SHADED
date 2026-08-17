@@ -2,8 +2,8 @@
   "providers": {
     "depth-anything-3": {
       "command": "python3",
-      "args": ["tools/providers/depth_anything_3.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
-      "doctorArgs": ["tools/providers/depth_anything_3.py", "--doctor"]
+      "args": ["tools/providers/shaded_depth_anything_3.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
+      "doctorArgs": ["tools/providers/shaded_depth_anything_3.py", "--doctor"]
     },
     "depth-anything-v2": {
       "command": "python3",
