@@ -1,0 +1,12 @@
+{
+  "providers": {
+    "depth-anything-3": {
+      "command": "/absolute/path/to/da3-env/bin/python",
+      "args": ["/absolute/path/to/Depth-Anything-3/infer.py", "--input", "{input}", "--output", "{output}", "--device", "{device}"]
+    },
+    "depth-anything-v2": {
+      "command": "/absolute/path/to/dav2-env/bin/python",
+      "args": ["/absolute/path/to/Depth-Anything-V2/run.py", "--input", "{input}", "--output", "{output}", "--device", "{device}"]
+    }
+  }
+}

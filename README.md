@@ -17,9 +17,71 @@ python3 -m http.server 8000
 ```
 
 Steuerung: `K` = Kino-Modus (UI aus), Akt-Buttons springen zu Stimmungen, „Experten-Regler" für Feintuning, 📸 PNG-Snapshot, 🔴 WebM-Aufnahme, Storyboard-Editor für eigene Abläufe.
+
+### Als App installieren
+
+SHADED ist als Progressive Web App installierbar. Über `localhost` oder eine
+HTTPS-Bereitstellung erscheint im Seitenmenü **⬇️ SHADED installieren**, sobald der
+Browser die Installation anbietet. Runtime und Autoren-Editor werden als App-Shell
+offline vorgehalten; selbst geladene Szenen bleiben lokale Benutzerdaten und werden
+nicht ungefragt in den Service-Worker-Cache kopiert.
+
+Die frühere Single-File-Grenze ist aufgehoben: `index.html` bleibt das Rendering-Ziel,
+aber Installation, Offline-Lifecycle und weitere Runtime-Module leben in eigenen
+Dateien unter `runtime/`. Dadurch können räumliche Systeme schrittweise modularisiert
+werden, ohne eine zweite Shader- oder Materialwahrheit einzuführen.
 Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Schneedellen), `Leertaste` Sprint (Laub stiebt, Früchte fallen), `F` bzw. 🔥 Feuer-Tool entzündet Lagerfeuer (Warmlicht, Rauch, Brandspuren; Regen löscht). Ohne Eingabe bleibt SHADED ein reines Ambient-Stück.
 
 **Spatial Export:** Der Button **🌌 PointCloud** exportiert aus Szenenfarbe + geladener Tiefenkarte ein lokales JSON-Point-Cloud-Format (`SHADED.spatial-point-cloud.v1`) mit Position, Farbe, Punktgröße, Alpha und Confidence. Programmatic API: `SHADED.spatial.pointCloud({step,fovDegrees})` und `SHADED.spatial.downloadPointCloud()`. Das übernimmt aus dem Zip nur die funktional nützliche Depth→Point-Cloud-Idee – ohne Android-/Three.js-Runtime und ohne verdeckte Rückseiten vorzutäuschen.
+
+**Freie Raumansicht:** **🧭 Raum frei ansehen** rendert dieselbe Depth→Point-Cloud in
+einem eigenen WebGL-Viewer. Ziehen dreht die Kamera, `Shift`+Ziehen verschiebt sie und
+das Mausrad fährt hinein oder heraus. Der **Lauf-Modus** ergänzt WASD-Bewegung und eine
+anklickbare Übersichtskarte: Dijkstra sucht den Weg durch das abgeleitete Raster,
+Dykstra projiziert jeden Bewegungsschritt gleichzeitig auf Raumgrenze und Schrittradius.
+Für das erste kleine Umfeld wird die sichtbare Geometrie gespiegelt; diese Rückseite ist
+explizit `generated` und hat reduzierte Konfidenz, statt als Messung ausgegeben zu werden.
+Der Raumgrenzen-Regler setzt prozedurale **Bäume oder Felsen** als sichtbare und für die
+Navigation blockierende Geometrie. Regen, Nässe und Pfützen erzeugen Wasserpunkte nur
+auf freien Bodenzellen; Hindernisse und Raumgrenzen bleiben trocken. Eine geraymarchte
+Skybox übernimmt Tageszeit, Sturm und Nebel aus denselben Live-Weltparametern und bleibt
+beim Drehen in Richtung der ursprünglichen Kamera räumlich geschlossen.
+Die räumliche Simulation führt dafür gekoppelte Felder für Wasser/Nässe, Dampf,
+Schnee, Eis, Hagel, Feuer, Glut, Qualm, Ruß, Matsch, Hitze, Trocknung, Zerfall und
+Überwucherung. Kälte friert Wasser, Wärme schmilzt und verdampft es; Regen löscht Feuer
+und erzeugt auf heißen Zellen Dampf; Wind trocknet Boden und transportiert Dampf/Qualm;
+Nässe begünstigt Matsch, Zerfall und Wachstum, während Feuer Brennstoff verbraucht und
+Ruß hinterlässt. Regen, Schneefall und Hagel besitzen zusätzlich sichtbare 3D-Partikel.
+Aus den beobachteten Punkten entsteht zuvor ein **Positive Primitives Set** aus Boden-,
+Flächen-, Massen- und Säulenprimitiven. Die generierte Gegenseite wird daraus mit
+einstellbarer Ähnlichkeit (85–95 %) synthetisiert, nicht mehr exakt gespiegelt.
+Der Reparaturstempel-Regler übernimmt lokale Farbmuster aus passenden sichtbaren
+Primitiven und kaschiert Variationsnähte, behält aber `generated`-Provenienz.
+Vegetation ist ebenfalls gekoppelt: Kriechgewächse diffundieren in benachbarte nasse
+Zellen, Gras wächst und weht, wird beim Laufen plattgedrückt und verdichtet Nässe zu
+Matsch/Pfützen. Baumkronen besitzen regelbare starre, langsame oder starke Biegung;
+trockene Blätter wirbeln und brennen, nasse bleiben liegen. Blutspuren behalten selbst
+nach langem Regen einen nicht auswaschbaren Rest.
+
+**Räumlicher Jahreszeiten-Showcase:** Im freien Raum startet **🌸 Jahreszeiten-Showcase**
+einen schnellen, geloopten Jahresbogen mit beschleunigtem Tag-/Nachtwechsel: Tau und
+Blumencluster im Frühling, Baumblüten und daraus entstehendes Sommerobst, sengende Hitze,
+Sturm mit Regen/Hagel/Nebel, trockenes Herbstlaub und Zerfall, Schnee/Eis im Winter,
+Tauwetter mit Pfützen und Matsch sowie abschließendes Zuwachsen. Während der nassen
+Phasen entsteht demonstrativ ein Trampelpfad; in der letzten Phase schließen Gras und
+Kriechgewächse ihn wieder. Der Showcase setzt keine Sonderbilder, sondern treibt
+dieselben gekoppelten räumlichen Felder wie die manuellen Regler.
+
+**Räumliche Regie und Aufnahme:** Saison, Ereignis (Blitz, Sturm, Feuer, Blut,
+Waldtier/Urin oder Zuwachsen) und Dauer werden als Szenen hinzugefügt, per Pfeiltasten
+geordnet und vor der Aufnahme auf eine gewünschte Gesamtdauer skaliert. Die WebM-
+Aufnahme zeichnet nur die Welt-Canvas auf; währenddessen bleiben WASD und Maus aktiv.
+Ein Änderungslog protokolliert jeden Reglerwert, jeden gesampelten Weltparameter
+(einschließlich Nebel), Szenenwechsel sowie Zufallsereignisse. Blitzrate, Tiermarkierung,
+Bluteintrag, Regen-Löschstärke und Zeitraffer sind granular einstellbar. Blitze wählen
+zufällig Holzgrenzen, entzünden sie und werden durch starken Regen gelöscht. Blut und
+Urin sind persistente Felder und färben Wasser, Schnee, Eis und Matsch; Urin wäscht
+schneller aus, während Blut einen dauerhaften Rest behält.
 
 **Showcase-Modus:** Der neue Button **🎪 Showcase (90s)** lädt bei Bedarf das Demo-Dorf, schaltet in den Kino-Modus und spielt eine kuratierte 90-Sekunden-Regie ab: Materialtreue, 2.5D-Parallaxe, Wind/Nebel, Regenphysik, Fensterreflexionen, Blitz/Feuer, Figuren-Spuren, Verfall, Schnee und Frühling. Das ist die schnelle Antwort auf „mehr als ein Bild = irgendwas”: `SHADED.showcase.start()` startet denselben Ablauf programmatisch, `SHADED.showcase.board()` legt die Schritte in den editierbaren Storyboard-Editor.
 
@@ -220,3 +282,19 @@ window.SHADED.ecosystem                                    // Aktuelle Ökosyste
 ```
 
 **Definition of Done** für visuelle Arbeit: Die Akte müssen den Zielbildern in Stimmung und Physik entsprechen (Nässe dunkelt Holz/Ziegel stark ab; Wasser sammelt sich in Pfadsenken und blutet in Grasränder aus; Fenster spiegeln warm in nassen Flächen; Nebel diffus an den Rändern) – und die Szene darf **nie** statisch wirken.
+
+## RTX-/GPU-Provider ohne Renderer-Lock-in
+
+`tools/gpu-spatial.mjs` ist die Prozess-Bridge für CUDA-Provider. Sie erkennt NVIDIA-GPUs per `nvidia-smi`; bei rund 12 GB VRAM wählt sie ein konservatives RTX-Profil mit FP16, bis zu zwei Millionen Punkten, 256³-Voxel- und 256²-Navigationsziel. Provider laufen absichtlich nacheinander, damit DA3 und DA2 nicht gleichzeitig den VRAM füllen.
+
+```bash
+cp tools/gpu-providers.example.json tools/gpu-providers.local.json
+node tools/gpu-spatial.mjs probe
+node tools/gpu-spatial.mjs run --config tools/gpu-providers.local.json --provider depth-anything-3 --input bild.png --out tools/gpu-out/da3
+node tools/gpu-spatial.mjs run --config tools/gpu-providers.local.json --provider depth-anything-v2 --input bild.png --out tools/gpu-out/da2
+node tools/gpu-spatial.mjs compare --a tools/gpu-out/da3/result.json --b tools/gpu-out/da2/result.json --out tools/gpu-out/vergleich.json
+```
+
+Die Beispielpfade müssen auf die jeweils **offiziell installierten** DA3-/DA2-Umgebungen und deren aktuelle CLI angepasst werden; SHADED erfindet keine instabile Python-API. Jeder Prozess liefert `result.json` gemäß `contracts/shaded-spatial-provider.schema.json` und rohe, little-endian Float32-Kanäle. Dadurch können CUDA, WebGPU, native Voxel-/SDF-Werkzeuge oder andere Zielrenderer dieselben Artefakte konsumieren – ohne Three.js-Abhängigkeit. Checkpoints, Modelle und erzeugte Binärartefakte bleiben bewusst außerhalb von Git.
+
+Für ein XP-Pen oder ein anderes Druckstift-Gerät bleibt der nächste Adapter ebenfalls rendererneutral: Pointer-Druck wird als Brush-Sample plus Materialkanal in ein editierbares Sparse-Voxel-/SDF-Artefakt geschrieben; erst eine Bridge übersetzt es in das jeweilige Zielformat. Der Providervertrag reserviert bereits Kanäle für Punkte, Normalen und Voxel.

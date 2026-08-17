@@ -86,24 +86,38 @@ function syncSlidersFromEngine() {
 
 buildSliders();
 
-document.getElementById('btn-demo').addEventListener('click', () => {
+document.getElementById('btn-demo').addEventListener('click', async () => {
   setStatus('Lade Demo-Szene …');
-  facade.loadDemo();
-});
-
-document.getElementById('f-scene').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    facade.loadSceneFile(file);
-    setStatus(`Szene geladen: ${file.name}`);
+  try {
+    await facade.loadDemo();
+    setStatus('Demo vollständig geladen. Jetzt „✨ Erstellen“ drücken.');
+  } catch (err) {
+    setStatus(`⚠️ Demo konnte nicht geladen werden: ${err.message}`);
   }
 });
 
-document.getElementById('f-mat').addEventListener('change', (e) => {
+document.getElementById('f-scene').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (file) {
-    facade.loadMaterialFile(file);
-    setStatus(`Zweitbild geladen: ${file.name}`);
+    setStatus(`Lade Szene: ${file.name} …`);
+    try {
+      await facade.loadSceneFile(file);
+      setStatus(`Szene geladen: ${file.name}`);
+    } catch (err) {
+      setStatus(`⚠️ Szene konnte nicht geladen werden: ${err.message}`);
+    }
+  }
+});
+
+document.getElementById('f-mat').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    try {
+      await facade.loadMaterialFile(file);
+      setStatus(`Zweitbild geladen: ${file.name}`);
+    } catch (err) {
+      setStatus(`⚠️ Zweitbild konnte nicht geladen werden: ${err.message}`);
+    }
   }
 });
 
@@ -113,7 +127,10 @@ document.getElementById('btn-erstellen').addEventListener('click', async () => {
     return;
   }
   setStatus('🧠 Erstelle Szene …');
-  facade.create();
+  if (!facade.create()) {
+    setStatus('⚠️ Zuerst eine Demo oder ein eigenes Szenenbild vollständig laden.');
+    return;
+  }
   try {
     await facade.waitUntilReady();
     setSlidersEnabled(true);
@@ -215,7 +232,7 @@ document.getElementById('btn-paint-apply').addEventListener('click', async () =>
   }
   const blob = await painter.exportPNGBlob();
   const file = new File([blob], 'marker-overlay.png', { type: 'image/png' });
-  facade.loadMaterialFile(file);
+  await facade.loadMaterialFile(file);
   setStatus(`Marker-Overlay als Zweitbild übernommen (${painter.countChangedPixels()} geänderte Pixel) — jetzt „Erstellen“ drücken.`);
 });
 
@@ -495,4 +512,3 @@ window.SHADED_ORCHESTRATOR = {
   getDebugSnapshot: () => facade.getDebugSnapshot(),
   isReady: () => facade.isReady(),
 };
-

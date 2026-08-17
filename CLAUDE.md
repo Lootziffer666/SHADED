@@ -56,16 +56,17 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
 
 ## Unverhandelbare Invarianten
 
-1. **Single-File, kein Build-Step — für `index.html`.** `index.html` bleibt die komplette
-   Runtime-App und muss weiterhin per Doppelklick bzw. `python3 -m http.server` laufen.
-   Keine Bundler, keine npm-Dependencies zur Laufzeit, kein Framework in `index.html`.
-   **Update:** Diese Regel wurde vom Maintainer als für Autoren-Werkzeuge zu eng erkannt
-   und ausdrücklich aufgehoben ("obsoletes Relikt") — sie gilt jetzt NUR noch für die
-   ausgelieferte Runtime `index.html`. `editor/` (Gate: Capybara-inspirierter Editor,
-   siehe unten) ist ein separates Autoren-Werkzeug, darf Mehrdatei-/ESM-Struktur nutzen
-   und `index.html` unverändert per `<iframe>` einbetten. Es steuert die Engine
-   ausschließlich über das bestehende `window.SHADED`-API (Invariante 5) — es forkt oder
-   dupliziert nie Shader-/Analyse-Code (Invariante 2 bleibt für den Editor genauso hart).
+1. **Modulare, statisch auslieferbare Runtime — kein Single-File-Zwang.** Die frühere
+   Single-File-Regel wurde vom Maintainer ausdrücklich aufgehoben. `index.html` bleibt
+   das Rendering-Ziel und die eine Shader-/Materialwahrheit bleibt unverhandelbar;
+   Installation, Offline-Lifecycle, UI und künftige räumliche Systeme dürfen jedoch in
+   eigene Dateien unter `runtime/` ausgelagert werden. Ein Build-Schritt oder Framework
+   ist nicht erforderlich: die ausgelieferte App muss weiterhin statisch über HTTP(S)
+   funktionieren. PWA-Funktionen benötigen dabei einen sicheren Kontext (`localhost`
+   oder HTTPS); der nackte Doppelklick bleibt nur ein nicht-installierbarer Fallback.
+   `editor/` bleibt ein separates Autorenwerkzeug und steuert die Engine ausschließlich
+   über `window.SHADED`; Modularisierung erlaubt weiterhin keine zweite Shader- oder
+   Klassifikationsimplementierung.
 2. **Eine Material-Wahrheit.** Die CPU-Analyse (`classGrid`, `getMaterialTypeAt`) und die
    GPU-Masken-Texturen entstehen aus DERSELBEN Segmentierung in `analyze()`.
    Niemals eine zweite, unabhängige Klassifikation einführen – genau daran ist der
