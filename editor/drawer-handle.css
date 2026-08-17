@@ -1,0 +1,60 @@
+/* One invariant: every sheet that opens must expose an independent, obvious way out. */
+#drawer-backdrop{
+  position:fixed;
+  inset:var(--top) 0 0 0;
+  z-index:55;
+  display:none;
+  background:rgba(0,0,0,.16);
+  border:0;
+  padding:0;
+  margin:0;
+}
+body.inspector-open #drawer-backdrop,
+body.story-open #drawer-backdrop{display:block}
+
+.tool-rail{z-index:80!important}
+.inspector,.timeline-dock{z-index:70!important;overflow:visible!important}
+.topbar{z-index:100!important}
+
+.drawer-drop-handle{
+  position:absolute;
+  left:50%;
+  top:-18px;
+  transform:translateX(-50%);
+  z-index:95;
+  width:76px;
+  height:32px;
+  min-height:32px;
+  padding:0 0 7px;
+  border:1px solid rgba(255,255,255,.2);
+  border-bottom:0;
+  border-radius:18px 18px 0 0;
+  background:rgba(18,19,23,.98);
+  color:#e5e7eb;
+  box-shadow:0 -8px 24px rgba(0,0,0,.4);
+  font:800 22px/1 system-ui,sans-serif;
+  touch-action:manipulation;
+  opacity:0;
+  pointer-events:none;
+}
+body.inspector-open #inspector>.drawer-drop-handle,
+body.story-open #timeline-dock>.drawer-drop-handle{
+  opacity:1;
+  pointer-events:auto;
+}
+.drawer-drop-handle:active{transform:translateX(-50%) translateY(1px)}
+
+@media(max-width:860px){
+  #drawer-backdrop{inset:var(--top) 0 54px 0}
+  .drawer-drop-handle{
+    top:-22px;
+    width:92px;
+    height:38px;
+    min-height:38px;
+    padding-bottom:9px;
+    border-radius:22px 22px 0 0;
+    font-size:26px;
+  }
+  /* Keep the bottom tool row usable even with a sheet open. */
+  .tool-rail{z-index:90!important}
+}
