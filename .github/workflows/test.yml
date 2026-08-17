@@ -31,6 +31,10 @@ jobs:
       run: |
         npm run check
 
+    - name: Verify redesigned authoring editor in Chromium
+      run: |
+        node tools/verify-editor.js
+
     - name: Verify service worker, offline demo, and spatial editor in Chromium
       run: |
         npm run verify:pwa-browser
