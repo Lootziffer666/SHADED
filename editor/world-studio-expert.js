@@ -6,13 +6,13 @@ function attachExpertToggle(){
   button.type='button';
   button.className='world-studio-expert';
   button.textContent='ERWEITERT';
-  button.title='Alte Einzelwerkzeuge nur bei Bedarf einblenden';
+  button.title='Einzelwerkzeuge nur bei Bedarf einblenden';
   button.addEventListener('click',()=>{
     const open=document.body.classList.toggle('world-expert-open');
     button.classList.toggle('active',open);
     button.textContent=open?'BASIS':'ERWEITERT';
     if(!open){
-      document.body.classList.remove('inspector-open','story-open');
+      document.body.classList.remove('inspector-open');
       document.body.classList.add('inspector-collapsed');
     }
   });
