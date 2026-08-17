@@ -2,6 +2,10 @@ name: SHADED Verify
 
 on: [push, pull_request]
 
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -12,53 +16,25 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '24'
+        cache: npm
 
     - name: Install dependencies
       run: |
         npm ci
 
-    - name: Run Actor verification
+    - name: Install Chromium for browser verification
       run: |
-        timeout 120 node tools/verify-actors.js || echo "⚠️ Actor test timed out (OK for headless CI)"
+        npx playwright install --with-deps chromium
 
-    - name: Run Lens verification (Runde 8)
+    - name: Run deterministic contract and spatial tests
       run: |
-        timeout 120 node tools/verify-lenses.js || echo "⚠️ Lens test timed out (OK for headless CI)"
+        npm run check
 
-    - name: Run COST-format self-tests (Runde 9, synthetic fixtures only)
+    - name: Verify service worker, offline demo, and spatial editor in Chromium
       run: |
-        node tools/test-cost-format.mjs
+        npm run verify:pwa-browser
 
-    - name: Run Costume-Browser verification (Runde 9, synthetic fixture only)
+    - name: Verify visible spatial stages and walk behind the house
       run: |
-        timeout 120 node tools/verify-costume-browser.js || echo "⚠️ Costume-browser test timed out (OK for headless CI)"
-
-    - name: Run minizip + content-lint self-tests (Runde 10)
-      run: |
-        node tools/test-minizip.mjs
-        node tools/test-content-lint.mjs
-
-    - name: Run Sprite-Exporter verification (Runde 10, synthetic fixture only)
-      run: |
-        timeout 120 node tools/verify-sprite-exporter.js || echo "⚠️ Sprite-exporter test timed out (OK for headless CI)"
-
-    - name: Run Dialogue-Engine verification (Runde 10)
-      run: |
-        timeout 120 node tools/verify-dialogue.js || echo "⚠️ Dialogue test timed out (OK for headless CI)"
-
-    - name: Check manifest compatibility
-      run: |
-        node -e "
-        const fs = require('fs');
-        const manifest = JSON.parse(fs.readFileSync('tools/verify-test-actor.json', 'utf8'));
-        console.log('✓ Manifest v' + manifest.mappingVersion + ' parsed');
-        console.log('  - Frames:', Object.keys(manifest.frameRects || manifest.grid || {}).length);
-        console.log('  - Animations:', Object.keys(manifest.animations).length);
-        console.log('  - Schema compatibility: v1.3.0+ and v1.4.0+ supported');
-        "
-
-    - name: Lint HTML
-      run: |
-        echo "✓ Single-file index.html (no build-step required)"
-        wc -l index.html
+        npm run verify:walk

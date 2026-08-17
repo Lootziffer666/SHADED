@@ -16,20 +16,22 @@ heutigen Laufzeit. Der ausführbare Stand ist ausdrücklich getrennt:
 | Technik | Heute tatsächlich ausgeführt | Ort und Grenze |
 |---|---:|---|
 | Dykstra-Projektion | **Ja** | `dykstraProject()` in `index.html` stabilisiert die Materialschicht. Der Laufmodus nutzt zusätzlich `runtime/spatial-navigation.mjs`, um Bewegung auf den Schnitt aus Raum-Box und konvexem Schrittradius zu projizieren. |
-| Dijkstra / A* | **Ja, lokales Raster** | `dijkstraGrid()` führt Klickziele auf der Übersichtskarte um einfache, aus Punktdichte abgeleitete Hinderniszellen. Ein semantischer World-Surface-Graph bleibt ein späterer Ausbau. |
+| Dijkstra | **Ja, gewichtetes Oberflächenraster** | `dijkstraGrid()` führt Klickziele um Blockaden und gewichtet Wasser, Eis, Matsch, Feuer, Rauch und Wachstum. Bewegungen prüfen die durchquerten Zellen statt nur die Endzelle. |
 | 2.5D-Kamera | **Ja, begrenzt** | Eine Tiefenkarte verschiebt Shader-UVs abhängig von der Tiefe; die Maus steuert höchstens 3,5 % Parallaxe. Das ist kein freier 6-DoF-Kameraflug und erzeugt keine verdeckten Flächen. |
-| Normierte Point Cloud | **Ja, Export + Viewer** | `SHADED.spatial.pointCloud()` rückprojiziert sichtbare Farbpixel mit relativer Companion-Tiefe nach `SHADED.spatial-point-cloud.v1`. `runtime/spatial-viewer.js` rendert die Messpunkte sowie eine klar als `generated` markierte Spiegelhälfte mit freier Orbit-/Pan-/Dolly-/Laufkamera. |
+| Normierte Point Cloud | **Ja, Export + Viewer** | `SHADED.spatial.pointCloud()` rückprojiziert sichtbare Farbpixel mit relativer Companion-Tiefe nach `SHADED.spatial-point-cloud.v1`. `runtime/spatial-viewer.js` rendert beobachtete Punkte und getrennt markierte, aus gefitteten Flächen neu abgetastete Ergänzungen. |
 | Metrische Point Cloud | **Ja, Offline-Werkzeug** | `tools/room_to_assets.py` schneidet Kamerastrahlen mit einer vermessenen Hallengeometrie und schreibt `SHADED.metric-point-cloud.v1` in Metern. Das ist ein spezialisierter Hallen-Provider, noch kein allgemeiner monokularer Point-Map-Provider. |
 | „Point-Cloud-Motes“ im Shader | **Ja, rein visuell** | Tiefenabhängige Staub-/Asche-/Schneepunkte im Fragmentshader; trotz des Namens keine persistente oder navigierbare Punktwolke. |
-| 3D-Weltgesetze | **Ja, gekoppelte Felder** | Wasser/Nässe, Dampf, Schnee/Eis/Hagel, Feuer/Glut/Qualm/Ruß, Matsch, Hitze/Trocknung, Zerfall und Überwucherung beeinflussen sich auf freien Rasterzellen. Wind transportiert Luftfelder; Regen, Schnee und Hagel fallen räumlich. Baum-/Felsgrenzen teilen Geometrie und Kollisionsmaske. Die Raymarch-Skybox liest Tag/Nacht, Sturm und Nebel live aus der Engine. |
-| Positive Primitives | **Ja, variierbare Synthese** | Sichtpunkte werden zu Boden-/Flächen-/Massen-/Säulenprimitiven gruppiert. Ähnlichkeit 85–95 %, primitiveabhängige Formabweichung und lokale Reparaturstempel erzeugen eine verwandte statt identische Rückseite; alle Ergebnisse bleiben `generated`. |
-| Jahreszeiten-Showcase | **Ja, gekoppelter Schnelllauf** | Frühjahrsblüte/Tau → Sommerfrucht/Hitze → Sturm → Herbstlaub/Zerfall → Schnee/Eis → Tauwetter/Matsch → Zuwachsen, überlagert von einem schnellen Tag-/Nachtzyklus. Baumblüten und Früchte verwenden dieselben Kronenprimitive; Trampelpfade werden in der Regenerationsphase von Gras und Kriechgewächsen geschlossen. |
-| Räumliche Regie | **Ja, komponierbar/aufnehmbar** | Geordnete Saison-/Ereignis-Szenen mit Einzeldauer werden auf die Aufnahmezeit skaliert. Zufallsblitze treffen nur Holz, Regen löscht; Blut/Urin pigmentieren Wasser, Schnee, Eis und Matsch. UI-, Weltparameter-, Phasen- und Ereignisänderungen landen im Diagnoseprotokoll. |
+| Sparse Voxel | **Ja, Oberflächenzustand** | Kamerastrahlen markieren `FREE`, Treffer `SURFACE`, unbekannter Raum bleibt implizit. Voxel tragen Material, Confidence, Provenienz und Felder; Pointer-Druck/Tilt/Eraser, Undo/Redo, Projekt- und Provider-Import sowie Block-Mesh-Extraktion sind implementiert. Es wird keine SDF/TSDF behauptet. |
+| Oberflächen-Weltzustand | **Ja, gekoppeltes 2D-Raster** | Das aus den Voxeln abgeleitete Raster trägt Wasser, Eis, Schnee, Brennstoff, Feuer, Rauch, Matsch, Wachstum und Kontamination. Wasserfluss ist intern massenerhaltend; Feuer verbraucht Brennstoff und breitet sich nachbar-/windabhängig aus. Das ist keine 3D-Fluid- oder Atmosphärenphysik. |
+| Geometrische Fits | **Ja, gemessen und begrenzt** | Lokale Normalen, zusammenhängende Oberflächen, RANSAC/PCA-Ebenen sowie PCA-Boxen/-Zylinder liefern Coverage und RMSE. Ergänzungen aus Fits und die zusätzlich absichtlich gespiegelte strukturelle Rückseitenhülle werden als `GENERATED` markiert; es gibt keine Prozent-Ähnlichkeitszusage. |
+| Jahreszeiten-Showcase | **Ja, Parametersequenz** | Eine feste beziehungsweise benutzergeordnete Liste setzt Saisonparameter und ein Ereignis pro Zeile. Blüten-/Frucht- und Vegetationswerte sind Raster-/Punktsprite-Zustände, keine individuellen Pflanzenlebenszyklen. |
+| Räumliche Regie | **Ja, minimale Szenenliste** | Saison, ein Ereignis und Dauer pro Zeile können geordnet und abgespielt werden. Aufnahme nutzt Canvas-`MediaRecorder`. Das Diagnosefenster enthält UI-Events und gerundete 250-ms-Stichproben, kein vollständiges Änderungsjournal. |
 
-Damit ist die kurze Antwort: **Dykstra und Dijkstra sind für das kleine lokale Umfeld
-implementiert; Point Clouds werden erzeugt und exportiert, im Viewer gespiegelt und frei gerendert.**
-Die Spiegelhälfte bleibt ausdrücklich generiert. Navigation läuft bereits auf einem
-lokalen Raster, noch nicht auf einem semantischen World-Surface-Graphen.
+Damit ist die kurze Antwort: **Dykstra und ein gewichteter Dijkstra sind für das kleine
+lokale Umfeld implementiert; Point Clouds werden erzeugt, geometrisch gefittet, um eine
+bewusst einfache Spiegelhülle ergänzt, in ein Sparse-Voxel-Feld integriert und im
+Viewer frei gerendert.** Die Ergänzungen sind explizit generiert. Navigation und Weltzustand teilen dasselbe abgeleitete
+Oberflächenraster; beides ist keine vollständige semantische 3D-Welt.
 
 ---
 

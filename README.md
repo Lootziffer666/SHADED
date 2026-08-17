@@ -1,8 +1,12 @@
 # SHADED
 
-**Ein Bild. Erstellen. Lebendig.**
+**Ein Bild, ein WebGL-Effekt und ein ausdrücklich generierter Raum-Prototyp.**
 
-SHADED verwandelt ein einzelnes 2D-Bild per Shader in eine atmende Szene – Environmental Storytelling ohne 3D, ohne Assets, ohne Build-Step. Ein Bild laden, **✨ Erstellen** drücken, und das Dorf durchlebt einen filmischen Bogen: goldener Tag → aufziehender Sturm → nächtliches Unwetter mit Regen, Wasserflussnetz, Blitzen und warm erleuchteten Fenstern, die sich in Pfützen spiegeln → nebliges Morgengrauen → der glitzernd nasse Tag danach.
+SHADED ist eine statische WebGL-2-Anwendung. Die Hauptansicht verändert ein einzelnes
+2D-Bild mit heuristischen Shader-Effekten. Die getrennte Raumansicht baut daraus eine
+relative Point Cloud, Fit-Hypothesen, eine absichtlich einfache Spiegelhülle und ein
+Oberflächenraster. Das Ergebnis ist begehbar, aber weder eine gemessene Rekonstruktion
+noch ein physikalisch verlässliches Weltmodell.
 
 ## Quickstart
 
@@ -20,11 +24,16 @@ Steuerung: `K` = Kino-Modus (UI aus), Akt-Buttons springen zu Stimmungen, „Exp
 
 ### Als App installieren
 
-SHADED ist als Progressive Web App installierbar. Über `localhost` oder eine
-HTTPS-Bereitstellung erscheint im Seitenmenü **⬇️ SHADED installieren**, sobald der
-Browser die Installation anbietet. Runtime und Autoren-Editor werden als App-Shell
-offline vorgehalten; selbst geladene Szenen bleiben lokale Benutzerdaten und werden
-nicht ungefragt in den Service-Worker-Cache kopiert.
+SHADED enthält Manifest, Service Worker und Installations-UI für eine Progressive Web
+App. Über `localhost` oder eine HTTPS-Bereitstellung kann im Seitenmenü
+**⬇️ SHADED installieren** erscheinen, wenn der konkrete Browser die Installation
+anbietet. Runtime und Autoren-Editor werden als App-Shell
+offline vorgehalten; das kanonische Demo-Paar ist ebenfalls vorab gecacht. Selbst
+geladene Szenen bleiben lokale Benutzerdaten und werden nicht ungefragt in den
+Service-Worker-Cache kopiert. `npm run verify:pwa-browser` prüft Service-Worker-
+Aktivierung, Offline-Navigation, Demo-Cache und Raumansicht in Chromium; den nativen
+Installationsdialog einer konkreten Browser-/OS-Kombination kann dieser Test nicht
+erzwingen.
 
 Die frühere Single-File-Grenze ist aufgehoben: `index.html` bleibt das Rendering-Ziel,
 aber Installation, Offline-Lifecycle und weitere Runtime-Module leben in eigenen
@@ -36,56 +45,62 @@ Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Sc
 
 **Freie Raumansicht:** **🧭 Raum frei ansehen** rendert dieselbe Depth→Point-Cloud in
 einem eigenen WebGL-Viewer. Ziehen dreht die Kamera, `Shift`+Ziehen verschiebt sie und
-das Mausrad fährt hinein oder heraus. Der **Lauf-Modus** ergänzt WASD-Bewegung und eine
-anklickbare Übersichtskarte: Dijkstra sucht den Weg durch das abgeleitete Raster,
-Dykstra projiziert jeden Bewegungsschritt gleichzeitig auf Raumgrenze und Schrittradius.
-Für das erste kleine Umfeld wird die sichtbare Geometrie gespiegelt; diese Rückseite ist
-explizit `generated` und hat reduzierte Konfidenz, statt als Messung ausgegeben zu werden.
-Der Raumgrenzen-Regler setzt prozedurale **Bäume oder Felsen** als sichtbare und für die
-Navigation blockierende Geometrie. Regen, Nässe und Pfützen erzeugen Wasserpunkte nur
-auf freien Bodenzellen; Hindernisse und Raumgrenzen bleiben trocken. Eine geraymarchte
-Skybox übernimmt Tageszeit, Sturm und Nebel aus denselben Live-Weltparametern und bleibt
-beim Drehen in Richtung der ursprünglichen Kamera räumlich geschlossen.
-Die räumliche Simulation führt dafür gekoppelte Felder für Wasser/Nässe, Dampf,
-Schnee, Eis, Hagel, Feuer, Glut, Qualm, Ruß, Matsch, Hitze, Trocknung, Zerfall und
-Überwucherung. Kälte friert Wasser, Wärme schmilzt und verdampft es; Regen löscht Feuer
-und erzeugt auf heißen Zellen Dampf; Wind trocknet Boden und transportiert Dampf/Qualm;
-Nässe begünstigt Matsch, Zerfall und Wachstum, während Feuer Brennstoff verbraucht und
-Ruß hinterlässt. Regen, Schneefall und Hagel besitzen zusätzlich sichtbare 3D-Partikel.
-Aus den beobachteten Punkten entsteht zuvor ein **Positive Primitives Set** aus Boden-,
-Flächen-, Massen- und Säulenprimitiven. Die generierte Gegenseite wird daraus mit
-einstellbarer Ähnlichkeit (85–95 %) synthetisiert, nicht mehr exakt gespiegelt.
-Der Reparaturstempel-Regler übernimmt lokale Farbmuster aus passenden sichtbaren
-Primitiven und kaschiert Variationsnähte, behält aber `generated`-Provenienz.
-Vegetation ist ebenfalls gekoppelt: Kriechgewächse diffundieren in benachbarte nasse
-Zellen, Gras wächst und weht, wird beim Laufen plattgedrückt und verdichtet Nässe zu
-Matsch/Pfützen. Baumkronen besitzen regelbare starre, langsame oder starke Biegung;
-trockene Blätter wirbeln und brennen, nasse bleiben liegen. Blutspuren behalten selbst
-nach langem Regen einen nicht auswaschbaren Rest.
+das Mausrad fährt hinein oder heraus. Der Laufmodus ergänzt WASD und eine anklickbare
+Übersichtskarte. Dijkstra berücksichtigt neben Blockaden auch die laufenden Kosten von
+Wasser, Eis, Matsch, Feuer, Rauch und Wachstum. Bewegungen prüfen alle durchquerten
+Rasterzellen; Dykstra projiziert den Schritt auf Raumgrenze und Schrittradius.
+
+Das dauerhaft sichtbare Feld **So entsteht der Raum** schaltet zwölf Diagnoseansichten
+einzeln: Ausgangspunkte, relativer Tiefenhinweis, lokale Richtungen, zusammenhängende
+Gruppen, Grobformen, Spiegelhülle, Raumzellen, Weltfelder, Begehbarkeit, Baumgrenze,
+Himmel und die Zusammensetzung. Die Texte erklären die Rolle jeder Stufe, nennen aber
+keine internen Schwellenwerte. Beobachtete und erzeugte Punkte bleiben farblich und in
+der Provenienz getrennt.
+
+Die Rekonstruktion schätzt lokale Normalen, bildet zusammenhängende Oberflächen und
+fittet Ebenen, Boxen und Zylinder. Angezeigt werden gemessene Abdeckung und RMSE.
+Generierte Flächen werden aus den Fits neu abgetastet. Für die verlangte Umrundung des
+Hauses kommt zusätzlich eine absichtlich grobe, dunkel gerenderte Spiegelhülle mit
+Randwänden hinzu. Beides trägt `GENERATED`: Es ist keine gemessene Rückseite und keine
+prozentuale Qualitätszusage. Farben stammen aus den tatsächlich protokollierten nächsten
+Quell-Patches.
+
+Die Point Cloud wird in ein Sparse-Voxel-Feld überführt: unbekannter Raum bleibt
+implizit, Kamerastrahlen markieren freien Raum und Treffer Oberflächen. Voxel speichern
+Material, Confidence, Provenienz und Zustandsfelder. Der Stiftmodus verarbeitet Pointer
+Pressure, Tilt und Eraser, verändert echte Voxel und unterstützt Undo/Redo sowie
+Projekt-Import/-Export. Die Oberfläche kann als indiziertes Block-Mesh extrahiert
+werden. Ein mit `gpu-spatial.mjs bundle` erzeugtes Provider-Bundle lässt sich direkt in
+dasselbe Feld importieren.
+
+Wasser, Eis, Schnee, Brennstoff, Feuer, Rauch, Matsch und Kontamination liegen auf dem
+aus den Voxeln abgeleiteten Oberflächenraster. Interner Wassertransport ist
+massenerhaltend und folgt Höhenpotentialen; Verbrennung verbraucht Brennstoff und kann
+auf benachbarte, windabhängig gewichtete Zellen übergreifen. Windrichtung ist ein
+Eingabeparameter. Geometrieänderungen übertragen den Rasterzustand auf das neue Raster.
+Blut und Urin bleiben skalare Oberflächenfelder mit visueller Färbung, keine
+dreidimensionale Stoff- oder Flüssigkeitsphysik. Der richtungsabhängige Sky-Shader ist
+ein günstiger Hintergrund für Wolken und Bergsilhouette, kein Raymarcher durch die
+Weltgeometrie.
 
 **Räumlicher Jahreszeiten-Showcase:** Im freien Raum startet **🌸 Jahreszeiten-Showcase**
-einen schnellen, geloopten Jahresbogen mit beschleunigtem Tag-/Nachtwechsel: Tau und
-Blumencluster im Frühling, Baumblüten und daraus entstehendes Sommerobst, sengende Hitze,
+einen schnellen, geloopten Jahresbogen mit beschleunigtem Tag-/Nachtwechsel: Tau,
+Blumen- und Fruchtwerte auf Rasterzellen beziehungsweise Kronen-Samples, sengende Hitze,
 Sturm mit Regen/Hagel/Nebel, trockenes Herbstlaub und Zerfall, Schnee/Eis im Winter,
 Tauwetter mit Pfützen und Matsch sowie abschließendes Zuwachsen. Während der nassen
 Phasen entsteht demonstrativ ein Trampelpfad; in der letzten Phase schließen Gras und
 Kriechgewächse ihn wieder. Der Showcase setzt keine Sonderbilder, sondern treibt
 dieselben gekoppelten räumlichen Felder wie die manuellen Regler.
 
-**Räumliche Regie und Aufnahme:** Saison, Ereignis (Blitz, Sturm, Feuer, Blut,
-Waldtier/Urin oder Zuwachsen) und Dauer werden als Szenen hinzugefügt, per Pfeiltasten
-geordnet und vor der Aufnahme auf eine gewünschte Gesamtdauer skaliert. Die WebM-
-Aufnahme zeichnet nur die Welt-Canvas auf; währenddessen bleiben WASD und Maus aktiv.
-Ein Änderungslog protokolliert jeden Reglerwert, jeden gesampelten Weltparameter
-(einschließlich Nebel), Szenenwechsel sowie Zufallsereignisse. Blitzrate, Tiermarkierung,
-Bluteintrag, Regen-Löschstärke und Zeitraffer sind granular einstellbar. Blitze wählen
-zufällig Holzgrenzen, entzünden sie und werden durch starken Regen gelöscht. Blut und
-Urin sind persistente Felder und färben Wasser, Schnee, Eis und Matsch; Urin wäscht
-schneller aus, während Blut einen dauerhaften Rest behält.
+**Räumliche Regie und Aufnahme:** Saison, ein Ereignis und Dauer werden als geordnete
+Zeilen verwaltet und auf Wunsch abgespielt oder per Canvas-`MediaRecorder` aufgenommen.
+Der Seed macht die räumlichen Zufallsereignisse reproduzierbar. Das Diagnosefenster
+protokolliert UI-Events, Ereignisse und alle 250 ms gerundete Stichproben ausgewählter
+Mittelwerte; es ist ausdrücklich kein lückenloses Zelländerungsprotokoll.
 
-**Showcase-Modus:** Der neue Button **🎪 Showcase (90s)** lädt bei Bedarf das Demo-Dorf, schaltet in den Kino-Modus und spielt eine kuratierte 90-Sekunden-Regie ab: Materialtreue, 2.5D-Parallaxe, Wind/Nebel, Regenphysik, Fensterreflexionen, Blitz/Feuer, Figuren-Spuren, Verfall, Schnee und Frühling. Das ist die schnelle Antwort auf „mehr als ein Bild = irgendwas”: `SHADED.showcase.start()` startet denselben Ablauf programmatisch, `SHADED.showcase.board()` legt die Schritte in den editierbaren Storyboard-Editor.
+**Showcase-Modus:** Der Button **🎪 Showcase (90s)** lädt bei Bedarf das Demo-Dorf, schaltet in den Kino-Modus und spielt eine feste 90-Sekunden-Parameterfolge ab: 2.5D-Parallaxe, Wind/Nebel, Regenvisualisierung, Fensterreflexionen, Blitz-/Feuereffekte, Figuren-Spuren, Verfall, Schnee und Frühling. `SHADED.showcase.start()` startet denselben Ablauf programmatisch, `SHADED.showcase.board()` legt die Schritte in den Storyboard-Editor.
 
-**Elemente-Spielplatz:** Die UI hat jetzt direkte Weltgesetze-Presets für 💧 Flüssigkeit, ♨️ Dampf, 🫧 Druck, 🔥 Hitze, 🟤 Matsch, 🧊 Eis, ❄️ Schnee, 🔥 Feuer, 🌫️ Rauch, 🪵 Glut, 🌋 Lava, 🌧️ Regen, 🧊 Hagel, 🍂 Blätter und ⚡ Blitze. Diese Buttons kopieren kein externes Tool: sie treiben SHADEDs eigene Parameter, Trail-Textur, Partikel, Feuer-/Rauch-/Schnee-/Regen-Systeme und Shader-Uniforms an, damit Material, Wetter, Temperatur und Spuren sichtbar miteinander reagieren.
+**Elemente-Spielplatz:** Die UI hat direkte Presets für 💧 Flüssigkeit, ♨️ Dampf, 🫧 Druck, 🔥 Hitze, 🟤 Matsch, 🧊 Eis, ❄️ Schnee, 🔥 Feuer, 🌫️ Rauch, 🪵 Glut, 🌋 Lava, 🌧️ Regen, 🧊 Hagel, 🍂 Blätter und ⚡ Blitze. Diese Buttons treiben Parameter, Trail-Textur, Partikel und Shader-Uniforms. In der Hauptansicht sind das gekoppelte visuelle Regeln, keine Stoffphysik.
 Die “kleckernd klotzen”-Schicht läuft im Fragment-Shader selbst: transiente Element-Uniforms verstärken kleckernde Nass-Splatter, Druckwellen im Sound-Feld, Hagel-Einschläge, Glut-/Lava-Blackbody-Glow und Hitze-Chromatik, statt alles nur als Canvas-Overlay über das Bild zu legen.
 Darüber liegt ein zusätzlicher Shader-Stack für Godrays, abgeleitetes Bump-/Normal-Mapping, Ambient Occlusion, mehrstufige Lichtquantisierung, volumetrische Wolken/Lichtschächte, Bloom-Halos, Spatial Distortion, Chromatic Aberration und depth-aware Point-Cloud-Motes – alles aus dem Einzelbild, der optionalen Tiefenkarte und den bestehenden World-Law-Kanälen.
 
@@ -105,6 +120,30 @@ Actors sind rein optisch (beeinflussen nicht `classGrid` oder `getMaterialTypeAt
 
 
 ## Deployment
+
+### Vercel über GitHub Actions
+
+Die App hat keinen Build-Schritt. `vercel.json` setzt Header für Service Worker,
+Manifest und ES-Module; `.vercelignore` beschränkt den Upload auf die ausführbare App
+und die drei kanonischen Demo-Bilder. Der Workflow
+`.github/workflows/vercel.yml` prüft die räumliche Prozessansicht und den Weg hinter das
+Haus, erzeugt danach mit der fest gesetzten Vercel-CLI ein Preview-Artefakt für Pull
+Requests und ein Produktionsartefakt für `main`.
+
+Im GitHub-Repository müssen drei Actions-Secrets gesetzt werden:
+`VERCEL_TOKEN`, `VERCEL_ORG_ID` und `VERCEL_PROJECT_ID`. Solange sie fehlen, läuft die
+Verifikation weiter und der Deploy-Schritt wird mit einer sichtbaren Erklärung
+übersprungen. In Vercel lautet das Framework-Preset **Other**, das Root Directory ist
+`.`; Build Command und Output Directory bleiben leer.
+
+Der manuell startbare Workflow `.github/workflows/rtx-spatial.yml` läuft nur auf einem
+eigenen Linux-Runner mit den Labels `gpu` und `rtx-3060`. Er prüft das reale CUDA-Gerät,
+installiert die gewählten offiziellen Provider in eine isolierte Python-Umgebung, führt
+DA3 und/oder DA2 nacheinander mit CUDA/FP16 aus und lädt validierte, direkt importierbare
+Provider-Bundles als Workflow-Artefakt hoch. Modell-Lade- und Inferenzzeit werden aus
+dem echten Lauf ins Job-Summary geschrieben; sie werden nicht lokal emuliert.
+
+### Nginx-Container
 
 SHADED bleibt eine statische Single-File-Web-App ohne Runtime-Build. Für den Webserver ist die robuste Standard-Variante der mitgelieferte Nginx-Container:
 
@@ -198,44 +237,21 @@ Depth-Map (optional, Phase B2): 8-bit Grayscale PNG (gleiche Größe wie RGB-She
 
 ## Fähigkeiten und Einordnung
 
-SHADED ist nicht nur eine Liste von Rendering-Techniken. Die aktuelle Fähigkeitsmatrix und die ehrlichste Produkt-Einordnung stehen in [`docs/shaded-faehigkeiten.md`](docs/shaded-faehigkeiten.md): Materialwahrheit, Weltgesetze, Bildverstehen, Interaktion, Storytelling und Shader-Fidelity als eine zusammenhängende 2D-Weltsimulation.
+Die aktuelle Fähigkeitsmatrix und die überprüfbare Produkt-Einordnung stehen in
+[`docs/shaded-faehigkeiten.md`](docs/shaded-faehigkeiten.md). Sie trennt die
+2D-Shaderregeln, den räumlichen Prototyp, externe Provider und nicht implementierte
+Fähigkeiten.
 
 ## Architektur (Kurzfassung)
 
 Single-File-App (`index.html`), WebGL 2 / GLSL ES 3.00, kein Build-Step.
 
-1. **Analyse (CPU, einmalig bei „Erstellen”):** Segmentierung in 8 Klassen → weiche Masken-Texturen; Chamfer-Distanz im Pfad → Pfützen-Tiefe („Wasser sammelt sich in Senken”); Blur-Gradient → Flussfeld; Fenster → Emissiv-Glow (energie-normalisiert). CPU-Wahrheit `classGrid` bleibt für Gameplay-Abfragen (`SHADED.getMaterialTypeAt`) erhalten – **identisch** zu dem, was die GPU sieht.
-2. **Shader (GLSL, 1 Fragment-Pass):** gesteuert von 13 High-Level-Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`). Zusätzlich 19 simulierte Weltgesetze-Uniforms (Phase C). Effekte: Nässe-Abdunklung + Sättigung, Pfützen-Spiegelung (Szene + Himmel + Fenster-Warmlicht), Rinnsal-Netz entlang des Flussfelds, Regenschlieren + Aufprallringe + Tropfkanten, fbm-Nebel, Blitz-Doppelschläge, Wolkenschatten, Fensterflackern, Moos/Überwucherung, Glitzern am Tag danach, permanentes „Atmen” (Wind-Sway, Mikro-Exposure), plus 20 Weltgesetze-Effekte (Trocknung, Hitzeverzug, Rost, Rauchschichtung, Temperaturgradienten, etc.).
+1. **Analyse (CPU, einmalig bei „Erstellen”):** Segmentierung in 8 Klassen → weiche Masken-Texturen; Chamfer-Distanz und Blur-Gradient → visuelle Pfützen-/Rinnsalmasken; Fenster → Emissiv-Glow. `classGrid` bleibt für Abfragen (`SHADED.getMaterialTypeAt`) erhalten und speist dieselbe Materialtextur wie der Shader.
+2. **Shader (GLSL, 1 Fragment-Pass):** gesteuert von 13 High-Level-Parametern (`dayNight, storm, rain, wet, puddle, fog, wind, glow, decay, temperature, bloom, autumn, snow`) sowie zusätzlichen Effekt-Uniforms. Nässe, Pfützen, Rinnsale, Regen, Nebel, Blitze, Wolkenschatten, Fensterlicht, Moos, Schnee und weitere Zustände sind Bildregeln ohne kalibrierte physikalische Einheiten.
 3. **Storyboard-Engine:** Schritte = Parameter-Keyframes mit Dauer, smoothstep-Blending, Loop. Standard-Arc wird bei „Erstellen” geladen und gestartet.
 4. **Actor-System (Runde 7+):** Overlay-Canvas-basierte animierte Charaktere mit Tiefenschicht-Ordnung (front/mid/back) und atmosphärischer Kopplung (fog/dayNight).
 
 Details: [`.claude/skills/shaded-pipeline/SKILL.md`](.claude/skills/shaded-pipeline/SKILL.md)
-
-## Fahrplan
-
-- **Runde 1 – Wasser, Sturm & Atmosphäre** ✅
-- **Runde 2 – Jahreszeiten & Klima** ✅: Schnee (Bedeckung/Fall/Schmelze), Temperatur (Eis-Pfützen, Frost, Eiszapfen), Herbstfärbung/-fall, Frühlingswachstum, Sonnenbleiche → Spec: [`.kiro/specs/round-2-seasons-climate/`](.kiro/specs/round-2-seasons-climate/requirements.md)
-- **Runde 3 – Material Fatigue & Verfall** ✅: Alterung als kontinuierlicher, materialabhängiger Zeitprozess: Moos, Überwucherung, Rost, Risse, morsches vs. feuchtes Holz → Spec: [`.kiro/specs/round-3-material-fatigue/`](.kiro/specs/round-3-material-fatigue/requirements.md)
-- **Runde 4 – Interaktion & Ökosystem** ✅: Spieler (WASD/Dash, Trampelpfade mit echtem Decay), Lagerfeuer + Brandausbreitung, Laub-/Frucht-Partikel, Bio-Charakter (Atmung, Frostatem, Nässe) → Spec: [`.kiro/specs/round-4-interaction-ecosystem/`](.kiro/specs/round-4-interaction-ecosystem/requirements.md)
-
-Der verbindliche Fahrplan (Runde 1–4) ist komplett umgesetzt. Darauf aufbauend:
-
-- **Runde 5 – Strukturelle Segmentierung** (in Arbeit): Geometrie- und Nachbarschaftslogik, damit jedes Bild automatisch korrekt analysiert wird. Grundlage ist der **verbindliche [Bildkanon](docs/bildkanon.md)** (Häuser sind Fachwerk, Fenster sind IMMER holzgerahmt, Glas ohne Rahmen = kein Fenster, Himmel ist oben & inert). Umgesetzt: Bodenanker + Dach-Anker (Adjazenz-Ringe) ✅, Rahmen-Fenster-Detektor (K3/K4) ✅, Himmel-Regel (K7) ✅, Fachwerk-Signatur (K1) → Gebäudezonen ✅ (Pfützen/Flussnetz/Überwucherung sind jetzt strukturell vom Gebäude ausgesperrt, Fenster-Validierung läuft über den Zonen-Beleg) → Spec: [`.kiro/specs/round-5-structural-segmentation/`](.kiro/specs/round-5-structural-segmentation/requirements.md)
-
-**Phase C – Weltgesetze-Erweiterung** ✅: Implementierung von **20 neuen Weltgesetzen** (31/60 = 52% Gesamtabdeckung). Alle Effekte sind deterministische Shader-Simulationen mit CPU-seitiger Phasen-Akkumulation. Umfasst 5 Implementierungs-Sprints: Trocknung, Hitzeverzug, Rauchschichtung, Temperaturgradienten, Rost, Atemwolken, Druck, Lichtverschmutzung, Mondlicht, Biom-Zonen, Vegetation-Reaktion, Stimmungs-Tint, Weltmüdigkeit, Besitz-Grenzen, Oberflächen-Runen, Schatten-Besitzverhältnis, Geruch-Diffusion, Berührungsspuren, Reparaturmarken, Segen/Fluch. → Dokumentation: [`docs/phase-c-weltgesetze.md`](docs/phase-c-weltgesetze.md)
-
-**Runde 7 – Ökosystem-Integration** ✅: **13 lebende Charaktere** als animierte oder statische Sprite-Akteure auf dem Overlay-Canvas. 4 Ökosystem-Typen:
-  - **Cats** (4 Tiere): SWIFT-generierte animierte Pixel-Art-Sprites mit Frame-Manifest
-  - **GAIME Enemies** (3 Monster): Blob, Rat, Wolf aus dem GAIME-Repository
-  - **GAIME NPCs** (4 Stadtbewohner): Bürger, Gastwirt, Händler
-  - **GAIME Heroes** (3 Charaktere): Nib, Brugg, Vellum
-  - Tiefenschicht-System (front/mid/back) für räumlich korrekte Überlagerung
-  - Atmosphärische Kopplung: globalAlpha reagiert auf fog & dayNight
-  → Dokumentation: [`docs/round-7-ecosystem.md`](docs/round-7-ecosystem.md)
-
-**Phase B2 – Depth-Rendering für Actors** ✅: Tiefenkarten-basierte räumliche Integration von Characteren. Manifest v1.4.0 unterstützt optionale Depth-Maps (8-bit Grayscale PNG) mit korrespondierenden Frame-Rects. SHADED-seitige Depth-Composite-Logik: durchschnittliche Pixel-Tiefe pro Frame → Normalisierung → Wärmefärbung (warm = nah, kühl = fern). Test-Fixture mit 4-frame Tiefenprogression (0→255). → Dokumentation: [`docs/phase-b2-depth-rendering.md`](docs/phase-b2-depth-rendering.md)
-
-**Langfrist-Vision:** [`docs/vision-weltgesetze.md`](docs/vision-weltgesetze.md) – der „Sichtbare Weltgesetze”-Katalog (aktuell 60 Systeme + Systemachsen) („Shader zeigen nicht an, dass etwas passiert. Shader SIND das Passieren.”). Design-Referenz für alles nach Runde 4.
 
 ## Instruktionen für LLMs / Agenten
 
@@ -281,20 +297,45 @@ window.SHADED.addActor({                                   // Charakter laden
 window.SHADED.ecosystem                                    // Aktuelle Ökosystem-Instanz
 ```
 
-**Definition of Done** für visuelle Arbeit: Die Akte müssen den Zielbildern in Stimmung und Physik entsprechen (Nässe dunkelt Holz/Ziegel stark ab; Wasser sammelt sich in Pfadsenken und blutet in Grasränder aus; Fenster spiegeln warm in nassen Flächen; Nebel diffus an den Rändern) – und die Szene darf **nie** statisch wirken.
+**Definition of Done** für visuelle Arbeit: Die Akte werden im Browser gegen die
+Zielbilder geprüft. Das ist ein visueller Vergleich; er beweist keine physikalische
+Richtigkeit oder Rekonstruktionsqualität.
 
 ## RTX-/GPU-Provider ohne Renderer-Lock-in
 
-`tools/gpu-spatial.mjs` ist die Prozess-Bridge für CUDA-Provider. Sie erkennt NVIDIA-GPUs per `nvidia-smi`; bei rund 12 GB VRAM wählt sie ein konservatives RTX-Profil mit FP16, bis zu zwei Millionen Punkten, 256³-Voxel- und 256²-Navigationsziel. Provider laufen absichtlich nacheinander, damit DA3 und DA2 nicht gleichzeitig den VRAM füllen.
+`tools/providers/depth_anything_v2.py` verwendet die offizielle Transformers-API für
+Depth Anything V2. `tools/providers/depth_anything_3.py` verwendet die offizielle
+`DepthAnything3`-API. Beide Adapter prüfen CUDA über Torch, aktivieren FP16 nur auf CUDA,
+wenden die tatsächlich konfigurierte Bildkante und das Punktbudget an und schreiben
+Depth, Normalen, Punkte sowie – falls vom Modell geliefert – Confidence. Modellgewichte
+werden nicht im Repository mitgeführt; Installation und Lizenzen der gewählten Modelle
+bleiben beim Betreiber.
 
 ```bash
-cp tools/gpu-providers.example.json tools/gpu-providers.local.json
 node tools/gpu-spatial.mjs probe
-node tools/gpu-spatial.mjs run --config tools/gpu-providers.local.json --provider depth-anything-3 --input bild.png --out tools/gpu-out/da3
-node tools/gpu-spatial.mjs run --config tools/gpu-providers.local.json --provider depth-anything-v2 --input bild.png --out tools/gpu-out/da2
+node tools/gpu-spatial.mjs doctor --config tools/gpu-providers.example.json
+node tools/gpu-spatial.mjs run --config tools/gpu-providers.example.json --provider depth-anything-3 --input bild.png --out tools/gpu-out/da3
+node tools/gpu-spatial.mjs run --config tools/gpu-providers.example.json --provider depth-anything-v2 --input bild.png --out tools/gpu-out/da2
 node tools/gpu-spatial.mjs compare --a tools/gpu-out/da3/result.json --b tools/gpu-out/da2/result.json --out tools/gpu-out/vergleich.json
+node tools/gpu-spatial.mjs bundle --manifest tools/gpu-out/da3/result.json --out tools/gpu-out/da3.shaded-provider.json
 ```
 
-Die Beispielpfade müssen auf die jeweils **offiziell installierten** DA3-/DA2-Umgebungen und deren aktuelle CLI angepasst werden; SHADED erfindet keine instabile Python-API. Jeder Prozess liefert `result.json` gemäß `contracts/shaded-spatial-provider.schema.json` und rohe, little-endian Float32-Kanäle. Dadurch können CUDA, WebGPU, native Voxel-/SDF-Werkzeuge oder andere Zielrenderer dieselben Artefakte konsumieren – ohne Three.js-Abhängigkeit. Checkpoints, Modelle und erzeugte Binärartefakte bleiben bewusst außerhalb von Git.
+Abhängigkeiten stehen getrennt in
+`tools/providers/requirements-depth-v2.txt` und
+`tools/providers/requirements-depth-v3.txt`. `doctor` beendet sich mit Status 2, wenn
+ein Adapter nicht lauffähig ist. In einer Umgebung ohne `nvidia-smi` wird CPU/FP32
+gewählt; das ist ein Diagnoseergebnis und kein GPU-Test.
 
-Für ein XP-Pen oder ein anderes Druckstift-Gerät bleibt der nächste Adapter ebenfalls rendererneutral: Pointer-Druck wird als Brush-Sample plus Materialkanal in ein editierbares Sparse-Voxel-/SDF-Artefakt geschrieben; erst eine Bridge übersetzt es in das jeweilige Zielformat. Der Providervertrag reserviert bereits Kanäle für Punkte, Normalen und Voxel.
+Jedes `result.json` wird mit Ajv tatsächlich gegen
+`contracts/shaded-spatial-provider.schema.json` validiert. Für alle Binärkanäle werden
+Pfadgrenzen, Shape, Bytezahl und endliche Floatwerte geprüft. `compare` misst bei
+relativen Modellen nur standardisierte Strukturübereinstimmung und bezeichnet sie nicht
+als Rekonstruktionsqualität. Das Bundle enthält validierte Kanäle mit SHA-256 und kann
+vom räumlichen Browser-Editor importiert werden.
+
+Der Voxel-Pinsel verarbeitet Pointer Events einschließlich `pressure`, `tiltX`,
+`tiltY` und Eraser. Radius und Deckkraft reagieren auf den Druck; Material und Farbe
+werden in den kanonischen Sparse-Voxel-Zustand geschrieben. Undo, Redo, JSON-Projekt,
+Provider-Import und Block-Mesh-Export sind über die UI beziehungsweise
+`SHADED.spatial.voxel` erreichbar. Eine SDF, TSDF oder herstellerspezifische
+XP-Pen-Treiberintegration wird nicht behauptet.

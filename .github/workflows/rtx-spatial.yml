@@ -1,0 +1,176 @@
+name: RTX Spatial Provider
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider to execute sequentially
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - depth-anything-3
+          - depth-anything-v2
+      input_image:
+        description: Repository-relative image path
+        required: true
+        default: file_00000000974871f49fe71f6b456f9579.png
+        type: string
+      max_edge:
+        description: Maximum inference edge in pixels
+        required: true
+        default: '1024'
+        type: string
+      point_budget:
+        description: Maximum exported point count
+        required: true
+        default: '1000000'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rtx-spatial-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  infer:
+    runs-on: [self-hosted, linux, x64, gpu, rtx-3060]
+    timeout-minutes: 120
+    env:
+      SELECTED_PROVIDER: ${{ inputs.provider }}
+      INPUT_IMAGE: ${{ inputs.input_image }}
+      MAX_EDGE: ${{ inputs.max_edge }}
+      POINT_BUDGET: ${{ inputs.point_budget }}
+      HF_HOME: ${{ github.workspace }}/.hf-cache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Validate requested budgets and input path
+        shell: bash
+        run: |
+          [[ "$MAX_EDGE" =~ ^[0-9]+$ ]] && (( MAX_EDGE >= 256 && MAX_EDGE <= 4096 ))
+          [[ "$POINT_BUDGET" =~ ^[0-9]+$ ]] && (( POINT_BUDGET >= 1000 && POINT_BUDGET <= 4000000 ))
+          [[ "$INPUT_IMAGE" != /* && "$INPUT_IMAGE" != *".."* && -f "$INPUT_IMAGE" ]]
+
+      - name: Record the actual NVIDIA device
+        shell: bash
+        run: nvidia-smi --query-gpu=index,name,driver_version,memory.total --format=csv
+
+      - name: Install SHADED contract tooling
+        run: npm ci
+
+      - name: Create isolated Python environment
+        shell: bash
+        run: |
+          python -m venv .venv-depth
+          .venv-depth/bin/python -m pip install --upgrade pip
+
+      - name: Install selected official provider dependencies
+        shell: bash
+        run: |
+          if [[ "$SELECTED_PROVIDER" == "depth-anything-v2" || "$SELECTED_PROVIDER" == "both" ]]; then
+            .venv-depth/bin/python -m pip install -r tools/providers/requirements-depth-v2.txt
+          fi
+          if [[ "$SELECTED_PROVIDER" == "depth-anything-3" || "$SELECTED_PROVIDER" == "both" ]]; then
+            .venv-depth/bin/python -m pip install -r tools/providers/requirements-depth-v3.txt
+          fi
+
+      - name: Build a runner-local provider configuration
+        shell: bash
+        run: |
+          RUNNER_PYTHON="$GITHUB_WORKSPACE/.venv-depth/bin/python" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = JSON.parse(fs.readFileSync('tools/gpu-providers.example.json', 'utf8'));
+          const selected = process.env.SELECTED_PROVIDER;
+          for (const [name, definition] of Object.entries(source.providers)) {
+            if (selected !== 'both' && name !== selected) delete source.providers[name];
+            else definition.command = process.env.RUNNER_PYTHON;
+          }
+          fs.writeFileSync('.runner-gpu-providers.json', JSON.stringify(source, null, 2));
+          NODE
+
+      - name: Prove CUDA and provider imports before inference
+        shell: bash
+        run: |
+          .venv-depth/bin/python - <<'PY'
+          import json
+          import torch
+          result = {
+              "torch": torch.__version__,
+              "cudaAvailable": torch.cuda.is_available(),
+              "cudaRuntime": torch.version.cuda,
+              "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+              "memoryBytes": torch.cuda.get_device_properties(0).total_memory if torch.cuda.is_available() else 0,
+          }
+          print(json.dumps(result, indent=2))
+          if not result["cudaAvailable"]:
+              raise SystemExit("CUDA is not available to PyTorch")
+          PY
+          node tools/gpu-spatial.mjs doctor --config .runner-gpu-providers.json
+
+      - name: Run selected providers sequentially on CUDA FP16
+        shell: bash
+        run: |
+          mkdir -p provider-output
+          if [[ "$SELECTED_PROVIDER" == "depth-anything-3" || "$SELECTED_PROVIDER" == "both" ]]; then
+            node tools/gpu-spatial.mjs run --config .runner-gpu-providers.json --provider depth-anything-3 --input "$INPUT_IMAGE" --out provider-output/da3 --device cuda:0 --precision fp16 --max-edge "$MAX_EDGE" --point-budget "$POINT_BUDGET"
+            node tools/gpu-spatial.mjs validate --manifest provider-output/da3/result.json
+            node tools/gpu-spatial.mjs bundle --manifest provider-output/da3/result.json --out provider-output/depth-anything-3.shaded-provider.json
+          fi
+          if [[ "$SELECTED_PROVIDER" == "depth-anything-v2" || "$SELECTED_PROVIDER" == "both" ]]; then
+            node tools/gpu-spatial.mjs run --config .runner-gpu-providers.json --provider depth-anything-v2 --input "$INPUT_IMAGE" --out provider-output/da2 --device cuda:0 --precision fp16 --max-edge "$MAX_EDGE" --point-budget "$POINT_BUDGET"
+            node tools/gpu-spatial.mjs validate --manifest provider-output/da2/result.json
+            node tools/gpu-spatial.mjs bundle --manifest provider-output/da2/result.json --out provider-output/depth-anything-v2.shaded-provider.json
+          fi
+
+      - name: Compare the two outputs when both were run
+        if: inputs.provider == 'both'
+        run: node tools/gpu-spatial.mjs compare --a provider-output/da3/result.json --b provider-output/da2/result.json --out provider-output/provider-agreement.json
+
+      - name: Write measured provider facts to the run summary
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = [];
+          for (const directory of ['da3', 'da2']) {
+            const filename = `provider-output/${directory}/result.json`;
+            if (!fs.existsSync(filename)) continue;
+            const result = JSON.parse(fs.readFileSync(filename, 'utf8'));
+            const shape = result.channels.depth.shape.join('×');
+            const points = result.channels.points?.shape?.[0] ?? 0;
+            rows.push(`| ${result.provider} | ${result.modelVersion} | ${result.device} | ${result.precision} | ${shape} | ${points} | ${Math.round(result.timingsMs?.modelLoad ?? 0)} | ${Math.round(result.timingsMs?.inference ?? 0)} |`);
+          }
+          const summary = [
+            '### Measured RTX provider results',
+            '',
+            '| Provider | Model | Device | Precision | Depth | Points | Load ms | Inference ms |',
+            '|---|---|---|---|---:|---:|---:|---:|',
+            ...rows,
+            '',
+            'These are run facts and provider agreement data, not a reconstruction-quality percentage.',
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + '\n');
+          NODE
+
+      - name: Upload importable provider bundles and raw manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: shaded-rtx-${{ github.run_id }}
+          path: provider-output/
+          if-no-files-found: error
+          retention-days: 14

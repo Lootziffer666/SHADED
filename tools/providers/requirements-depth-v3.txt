@@ -1,0 +1,6 @@
+numpy>=1.26,<3
+Pillow>=10,<13
+torch>=2.2
+torchvision>=0.17
+xformers
+git+https://github.com/ByteDance-Seed/Depth-Anything-3.git

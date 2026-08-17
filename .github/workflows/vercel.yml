@@ -1,0 +1,135 @@
+name: Vercel Preview and Production
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: vercel-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install deterministic dependencies
+        run: npm ci
+
+      - name: Install Chromium for the functional walkthrough
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify contracts, spatial logic, and static PWA files
+        run: npm run check
+
+      - name: Verify the visible pipeline and the route behind the house
+        run: npm run verify:walk
+
+      - name: Detect Vercel configuration
+        id: configuration
+        shell: bash
+        run: |
+          if [[ -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "### Vercel deployment skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID as repository secrets." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Choose Vercel target
+        if: steps.configuration.outputs.configured == 'true'
+        id: target
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "production=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+            echo "production=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install pinned Vercel CLI
+        if: steps.configuration.outputs.configured == 'true'
+        run: npm install --global vercel@59.1.3
+
+      - name: Pull Vercel project settings
+        if: steps.configuration.outputs.configured == 'true'
+        run: vercel pull --yes --environment="${{ steps.target.outputs.environment }}" --token="$VERCEL_TOKEN"
+
+      - name: Build preview artifact
+        if: steps.configuration.outputs.configured == 'true' && steps.target.outputs.production == 'false'
+        run: vercel build --token="$VERCEL_TOKEN"
+
+      - name: Build production artifact
+        if: steps.configuration.outputs.configured == 'true' && steps.target.outputs.production == 'true'
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy preview artifact
+        if: steps.configuration.outputs.configured == 'true' && steps.target.outputs.production == 'false'
+        id: preview
+        shell: bash
+        run: |
+          url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Vercel preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy production artifact
+        if: steps.configuration.outputs.configured == 'true' && steps.target.outputs.production == 'true'
+        id: production
+        shell: bash
+        run: |
+          url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Vercel production" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish or update the preview link on the pull request
+        if: github.event_name == 'pull_request' && steps.preview.outputs.url != ''
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- shaded-vercel-preview -->';
+            const body = `${marker}\nVercel preview: ${process.env.PREVIEW_URL}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const previous = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

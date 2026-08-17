@@ -15,12 +15,13 @@ const BASE_IMG = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579.png');  
 const MARKER_IMG = path.join(REPO, 'file_00000000c84071f4bcd6ff9afdba7246.png');  // Pink-Marker-Overlay
 const LEGACY_IMG = path.join(REPO, 'ResizedImage_2026-06-30_10-29-19_2317[41].png');
 const MAT_IMG = path.join(REPO, '1782824829119.png');
+const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.gif':'image/gif','.ico':'image/x-icon'};
 
 const server = http.createServer((req, res) => {
   const p = path.join(REPO, decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '') || 'index.html');
   try {
     const data = fs.readFileSync(p === REPO + '/' ? path.join(REPO, 'index.html') : p);
-    res.writeHead(200, { 'Content-Type': p.endsWith('.html') ? 'text/html' : 'image/png' });
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(p).toLowerCase()] || 'application/octet-stream' });
     res.end(data);
   } catch (e) { res.writeHead(404); res.end(); }
 });
