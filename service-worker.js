@@ -17,6 +17,8 @@ const SHELL = [
   './editor/index.html',
   './editor/editor.css?v=7',
   './editor/viewport-first.css?v=7',
+  './editor/app.js',
+  './editor/ui-shell.js',
   './editor/app.js?v=7',
   './editor/ui-shell.js?v=7',
   './editor/ux-fixes.js?v=7',
