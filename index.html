@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0b12">
+<meta name="application-name" content="SHADED">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>SHADED – Ein Bild. Erstellen. Lebendig.</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/shaded.svg" type="image/svg+xml">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -64,6 +69,18 @@ body.cinema #exit-cinema{display:block}
 #showcase-kicker{font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:2px;margin-bottom:5px}
 #showcase-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:4px}
 #showcase-copy{font-size:12px;line-height:1.45;color:#cbd5e1}
+#spatial-viewer{position:absolute;inset:18px;z-index:30;background:#070912;border:1px solid #334155;border-radius:12px;overflow:hidden;box-shadow:0 24px 80px #000}
+#spatial-viewer[hidden]{display:none}
+#spatial-canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#spatial-canvas:active{cursor:grabbing}
+#spatial-help{position:absolute;left:12px;bottom:10px;padding:7px 10px;border-radius:6px;background:#080b12cc;color:#a5b4c7;font-size:10px;pointer-events:none}
+#spatial-close{position:absolute;right:10px;top:10px;z-index:2}
+#spatial-walk{position:absolute;right:112px;top:10px;z-index:2}
+#spatial-map{position:absolute;left:12px;top:12px;width:150px;height:150px;border:1px solid #475569;border-radius:6px;background:#080b12;cursor:crosshair}
+#spatial-map[hidden]{display:none}
+#spatial-laws{position:absolute;right:12px;bottom:12px;width:260px;max-height:88%;overflow:auto;padding:9px;background:#080b12dd;border:1px solid #334155;border-radius:7px;font-size:10px}
+#spatial-laws label{display:flex;justify-content:space-between;gap:8px;margin:4px 0}#spatial-laws input{width:110px}#spatial-laws select{background:#111827;color:#cbd5e1;border:1px solid #334155}
+#spatial-scene-list{display:grid;gap:3px;margin:5px 0}#spatial-scene-list div{display:flex;justify-content:space-between;background:#111827;padding:3px 5px}#spatial-log{height:82px;overflow:auto;white-space:pre-wrap;background:#030712;color:#93c5fd;padding:5px;margin-top:5px}
 @keyframes blink{50%{opacity:.35}}
 @media(max-width:720px){body{flex-direction:column}#sidebar{width:100%;height:52vh;order:2}#stage{height:48vh;order:1}}
 </style>
@@ -72,6 +89,10 @@ body.cinema #exit-cinema{display:block}
 <div id="sidebar">
   <h1>SHADED</h1>
   <div class="sub">Ein Bild. Erstellen. Lebendig.</div>
+  <button id="btn-install" type="button" hidden
+          style="width:100%;margin:4px 0 6px;border-color:#0ea5e9;color:#7dd3fc">
+    ⬇️ SHADED installieren
+  </button>
   <!-- Der Editor ist ein eigenes Autorenwerkzeug (editor/), das diese Seite
        unveraendert per iframe einbettet. Ohne diesen Link ist er nur ueber eine
        manuell getippte URL erreichbar - er sah dadurch aus, als gaebe es ihn nicht. -->
@@ -187,6 +208,7 @@ body.cinema #exit-cinema{display:block}
     <button id="btn-json">💾 Parameter (JSON)</button>
     <button id="btn-pointcloud">🌌 PointCloud</button>
   </div>
+  <button id="btn-spatial-view" style="width:100%">🧭 Raum frei ansehen</button>
 
   <details>
     <summary>Experten-Regler</summary>
@@ -201,6 +223,39 @@ body.cinema #exit-cinema{display:block}
     <div id="showcase-kicker">SHADED Showcase</div>
     <div id="showcase-title">Ein Bild wird Welt.</div>
     <div id="showcase-copy">Weltgesetze, Tiefe, Wetter, Spuren und Figuren greifen ineinander.</div>
+  </div>
+  <div id="spatial-viewer" hidden aria-label="Freie Point-Cloud-Kamera">
+    <canvas id="spatial-canvas"></canvas>
+    <button id="spatial-close" type="button">✕ Schließen</button>
+    <button id="spatial-walk" type="button">🚶 Lauf-Modus</button>
+    <canvas id="spatial-map" width="180" height="180" hidden title="Klicken, um per Dijkstra dorthin zu laufen"></canvas>
+    <div id="spatial-laws">
+      <label><span>Raumgrenze</span><input id="spatial-boundary" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+      <label><span>Form</span><select id="spatial-boundary-form"><option value="trees">Bäume</option><option value="rocks">Felsen</option></select></label>
+      <label><span>Ähnlichkeit</span><input id="spatial-similarity" type="range" min="0.85" max="0.95" step="0.01" value="0.90"></label>
+      <label><span>Reparaturstempel</span><input id="spatial-repair" type="range" min="0" max="1" step="0.05" value="0.75"></label>
+      <label><span>Vegetation</span><input id="spatial-vegetation" type="range" min="0" max="1" step="0.05" value="0.65"></label>
+      <label><span>Kronenbiegung</span><input id="spatial-canopy-flex" type="range" min="0" max="1" step="0.05" value="0.60"></label>
+      <label><span>Blitzrate</span><input id="spatial-lightning-rate" type="range" min="0" max="1" step="0.05" value="0.15"></label>
+      <label><span>Tier-Urin</span><input id="spatial-urine-rate" type="range" min="0" max="1" step="0.05" value="0.08"></label>
+      <label><span>Blut-Eintrag</span><input id="spatial-blood-rate" type="range" min="0" max="1" step="0.05" value="0"></label>
+      <label><span>Regen löscht</span><input id="spatial-rain-extinguish" type="range" min="0" max="2" step="0.1" value="1"></label>
+      <label><span>Zeitraffer</span><input id="spatial-time-scale" type="range" min="1" max="30" step="1" value="8"></label>
+      <div><button id="spatial-now-lightning">⚡ Jetzt</button><button id="spatial-now-blood">🩸 Jetzt</button><button id="spatial-now-urine">🦌 Jetzt</button></div>
+      <button id="spatial-seasons" type="button" style="width:100%">🌸 Jahreszeiten-Showcase</button>
+      <div id="spatial-season-status">Manuelle Weltzeit</div>
+      <details><summary>Szenen zusammenklicken</summary>
+        <select id="spatial-scene-season"><option>Frühling</option><option>Sommer</option><option>Herbst</option><option>Winter</option><option>Tauwetter</option></select>
+        <select id="spatial-scene-event"><option value="none">nur Saison</option><option value="lightning">Blitz</option><option value="storm">Sturm</option><option value="fire">Feuer</option><option value="blood">Blut</option><option value="urine">Waldtiere/Urin</option><option value="regrow">Zuwachsen</option></select>
+        <input id="spatial-scene-duration" type="number" min="1" max="60" value="6" style="width:48px"><button id="spatial-scene-add">+ Szene</button>
+        <div id="spatial-scene-list"></div>
+        <label><span>Aufnahme (s)</span><input id="spatial-record-duration" type="number" min="5" max="300" value="45"></label>
+        <button id="spatial-record" type="button" style="width:100%">🔴 Showcase aufnehmen</button>
+      </details>
+      <details open><summary>Änderungslog</summary><pre id="spatial-log"></pre></details>
+      <div>Wasser folgt freien Bodenzellen · Himmel/Ferne werden geraymarcht</div>
+    </div>
+    <div id="spatial-help">Orbit: Ziehen/Shift+Ziehen/Mausrad · Laufen: WASD + Mausblick · Karte: Dijkstra-Ziel</div>
   </div>
   <div id="canvas-wrap">
     <canvas id="gl" width="16" height="9"></canvas>
@@ -3692,9 +3747,12 @@ async function loadDemoScene(){
   const marker='file_00000000c84071f4bcd6ff9afdba7246.png';
   const r1=await fetch(scene); if(!r1.ok)throw new Error('scene');
   const b1=new File([await r1.blob()],scene,{type:'image/png'});
-  loadImageFile(b1,false);
+  // A new scene intentionally clears its old material map. Wait for that decode
+  // before installing the demo marker, otherwise the two image onload handlers
+  // race and the marker can silently disappear.
+  await loadImageFile(b1,false);
   const r2=await fetch(marker);
-  if(r2.ok) loadImageFile(await r2.blob(),true);
+  if(r2.ok) await loadImageFile(await r2.blob(),true);
 }
 function waitForReady(timeoutMs=5000){
   const start=performance.now();
@@ -3745,6 +3803,7 @@ function tickShowcase(dt){
 }
 
 function loadImageFile(file,isMat){
+  return new Promise((resolve,reject)=>{
   const img=new Image();
   img.onload=()=>{
     if(isMat){ matImg=img; setStatus('Material-Map geladen ('+img.width+'×'+img.height+'). Jetzt „Erstellen“.'); }
@@ -3786,8 +3845,14 @@ function loadImageFile(file,isMat){
       }
     }
     URL.revokeObjectURL(img.src);
+    resolve(img);
+  };
+  img.onerror=()=>{
+    URL.revokeObjectURL(img.src);
+    reject(new Error((isMat?'Zweitbild':'Szenenbild')+' konnte nicht dekodiert werden.'));
   };
   img.src=URL.createObjectURL(file);
+  });
 }
 document.getElementById('f-scene').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],false);
 document.getElementById('f-mat').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],true);
@@ -4237,7 +4302,13 @@ window.SHADED = {
   story:{ play:playStory, stop:stopStory, board:()=>storyboard },
   showcase:{ start:startShowcase, stop:stopShowcase, board:showcaseStoryboard },
   elements:{ trigger:elementPreset, clear:()=>document.getElementById('btn-elements-clear').click() },
+  // Räumliche Runtime-Module lesen dieselben transienten Weltgesetze, statt
+  // parallel eigene UI-Schalter oder eine zweite Simulationswahrheit zu erfinden.
+  worldState:()=>({params:{...CUR},elements:{...elementBurst},fireCount:fires.length,
+                   player:{active:player.active,blood:player.blood||0,mud:player.mud||0},
+                   phases:{dry:dryPhase,rust:rustAccum,smoke:smokeAmount,heat:heatWarp}}),
   spatial:{ pointCloud:buildSpatialPointCloud, downloadPointCloud:downloadSpatialPointCloud },
+  loadDemo:loadDemoScene,
   loadImageFile,
   // Runde 4
   player:{ enable:spawnPlayer, pos:()=>({u:player.u,v:player.v,active:player.active,wet:player.wet}),
@@ -4350,5 +4421,7 @@ window.SHADED = {
   },
 };
 </script>
+<script type="module" src="runtime/install.js"></script>
+<script type="module" src="runtime/spatial-viewer.js"></script>
 </body>
 </html>

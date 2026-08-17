@@ -38,37 +38,20 @@ export class SceneEditorFacade {
 
   /** Loads SHADED's own canonical demo scene + marker pair (same-origin fetch, see index.html's #btn-demo). */
   loadDemo() {
-    const btn = this.doc && this.doc.getElementById('btn-demo');
-    if (btn) btn.click();
+    if (!this.isEngineLoaded()) return Promise.reject(new Error('SHADED-Engine ist noch nicht geladen.'));
+    if (typeof this.win.SHADED.loadDemo === 'function') return this.win.SHADED.loadDemo();
+    return Promise.reject(new Error('Diese SHADED-Engine unterstützt das Laden der Demo nicht.'));
   }
 
-  /**
-   * `loadImageFile` decodes the image asynchronously (`new Image(); img.onload=...`) —
-   * the canvas (`#gl`) only actually resizes once decoding finishes. Returns a promise
-   * that resolves once that real resize happened, so callers (loadProject) never have
-   * to guess a fixed delay (same technique already used for paint-canvas in
-   * tools/verify-editor.js — poll the real DOM effect, not a sleep).
-   */
+  /** Resolves only after the engine has decoded and installed the scene image. */
   loadSceneFile(file) {
-    const canvas = this.doc && this.doc.getElementById('gl');
-    const widthBefore = canvas ? canvas.width : null;
-    this.win.SHADED.loadImageFile(file, false);
-    if (!canvas) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const start = performance.now();
-      const tick = () => {
-        if (canvas.width !== widthBefore) return resolve();
-        if (performance.now() - start > 10000) {
-          return reject(new Error('Szenenbild wurde innerhalb der Zeitgrenze nicht geladen (Canvas-Größe unverändert).'));
-        }
-        requestAnimationFrame(tick);
-      };
-      tick();
-    });
+    if (!this.isEngineLoaded()) return Promise.reject(new Error('SHADED-Engine ist noch nicht geladen.'));
+    return Promise.resolve(this.win.SHADED.loadImageFile(file, false));
   }
 
   loadMaterialFile(file) {
-    this.win.SHADED.loadImageFile(file, true);
+    if (!this.isEngineLoaded()) return Promise.reject(new Error('SHADED-Engine ist noch nicht geladen.'));
+    return Promise.resolve(this.win.SHADED.loadImageFile(file, true));
   }
 
   create() {
@@ -257,7 +240,7 @@ export class SceneEditorFacade {
       throw new Error('loadProject() braucht assets.sceneFile (echtes File-Objekt, kein Pfad/String).');
     }
     await this.loadSceneFile(assets.sceneFile);
-    if (assets.materialFile) this.loadMaterialFile(assets.materialFile);
+    if (assets.materialFile) await this.loadMaterialFile(assets.materialFile);
     this.create();
     await this.waitUntilReady();
 

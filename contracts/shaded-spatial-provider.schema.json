@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaded.example/contracts/spatial-provider-result-v1.json",
+  "title": "SHADED renderer-neutral spatial provider result",
+  "type": "object",
+  "required": ["format", "provider", "channels"],
+  "properties": {
+    "format": { "const": "SHADED.spatial-provider-result.v1" },
+    "provider": { "type": "string", "minLength": 1 },
+    "modelVersion": { "type": "string" },
+    "device": { "type": "string" },
+    "channels": {
+      "type": "object",
+      "required": ["depth"],
+      "properties": {
+        "depth": { "$ref": "#/$defs/channel" },
+        "confidence": { "$ref": "#/$defs/channel" },
+        "normals": { "$ref": "#/$defs/channel" },
+        "points": { "$ref": "#/$defs/channel" },
+        "voxels": { "$ref": "#/$defs/channel" }
+      },
+      "additionalProperties": { "$ref": "#/$defs/channel" }
+    },
+    "camera": { "type": "object" },
+    "timingsMs": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "provenance": { "type": "object" }
+  },
+  "$defs": {
+    "channel": {
+      "type": "object",
+      "required": ["file", "dtype", "shape"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "dtype": { "enum": ["float32-le", "uint8", "uint16-le", "json"] },
+        "shape": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 1 }
+      }
+    }
+  }
+}
