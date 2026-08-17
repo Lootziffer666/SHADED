@@ -15,7 +15,7 @@ Die Installation braucht HTTPS oder localhost. Die Vercel-Version erfüllt das b
 
 Der GitHub-Workflow `.github/workflows/rtx-spatial.yml` ist nur ein optionaler Self-hosted-Linux-Runner. SHADED selbst braucht kein Linux.
 
-Für deinen Windows-PC gibt es jetzt im Repo:
+Für deinen Windows-PC gibt es im Repo:
 
 - `RTX_WINDOWS.cmd` – Doppelklick-Start, standardmäßig Depth Anything V2
 - `tools/run-rtx-spatial-windows.ps1` – gleiche Pipeline mit Parametern für V2, DA3 oder beide
@@ -31,7 +31,9 @@ Für deinen Windows-PC gibt es jetzt im Repo:
 
 `RTX_WINDOWS.cmd` doppelklicken.
 
-Beim ersten Lauf werden die lokale Python-Umgebung und Provider-Abhängigkeiten eingerichtet. Danach läuft die Inferenz auf `cuda:0` mit FP16. Die importierbaren Ergebnisse landen in:
+Beim ersten Lauf werden die lokale Python-Umgebung und Provider-Abhängigkeiten eingerichtet. Der Launcher installiert **nicht** einfach irgendein `torch`, sondern erzwingt zuerst den offiziellen PyTorch-CUDA-Build für Windows (`torch 2.10.0` + CUDA 12.6) und prüft sofort `torch.version.cuda` sowie `torch.cuda.is_available()`. Ein bereits vorhandener CPU-only-Build in `.venv-depth-win` wird dabei ersetzt. Für diese PyTorch-Wheels ist kein separat installiertes CUDA Toolkit nötig; erforderlich ist ein kompatibler NVIDIA-Treiber.
+
+Danach läuft die Inferenz auf `cuda:0` mit FP16. Die importierbaren Ergebnisse landen in:
 
 `provider-output-windows\`
 
@@ -57,4 +59,4 @@ Eigenes Bild:
 powershell -ExecutionPolicy Bypass -File .\tools\run-rtx-spatial-windows.ps1 -Provider depth-anything-v2 -InputImage "C:\Pfad\bild.png"
 ```
 
-Hinweis: Die Windows-Pipeline prüft CUDA und die Provider-Imports ausdrücklich und bricht sichtbar ab, wenn eine Abhängigkeit auf deinem Rechner nicht funktioniert. Sie behauptet keinen erfolgreichen DA3-Lauf, bevor er auf deinem Windows-System tatsächlich gelaufen ist.
+Hinweis: Die Windows-Pipeline prüft CUDA vor und nach der Provider-Installation ausdrücklich und bricht sichtbar ab, wenn eine Abhängigkeit den GPU-Build ersetzt oder der NVIDIA-Treiber für PyTorch nicht erreichbar ist. Sie behauptet keinen erfolgreichen DA3-Lauf, bevor er auf deinem Windows-System tatsächlich gelaufen ist.
