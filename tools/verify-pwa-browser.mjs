@@ -41,12 +41,12 @@ try {
       '/index.html', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
       '/runtime/sparse-voxel-world.mjs', '/runtime/surface-world-simulation.mjs',
       '/file_00000000974871f49fe71f6b456f9579.png', '/file_00000000974871f49fe71f6b456f9579_depth.png',
-      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js'
+      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js', '/editor/app.js'
     ];
     const hits = await Promise.all(required.map(async pathname => [pathname, !!(await cache.match(pathname))]));
     return {names, hits};
   });
-  assert(cacheState.names.some(name => name === 'shaded-shell-v5'), 'Service Worker v5 ist nicht aktiv');
+  assert(cacheState.names.some(name => name === 'shaded-shell-v7'), 'Service Worker v7 ist nicht aktiv');
   assert(cacheState.hits.every(([, hit]) => hit), `Cache fehlt: ${cacheState.hits.filter(([, hit]) => !hit).map(([name]) => name).join(', ')}`);
 
   await page.click('#btn-demo');
@@ -77,7 +77,7 @@ try {
   try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent)); }
   catch { throw new Error(`Offline-Demo fehlgeschlagen: ${await page.locator('#status').textContent()} | ${failures.join(' | ')}`); }
   assert(!failures.length, `Browserfehler: ${failures.join(' | ')}`);
-  console.log(`✅ Browser-PWA aktiv: Service Worker, Offline-Navigation, Demo-Cache, WebGL-Raumansicht und Voxel-Editor geprüft (${origin})`);
+  console.log(`✅ Browser-PWA aktiv: Service Worker v7, Offline-Navigation, Demo-Cache, WebGL-Raumansicht und Voxel-Editor geprüft (${origin})`);
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
