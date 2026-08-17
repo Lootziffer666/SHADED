@@ -47,26 +47,36 @@ $Python = Join-Path $Venv 'Scripts\python.exe'
 if (-not (Test-Path $Python)) {
   Invoke-Checked { python -m venv $Venv } 'Python-Umgebung erstellen'
 }
-Invoke-Checked { & $Python -m pip install --upgrade pip } 'pip aktualisieren'
+Invoke-Checked { & $Python -m pip install --upgrade pip } 'pip prüfen/aktualisieren'
 
-# IMPORTANT: A plain `pip install torch` is not an acceptable Windows GPU setup.
-# Install an explicit NVIDIA CUDA wheel from PyTorch's official wheel index first.
+# Keep a known CUDA build, but do NOT download/reinstall the multi-GB wheels on every run.
 $TorchVersion = '2.10.0'
 $TorchVisionVersion = '0.25.0'
+$CudaTag = 'cu126'
 $CudaIndex = 'https://download.pytorch.org/whl/cu126'
-Invoke-Checked {
-  & $Python -m pip install --upgrade --force-reinstall "torch==$TorchVersion" "torchvision==$TorchVisionVersion" --index-url $CudaIndex
-} 'PyTorch mit CUDA 12.6 installieren'
+
+Write-Host "`n== PyTorch/CUDA Installation prüfen ==" -ForegroundColor Cyan
+& $Python -c "import sys;`ntry:`n import torch, torchvision`n ok = torch.__version__.startswith('$TorchVersion+$CudaTag') and torchvision.__version__.startswith('$TorchVisionVersion+$CudaTag') and torch.version.cuda is not None and torch.cuda.is_available()`n print(f'torch={torch.__version__} torchvision={torchvision.__version__} cuda={torch.version.cuda} available={torch.cuda.is_available()}')`n sys.exit(0 if ok else 3)`nexcept Exception as e:`n print(e)`n sys.exit(4)"
+$TorchReady = ($LASTEXITCODE -eq 0)
+
+if ($TorchReady) {
+  Write-Host 'CUDA-PyTorch ist bereits korrekt installiert – kein Download.' -ForegroundColor Green
+} else {
+  Write-Host 'CUDA-PyTorch fehlt oder passt nicht. Einmalige Installation wird gestartet.' -ForegroundColor Yellow
+  Invoke-Checked {
+    & $Python -m pip install --upgrade "torch==$TorchVersion" "torchvision==$TorchVisionVersion" --index-url $CudaIndex
+  } 'PyTorch mit CUDA 12.6 installieren'
+}
 
 Invoke-Checked {
   & $Python -c "import json,torch; info={'torch':torch.__version__,'cudaAvailable':torch.cuda.is_available(),'cudaRuntime':torch.version.cuda,'device':torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}; print(json.dumps(info, indent=2)); assert torch.version.cuda is not None, 'CPU-only PyTorch build installed'; assert torch.cuda.is_available(), 'CUDA build is installed, but the NVIDIA driver/GPU is not available to PyTorch'"
 } 'PyTorch/CUDA Basis prüfen'
 
 if ($Provider -eq 'depth-anything-v2' -or $Provider -eq 'both') {
-  Invoke-Checked { & $Python -m pip install -r 'tools/providers/requirements-depth-v2.txt' } 'Depth Anything V2 installieren'
+  Invoke-Checked { & $Python -m pip install -r 'tools/providers/requirements-depth-v2.txt' } 'Depth Anything V2 Abhängigkeiten prüfen'
 }
 if ($Provider -eq 'depth-anything-3' -or $Provider -eq 'both') {
-  Invoke-Checked { & $Python -m pip install -r 'tools/providers/requirements-depth-v3.txt' } 'Depth Anything 3 installieren'
+  Invoke-Checked { & $Python -m pip install -r 'tools/providers/requirements-depth-v3.txt' } 'Depth Anything 3 Abhängigkeiten prüfen'
 }
 
 $config = Get-Content 'tools/gpu-providers.example.json' -Raw | ConvertFrom-Json
@@ -80,8 +90,6 @@ foreach ($name in $names) {
 }
 $configPath = Join-Path $RepoRoot '.runner-gpu-providers.windows.json'
 $configJson = $config | ConvertTo-Json -Depth 20
-# Windows PowerShell 5.1 writes a UTF-8 BOM with Set-Content -Encoding UTF8.
-# Node's JSON.parse sees that BOM as an unexpected first token, so write explicit UTF-8 without BOM.
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($configPath, $configJson, $Utf8NoBom)
 
