@@ -11,10 +11,7 @@
 .inspector{top:calc(var(--top) + 8px)!important;right:8px!important;bottom:8px!important;height:auto!important;border:1px solid var(--line-strong)!important;border-radius:10px!important;box-shadow:0 16px 50px rgba(0,0,0,.48)!important;transform:translateX(calc(100% + 16px))!important;transition:transform .2s ease!important;pointer-events:none}
 body.inspector-open .inspector{transform:translateX(0)!important;pointer-events:auto}
 body.inspector-collapsed .inspector{transform:translateX(calc(100% + 16px))!important}
-body.inspector-collapsed .viewport,body.inspector-collapsed .timeline-dock{right:0!important}
-
-.timeline-dock{left:calc(var(--rail) + 22px)!important;right:10px!important;bottom:10px!important;height:min(var(--timeline),32dvh)!important;border:1px solid var(--line-strong)!important;border-radius:10px!important;box-shadow:0 16px 50px rgba(0,0,0,.5)!important;transform:translateY(calc(100% + 24px))!important;transition:transform .2s ease!important;pointer-events:none}
-body.story-open .timeline-dock{transform:translateY(0)!important;pointer-events:auto}
+body.inspector-collapsed .viewport{right:0!important}
 
 /* Every inspector block is independently collapsible. */
 .inspector-section{padding:0!important}
@@ -38,8 +35,6 @@ body.story-open .timeline-dock{transform:translateY(0)!important;pointer-events:
   .inspector{left:7px!important;right:7px!important;top:auto!important;bottom:64px!important;width:auto!important;height:min(64dvh,560px)!important;border-radius:12px!important;transform:translateY(calc(100% + 78px))!important}
   body.inspector-open .inspector{transform:translateY(0)!important}
   body.inspector-collapsed .inspector{transform:translateY(calc(100% + 78px))!important}
-  .timeline-dock{left:7px!important;right:7px!important;bottom:64px!important;height:min(58dvh,520px)!important;border-radius:12px!important;transform:translateY(calc(100% + 78px))!important}
-  body.story-open .timeline-dock{transform:translateY(0)!important}
 }
 
 @media(max-width:420px){
