@@ -41,12 +41,12 @@ try {
       '/index.html', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
       '/runtime/sparse-voxel-world.mjs', '/runtime/surface-world-simulation.mjs',
       '/file_00000000974871f49fe71f6b456f9579.png', '/file_00000000974871f49fe71f6b456f9579_depth.png',
-      '/file_00000000c84071f4bcd6ff9afdba7246.png'
+      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js'
     ];
     const hits = await Promise.all(required.map(async pathname => [pathname, !!(await cache.match(pathname))]));
     return {names, hits};
   });
-  assert(cacheState.names.some(name => name === 'shaded-shell-v4'), 'Service Worker v4 ist nicht aktiv');
+  assert(cacheState.names.some(name => name === 'shaded-shell-v5'), 'Service Worker v5 ist nicht aktiv');
   assert(cacheState.hits.every(([, hit]) => hit), `Cache fehlt: ${cacheState.hits.filter(([, hit]) => !hit).map(([name]) => name).join(', ')}`);
 
   await page.click('#btn-demo');
