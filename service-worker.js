@@ -1,9 +1,10 @@
-const CACHE = 'shaded-shell-v7';
+const CACHE = 'shaded-shell-v8';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './runtime/install.js',
+  './runtime/install.js?v=8',
   './runtime/spatial-viewer.js',
   './runtime/spatial-navigation.mjs',
   './runtime/spatial-reconstruction.mjs',
@@ -68,7 +69,7 @@ self.addEventListener('fetch', (event) => {
   const isCode = /\.(?:js|mjs|css)$/.test(url.pathname) || url.pathname.startsWith('/editor/');
   if (request.mode === 'navigate' || isCode) {
     event.respondWith(networkFirst(request).catch(async () => {
-      if (request.mode === 'navigate') return (await caches.match(request)) || caches.match('./index.html');
+      if (request.mode === 'navigate') return (await caches.match(request)) || caches.match('./editor/index.html') || caches.match('./index.html');
       return Response.error();
     }));
     return;
