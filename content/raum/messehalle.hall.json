@@ -1,0 +1,144 @@
+{
+  "format": "SHADED.hall-plan.v1",
+  "einheit": "m",
+  "herkunft": {
+    "provider": "SingleViewRoomProvider",
+    "quelle": "messehalle.png",
+    "sha256": "7f2802d43b86e1fb7ee4e4ac0bfe18dd3af762bf26b956cb01dcefc2d8b42f60"
+  },
+  "kamera": {
+    "hoehe_m": 1.7499571279808337,
+    "f_px": 967.7656440937235,
+    "hauptpunkt_px": [
+      665.9101396404584,
+      464.8243734679978
+    ],
+    "bildgroesse_px": [
+      1103,
+      1426
+    ],
+    "blick": "entlang +Z, waagerecht, ohne Rollung"
+  },
+  "raum": {
+    "boden_y_m": 0.0,
+    "decke_y_m": 2.232793307853186,
+    "rueckwand_z_m": 16.41422925182318,
+    "breite_m": null
+  },
+  "boden": {
+    "fliese_m": 0.6
+  },
+  "stuetzen": {
+    "breite_m": 0.2603406979448705,
+    "reihen_x_m": [
+      -3.3456161385841994,
+      2.058586926737629
+    ],
+    "jochteilung_z_m": 1.8745072082680123,
+    "positionen_xz_m": [
+      [
+        -3.346,
+        2.362
+      ],
+      [
+        2.059,
+        2.426
+      ],
+      [
+        -3.346,
+        4.236
+      ],
+      [
+        2.059,
+        4.3
+      ],
+      [
+        -3.346,
+        6.111
+      ],
+      [
+        2.059,
+        6.175
+      ],
+      [
+        -3.346,
+        7.985
+      ],
+      [
+        2.059,
+        8.049
+      ],
+      [
+        -3.346,
+        9.86
+      ],
+      [
+        2.059,
+        9.924
+      ],
+      [
+        -3.346,
+        11.734
+      ],
+      [
+        2.059,
+        11.798
+      ],
+      [
+        -3.346,
+        13.609
+      ],
+      [
+        2.059,
+        13.673
+      ],
+      [
+        -3.346,
+        15.483
+      ],
+      [
+        2.059,
+        15.547
+      ]
+    ]
+  },
+  "leuchtbaender": {
+    "x_m": [
+      0.999,
+      -0.666,
+      -2.595
+    ],
+    "teilung_m": 1.796888641784172,
+    "hoehe_y_m": 2.232793307853186
+  },
+  "nicht_gemessen": [
+    "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; seitlich geht der Raum weiter, als das Bild zeigt.",
+    "Alles hinter der Rueckwand und hinter den Stuetzen (Einzelbild, keine Rueckseiten).",
+    "Der absolute Massstab -- dafuer steht der deklarierte Anker.",
+    "Die Brennweite ohne Formaussage: jede Brennweite bildet sich exakt auf das Ausgangsbild zurueck. Gewaehlt wurde die quadratische Bodenfliese; das quadratische Stuetzenjoch schied aus, es ergaebe 28 Grad Bildwinkel."
+  ],
+  "guete": {
+    "fluchtpunkt_restfehler_px": 5.046037448458774,
+    "wandfuge_restfehler_px": 2.4310350611673885,
+    "spiegelprobe_abweichung_prozent": 5.76656919328006,
+    "stuetzenreihen_streuung_je_h": [
+      0.0205225410940523,
+      0.04036461834739937
+    ],
+    "brennweite_bandbreite_px": [
+      876,
+      922,
+      968,
+      988,
+      1010,
+      1014,
+      1039,
+      1078,
+      1106,
+      1180,
+      1198,
+      1202,
+      1244
+    ]
+  }
+}

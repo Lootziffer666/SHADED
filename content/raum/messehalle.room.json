@@ -1,0 +1,396 @@
+{
+  "format": "SHADED.single-view-room.v1",
+  "provider": "SingleViewRoomProvider",
+  "version": "1.0.0",
+  "quelle": {
+    "datei": "messehalle.png",
+    "sha256": "7f2802d43b86e1fb7ee4e4ac0bfe18dd3af762bf26b956cb01dcefc2d8b42f60",
+    "breite": 1103,
+    "height": 1426
+  },
+  "koordinaten": "Rechtssystem. Ursprung = Kamera. X rechts, Y oben, Z in die Halle. Der Boden liegt bei Y = -Kamerahoehe.",
+  "messung": {
+    "fluchtpunkt": {
+      "x": 665.9101396404584,
+      "y": 464.8243734679978,
+      "linien_gesamt": 50,
+      "linien_tragend": 31,
+      "restfehler_px": 5.046037448458774,
+      "provenienz": "MEASURED"
+    },
+    "hauptpunkt": {
+      "x": 665.9101396404584,
+      "y": 464.8243734679978,
+      "begruendung": "Quer- und Senkrechtlinien sind im Bild parallel; damit steht die Bildebene parallel zu Raum-X und Raum-Y und der Hauptpunkt faellt mit dem Fluchtpunkt zusammen. Das Bild ist ein Ausschnitt.",
+      "querlinien_winkelstreuung_grad": 87.11349920056993,
+      "bildmitte": [
+        551.5,
+        713.0
+      ],
+      "versatz_zur_bildmitte_px": [
+        114.4101396404584,
+        -248.17562653200218
+      ],
+      "provenienz": "MEASURED"
+    },
+    "wand_boden_fuge": {
+      "y": 568.0,
+      "v": 103.17562653200218,
+      "stuetzstellen": 38,
+      "neigung_px_je_breite": -3.9996276536377007,
+      "restfehler_px": 2.4310350611673885,
+      "provenienz": "MEASURED"
+    },
+    "wand_decken_fuge": {
+      "y": 438.0566464096002,
+      "v": -26.76772705839761,
+      "provenienz": "MEASURED"
+    },
+    "deckenhoehe_je_kamerahoehe": {
+      "wert": 0.2759131479006385,
+      "lichte_raumhoehe_je_kamerahoehe": 1.2759131479006385,
+      "quelle": "spiegelprobe",
+      "provenienz": "MEASURED"
+    },
+    "leuchtbaender": {
+      "anzahl": 3,
+      "liste": [
+        {
+          "k": -2.0687391913735254,
+          "pixel": 3402,
+          "p0": [
+            735.0,
+            428.0
+          ],
+          "p1": [
+            1102.0,
+            247.0
+          ],
+          "x_je_hc": 2.0687391913735254,
+          "x_je_h": 0.5707923424772907
+        },
+        {
+          "k": 1.3793964390189006,
+          "pixel": 17731,
+          "p0": [
+            0.0,
+            0.0
+          ],
+          "p1": [
+            618.0,
+            431.0
+          ],
+          "x_je_hc": -1.3793964390189006,
+          "x_je_h": -0.380593613692636
+        },
+        {
+          "k": 5.3743179641992675,
+          "pixel": 1625,
+          "p0": [
+            0.0,
+            339.0
+          ],
+          "p1": [
+            396.0,
+            415.0
+          ],
+          "x_je_hc": -5.3743179641992675,
+          "x_je_h": -1.4828449873211709
+        }
+      ],
+      "provenienz": "MEASURED",
+      "teilung_je_h": 1.0268186648992308
+    },
+    "spiegelprobe": {
+      "erklaerung": "Ein Leuchtband in der Hoehe hc hat im Boden ein Spiegelbild in der scheinbaren Tiefe 2h+hc. Aus der Lage des angetroffenen Glanzstreifens faellt hc zurueck. Das misst ueber die volle Bildhoehe statt ueber die wenigen weichen Pixel der Wandoberkante -- darum fuehrt dieser Wert.",
+      "proben": [
+        {
+          "band_k": -2.0687391913735254,
+          "erwartet_k": 0.2375415592527951,
+          "gemessen_k": 0.2503543610674679,
+          "abweichung_prozent": 5.393920059705097,
+          "hc_je_h_aus_spiegelung": 0.27535905149992923,
+          "zeilen": 5
+        },
+        {
+          "band_k": 1.3793964390189006,
+          "erwartet_k": -0.1583882503500852,
+          "gemessen_k": -0.1675218184005485,
+          "abweichung_prozent": 5.76656919328006,
+          "hc_je_h_aus_spiegelung": 0.27646724430134767,
+          "zeilen": 5
+        }
+      ],
+      "hc_je_h_aus_spiegelung": 0.2759131479006385,
+      "hc_je_h_aus_wandkante": 0.2594384735826636,
+      "streuung_zwischen_baendern": 0.0005540964007092197,
+      "abweichung_der_beiden_verfahren_prozent": 6.35012767785409
+    },
+    "stuetzen": {
+      "anzahl": 9,
+      "liste": [
+        {
+          "x_links": 112.9417451891239,
+          "x_rechts": 154.92233113813305,
+          "x_mitte": 133.93203816362848,
+          "fuss_y": 748,
+          "v": 283.1756265320022,
+          "breite_px": 41.98058594900914,
+          "breite_je_h": 0.1482492913077914,
+          "x_je_h": -1.8786154302609448,
+          "v_aus_breite": 282.1849453358893,
+          "x_je_h_aus_breite": -1.8852107820408623
+        },
+        {
+          "x_links": 240.63355904395775,
+          "x_rechts": 272.64518486973043,
+          "x_mitte": 256.6393719568441,
+          "fuss_y": 680,
+          "v": 215.17562653200218,
+          "breite_px": 32.01162582577268,
+          "breite_je_h": 0.14876975771701414,
+          "x_je_h": -1.9020312582788976,
+          "v_aus_breite": 215.17562653200216,
+          "x_je_h_aus_breite": -1.9020312582788979
+        },
+        {
+          "x_links": 316.3706567990394,
+          "x_rechts": 345.0431513514889,
+          "x_mitte": 330.70690407526416,
+          "fuss_y": 640,
+          "v": 175.17562653200218,
+          "breite_px": 28.672494552449507,
+          "breite_je_h": 0.163678561453362,
+          "x_je_h": -1.9135266829141735,
+          "v_aus_breite": 192.73066645029806,
+          "x_je_h_aus_breite": -1.7392314453062787
+        },
+        {
+          "x_links": 374.39995956549285,
+          "x_rechts": 394.859007722655,
+          "x_mitte": 384.62948364407396,
+          "fuss_y": 610,
+          "v": 145.17562653200218,
+          "breite_px": 20.459048157162158,
+          "breite_je_h": 0.1409261915783929,
+          "x_je_h": -1.9375198352209595,
+          "v_aus_breite": 137.5215532452423,
+          "x_je_h_aus_breite": -2.045356886674894
+        },
+        {
+          "x_links": 414.05261766040036,
+          "x_rechts": 431.3746952194871,
+          "x_mitte": 422.71365643994375,
+          "fuss_y": 591,
+          "v": 126.17562653200218,
+          "breite_px": 17.322077559086722,
+          "breite_je_h": 0.13728544914095028,
+          "x_je_h": -1.9274442290075113,
+          "v_aus_breite": 116.43547603294692,
+          "x_je_h_aus_breite": -2.0886802844495524
+        },
+        {
+          "x_links": 820.1377175827338,
+          "x_rechts": 843.0080086615301,
+          "x_mitte": 831.5728631221319,
+          "fuss_y": 610,
+          "v": 145.17562653200218,
+          "breite_px": 22.8702910787963,
+          "breite_je_h": 0.15753533582136686,
+          "x_je_h": 1.1411193975123313,
+          "v_aus_breite": 153.7294368812481,
+          "x_je_h_aus_breite": 1.0776252540991456
+        },
+        {
+          "x_links": 843.0080086615301,
+          "x_rechts": 880.6834022050098,
+          "x_mitte": 861.8457054332699,
+          "fuss_y": 638,
+          "v": 173.17562653200218,
+          "breite_px": 37.675393543479686,
+          "breite_je_h": 0.21755598231669987,
+          "x_je_h": 1.1314269202693106,
+          "v_aus_breite": 253.2463191554349,
+          "x_je_h_aus_breite": 0.7736956116331635
+        },
+        {
+          "x_links": 906.320762763014,
+          "x_rechts": 937.3570202533685,
+          "x_mitte": 921.8388915081913,
+          "fuss_y": 676,
+          "v": 211.17562653200218,
+          "breite_px": 31.0362574903545,
+          "breite_je_h": 0.14696893765650162,
+          "x_je_h": 1.21192372467733,
+          "v_aus_breite": 208.619399309575,
+          "x_je_h_aus_breite": 1.226773505794418
+        },
+        {
+          "x_links": 986.1778203394432,
+          "x_rechts": 1029.8239311154405,
+          "x_mitte": 1008.0008757274418,
+          "fuss_y": 745,
+          "v": 280.1756265320022,
+          "breite_px": 43.64611077599727,
+          "breite_je_h": 0.1557812551942734,
+          "x_je_h": 1.2209867800470828,
+          "v_aus_breite": 293.3802638774188,
+          "x_je_h_aus_breite": 1.1660318644676009
+        }
+      ],
+      "provenienz": "MEASURED"
+    },
+    "raster": {
+      "reihenabstand_je_h": 3.0881916927630115,
+      "reihen_x_streuung": [
+        0.0205225410940523,
+        0.04036461834739937
+      ],
+      "tiefenteilung_1_durch_v": 0.001106851875358255,
+      "reihen_x_je_h": [
+        -1.9118274871364975,
+        1.1763642056265138
+      ],
+      "reihenabstand_streuung": 0.025440765226751684,
+      "ordnungszahlen_je_reihe": [
+        [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        [
+          0,
+          1,
+          2,
+          3
+        ]
+      ],
+      "stuetzenbreite_je_h": 0.14876975771701414,
+      "reihen_besetzung": [
+        5,
+        4
+      ],
+      "provenienz": "MEASURED"
+    },
+    "bodenraster": {
+      "fliesenbreite_je_h": 0.3428655424789192,
+      "fliesentiefe_1_durch_v": 0.0003542857142857143,
+      "phase_seite_k": 0.21429096404932452,
+      "phase_tiefe_b": 6.90857142857143e-05,
+      "korrelation_seite": 0.4438029217411635,
+      "korrelation_tiefe": 2.596394339378447,
+      "f_px": 967.7656440937235,
+      "f_bandbreite_px": [
+        876,
+        922,
+        968,
+        988,
+        1010,
+        1014,
+        1039,
+        1078,
+        1106,
+        1180,
+        1198,
+        1202,
+        1244
+      ],
+      "nebengipfel_seite": [
+        [
+          0.35000000000000003,
+          0.4466747332273194
+        ],
+        [
+          0.358,
+          0.446038949586403
+        ],
+        [
+          0.368,
+          0.43853901688078695
+        ],
+        [
+          0.382,
+          0.4395822488683744
+        ],
+        [
+          0.392,
+          0.42702556703323197
+        ],
+        [
+          0.418,
+          0.4514375002231525
+        ],
+        [
+          0.426,
+          0.44266403453010783
+        ]
+      ],
+      "nebengipfel_tiefe": [
+        [
+          0.0003542857142857143,
+          13.607145850042837
+        ],
+        [
+          0.00037200000000000004,
+          10.557721166665766
+        ],
+        [
+          0.00028615384615384614,
+          8.772422552713275
+        ],
+        [
+          0.0002755555555555556,
+          8.478469987071112
+        ],
+        [
+          0.0003915789473684211,
+          8.01872809246645
+        ],
+        [
+          0.0003381818181818182,
+          7.984860843366964
+        ]
+      ],
+      "annahme": "quadratische Bodenfliesen",
+      "provenienz": "RECONSTRUCTED",
+      "bildwinkel_senkrecht_grad": 70.45954456048797
+    },
+    "massstab": {
+      "anker": "Bodenfliese (Kantenlaenge)",
+      "anker_m": 0.6,
+      "kamerahoehe_m": 1.7499571279808337,
+      "hinweis": "Ein Einzelbild kennt keine Meter. Alle Verhaeltnisse sind gemessen; genau diese eine Laenge ist gesetzt. Wer sie aendert, skaliert die ganze Halle -- ihre Form bleibt unberuehrt.",
+      "gegenprobe": "Aus einem 0,60-m-Modul faellt eine Kamerahoehe von rund 1,7 m -- Augenhoehe. Der Anker widerspricht sich also nicht selbst.",
+      "provenienz": "DECLARED"
+    },
+    "raum_je_kamerahoehe": {
+      "bodenhoehe": -1.0,
+      "deckenhoehe": 0.2759131479006385,
+      "lichte_hoehe": 1.2759131479006385,
+      "rueckwand_tiefe": 9.379789361332831,
+      "stuetzenreihen_abstand": 3.0881916927630115,
+      "stuetzenbreite": 0.14876975771701414,
+      "stuetzen_jochteilung": 1.0711732180724274,
+      "fliesenmodul": 0.3428655424789192,
+      "brennweite_px": 967.7656440937235
+    },
+    "raum_meter": {
+      "lichte_hoehe_m": 2.232793307853186,
+      "rueckwand_tiefe_m": 16.41422925182318,
+      "stuetzenreihen_abstand_m": 5.404203065321829,
+      "stuetzenbreite_m": 0.2603406979448705,
+      "stuetzen_jochteilung_m": 1.8745072082680123,
+      "fliesenmodul_m": 0.6,
+      "kamerahoehe_m": 1.7499571279808337,
+      "leuchtband_teilung_m": 1.796888641784172
+    },
+    "nicht_messbar": [
+      "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; seitlich geht der Raum weiter, als das Bild zeigt.",
+      "Alles hinter der Rueckwand und hinter den Stuetzen (Einzelbild, keine Rueckseiten).",
+      "Der absolute Massstab -- dafuer steht der deklarierte Anker.",
+      "Die Brennweite ohne Formaussage: jede Brennweite bildet sich exakt auf das Ausgangsbild zurueck. Gewaehlt wurde die quadratische Bodenfliese; das quadratische Stuetzenjoch schied aus, es ergaebe 28 Grad Bildwinkel."
+    ]
+  }
+}
