@@ -1,6 +1,11 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+rem Keep Windows PowerShell 5.1 from painting harmless Node/Python stderr progress as errors.
+set "PATH=%~dp0tools\winshim;%PATH%"
+rem Public Hugging Face models do not require a token. Hide the unauthenticated-rate-limit warning;
+rem genuine provider failures still propagate through the process exit code.
+set "HF_HUB_VERBOSITY=error"
 echo.
 echo SHADED RTX - Windows
 echo --------------------
