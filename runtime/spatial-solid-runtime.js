@@ -44,7 +44,6 @@ if (viewer && pointCanvas && !document.getElementById('spatial-solid-canvas')) {
       gl_Position=u_matrix*vec4(a_position,1.0);
     }`;
   const FS = `#version 300 es
-    #extension GL_OES_standard_derivatives : enable
     precision highp float;
     in vec3 v_color;
     in vec3 v_world;
@@ -91,7 +90,7 @@ if (viewer && pointCanvas && !document.getElementById('spatial-solid-canvas')) {
     const projection = new Float32Array([f / aspect,0,0,0,0,f,0,0,0,0,-1.002,-1,0,0,-.2002,0]);
     const cy = Math.cos(camera.yaw), sy = Math.sin(camera.yaw), cp = Math.cos(camera.pitch), sp = Math.sin(camera.pitch);
     const rotation = new Float32Array([cy,sy*sp,-sy*cp,0,0,cp,sp,0,sy,-cy*sp,cy*cp,0,0,0,0,1]);
-    const translation = new Float32Array([1,0,0,0,0,1,0,0,0,1,0,-camera.x,-camera.y,-camera.z,1]);
+    const translation = new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,-camera.x,-camera.y,-camera.z,1]);
     return multiply(projection, multiply(rotation, translation));
   }
 
