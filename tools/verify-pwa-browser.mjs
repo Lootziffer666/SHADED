@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const expectedCache = serviceWorkerSource.match(/const\s+CACHE\s*=\s*['"]([^'"]+)['"]/)?.[1];
+if (!expectedCache) throw new Error('Service-Worker-Cacheversion konnte nicht aus service-worker.js gelesen werden');
 const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.css':'text/css; charset=utf-8','.ico':'image/x-icon'};
 const server = http.createServer((request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname), requested = pathname === '/' ? '/index.html' : pathname;
@@ -35,8 +38,8 @@ try {
   await page.reload({waitUntil: 'domcontentloaded'});
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
 
-  const cacheState = await page.evaluate(async () => {
-    const names = await caches.keys(), cache = await caches.open(names.find(name => name.startsWith('shaded-shell-')));
+  const cacheState = await page.evaluate(async cacheName => {
+    const names = await caches.keys(), cache = await caches.open(cacheName);
     const required = [
       '/index.html', '/editor/index.html', '/runtime/install.js', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
       '/runtime/sparse-voxel-world.mjs', '/runtime/surface-world-simulation.mjs',
@@ -45,8 +48,8 @@ try {
     ];
     const hits = await Promise.all(required.map(async pathname => [pathname, !!(await cache.match(pathname))]));
     return {names, hits};
-  });
-  assert(cacheState.names.some(name => name === 'shaded-shell-v8'), 'Service Worker v8 ist nicht aktiv');
+  }, expectedCache);
+  assert(cacheState.names.includes(expectedCache), `Aktiver Service-Worker-Cache ${expectedCache} fehlt`);
   assert(cacheState.hits.every(([, hit]) => hit), `Cache fehlt: ${cacheState.hits.filter(([, hit]) => !hit).map(([name]) => name).join(', ')}`);
 
   await page.click('#btn-demo');
@@ -77,7 +80,7 @@ try {
   try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent)); }
   catch { throw new Error(`Offline-Demo fehlgeschlagen: ${await page.locator('#status').textContent()} | ${failures.join(' | ')}`); }
   assert(!failures.length, `Browserfehler: ${failures.join(' | ')}`);
-  console.log(`✅ Browser-PWA aktiv: Service Worker v8, Offline-Navigation, Demo-Cache, WebGL-Raumansicht und Voxel-Editor geprüft (${origin})`);
+  console.log(`✅ Browser-PWA aktiv: ${expectedCache}, Offline-Navigation, Demo-Cache, WebGL-Raumansicht und Voxel-Editor geprüft (${origin})`);
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
