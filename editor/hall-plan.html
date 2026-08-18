@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SHADED · PLAN → HALL</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; font:14px/1.4 ui-monospace,monospace; background:#0b1020; color:#cbd5e1; }
+  header { padding:10px 14px; border-bottom:1px solid #1e293b; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:14px; margin:0; color:#e2e8f0; }
+  .steps { display:flex; gap:6px; flex-wrap:wrap; }
+  .step { padding:4px 8px; border:1px solid #1e293b; border-radius:6px; background:#0f172a; }
+  .step.active { border-color:#22d3ee; color:#22d3ee; }
+  main { display:flex; gap:14px; padding:14px; align-items:flex-start; flex-wrap:wrap; }
+  #plan { border:1px solid #334155; background:#000; max-width:min(70vw,900px); cursor:crosshair; }
+  .panel { width:300px; display:flex; flex-direction:column; gap:8px; }
+  .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  button { background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:6px 9px; cursor:pointer; }
+  button:hover { border-color:#22d3ee; }
+  input { background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:5px; padding:5px; width:90px; }
+  label { font-size:12px; color:#94a3b8; }
+  .classes button { flex:1 1 30%; font-size:11px; padding:5px; }
+  #status { color:#7dd3fc; min-height:18px; }
+  #out { white-space:pre-wrap; font-size:11px; color:#94a3b8; background:#0f172a; border:1px solid #1e293b; border-radius:6px; padding:8px; height:160px; overflow:auto; }
+  .legend span { display:inline-block; padding:1px 5px; margin:1px; border-radius:4px; font-size:10px; color:#0b1020; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SHADED · PLAN → HALL</h1>
+  <div class="steps">
+    <div class="step" id="s-import">1 IMPORT</div>
+    <div class="step" id="s-scale">2 SCALE</div>
+    <div class="step" id="s-classify">3 CLASSIFY</div>
+    <div class="step" id="s-review">4 REVIEW</div>
+    <div class="step" id="s-build">5 BUILD HALL</div>
+  </div>
+  <div class="legend" id="legend"></div>
+</header>
+
+<main>
+  <canvas id="plan"></canvas>
+  <div class="panel">
+    <div id="status">Lade zuerst einen technischen Grundriss (PNG/JPG/WebP).</div>
+
+    <div class="row">
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp" />
+    </div>
+
+    <div class="row">
+      <label>distance (m):</label>
+      <input id="distance" type="number" step="0.1" placeholder="25.0" />
+      <button id="apply2pt">2-Punkt anwenden</button>
+    </div>
+    <div class="row">
+      <label>Breite (m):</label><input id="bbW" type="number" step="0.1" />
+      <label>Länge (m):</label><input id="bbL" type="number" step="0.1" />
+      <button id="applyBB">Außenmaß</button>
+    </div>
+
+    <button id="analyze">3 · Analyze / Klassifizieren (auto)</button>
+
+    <div class="row classes" id="classBtns"></div>
+
+    <div class="row">
+      <label>Tier:</label>
+      <select id="tier">
+        <option value="high">high (auto)</option>
+        <option value="medium" selected>medium (review)</option>
+        <option value="low">low (alle)</option>
+      </select>
+      <button id="applyAll">Ähnliche markieren</button>
+      <button id="applyOne">Nur dieses</button>
+    </div>
+
+    <div class="row">
+      <button id="review">4 · Review</button>
+      <button id="build">5 · BUILD HALL</button>
+    </div>
+    <div class="row">
+      <button id="export">Export JSON</button>
+      <button id="download">Download .hall.json</button>
+    </div>
+
+    <pre id="out"></pre>
+  </div>
+</main>
+
+<script type="module">
+  import { HallPlanMode, SEMANTIC_CLASS, SEMANTIC_COLORS } from './hall-plan-mode.js';
+  import { loadHall } from '../runtime/hall-plan/hall-plan-adapter.mjs';
+
+  const canvas = document.getElementById('plan');
+  const statusEl = document.getElementById('status');
+  const outEl = document.getElementById('out');
+  const mode = new HallPlanMode({ canvas, statusEl, outEl });
+
+  const steps = ['import','scale','classify','review','build'];
+  function setStep(name){ steps.forEach(s=>document.getElementById('s-'+s).classList.toggle('active', s===name)); }
+
+  // legend
+  const legend = document.getElementById('legend');
+  for (const [k,c] of Object.entries(SEMANTIC_COLORS)) {
+    const s=document.createElement('span'); s.textContent=k; s.style.background=c; legend.appendChild(s);
+  }
+
+  // class buttons
+  const clsWrap = document.getElementById('classBtns');
+  const order = ['column','wall','core','portal','stair','escalator','outer_shell','ignore','stand_zone'];
+  for (const k of order) {
+    const b=document.createElement('button'); b.textContent=k; b.style.borderColor=SEMANTIC_COLORS[k];
+    b.onclick=()=>mode.classifySelectedAs(k,{applyAll:true,minTier:document.getElementById('tier').value});
+    clsWrap.appendChild(b);
+  }
+
+  canvas.addEventListener('click', e=>{
+    const r=canvas.getBoundingClientRect();
+    const x=(e.clientX-r.left)*(canvas.width/r.width);
+    const y=(e.clientY-r.top)*(canvas.height/r.height);
+    if (mode.mode==='calibrate') mode.handleCalibrateClick(x,y);
+    else if (mode.mode==='classify') mode.handleClassifyClick(x,y);
+  });
+
+  document.getElementById('file').addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    await mode.loadFile(f); setStep('scale');
+  });
+  document.getElementById('apply2pt').onclick=()=>{ mode.applyTwoPoint(parseFloat(document.getElementById('distance').value)); setStep('classify'); };
+  document.getElementById('applyBB').onclick=()=>{ mode.applyBoundingBox(parseFloat(document.getElementById('bbW').value), parseFloat(document.getElementById('bbL').value)); setStep('classify'); };
+  document.getElementById('analyze').onclick=()=>{ mode.analyze(); setStep('classify'); };
+  document.getElementById('review').onclick=()=>{ mode.runReview(); setStep('review'); };
+  document.getElementById('build').onclick=()=>{ mode.build(); setStep('build'); };
+  document.getElementById('applyAll').onclick=()=>{ if(mode.selectedRect) mode.classifySelectedAs(mode._pendingSemantic||'column',{applyAll:true,minTier:document.getElementById('tier').value}); };
+  document.getElementById('applyOne').onclick=()=>{ if(mode.selectedRect) mode.classifySelectedAs(mode._pendingSemantic||'column',{applyAll:false}); };
+
+  // remember last picked class for the "apply" buttons
+  clsWrap.addEventListener('click', e=>{ if(e.target.dataset.k) mode._pendingSemantic=e.target.dataset.k; });
+  // tag buttons with data-k
+  [...clsWrap.children].forEach((b,i)=>b.dataset.k=order[i]);
+
+  document.getElementById('export').onclick=()=>{ outEl.textContent = mode.exportJSON(); };
+  document.getElementById('download').onclick=()=>{
+    const blob=new Blob([mode.exportJSON()],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='hall.hall.json'; a.click();
+  };
+
+  // Allow loading an existing v1/v2 hall for inspection
+  window.loadHallJSON = (json)=>{ const m=loadHall(json); mode.wf._lastModel=m; mode.wf.calibration=Object.assign(mode.wf.calibration, m.calibration||{}); outEl.textContent=JSON.stringify(m.exportHall(),null,2); };
+</script>
+</body>
+</html>

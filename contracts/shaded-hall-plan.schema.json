@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "shaded.hall-plan/v2",
+  "title": "SHADED Hall Plan (structural, v2)",
+  "description": "Editable semantic source-of-truth for a technical hall/building plan. The GLB/mesh is a render/export derivative; this JSON stays the editable truth. Migrated from SHADED.hall-plan.v1 via runtime/hall-plan/hall-plan-adapter.mjs. Coordinates in meters; X = plan horizontal, Z = plan vertical, Y = height.",
+  "type": "object",
+  "required": ["format", "unit"],
+  "properties": {
+    "format": { "const": "SHADED.hall-plan.v2" },
+    "unit": { "const": "m" },
+    "source": {
+      "type": "object",
+      "description": "Provenance of the plan image (file, sha256, migratedFrom).",
+      "properties": {
+        "image": { "type": "string" },
+        "sha256": { "type": "string" },
+        "migratedFrom": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "calibration": {
+      "type": "object",
+      "description": "Explicit pixel→meter transform. Never hidden/automatic.",
+      "properties": {
+        "scale": { "type": "number", "minimum": 0, "description": "meters per pixel" },
+        "pixelsPerMeter": { "type": "number", "minimum": 0 },
+        "rotation": { "type": "number", "description": "deskew rotation in radians" },
+        "offset": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+        "source": { "type": "string", "enum": ["TWO_POINT", "BOUNDING_BOX", "MULTI_POINT", "DEFAULT"] },
+        "residualError": { "type": ["number", "null"] },
+        "boundsMeters": { "type": ["object", "null"] },
+        "knownMeasures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "a": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+              "b": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+              "real": { "type": "number" },
+              "label": { "type": "string" }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "bounds": {
+      "type": "object",
+      "properties": {
+        "floor": {
+          "type": "object",
+          "properties": {
+            "polygon": { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 } },
+            "thickness": { "type": "number", "minimum": 0 }
+          }
+        },
+        "outerShell": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": true
+    },
+    "levels": {
+      "type": "array",
+      "description": "One entry per floor/level. Elements are semantic, editable primitives.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "elements"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "elevation": { "type": "number" },
+          "properties": { "type": "object" },
+          "elements": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/element" }
+          }
+        }
+      }
+    },
+    "globalElements": {
+      "type": "array",
+      "description": "Elements spanning multiple levels (e.g. full-height outer shell).",
+      "items": { "$ref": "#/$defs/element" }
+    },
+    "zones": {
+      "type": "array",
+      "description": "Semantic zones (stand areas, ignored dashed regions). Not invented geometry.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["stand_zone", "ignore", "other"] },
+          "polygon": { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 } }
+        }
+      }
+    },
+    "anchors": {
+      "type": "array",
+      "description": "Structural 3D anchors for PHOTO-FIRST camera pose / scale / FOV matching.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "position"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "refId": { "type": "string" },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "base": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "element": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["column", "wall", "core", "portal", "stair", "escalator", "level_link", "outer_shell", "ignore", "unknown"]
+        },
+        "provenance": { "type": "string", "enum": ["AUTO_DETECTED", "USER_CLASSIFIED", "DEFAULT_FALLBACK", "MIGRATED_V1"] },
+        "properties": { "type": "object" },
+        "position": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+        "footprint": { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 } },
+        "height": { "type": "number" },
+        "width": { "type": "number" },
+        "connectedLevelA": { "type": "string" },
+        "connectedLevelB": { "type": "string" },
+        "heightDifference": { "type": "number" },
+        "grid": {
+          "type": "object",
+          "properties": {
+            "row": { "type": "string" },
+            "column": { "type": "integer" }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
