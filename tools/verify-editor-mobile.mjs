@@ -43,14 +43,23 @@ try {
   check(`Viewport nutzt nahezu volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
   check(`Viewport nutzt nahezu volle Höhe (${viewport?.height}px)`, viewport && viewport.height >= 835);
 
+  // World Studio owns the default UX. The legacy rail is intentionally hidden until ERWEITERT.
   const sourceButton = page.locator('.rail-btn[data-target="panel-source"]');
-  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
-  await sourceButton.click({ timeout: 60000 });
-  check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
+  const expertButton = page.locator('.world-studio-expert');
+  await expertButton.waitFor({ state: 'visible', timeout: 15000 });
+  check('Legacy-Werkzeugleiste ist im Basis-Modus verborgen', await sourceButton.isHidden());
 
-  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
-  await sourceButton.click({ timeout: 60000 });
+  await expertButton.click();
+  await sourceButton.waitFor({ state: 'visible', timeout: 10000 });
+  check('ERWEITERT blendet die Einzelwerkzeuge ein', true);
+
+  await sourceButton.click({ timeout: 10000 });
+  check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
+  await sourceButton.click({ timeout: 10000 });
   check('Zweiter Tap auf Quelle schließt Inspector vollständig', await page.evaluate(() => !document.body.classList.contains('inspector-open')));
+
+  await expertButton.click();
+  check('BASIS blendet Legacy-Werkzeuge wieder aus', await sourceButton.isHidden());
 
   // Neuer Hauptpfad: Demo direkt im World Studio, ohne versteckten Legacy-Inspector.
   await page.click('#world-demo');
@@ -71,10 +80,11 @@ try {
   });
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 
-  // Korrekturfläche bleibt weiterhin ein echtes Werkzeug.
+  // Korrekturfläche bleibt ein echtes Werkzeug, liegt aber bewusst hinter ERWEITERT.
+  await expertButton.click();
   const paintButton = page.locator('.rail-btn[data-target="panel-paint"]');
-  await paintButton.waitFor({ state: 'visible', timeout: 60000 });
-  await paintButton.click({ timeout: 60000 });
+  await paintButton.waitFor({ state: 'visible', timeout: 10000 });
+  await paintButton.click({ timeout: 10000 });
   await page.waitForTimeout(120);
   const correctionBefore = await page.evaluate(() => {
     const canvas = document.getElementById('paint-canvas'), ctx = canvas.getContext('2d'), x = Math.floor(canvas.width * .45), y = Math.floor(canvas.height * .45);
