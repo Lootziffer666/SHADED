@@ -53,8 +53,14 @@ export class SpatialKernel {
     return this.recipes.has(name);
   }
 
-  // Run a registered recipe; it is expected to call `kernel.ingest(...)` itself.
+  // Run a registered recipe. If a RecipeManager subsystem is registered it is
+  // the authority; otherwise fall back to the kernel's own recipe map. The
+  // recipe is expected to call `kernel.ingest(...)` itself.
   async runRecipe(name, input, opts = {}) {
+    const manager = this.subsystems.get('recipes');
+    if (manager && typeof manager.run === 'function') {
+      return manager.run(this, name, input, opts);
+    }
     const recipe = this.recipes.get(name);
     if (!recipe) {
       return { ok: false, error: `unknown recipe: ${name}` };
