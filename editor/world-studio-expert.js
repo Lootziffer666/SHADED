@@ -1,3 +1,5 @@
+import './world-studio-v4.js?v=1';
+
 function attachExpertToggle(){
   const head=document.querySelector('#world-studio .world-studio-head');
   if(!head||head.querySelector('.world-studio-expert'))return;
@@ -22,3 +24,4 @@ function attachExpertToggle(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachExpertToggle,{once:true});
 else attachExpertToggle();
 requestAnimationFrame(attachExpertToggle);
+setTimeout(attachExpertToggle,0);
