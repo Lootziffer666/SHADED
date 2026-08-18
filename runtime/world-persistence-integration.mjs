@@ -16,7 +16,7 @@ export class WorldPersistenceManager {
     this.world = null; // Will be set when integrating with editor
     this.autosaveEnabled = true;
     self.autosaveInterval = null;
-    self.autosaveDelay = 30000; # 30 seconds
+    self.autosaveDelay = 30000; // 30 seconds
   }
 
   /**
@@ -26,7 +26,7 @@ export class WorldPersistenceManager {
   setWorld(world) {
     this.world = world;
     
-    # Start autosave if enabled
+    // Start autosave if enabled
     if (this.autosaveEnabled) {
       this.startAutosave();
     }
@@ -50,7 +50,7 @@ export class WorldPersistenceManager {
    * Starts the autosave timer
    */
   startAutosave() {
-    this.stopAutosave(); # Clear any existing timer
+    this.stopAutosave(); // Clear any existing timer
     
     this.autosaveInterval = setInterval(() => {
       if (this.world) {
@@ -77,15 +77,15 @@ export class WorldPersistenceManager {
     
     try {
       const worldData = this.world.exportWorld();
-      # In a real implementation, we would save to localStorage or IndexedDB
-      # For now, we'll just log that we would autosave
+      // In a real implementation, we would save to localStorage or IndexedDB
+      // For now, we'll just log that we would autosave
       console.log('Autosaving world state:', {
         timestamp: Date.now(),
         photoCount: worldData.photos.length,
         patchCount: worldData.surfacePatches.length
       });
       
-      # Store in sessionStorage for demo purposes
+      // Store in sessionStorage for demo purposes
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('shaded-photofirst-world', JSON.stringify(worldData));
       }
@@ -130,17 +130,17 @@ export class WorldPersistenceManager {
           const jsonData = reader.result;
           const worldData = JSON.parse(jsonData);
           
-          # Create new world and import data
+          // Create new world and import data
           const world = new PhotoFirstWorld();
           world.importWorld(worldData);
           
-          # Set as current world
+          // Set as current world
           this.world = world;
           
-          # Notify editor of world change if facade available
+          // Notify editor of world change if facade available
           if (this.facade && this.facade.win && this.facade.win.SHADED) {
-            # In a real implementation, we would trigger appropriate events
-            # to notify the editor that the world has changed
+            // In a real implementation, we would trigger appropriate events
+            // to notify the editor that the world has changed
             console.log('World loaded, notifying editor');
           }
           
@@ -199,7 +199,7 @@ export class WorldPersistenceManager {
       sessionStorage.removeItem('shaded-photofirst-world');
     }
     
-    # Clear current world
+    // Clear current world
     if (this.world) {
       this.world.clear();
     }
@@ -215,7 +215,7 @@ export class WorldPersistenceManager {
     }
     
     this.saveWorldToFile().then(blob => {
-      # Create download link
+      // Create download link
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -265,7 +265,7 @@ export class WorldPersistenceManager {
   integrateWithEditorFacade(facade) {
     this.facade = facade;
     
-    # Add persistence methods to the facade if they don't exist
+    // Add persistence methods to the facade if they don't exist
     if (facade && !facade.saveWorld) {
       facade.saveWorld = async () => {
         return await this.saveWorldToFile();
@@ -290,7 +290,7 @@ export class WorldPersistenceManager {
       };
     }
     
-    # Load any persisted world on integration
+    // Load any persisted world on integration
     this.loadWorldFromSessionStorage().then(result => {
       if (result.success && result.data) {
         this.world = result.data;
@@ -325,13 +325,13 @@ export class PhotoFirstEditorIntegration {
   constructor(editorFacade) {
     this.facade = editorFacade;
     this.worldPersistence = new WorldPersistenceManager(editorFacade);
-    this.spatialIntegrator = null; # Will be initialized when needed
+    this.spatialIntegrator = null; // Will be initialized when needed
     
-    # State
+    // State
     this.enabled = false;
-    this.currentMode = null; # Will hold reference to active mode (e.g., ReverseViewfinderMode)
+    this.currentMode = null; // Will hold reference to active mode (e.g., ReverseViewfinderMode)
     
-    # Integration points
+    // Integration points
     this.integrationPoints = [];
   }
 
@@ -343,13 +343,13 @@ export class PhotoFirstEditorIntegration {
     
     this.enabled = true;
     
-    # Initialize world persistence
+    // Initialize world persistence
     this.worldPersistence.integrateWithEditorFacade(this.facade);
     
-    # Add photo-first methods to the facade
+    // Add photo-first methods to the facade
     this.addPhotoFirstMethodsToFacade();
     
-    # Load any persisted world
+    // Load any persisted world
     this.loadPersistedWorld();
     
     console.log('Photo-First system enabled in editor');
@@ -363,13 +363,13 @@ export class PhotoFirstEditorIntegration {
     
     this.enabled = false;
     
-    # Stop any active modes
+    // Stop any active modes
     if (this.currentMode) {
       this.currentMode.deactivate();
       this.currentMode = null;
     }
     
-    # Stop autosave
+    // Stop autosave
     this.worldPersistence.stopAutosave();
     
     console.log('Photo-First system disabled in editor');
@@ -381,7 +381,7 @@ export class PhotoFirstEditorIntegration {
   addPhotoFirstMethodsToFacade() {
     if (!this.facade) return;
     
-    # Add world persistence methods
+    // Add world persistence methods
     if (!this.facade.saveWorld) {
       this.facade.saveWorld = async () => {
         return await this.worldPersistence.saveWorldToFile();
@@ -392,7 +392,7 @@ export class PhotoFirstEditorIntegration {
       this.facade.loadWorld = async (file) => {
         const result = await this.worldPersistence.loadWorldFromFile(file);
         if (result.success) {
-          # Update the integrated world
+          // Update the integrated world
           this.worldPersistence.world = result.data;
         }
         return result;
@@ -411,21 +411,21 @@ export class PhotoFirstEditorIntegration {
       };
     }
     
-    # Add photo-first world access
+    // Add photo-first world access
     if (!this.facade.getPhotoFirstWorld) {
       this.facade.getPhotoFirstWorld = () => {
         return this.worldPersistence.world;
       };
     }
     
-    # Add method to start reverse viewfinder mode
+    // Add method to start reverse viewfinder mode
     if (!this.facade.startReverseViewfinder) {
       this.facade.startReverseViewfinder = async (photoFile = null) => {
         return await this.startReverseViewfinderMode(photoFile);
       };
     }
     
-    # Add method to process a photo through the full pipeline
+    // Add method to process a photo through the full pipeline
     if (!this.facade.processPhoto) {
       this.facade.processPhoto = async (photoFile, calibration = {}) => {
         return await this.processPhotoThroughPipeline(photoFile, calibration);
@@ -451,16 +451,16 @@ export class PhotoFirstEditorIntegration {
    * @returns {Promise<Object>} - Result of starting the mode
    */
   async startReverseViewfinderMode(photoFile = null) {
-    # Deactivate any current mode
+    // Deactivate any current mode
     if (this.currentMode) {
       this.currentMode.deactivate();
     }
     
-    # Import ReverseViewfinderMode dynamically to avoid circular dependencies
+    // Import ReverseViewfinderMode dynamically to avoid circular dependencies
     try {
       const { ReverseViewfinderMode } = await import('./reverse-viewfinder-mode.mjs');
       
-      # Create and activate the mode
+      // Create and activate the mode
       this.currentMode = new ReverseViewfinderMode(this.facade);
       this.currentMode.activate(photoFile);
       
@@ -479,7 +479,7 @@ export class PhotoFirstEditorIntegration {
    * @returns {Promise<Object>} - Result of processing
    */
   async processPhotoThroughPipeline(photoFile, calibration = {}) {
-    # Initialize spatial integrator if needed
+    // Initialize spatial integrator if needed
     if (!this.spatialIntegrator) {
       try {
         const { SpatialSystemIntegrator } = await import('./spatial-system-integrator.mjs');
@@ -487,15 +487,15 @@ export class PhotoFirstEditorIntegration {
         await this.spatialIntegrator.initialize();
       } catch (error) {
         console.warn('Spatial system integrator not available:', error);
-        # Continue without spatial integration
+        // Continue without spatial integration
       }
     }
     
-    # Process the photo
+    // Process the photo
     if (this.spatialIntegrator) {
       return await this.spatialIntegrator.processPhoto(photoFile, calibration);
     } else {
-      # Fallback to basic photo processing without spatial integration
+      // Fallback to basic photo processing without spatial integration
       return await this.processPhotoBasic(photoFile, calibration);
     }
   }
@@ -509,10 +509,10 @@ export class PhotoFirstEditorIntegration {
   async processPhotoBasic(photoFile, calibration = {}) {
     return new Promise(async (resolve) => {
       try {
-        # Load photo
+        // Load photo
         const img = await this.loadImageFromFile(photoFile);
         
-        # Create photo object
+        // Create photo object
         const photo = {
           id: `photo_${Date.now()}`,
           file: photoFile,
@@ -522,7 +522,7 @@ export class PhotoFirstEditorIntegration {
           camera: this.createDefaultCamera(img.width, img.height)
         };
         
-        # Apply calibration
+        // Apply calibration
         if (calibration.position) {
           photo.camera.position = [...calibration.position];
         }
@@ -542,10 +542,10 @@ export class PhotoFirstEditorIntegration {
           photo.camera.provenance = calibration.provenance;
         }
         
-        # Add to world
+        // Add to world
         const photoId = this.worldPersistence.world.addPhoto(photo);
         
-        # Create a basic patch (placeholder)
+        // Create a basic patch (placeholder)
         const patchId = `patch_${Date.now()}`;
         const patch = new SurfacePatch(
           patchId,
@@ -553,16 +553,16 @@ export class PhotoFirstEditorIntegration {
           `camera_${Date.now()}`
         );
         
-        # Add a simple quad patch for demonstration
-        patch.addVertex([-1, 0, -1, 0, 0]); # bottom-left
-        patch.addVertex([ 1, 0, -1, 1, 0]); # bottom-right
-        patch.addVertex([-1, 0,  1, 0, 1]); # top-left
-        patch.addVertex([ 1, 0,  1, 1, 1]); # top-right
+        // Add a simple quad patch for demonstration
+        patch.addVertex([-1, 0, -1, 0, 0]); // bottom-left
+        patch.addVertex([ 1, 0, -1, 1, 0]); // bottom-right
+        patch.addVertex([-1, 0,  1, 0, 1]); // top-left
+        patch.addVertex([ 1, 0,  1, 1, 1]); // top-right
         
-        patch.addTriangle([0, 1, 2]); # first triangle
-        patch.addTriangle([1, 3, 2]); # second triangle
+        patch.addTriangle([0, 1, 2]); // first triangle
+        patch.addTriangle([1, 3, 2]); // second triangle
         
-        # Add patch to world
+        // Add patch to world
         const patchIdResult = this.worldPersistence.world.addSurfacePatch(patch);
         
         resolve({
@@ -588,11 +588,11 @@ export class PhotoFirstEditorIntegration {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        URL.revokeObjectURL(img.src); # Clean up blob URL
+        URL.revokeObjectURL(img.src); // Clean up blob URL
         resolve(img);
       };
       img.onerror = () => {
-        URL.revokeObjectURL(img.src); # Clean up blob URL
+        URL.revokeObjectURL(img.src); // Clean up blob URL
         reject(new Error('Failed to load image'));
       };
       img.src = URL.createObjectURL(file);
@@ -607,11 +607,11 @@ export class PhotoFirstEditorIntegration {
    */
   createDefaultCamera(width, height) {
     return {
-      position: [0, 1.7, 0], # Eye level height
-      rotation: [0, 0, 0],   # No rotation
-      fovY: 60,              # Default vertical FOV
-      principalPoint: [0.5, 0.5], # Centered
-      lens: { k1: 0, k2: 0 }, # No distortion
+      position: [0, 1.7, 0], // Eye level height
+      rotation: [0, 0, 0],   // No rotation
+      fovY: 60,              // Default vertical FOV
+      principalPoint: [0.5, 0.5], // Centered
+      lens: { k1: 0, k2: 0 }, // No distortion
       provenance: 'DEFAULT',
       confidence: 0.8
     };
@@ -641,5 +641,3 @@ export class PhotoFirstEditorIntegration {
     return this.currentMode;
   }
 };
-
-export { WorldPersistenceManager, PhotoFirstEditorIntegration };
