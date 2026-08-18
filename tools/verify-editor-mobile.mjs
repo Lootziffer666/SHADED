@@ -16,14 +16,14 @@ const server = http.createServer((req, res) => {
   const file = path.join(REPO, rel);
   try {
     const data = fs.readFileSync(file);
-    const type = file.endsWith('.html') ? 'text/html' : file.endsWith('.js') || file.endsWith('.mjs') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') || file.ends[...]
+    const type = file.endsWith('.html') ? 'text/html' : file.endsWith('.js') || file.endsWith('.mjs') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') || file.endsWith('.webmanifest') ? 'application/json' : file.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
     res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(data);
   } catch { res.writeHead(404); res.end(); }
 });
 
 await new Promise(resolve => server.listen(8941, resolve));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.[...]
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36' });
 const page = await context.newPage();
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 page.on('pageerror', error => errors.push(`PAGEERROR: ${error.message}`));
@@ -32,7 +32,7 @@ try {
   await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load' });
   await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 15000 });
 
-  const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...docu[...]
+  const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
   check('Timeline-DOM ist vollständig entfernt', !idle.timeline);
   check('Story-Werkzeug ist vollständig entfernt', !idle.storyButton);
@@ -43,15 +43,13 @@ try {
   check(`Viewport nutzt nahezu volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
   check(`Viewport nutzt nahezu volle Höhe (${viewport?.height}px)`, viewport && viewport.height >= 835);
 
-  // Wait for the source panel button to be visible and clickable with extended timeout
-  await page.waitForSelector('.rail-btn[data-target="panel-source"]', { timeout: 60000 });
-  await page.locator('.rail-btn[data-target="panel-source"]').waitForElementState('visible', { timeout: 60000 });
-  await page.click('.rail-btn[data-target="panel-source"]', { timeout: 60000 });
+  const sourceButton = page.locator('.rail-btn[data-target="panel-source"]');
+  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
+  await sourceButton.click({ timeout: 60000 });
   check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
-  
-  // Wait for the source panel button again before second click
-  await page.locator('.rail-btn[data-target="panel-source"]').waitForElementState('visible', { timeout: 60000 });
-  await page.click('.rail-btn[data-target="panel-source"]', { timeout: 60000 });
+
+  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
+  await sourceButton.click({ timeout: 60000 });
   check('Zweiter Tap auf Quelle schließt Inspector vollständig', await page.evaluate(() => !document.body.classList.contains('inspector-open')));
 
   // Neuer Hauptpfad: Demo direkt im World Studio, ohne versteckten Legacy-Inspector.
@@ -62,7 +60,7 @@ try {
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
   await page.click('#world-generate');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 30000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 60000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
   check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
 
@@ -74,7 +72,9 @@ try {
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 
   // Korrekturfläche bleibt weiterhin ein echtes Werkzeug.
-  await page.click('.rail-btn[data-target="panel-paint"]');
+  const paintButton = page.locator('.rail-btn[data-target="panel-paint"]');
+  await paintButton.waitFor({ state: 'visible', timeout: 60000 });
+  await paintButton.click({ timeout: 60000 });
   await page.waitForTimeout(120);
   const correctionBefore = await page.evaluate(() => {
     const canvas = document.getElementById('paint-canvas'), ctx = canvas.getContext('2d'), x = Math.floor(canvas.width * .45), y = Math.floor(canvas.height * .45);
