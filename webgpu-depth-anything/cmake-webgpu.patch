@@ -1,0 +1,22 @@
+# Patch to add WebGPU support to depth-anything.cpp CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -18,6 +18,9 @@ option(DA_BUILD_TESTS  "Build tests"                              OFF)
+ option(DA_BUILD_CLI    "Build da3-cli"                            ON)
+ option(DA_SHARED       "Build libdepthanything as a shared lib"   OFF)
+ option(DA_GGML_CUDA    "ggml CUDA backend"                        OFF)
++option(DA_GGML_WEBGPU  "ggml WebGPU backend"                      OFF)
++option(DA_GGML_WEBGPU_DEBUG  "ggml: enable WebGPU debug output"   OFF)
++option(DA_GGML_WEBGPU_JSPI   "ggml: use JSPI for WebGPU"          ON)
+ option(DA_GGML_METAL   "ggml Metal backend"                       OFF)
+ option(DA_GGML_VULKAN  "ggml Vulkan backend"                      OFF)
+ 
+@@ -33,6 +36,9 @@ set(GGML_CUDA   ${DA_GGML_CUDA}   CACHE BOOL "" FORCE)
+ set(GGML_METAL  ${DA_GGML_METAL}  CACHE BOOL "" FORCE)
+ set(GGML_VULKAN ${DA_GGML_VULKAN} CACHE BOOL "" FORCE)
++set(GGML_WEBGPU ${DA_GGML_WEBGPU} CACHE BOOL "" FORCE)
++set(GGML_WEBGPU_DEBUG ${DA_GGML_WEBGPU_DEBUG} CACHE BOOL "" FORCE)
++set(GGML_WEBGPU_JSPI ${DA_GGML_WEBGPU_JSPI} CACHE BOOL "" FORCE)
+ # CUDA target arch is left to ggml's own ggml-cuda/CMakeLists, which picks a
+ # sensible default (a virtual-arch list covering Maxwell..Blackwell, incl.
+ # 120a/121a-real for GB10) when CMAKE_CUDA_ARCHITECTURES is unset, and guards
