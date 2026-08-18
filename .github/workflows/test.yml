@@ -25,7 +25,10 @@ jobs:
 
     - name: Install Chromium for browser verification
       run: |
-        npx playwright install --with-deps chromium
+        # ubuntu-latest already ships the system libraries Playwright Chromium needs.
+        # Avoid `--with-deps`: it performs a fresh apt transaction on every run and
+        # made browser verification depend on Ubuntu mirror availability.
+        npx playwright install chromium
 
     - name: Run deterministic contract and spatial tests
       run: |

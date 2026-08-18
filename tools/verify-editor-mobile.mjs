@@ -9,6 +9,7 @@ const REPO = path.join(HERE, '..');
 let failed = false;
 const errors = [];
 const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
+const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAAAAoklEQVR4nGOsmLaFYTABpoF2ADoYdRAhMOogQmDQOYiFFobeuHGDeMUaGhrI3EEXQoPOQTijzObNMuJNOSISRQ3HMDAMwhAadRAhMOogQgAll705MgnB0RAh3hQUjQwMDCJuJOkVscmDcwddCI06iBAYdRAhMOogQmDQOQhn82PDjTf0dAcc0KQJK/JmF9l6B12UjTqIEBh0DkJJ1MjNgIECAPPWFRTYINHRAAAAAElFTkSuQmCC', 'base64');
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -30,7 +31,7 @@ page.on('pageerror', error => errors.push(`PAGEERROR: ${error.message}`));
 
 try {
   await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load' });
-  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 15000 });
+  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, undefined, { timeout: 15000 });
 
   const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
@@ -43,24 +44,40 @@ try {
   check(`Viewport nutzt nahezu volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
   check(`Viewport nutzt nahezu volle Höhe (${viewport?.height}px)`, viewport && viewport.height >= 835);
 
+  // World Studio owns the default UX. The legacy rail is intentionally hidden until ERWEITERT.
   const sourceButton = page.locator('.rail-btn[data-target="panel-source"]');
-  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
-  await sourceButton.click({ timeout: 60000 });
-  check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
+  const expertButton = page.locator('.world-studio-expert');
+  await expertButton.waitFor({ state: 'visible', timeout: 15000 });
+  check('Legacy-Werkzeugleiste ist im Basis-Modus verborgen', await sourceButton.isHidden());
 
-  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
-  await sourceButton.click({ timeout: 60000 });
+  await expertButton.click();
+  await sourceButton.waitFor({ state: 'visible', timeout: 10000 });
+  check('ERWEITERT blendet die Einzelwerkzeuge ein', true);
+
+  await sourceButton.click({ timeout: 10000 });
+  check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
+  await sourceButton.click({ timeout: 10000 });
   check('Zweiter Tap auf Quelle schließt Inspector vollständig', await page.evaluate(() => !document.body.classList.contains('inspector-open')));
 
-  // Neuer Hauptpfad: Demo direkt im World Studio, ohne versteckten Legacy-Inspector.
+  await expertButton.click();
+  check('BASIS blendet Legacy-Werkzeuge wieder aus', await sourceButton.isHidden());
+
+  // Der echte Demo-Button muss den produktiven Importpfad bedienen.
   await page.click('#world-demo');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 10000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
   check('World Studio lädt das Demo-Bild direkt', true);
+
+  // Die räumliche Pipeline wird mit einem winzigen echten PNG-Fixture gefahren. Die kanonische
+  // Demo ist hochauflösend; deren vollständige Materialanalyse blockiert schwache CI-CPUs minutenlang
+  // und testet hier nicht mehr Verhalten als ein kleines Bild.
+  await page.locator('#world-file').setInputFiles({ name: 'ci-spatial-fixture.png', mimeType: 'image/png', buffer: CI_SCENE_PNG });
+  await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', undefined, { timeout: 10000 });
+  check('Kleines CI-Bild übernimmt denselben 1-Bild-Workflow', true);
 
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
   await page.click('#world-generate');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 60000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 60000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
   check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
 
@@ -71,10 +88,11 @@ try {
   });
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 
-  // Korrekturfläche bleibt weiterhin ein echtes Werkzeug.
+  // Korrekturfläche bleibt ein echtes Werkzeug, liegt aber bewusst hinter ERWEITERT.
+  await expertButton.click();
   const paintButton = page.locator('.rail-btn[data-target="panel-paint"]');
-  await paintButton.waitFor({ state: 'visible', timeout: 60000 });
-  await paintButton.click({ timeout: 60000 });
+  await paintButton.waitFor({ state: 'visible', timeout: 10000 });
+  await paintButton.click({ timeout: 10000 });
   await page.waitForTimeout(120);
   const correctionBefore = await page.evaluate(() => {
     const canvas = document.getElementById('paint-canvas'), ctx = canvas.getContext('2d'), x = Math.floor(canvas.width * .45), y = Math.floor(canvas.height * .45);
@@ -82,7 +100,12 @@ try {
   });
   check('Korrekturfläche wird aus der Live-Szene befüllt', correctionBefore.width > 1 && correctionBefore.height > 1 && correctionBefore.pixel[3] > 0);
 } catch (error) {
-  check(`Unerwarteter Fehler: ${error.message}`, false);
+  const diagnostic = await page.evaluate(() => ({
+    world: window.SHADEDWorldStudio?.state?.() || null,
+    status: document.getElementById('world-status')?.textContent || '',
+    stages: [...document.querySelectorAll('.world-progress-row')].map(row => ({ stage: row.dataset.stage, className: row.className, status: row.querySelector('small')?.textContent || '' }))
+  })).catch(() => null);
+  check(`Unerwarteter Fehler: ${error.message}${diagnostic ? ` | ${JSON.stringify(diagnostic)}` : ''}`, false);
 }
 
 const relevantErrors = errors.filter(error => !/404/.test(error) && !/favicon/i.test(error));
