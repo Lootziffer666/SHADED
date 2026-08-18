@@ -34,7 +34,10 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage({ viewport: { width: 1500, height: 860 } });
   const errors = [];
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('console', m => { 
+    console.log(`[Browser Console] ${m.type()}: ${m.text()}`);
+    if (m.type() === 'error') errors.push(m.text()); 
+  });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 
   // Die Engine sucht neben "bild.png" automatisch "bild_depth.png" (2.5D) und
@@ -82,6 +85,31 @@ const server = http.createServer((req, res) => {
 
   await page.goto('http://localhost:8931/index.html');
 
+  // Check if onchange handler is set immediately after load
+  const onchangeCheck = await page.evaluate(() => {
+    const input = document.getElementById('f-scene');
+    return {
+      exists: !!input,
+      onchangeType: typeof input?.onchange,
+      onchangeValue: input?.onchange?.toString().substring(0, 100)
+    };
+  });
+  console.log('onchange check after load:', onchangeCheck);
+
+  // Check if main script ran
+  const scriptRan = await page.evaluate(() => window.__SHADED_SCRIPT_RUNNING__);
+  console.log('Script ran flag:', scriptRan);
+
+  // Check if main script content is in the page
+  const scriptCheck = await page.evaluate(() => {
+    const scripts = document.querySelectorAll('script:not([src])');
+    return Array.from(scripts).map(s => s.textContent.substring(0, 50));
+  });
+  console.log('Inline scripts found:', scriptCheck.length);
+  if (scriptCheck.length > 0) {
+    console.log('First script starts with:', scriptCheck[0]);
+  }
+
   // Grafikkontext: SHADED fährt genau EINEN Shader-Pfad (GLSL ES 3.00 auf WebGL 2).
   const ctx = await page.evaluate(() => {
     const c = document.getElementById('gl');
@@ -111,13 +139,40 @@ const server = http.createServer((req, res) => {
   console.log(`Editor-Link: ${editorLink || 'FEHLT'} -> ${editorReachable ? 'erreichbar' : 'NICHT erreichbar'}`);
   if (!editorReachable) linkFailures++;
 
-  await page.setInputFiles('#f-scene', BASE_IMG);
+await page.setInputFiles('#f-scene', BASE_IMG);
+  
+  // Wait for scene to load with longer timeout and debug
+  try {
+    await page.waitForFunction(() => {
+      const el = document.getElementById('status');
+      if (!el) return false;
+      const text = el.textContent || '';
+      console.log('Status check:', text);
+      return /Szene geladen|Tiefenkarte geladen/.test(text);
+    }, { timeout: 60000 });
+  } catch (e) {
+    // Debug: get final status
+    const finalStatus = await page.evaluate(() => document.getElementById('status').textContent);
+    console.log('Final status after timeout:', finalStatus);
+    throw e;
+  }
+  
+  const statusDebug = await page.evaluate(() => document.getElementById('status').textContent);
+  console.log('Status after scene load:', statusDebug);
+  
   // Szene mit Depth-Companion: Auto-Load ueberschreibt den Status fast sofort
   // wieder auf "Tiefenkarte geladen" - beides bestaetigt, dass sceneImg gesetzt ist.
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
   await page.setInputFiles('#f-mat', MARKER_IMG);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
-  await page.click('#btn-create');
+await page.click('#btn-create');
+  
+  // Debug: check SHADED object
+  const shadedCheck = await page.evaluate(() => {
+    return { type: typeof window.SHADED, hasSHADED: !!window.SHADED };
+  });
+  console.log('SHADED check:', shadedCheck);
+  
   await page.waitForFunction(() => window.SHADED.isReady());
   await page.waitForTimeout(400);
   await logClasses('dorf-marker');
