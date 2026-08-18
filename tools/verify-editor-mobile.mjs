@@ -9,6 +9,7 @@ const REPO = path.join(HERE, '..');
 let failed = false;
 const errors = [];
 const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
+const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAMAAAACACAIAAADS5vE8AAACVElEQVR42u3ZMU4CQRiG4VljZb21thyCRju7OYBn8CRWlp5ibmDDRUwsqa0obEgwBM3+zgy48rzZ0h+W4fX7P2BYXC9TSkPwiozk+EjoiUrFvU0ZyS0O4YeR0u6oD07lDu/p7rrcjgK/gkAgEE4p0IVDgAQCgUAg6ECABAKBQCDoQIAEAoFAIOhAgAQCgUAgnGsHWn9En6Kc6rXdX3l/JVANwpVABCIQgXSgmeIrLgkkgQhEICvMCoMEAoEIRCAC6UA6EL4mUA6OlPkkUG7xKL1fb+78+KW3QFYYCEQgHUgHkkASKN0+LoMT6853FL2ftHleEcgKO9K5EQiVAulAqDg3CQQrjEAEIpAOpAPpQBIIVhiBCEQgHUgH0oEkkAQiEAhEIB1IB9KBJJAEIhCsMCvMCpNAVhiBCEQg6EA6kA4kgawwAhGIQNCBdCAdSALNboWV/3sQTV5aDv79ev7nlkMC+U+CDqQD6UASyMd4AhGIQNCBdCAdSAJZYQQiEIEIpANBB5JAVhiBrDArzAqTQLDCCEQgAulAOpBzk0CwwghEIAKdTwcaH7aPP0y98pCiI7trwlT5bgQ6EKwwEAgEataBoANJIFhhIBB0IOhAEggVCTSM4+jEcJS0AggEAuEv9aXFy1Pq8iP5/q/lqdev8bni3qaMlNDU3c1y7k5s3lbTj86nMFR9CvM9UGNe31fBqMvtwv7gVAmP+B4IR4NAqBTICoMEAoFAIOhAgAQCgUAg6ECABAKBQCDoQIAEAoFAIOhAgAQCgUAg6ECQQACBYIVhTnwC3bUgGknz6C4AAAAASUVORK5CYII=', 'base64');
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -61,10 +62,17 @@ try {
   await expertButton.click();
   check('BASIS blendet Legacy-Werkzeuge wieder aus', await sourceButton.isHidden());
 
-  // Neuer Hauptpfad: Demo direkt im World Studio, ohne versteckten Legacy-Inspector.
+  // Der echte Demo-Button muss den produktiven Importpfad bedienen.
   await page.click('#world-demo');
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
   check('World Studio lädt das Demo-Bild direkt', true);
+
+  // Die räumliche Pipeline wird mit einem kleinen echten PNG-Fixture gefahren. Die kanonische
+  // Demo ist hochauflösend; deren vollständige Materialanalyse blockiert schwache CI-CPUs minutenlang
+  // und testet hier nicht mehr Verhalten als ein kleines Bild.
+  await page.locator('#world-file').setInputFiles({ name: 'ci-spatial-fixture.png', mimeType: 'image/png', buffer: CI_SCENE_PNG });
+  await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', undefined, { timeout: 10000 });
+  check('Kleines CI-Bild übernimmt denselben 1-Bild-Workflow', true);
 
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
@@ -92,7 +100,12 @@ try {
   });
   check('Korrekturfläche wird aus der Live-Szene befüllt', correctionBefore.width > 1 && correctionBefore.height > 1 && correctionBefore.pixel[3] > 0);
 } catch (error) {
-  check(`Unerwarteter Fehler: ${error.message}`, false);
+  const diagnostic = await page.evaluate(() => ({
+    world: window.SHADEDWorldStudio?.state?.() || null,
+    status: document.getElementById('world-status')?.textContent || '',
+    stages: [...document.querySelectorAll('.world-progress-row')].map(row => ({ stage: row.dataset.stage, className: row.className, status: row.querySelector('small')?.textContent || '' }))
+  })).catch(() => null);
+  check(`Unerwarteter Fehler: ${error.message}${diagnostic ? ` | ${JSON.stringify(diagnostic)}` : ''}`, false);
 }
 
 const relevantErrors = errors.filter(error => !/404/.test(error) && !/favicon/i.test(error));
