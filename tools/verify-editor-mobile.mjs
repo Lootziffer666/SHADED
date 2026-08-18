@@ -30,7 +30,7 @@ page.on('pageerror', error => errors.push(`PAGEERROR: ${error.message}`));
 
 try {
   await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load' });
-  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 15000 });
+  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, undefined, { timeout: 15000 });
 
   const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
@@ -63,13 +63,13 @@ try {
 
   // Neuer Hauptpfad: Demo direkt im World Studio, ohne versteckten Legacy-Inspector.
   await page.click('#world-demo');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 10000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
   check('World Studio lädt das Demo-Bild direkt', true);
 
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
   await page.click('#world-generate');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 60000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 60000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
   check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
 
