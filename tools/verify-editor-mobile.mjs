@@ -9,7 +9,7 @@ const REPO = path.join(HERE, '..');
 let failed = false;
 const errors = [];
 const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
-const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAMAAAACACAIAAADS5vE8AAACVElEQVR42u3ZMU4CQRiG4VljZb21thyCRju7OYBn8CRWlp5ibmDDRUwsqa0obEgwBM3+zgy48rzZ0h+W4fX7P2BYXC9TSkPwiozk+EjoiUrFvU0ZyS0O4YeR0u6oD07lDu/p7rrcjgK/gkAgEE4p0IVDgAQCgUAg6ECABAKBQCDoQIAEAoFAIOhAgAQCgUAgnGsHWn9En6Kc6rXdX3l/JVANwpVABCIQgXSgmeIrLgkkgQhEICvMCoMEAoEIRCAC6UA6EL4mUA6OlPkkUG7xKL1fb+78+KW3QFYYCEQgHUgHkkASKN0+LoMT6853FL2ftHleEcgKO9K5EQiVAulAqDg3CQQrjEAEIpAOpAPpQBIIVhiBCEQgHUgH0oEkkAQiEAhEIB1IB9KBJJAEIhCsMCvMCpNAVhiBCEQg6EA6kA4kgawwAhGIQNCBdCAdSALNboWV/3sQTV5aDv79ev7nlkMC+U+CDqQD6UASyMd4AhGIQNCBdCAdSAJZYQQiEIEIpANBB5JAVhiBrDArzAqTQLDCCEQgAulAOpBzk0CwwghEIAKdTwcaH7aPP0y98pCiI7trwlT5bgQ6EKwwEAgEataBoANJIFhhIBB0IOhAEggVCTSM4+jEcJS0AggEAuEv9aXFy1Pq8iP5/q/lqdev8bni3qaMlNDU3c1y7k5s3lbTj86nMFR9CvM9UGNe31fBqMvtwv7gVAmP+B4IR4NAqBTICoMEAoFAIOhAgAQCgUAg6ECABAKBQCDoQIAEAoFAIOhAgAQCgUAg6ECQQACBYIVhTnwC3bUgGknz6C4AAAAASUVORK5CYII=', 'base64');
+const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAAAAoklEQVR4nGOsmLaFYTABpoF2ADoYdRAhMOogQmDQOQhn82PDjTf0dAcc0KQJK/JmF9l6B12UjTqIEBh0DkJJ1MjNgIECAPPWFRTYINHRAAAAAElFTkSuQmCC', 'base64');
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -67,7 +67,7 @@ try {
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
   check('World Studio lädt das Demo-Bild direkt', true);
 
-  // Die räumliche Pipeline wird mit einem kleinen echten PNG-Fixture gefahren. Die kanonische
+  // Die räumliche Pipeline wird mit einem winzigen echten PNG-Fixture gefahren. Die kanonische
   // Demo ist hochauflösend; deren vollständige Materialanalyse blockiert schwache CI-CPUs minutenlang
   // und testet hier nicht mehr Verhalten als ein kleines Bild.
   await page.locator('#world-file').setInputFiles({ name: 'ci-spatial-fixture.png', mimeType: 'image/png', buffer: CI_SCENE_PNG });
