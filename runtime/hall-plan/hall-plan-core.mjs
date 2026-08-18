@@ -961,6 +961,7 @@ export class HallModel {
     this.levels = [];           // Array of HallLevel objects
     this.globalElements = [];   // Elements that span multiple levels
     this.anchors = [];          // Structural anchors for photo matching
+    this.zones = [];            // Semantic zones (stand areas, ignored dashed regions)
   }
 
   /**
@@ -1299,6 +1300,12 @@ export class HallModel {
         position: [anchor.position.x, anchor.position.y, anchor.position.z],
         description: anchor.description,
         confidence: anchor.confidence
+      })),
+      zones: this.zones.map(zone => ({
+        id: zone.id,
+        type: zone.type,
+        polygon: zone.polygon,
+        provenance: zone.provenance
       }))
     };
   }
@@ -1498,6 +1505,16 @@ export class HallModel {
         this.addAnchor(anchor);
       }
     }
+
+    // Import zones
+    if (data.zones) {
+      this.zones = data.zones.map(zone => ({
+        id: zone.id,
+        type: zone.type,
+        polygon: zone.polygon,
+        provenance: zone.provenance
+      }));
+    }
   }
 }
 
@@ -1573,7 +1590,7 @@ export const HallPlanUtils = {
       return 0;
     }
     return realDistance / pixelDistance;
-  }
+  },
 
   /**
    * Calculate pixels per meter from two known points
@@ -1588,7 +1605,7 @@ export const HallPlanUtils = {
       return 0;
     }
     return pixelDistance / realDistance;
-  }
+  },
 
   /**
    * Apply scale, rotation, and offset to convert plan coordinates to world coordinates
@@ -1614,7 +1631,7 @@ export const HallPlanUtils = {
     const worldY = rotatedY * scale;
     
     return new PlanPoint(worldX, worldY);
-  }
+  },
 
   /**
    * Apply inverse transform to convert world coordinates to plan coordinates
@@ -1640,7 +1657,7 @@ export const HallPlanUtils = {
     const planY = rotatedY + offset.y;
     
     return new PlanPoint(planX, planY);
-  }
+  },
 
   /**
    * Detect rectangles in a binary image using contour analysis
@@ -1656,7 +1673,7 @@ export const HallPlanUtils = {
     
     // For now, return empty array - real implementation would use OpenCV or similar
     return rectangles;
-  }
+  },
 
   /**
    * Detect lines in a binary image using Hough transform or similar
@@ -1672,7 +1689,7 @@ export const HallPlanUtils = {
     
     // For now, return empty array - real implementation would use OpenCV or similar
     return lines;
-  }
+  },
 
   /**
    * Match similar elements based on geometric properties
@@ -1737,26 +1754,4 @@ export const HallPlanUtils = {
     
     return matches;
   }
-};
-
-export {
-  PlanPoint,
-  PlanVector,
-  PlanLine,
-  PlanRectangle,
-  PlanPolygon,
-  DetectedLine,
-  DetectedRectangle,
-  HallElement,
-  HallColumn,
-  HallWall,
-  HallCore,
-  HallPortal,
-  HallStair,
-  HallEscalator,
-  HallLevel,
-  HallModel,
-  HallAnchor,
-  PlanPoint3D,
-  HallPlanUtils
 };
