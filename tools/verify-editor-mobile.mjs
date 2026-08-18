@@ -43,9 +43,13 @@ try {
   check(`Viewport nutzt nahezu volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
   check(`Viewport nutzt nahezu volle Höhe (${viewport?.height}px)`, viewport && viewport.height >= 835);
 
-  await page.click('.rail-btn[data-target="panel-source"]');
+  const sourceButton = page.locator('.rail-btn[data-target="panel-source"]');
+  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
+  await sourceButton.click({ timeout: 60000 });
   check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
-  await page.click('.rail-btn[data-target="panel-source"]');
+
+  await sourceButton.waitFor({ state: 'visible', timeout: 60000 });
+  await sourceButton.click({ timeout: 60000 });
   check('Zweiter Tap auf Quelle schließt Inspector vollständig', await page.evaluate(() => !document.body.classList.contains('inspector-open')));
 
   // Neuer Hauptpfad: Demo direkt im World Studio, ohne versteckten Legacy-Inspector.
@@ -68,7 +72,9 @@ try {
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 
   // Korrekturfläche bleibt weiterhin ein echtes Werkzeug.
-  await page.click('.rail-btn[data-target="panel-paint"]');
+  const paintButton = page.locator('.rail-btn[data-target="panel-paint"]');
+  await paintButton.waitFor({ state: 'visible', timeout: 60000 });
+  await paintButton.click({ timeout: 60000 });
   await page.waitForTimeout(120);
   const correctionBefore = await page.evaluate(() => {
     const canvas = document.getElementById('paint-canvas'), ctx = canvas.getContext('2d'), x = Math.floor(canvas.width * .45), y = Math.floor(canvas.height * .45);
