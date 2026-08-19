@@ -1,4 +1,4 @@
-import {seededRandom} from './spatial-reconstruction.mjs';
+import {seededRandom} from '../spatial-reconstruction.js';
 
 const clamp01 = value => Math.max(0, Math.min(1, value));
 const worldToCell = (value, size) => Math.max(1, Math.min(size - 2, Math.floor((value + 1) * 0.5 * size)));

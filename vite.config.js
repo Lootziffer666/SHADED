@@ -51,7 +51,6 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     legacy({
       targets: ['defaults', 'not IE 11'],
-      additionalLegacyPolyfills: ['webgl2-polyfill'],
       renderLegacyChunks: true,
       polyfills: ['es.promise', 'es.array.iterator', 'web.dom-collections.iterator']
     })

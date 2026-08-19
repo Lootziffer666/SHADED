@@ -1,7 +1,7 @@
 // Reverse-viewfinder camera calibration utilities for SHADED's PHOTO-FIRST system
 // Provides functionality for placing photos in 3D space and matching their perspective
 
-import { PhotoCamera, PhotoFirstUtils } from './photo-first-reconstruction.mjs';
+import { PhotoCamera, PhotoFirstUtils } from './photo-first-reconstruction.js';
 
 const EPS = 1e-9;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));

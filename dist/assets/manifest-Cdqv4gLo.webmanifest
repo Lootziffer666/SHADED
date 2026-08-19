@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "SHADED – Ein Bild. Erstellen. Lebendig.",
+  "short_name": "SHADED",
+  "description": "Ein installierbarer 2.5D-Welt- und Shader-Editor für einzelne Bilder.",
+  "lang": "de",
+  "start_url": "./editor/index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0b12",
+  "theme_color": "#0b0b12",
+  "icons": [
+    {
+      "src": "icons/shaded.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

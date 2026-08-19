@@ -11,7 +11,7 @@
 // UNKNOWN remains UNKNOWN: setting a voxel is explicit. The universe is never
 // auto-filled.
 
-import { VOXEL_STATE, VOXEL_PROVENANCE } from '../sparse-voxel-world.mjs';
+import { VOXEL_STATE, VOXEL_PROVENANCE } from '@runtime/sparse-voxel-world.js';
 
 // Trust order for choosing a representative provenance when fusing evidence.
 // Most trusted first.

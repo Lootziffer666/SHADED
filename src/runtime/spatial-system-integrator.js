@@ -1,10 +1,10 @@
 // Integration layer between SHADED's PHOTO-FIRST system and existing spatial system
 // Bridges the photo-first reconstruction pipeline with the existing spatial-viewer
 
-import { PhotoFirstWorld } from './photo-first-reconstruction.mjs';
-import { SurfacePatch } from './photo-first-reconstruction.mjs';
-import { DepthToMeshProcessor } from './depth-to-local-mesh.mjs';
-import { MonocularDepthProvider } from './monocular-depth-provider.mjs';
+import { PhotoFirstWorld } from '../photo-first-reconstruction.js';
+import { SurfacePatch } from '../photo-first-reconstruction.js';
+import { DepthToMeshProcessor } from '../depth-to-local-mesh.js';
+import { MonocularDepthProvider } from '@recon/depth-provider.js';
 
 /**
  * Integrates photo-first reconstruction with existing spatial system

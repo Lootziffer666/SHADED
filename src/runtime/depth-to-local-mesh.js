@@ -1,8 +1,8 @@
 // Depth-to-local-mesh pipeline for SHADED's PHOTO-FIRST system
 // Generates textured surface mesh patches from depth maps with proper discontinuity handling
 
-import { PhotoCamera, Photo, SurfacePatch, PhotoFirstUtils } from '../photo-first-reconstruction.js';
-import { ReverseViewfinderCalibrator } from '../reverse-viewfinder-calibrator.js';
+import { PhotoCamera, Photo, SurfacePatch, PhotoFirstUtils } from './photo-first-reconstruction.js';
+import { ReverseViewfinderCalibrator } from './reverse-viewfinder-calibrator.js';
 
 const EPS = 1e-9;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));

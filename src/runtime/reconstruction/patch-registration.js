@@ -1,8 +1,8 @@
 // Patch registration utilities for SHADED's PHOTO-FIRST system
 // Implements ICP, feature matching, and overlap detection for aligning surface patches
 
-import { PhotoFirstUtils, SurfacePatch } from './photo-first-reconstruction.mjs';
-import { DepthToMeshProcessor } from './depth-to-local-mesh.mjs';
+import { PhotoFirstUtils, SurfacePatch } from '../photo-first-reconstruction.js';
+import { DepthToMeshProcessor } from '../depth-to-local-mesh.js';
 
 const EPS = 1e-9;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));

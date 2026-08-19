@@ -1,10 +1,10 @@
 // World data model persistence and editor integration for SHADED's PHOTO-FIRST system
 // Provides save/load functionality and integration with the editor facade
 
-import { PhotoFirstWorld } from './photo-first-reconstruction.mjs';
-import { PhotoCamera } from './photo-first-reconstruction.mjs';
-import { Photo } from './photo-first-reconstruction.mjs';
-import { SurfacePatch } from './photo-first-reconstruction.mjs';
+import { PhotoFirstWorld } from '../photo-first-reconstruction.js';
+import { PhotoCamera } from '../photo-first-reconstruction.js';
+import { Photo } from '../photo-first-reconstruction.js';
+import { SurfacePatch } from '../photo-first-reconstruction.js';
 
 /**
  * Handles persistence of PhotoFirstWorld data to/from JSON
@@ -458,7 +458,7 @@ export class PhotoFirstEditorIntegration {
     
     // Import ReverseViewfinderMode dynamically to avoid circular dependencies
     try {
-      const { ReverseViewfinderMode } = await import('./reverse-viewfinder-mode.mjs');
+      const { ReverseViewfinderMode } = await import('./reverse-viewfinder-mode.js');
       
       // Create and activate the mode
       this.currentMode = new ReverseViewfinderMode(this.facade);
@@ -482,7 +482,7 @@ export class PhotoFirstEditorIntegration {
     // Initialize spatial integrator if needed
     if (!this.spatialIntegrator) {
       try {
-        const { SpatialSystemIntegrator } = await import('./spatial-system-integrator.mjs');
+        const { SpatialSystemIntegrator } = await import('./spatial-system-integrator.js');
         this.spatialIntegrator = new SpatialSystemIntegrator();
         await this.spatialIntegrator.initialize();
       } catch (error) {

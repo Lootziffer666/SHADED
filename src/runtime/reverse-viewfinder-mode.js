@@ -1,10 +1,10 @@
 // ReverseViewfinderMode editor implementation for SHADED's PHOTO-FIRST system
 // Provides UI for placing photos in 3D space and matching their perspective
 
-import { ReverseViewfinderCalibrator } from '../runtime/reverse-viewfinder-calibrator.mjs';
-import { PhotoFirstWorld } from '../runtime/photo-first-reconstruction.mjs';
-import { DepthToMeshProcessor } from '../runtime/depth-to-local-mesh.mjs';
-import { PatchRegistrar } from '../runtime/patch-registration.mjs';
+import { ReverseViewfinderCalibrator } from './reverse-viewfinder-calibrator.js';
+import { PhotoFirstWorld } from './photo-first-reconstruction.js';
+import { DepthToMeshProcessor } from './depth-to-local-mesh.js';
+import { PatchRegistrar } from './patch-registration.js';
 
 export class ReverseViewfinderMode {
   constructor(editorFacade) {

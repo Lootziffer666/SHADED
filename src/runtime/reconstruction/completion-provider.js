@@ -9,7 +9,7 @@
 //
 // Pure, dependency-free.
 
-import { GeometryObservation, SOURCE_TYPE, OBS_PROVENANCE } from './observation.js';
+import { GeometryObservation, SOURCE_TYPE, OBS_PROVENANCE } from '@kernel/observation.js';
 
 export class CompletionProvider {
   constructor(name) { this.name = name; }
