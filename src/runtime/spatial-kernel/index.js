@@ -1,0 +1,20 @@
+// SHADED Spatial Kernel — public barrel.
+export { SpatialKernel } from './kernel.js';
+export { GeometryObservation, OBSERVATION_SPEC_VERSION, SOURCE_TYPE, OBS_PROVENANCE } from './observation.js';
+export { ObservationStore } from './observation-store.js';
+export { SpatialMemory, _poseMath } from './spatial-memory.js';
+export { RecipeManager } from './recipe-manager.js';
+export { PhotoFirstRecipe } from './recipes/photo-first-recipe.js';
+export { ProceduralLittleWorld } from './recipes/procedural-little-world.js';
+export { SparseField, VOXEL_STATE, VOXEL_PROVENANCE } from './sparse-field.js';
+export { SceneGraph, NODE_FAMILY } from './scene-graph.js';
+export { SdfScene, prim, xform, op } from './sdf-geometry.js';
+export { ConstraintGraph } from './constraint-graph.js';
+export { QualityBudget, QUALITY, BUDGET_PRESETS } from './quality-budget.js';
+export { RepresentationManager } from './representation-manager.js';
+export { CompletionProvider, CompletionProviderRegistry, makeHypothesis } from './completion-provider.js';
+export { aStarGrid, inflateObstacles, hasLineOfSight, lineOfSightShortcut, invalidatePaths } from './navigation.js';
+export { WorldFields } from './world-fields.js';
+export { WorldLawSolver, registerReferenceLaws, evaporationLaw, freezeThawLaw, rainToMudLaw, fireFuelLaw } from './world-law-solver.js';
+export { optimizeMesh, weldVertices, removeDegenerate, quantizePositions, simplifyGreedy, indexMesh } from './mesh-pipeline.js';
+export { geometryNeighbourhood, estimatePointNormalsRobust, connectedComponents3D, fitGeometricPrimitivesExtended } from './reconstruction.js';
