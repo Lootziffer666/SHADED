@@ -123,7 +123,7 @@ function fail(code, payload) {
     try {
       const data = fs.readFileSync(filePath);
       const type = filePath.endsWith('.html') ? 'text/html'
-        : filePath.endsWith('.js') ? 'text/javascript'
+        : filePath.endsWith('.js') || filePath.endsWith('.mjs') ? 'text/javascript'
         : filePath.endsWith('.css') ? 'text/css'
         : filePath.endsWith('.json') ? 'application/json'
         : 'image/png';

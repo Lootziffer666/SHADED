@@ -74,6 +74,46 @@ export class SceneEditorFacade {
     return this.win.SHADED.getMaterialTypeAt(u, v);
   }
 
+  /** Access the SpatialKernel from the engine iframe (if initialized). */
+  getKernel() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.kernel) return null;
+    return this.win.SHADED.kernel;
+  }
+
+  /** Access the Kernel classes (SpatialKernel, GeometryObservation, etc.) from the engine iframe. */
+  getKernelClasses() {
+    if (!this.isEngineLoaded() || !this.win.SHADED.Kernel) return null;
+    return this.win.SHADED.Kernel;
+  }
+
+  /** Ingest a geometry observation into the engine's kernel. */
+  ingestObservation(observation) {
+    const kernel = this.getKernel();
+    if (!kernel) return { ok: false, error: 'Kernel not available in engine' };
+    return kernel.ingest(observation);
+  }
+
+  /** Run a recipe on the engine's kernel. */
+  async runRecipe(name, input, opts = {}) {
+    const kernel = this.getKernel();
+    if (!kernel) return { ok: false, error: 'Kernel not available in engine' };
+    return kernel.runRecipe(name, input, opts);
+  }
+
+  /** Get a subsystem from the engine's kernel. */
+  getSubsystem(name) {
+    const kernel = this.getKernel();
+    if (!kernel) return null;
+    return kernel.getSubsystem(name);
+  }
+
+  /** Get a snapshot of the engine's kernel state. */
+  getKernelSnapshot() {
+    const kernel = this.getKernel();
+    if (!kernel) return null;
+    return kernel.snapshot();
+  }
+
   /** Resolves once the embedded engine has finished `erstellen()` (window.SHADED.isReady() === true). */
   waitUntilReady(timeoutMs = 20000) {
     return new Promise((resolve, reject) => {

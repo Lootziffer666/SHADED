@@ -4474,6 +4474,14 @@ window.SHADED = {
   },
 };
 </script>
+<script type="module">
+import { SpatialKernel, ObservationStore, GeometryObservation, SOURCE_TYPE, OBS_PROVENANCE } from './runtime/spatial-kernel/index.js';
+
+const kernel = new SpatialKernel({ worldId: 'shaded-main' });
+window.SHADED.kernel = kernel;
+window.SHADED.Kernel = { SpatialKernel, ObservationStore, GeometryObservation, SOURCE_TYPE, OBS_PROVENANCE };
+console.log('[SHADED] SpatialKernel initialized', kernel.snapshot());
+</script>
 <script type="module" src="runtime/install.js"></script>
 <script type="module" src="runtime/spatial-viewer.js"></script>
 </body>
