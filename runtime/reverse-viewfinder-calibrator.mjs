@@ -226,8 +226,8 @@ export class ReverseViewfinderCalibrator {
       return { success: false, error: Infinity }; // Need at least 3 points
     }
     
-    # Simple approach: optimize position to minimize reprojection error
-    # This is a simplified version - real implementation would be more complex
+    // Simple approach: optimize position to minimize reprojection error
+    // This is a simplified version - real implementation would be more complex
     let totalError = 0;
     let validPoints = 0;
     
@@ -235,7 +235,7 @@ export class ReverseViewfinderCalibrator {
       const [u, v] = ref.imagePoint;
       const [wx, wy, wz] = ref.worldPoint;
       
-      # Project world point to image using current camera
+      // Project world point to image using current camera
       const projected = this.camera.worldToImage([wx, wy, wz]);
       
       if (projected) {
@@ -248,8 +248,8 @@ export class ReverseViewfinderCalibrator {
     
     const meanError = validPoints > 0 ? totalError / validPoints : Infinity;
     
-    # If error is low enough, consider it solved
-    if (meanError < 0.05) { # Less than 5% of image dimension error
+    // If error is low enough, consider it solved
+    if (meanError < 0.05) { // Less than 5% of image dimension error
       this.calibrationMethod_ = 'reference';
       this.calibrationConfidence_ = Math.max(0, 1 - meanError * 10); // Higher confidence for lower error
       return { success: true, error: meanError };
@@ -305,26 +305,26 @@ export class ReverseViewfinderCalibrator {
   setFromEXIF(exifData) {
     if (this.isLocked) return false;
     
-    # Extract focal length and calculate FOV
-    # This is highly simplified - real EXIF parsing is complex
+    // Extract focal length and calculate FOV
+    // This is highly simplified - real EXIF parsing is complex
     const focalLength = exifData?.FocalLength || exifData?.FocalLengthIn35mmFilm;
     if (focalLength) {
-      # Assume 35mm film width (36mm) for conversion
-      const sensorWidth = 36; # mm
+      // Assume 35mm film width (36mm) for conversion
+      const sensorWidth = 36; // mm
       const focalLength35mm = typeof focalLength === 'number' ? focalLength : 
                              (Array.isArray(focalLength) ? focalLength[0] : 35);
       
-      # Calculate FOV: 2 * arctan(sensorWidth / (2 * focalLength))
+      // Calculate FOV: 2 * arctan(sensorWidth / (2 * focalLength))
       const fovX = 2 * Math.atan(sensorWidth / (2 * focalLength35mm)) * 180 / Math.PI;
       
-      # Assume typical aspect ratio to get vertical FOV
+      // Assume typical aspect ratio to get vertical FOV
       const aspect = this.imageWidth / this.imageHeight;
       const fovY = fovX / aspect;
       
       this.setFOV(fovY);
       this.camera.provenance = 'EXIF';
       this.calibrationMethod = 'exif';
-      this.calibrationConfidence = 0.6; # EXIF is moderately reliable
+      this.calibrationConfidence = 0.6; // EXIF is moderately reliable
       return true;
     }
     
@@ -339,47 +339,47 @@ export class ReverseViewfinderCalibrator {
   setFromProvider(providerData) {
     if (this.isLocked) return false;
     
-    # Try to extract camera parameters from provider data
-    # This depends on the specific provider format
+    // Try to extract camera parameters from provider data
+    // This depends on the specific provider format
     
     if (providerData?.camera) {
       const cam = providerData.camera;
       
-      # Set intrinsics if available
+      // Set intrinsics if available
       if (cam.fx && cam.fy && cam.width && cam.height) {
-        # Calculate FOV from focal length
-        # fov = 2 * arctan(0.5 * sensor_size / focal_length)
-        # Assuming sensor size matches image size for simplicity
+        // Calculate FOV from focal length
+        // fov = 2 * arctan(0.5 * sensor_size / focal_length)
+        // Assuming sensor size matches image size for simplicity
         const fovX = 2 * Math.atan(0.5 * cam.width / cam.fx) * 180 / Math.PI;
         const fovY = 2 * Math.atan(0.5 * cam.height / cam.fy) * 180 / Math.PI;
         
-        # Use vertical FOV
+        // Use vertical FOV
         this.setFOV(fovY);
         
-        # Set principal point
+        // Set principal point
         this.setPrincipalPoint([
           clamp(cam.cx / cam.width, 0, 1),
           clamp(cam.cy / cam.height, 0, 1)
         ]);
       }
       
-      # Set extrinsics if available (position and rotation)
+      // Set extrinsics if available (position and rotation)
       if (cam.extrinsics && Array.isArray(cam.extrinsics) && cam.extrinsics.length >= 16) {
-        # Extract translation and rotation from 4x4 matrix
-        # This is simplified - real implementation would decompose the matrix properly
+        // Extract translation and rotation from 4x4 matrix
+        // This is simplified - real implementation would decompose the matrix properly
         const [m00, m01, m02, m03, m04, m05, m06, m07, m08, m09, m10, m11, m12, m13, m14, m15] = cam.extrinsics;
         
-        # Translation components (last column)
+        // Translation components (last column)
         this.setPosition([m12, m13, m14]);
         
-        # For rotation, we'd need to extract from the upper 3x3 matrix
-        # Simplified approach: assume no rotation for now
+        // For rotation, we'd need to extract from the upper 3x3 matrix
+        // Simplified approach: assume no rotation for now
         this.setRotation([0, 0, 0]);
       }
       
       this.camera.provenance = 'PROVIDER';
       this.calibrationMethod = 'provider';
-      this.calibrationConfidence = 0.8; # Provider data is usually reliable
+      this.calibrationConfidence = 0.8; // Provider data is usually reliable
       return true;
     }
     
@@ -407,7 +407,6 @@ getCalibrationStatus() {
         confidence: this.camera.confidence
       }
     };
-  }
   }
 
   /**
@@ -441,7 +440,7 @@ getCalibrationStatus() {
     const denom = planeNormal[0] * rayDir[0] + planeNormal[1] * rayDir[1] + planeNormal[2] * rayDir[2];
     
     if (Math.abs(denom) < EPS) {
-      return null; # Ray is parallel to plane
+      return null; // Ray is parallel to plane
     }
     
     const diff = [
@@ -453,7 +452,7 @@ getCalibrationStatus() {
     const t = (planeNormal[0] * diff[0] + planeNormal[1] * diff[1] + planeNormal[2] * diff[2]) / denom;
     
     if (t < 0) {
-      return null; # Intersection is behind ray origin
+      return null; // Intersection is behind ray origin
     }
     
     return [
@@ -476,28 +475,28 @@ export const ReverseViewfinderHelper = {
    * @returns {{position: [number, number, number], rotation: [number, number, number], fovY: number}} - Suggested camera parameters
    */
   suggestInitialCamera(imageWidth, imageHeight, sceneType = 'indoor') {
-    # Simple heuristic based on image aspect ratio and scene type
+    // Simple heuristic based on image aspect ratio and scene type
     const aspect = imageWidth / imageHeight;
     
-    # Default settings
-    let fovY = 60; # degrees
-    let height = 1.7; # eye level height
-    let distanceFromWall = 2.0; # meters from wall
+    // Default settings
+    let fovY = 60; // degrees
+    let height = 1.7; // eye level height
+    let distanceFromWall = 2.0; // meters from wall
     
-    # Adjust based on scene type
+    // Adjust based on scene type
     if (sceneType === 'architectural') {
-      fovY = 75; # Wider FOV for architecture
+      fovY = 75; // Wider FOV for architecture
       distanceFromWall = 1.5;
     } else if (sceneType === 'outdoor') {
-      fovY = 50; # Narrower FOV for outdoor scenes
+      fovY = 50; // Narrower FOV for outdoor scenes
       height = 1.6;
       distanceFromWall = 5.0;
     }
     
-    # Calculate position assuming we're looking at a wall straight ahead
-    # Camera at (0, height, -distanceFromWall) looking at origin
+    // Calculate position assuming we're looking at a wall straight ahead
+    // Camera at (0, height, -distanceFromWall) looking at origin
     const position = [0, height, -distanceFromWall];
-    const rotation = [0, 0, 0]; # Looking straight ahead (no rotation)
+    const rotation = [0, 0, 0]; // Looking straight ahead (no rotation)
     
     return { position, rotation, fovY };
   },
@@ -549,20 +548,20 @@ export const ReverseViewfinderHelper = {
    * @returns {[number, number]} - Undistorted coordinates (approximate)
    */
   removeLensDistortion(uv, lens) {
-    # This is an approximation - true removal requires solving a polynomial
-    # For small distortions, this iterative approach works well
+    // This is an approximation - true removal requires solving a polynomial
+    // For small distortions, this iterative approach works well
     let [u, v] = uv;
     let u2 = u * u;
     let v2 = v * v;
     let r2 = u2 + v2;
     
-    # Iterative distortion removal (usually converges in 2-3 iterations)
+    // Iterative distortion removal (usually converges in 2-3 iterations)
     for (let i = 0; i < 5; i++) {
       const distortion = 1 + lens.k1 * r2 + lens.k2 * (r2 * r2);
       const udist = u / distortion;
       const vdist = v / distortion;
       
-      # Check for convergence
+      // Check for convergence
       if (Math.abs(udist - u) < EPS && Math.abs(vdist - v) < EPS) {
         break;
       }
@@ -601,5 +600,3 @@ export const ReverseViewfinderHelper = {
     return [Math.round(u * width), Math.round(v * height)];
   }
 };
-
-export { ReverseViewfinderCalibrator, ReverseViewfinderHelper };

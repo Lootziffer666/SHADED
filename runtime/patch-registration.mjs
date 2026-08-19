@@ -15,14 +15,14 @@ export class PatchRegistrar {
     this.patches = new Map(); // Map of patchId -> SurfacePatch
     this.world = null; // Reference to PhotoFirstWorld
     
-    # Registration parameters
+    // Registration parameters
     this.maxIterations = 30;
     this.tolerance = 0.001;
-    this.featureMatchDistanceThreshold = 0.1; # In world units
-    this.overlapDistanceThreshold = 0.05; # For overlap detection
-    this.minOverlapRatio = 0.1; # Minimum overlap to consider patches connected
+    this.featureMatchDistanceThreshold = 0.1; // In world units
+    this.overlapDistanceThreshold = 0.05; // For overlap detection
+    this.minOverlapRatio = 0.1; // Minimum overlap to consider patches connected
     
-    # Statistics
+    // Statistics
     this.registrationStats = {
       icpIterations: 0,
       featureMatches: 0,
@@ -72,19 +72,19 @@ export class PatchRegistrar {
       return { success: false, error: 'World not set' };
     }
     
-    # Get all other patches as potential targets
+    // Get all other patches as potential targets
     const targetPatches = Array.from(this.patches.values())
       .filter(p => p.id !== patchId);
     
     if (targetPatches.length === 0) {
-      # No other patches to register to - register to world origin
+      // No other patches to register to - register to world origin
       return this.registerToWorldOrigin(patch);
     }
     
     let bestResult = null;
     let bestMethod = null;
     
-    # Try different registration methods
+    // Try different registration methods
     if (targetMethod === 'icp' || targetMethod === 'hybrid') {
       const icpResult = this.registerUsingICP(patch, targetPatches);
       if (icpResult.success) {
@@ -102,7 +102,7 @@ export class PatchRegistrar {
       }
     }
     
-    # If no specific method worked, try to register to world origin as fallback
+    // If no specific method worked, try to register to world origin as fallback
     if (!bestResult) {
       const originResult = this.registerToWorldOrigin(patch);
       if (originResult.success) {
@@ -111,7 +111,7 @@ export class PatchRegistrar {
       }
     }
     
-    # Apply the best transformation if found
+    // Apply the best transformation if found
     if (bestResult && bestResult.success) {
       this.applyRegistration(patch, bestResult.transformation, bestMethod);
       this.registrationStats.registrationSuccess++;
@@ -135,11 +135,11 @@ export class PatchRegistrar {
   registerUsingICP(patch, targetPatches) {
     this.registrationStats.icpIterations++;
     
-    # Combine all target patch vertices into a single point cloud
+    // Combine all target patch vertices into a single point cloud
     const targetPoints = [];
     for (const target of targetPatches) {
       for (const vertex of target.vertices) {
-        # Extract position [x, y, z] from vertex [x, y, z, u, v]
+        // Extract position [x, y, z] from vertex [x, y, z, u, v]
         targetPoints.push([vertex[0], vertex[1], vertex[2]]);
       }
     }
@@ -148,7 +148,7 @@ export class PatchRegistrar {
       return { success: false, error: 'Not enough target points for ICP' };
     }
     
-    # Source points from the patch to be registered
+    // Source points from the patch to be registered
     const sourcePoints = [];
     for (const vertex of patch.vertices) {
       sourcePoints.push([vertex[0], vertex[1], vertex[2]]);
@@ -158,44 +158,44 @@ export class PatchRegistrar {
       return { success: false, error: 'Not enough source points for ICP' };
     }
     
-    # Initialize transformation as identity
+    // Initialize transformation as identity
     let transformation = PhotoFirstUtils.createIdentityMatrix();
     let lastError = Infinity;
     
-    # ICP iterations
+    // ICP iterations
     for (let iteration = 0; iteration < this.maxIterations; iteration++) {
-      # Transform source points by current transformation
+      // Transform source points by current transformation
       const transformedPoints = sourcePoints.map(pt => 
         PhotoFirstUtils.transformPoint(pt, transformation)
       );
       
-      # Find closest points in target
+      // Find closest points in target
       const closestPairs = this.findClosestPoints(transformedPoints, targetPoints);
       
       if (closestPairs.length < 3) {
-        break; # Not enough correspondences
+        break; // Not enough correspondences
       }
       
-      # Compute transformation between corresponding points
+      // Compute transformation between corresponding points
       const deltaTransform = this.computeRigidTransform(
         closestPairs.map(p => p.source),
         closestPairs.map(p => p.target)
       );
       
-      # Apply the delta transformation
+      // Apply the delta transformation
       transformation = PhotoFirstUtils.multiplyMatrices(
         deltaTransform,
         transformation
       );
       
-      # Calculate mean squared error
+      // Calculate mean squared error
       const mse = this.calculateMSE(
         closestPairs.map(p => p.source),
         closestPairs.map(p => p.target),
         transformation
       );
       
-      # Check for convergence
+      // Check for convergence
       if (Math.abs(lastError - mse) < this.tolerance) {
         break;
       }
@@ -203,10 +203,10 @@ export class PatchRegistrar {
       lastError = mse;
     }
     
-    # Calculate final fidelity based on inlier ratio and error
+    // Calculate final fidelity based on inlier ratio and error
     const finalError = lastError;
     const inlierRatio = closestPairs.length / Math.max(sourcePoints.length, targetPoints.length);
-    const fidelity = Math.max(0, 1 - finalError * 10) * inlierRatio; # Scale error to [0,1] range
+    const fidelity = Math.max(0, 1 - finalError * 10) * inlierRatio; // Scale error to [0,1] range
     
     return {
       success: true,
@@ -228,33 +228,33 @@ export class PatchRegistrar {
   registerUsingFeatureMatching(patch, targetPatches) {
     this.registrationStats.featureMatches++;
     
-    # Extract features from source patch
+    // Extract features from source patch
     const sourceFeatures = this.extractPatchFeatures(patch);
     
     let bestMatch = null;
     let bestFidelity = 0;
     let bestTransformation = null;
     
-    # Compare against each target patch
+    // Compare against each target patch
     for (const target of targetPatches) {
-      # Extract features from target patch
+      // Extract features from target patch
       const targetFeatures = this.extractPatchFeatures(target);
       
-      # Find feature matches
+      // Find feature matches
       const matches = this.matchFeatures(sourceFeatures, targetFeatures);
       
       if (matches.length >= 3) {
-        # Estimate transformation from matches
+        // Estimate transformation from matches
         const transformation = this.estimateTransformFromMatches(
           matches.map(m => m.source),
           matches.map(m => m.target)
         );
         
         if (transformation) {
-          # Calculate fidelity based on number of matches and consistency
+          // Calculate fidelity based on number of matches and consistency
           matchCount = matches.length;
           consistency = this.calculateMatchConsistency(matches);
-          fidelity = Math.min(matchCount / 20, 1.0) * consistency; # Normalize by expected matches
+          fidelity = Math.min(matchCount / 20, 1.0) * consistency; // Normalize by expected matches
           
           if (fidelity > bestFidelity) {
             bestFidelity = fidelity;
@@ -295,7 +295,7 @@ export class PatchRegistrar {
       return { success: false, error: 'One or both patches not found' };
     }
     
-    # Get vertices as point clouds
+    // Get vertices as point clouds
     const points1 = patch1.vertices.map(v => [v[0], v[1], v[2]]);
     const points2 = patch2.vertices.map(v => [v[0], v[1], v[2]]);
     
@@ -303,7 +303,7 @@ export class PatchRegistrar {
       return { success: false, error: 'One or both patches have no vertices' };
     }
     
-    # Find points in patch1 that are close to patch2
+    // Find points in patch1 that are close to patch2
     const closePoints1 = [];
     const closePoints2 = [];
     
@@ -313,19 +313,19 @@ export class PatchRegistrar {
         if (distance < this.overlapDistanceThreshold) {
           closePoints1.push(p1);
           closePoints2.push(p2);
-          break; # Each point only counts once
+          break; // Each point only counts once
         }
       }
     }
     
-    # Calculate overlap ratio
+    // Calculate overlap ratio
     const overlapRatio1 = closePoints1.length / points1.length;
     const overlapRatio2 = closePoints2.length / points2.length;
     const overlapRatio = Math.min(overlapRatio1, overlapRatio2);
     
     const hasOverlap = overlapRatio >= this.minOverlapRatio;
     
-    # If there's significant overlap, compute the transformation
+    // If there's significant overlap, compute the transformation
     let transformation = null;
     if (hasOverlap && closePoints1.length >= 3) {
       transformation = this.computeRigidTransform(closePoints1, closePoints2);
@@ -349,15 +349,15 @@ export class PatchRegistrar {
    * @returns {Object} - Registration result
    */
   registerToWorldOrigin(patch) {
-    # For the first patch, we might want to position it at the origin
-    # or keep its current position. Let's keep current position but
-    # mark it as registered.
+    // For the first patch, we might want to position it at the origin
+    // or keep its current position. Let's keep current position but
+    // mark it as registered.
     
     return {
       success: true,
       transformation: PhotoFirstUtils.createIdentityMatrix(),
       method: 'origin',
-      fidelity: 1.0, # High fidelity since we're not changing anything
+      fidelity: 1.0, // High fidelity since we're not changing anything
       error: 0
     };
   }
@@ -369,24 +369,24 @@ export class PatchRegistrar {
    * @param {string} method - Registration method used
    */
   applyRegistration(patch, transformation, method) {
-    # Apply transformation to all vertices
+    // Apply transformation to all vertices
     for (let i = 0; i < patch.vertices.length; i++) {
       const vertex = patch.vertices[i];
       const position = [vertex[0], vertex[1], vertex[2]];
       const transformedPos = PhotoFirstUtils.transformPoint(position, transformation);
       
-      # Update position but keep UV coordinates
+      // Update position but keep UV coordinates
       patch.vertices[i] = [
         transformedPos[0],
         transformedPos[1],
         transformedPos[2],
-        vertex[3], # u
-        vertex[4]  # v
+        vertex[3], // u
+        vertex[4]  // v
       ];
     }
     
-    # Update the patch's world transform
-    # New world transform = registration transform * old world transform
+    // Update the patch's world transform
+    // New world transform = registration transform * old world transform
     const oldTransform = patch.worldTransform;
     const newTransform = PhotoFirstUtils.multiplyMatrices(
       transformation,
@@ -394,10 +394,10 @@ export class PatchRegistrar {
     );
     patch.worldTransform = newTransform;
     
-    # Update registration metadata
+    // Update registration metadata
     patch.registration.method = method;
     patch.registration.transform = [...transformation];
-    patch.registration.fidelity = 0.8; # Would be calculated in actual registration
+    patch.registration.fidelity = 0.8; // Would be calculated in actual registration
   }
 
   /**
@@ -447,11 +447,11 @@ export class PatchRegistrar {
       return null;
     }
     
-    # Calculate centroids
+    // Calculate centroids
     const sourceCentroid = this.calculateCentroid(sourcePoints);
     const targetCentroid = this.calculateCentroid(targetPoints);
     
-    # Center the points
+    // Center the points
     const centeredSource = sourcePoints.map(p => 
       [p[0] - sourceCentroid[0], p[1] - sourceCentroid[1], p[2] - sourceCentroid[2]]
     );
@@ -459,7 +459,7 @@ export class PatchRegistrar {
       [p[0] - targetCentroid[0], p[1] - targetCentroid[1], p[2] - targetCentroid[2]]
     );
     
-    # Compute covariance matrix
+    // Compute covariance matrix
     const covariance = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
     for (let i = 0; i < centeredSource.length; i++) {
       const xs = centeredSource[i];
@@ -472,16 +472,16 @@ export class PatchRegistrar {
       }
     }
     
-    # Compute SVD of covariance matrix (simplified)
-    # In a full implementation, we'd use a proper SVD algorithm
-    # For now, we'll use a simplified approach that works for many cases
+    // Compute SVD of covariance matrix (simplified)
+    // In a full implementation, we'd use a proper SVD algorithm
+    // For now, we'll use a simplified approach that works for many cases
     
-    # Calculate rotation matrix using Kabsch algorithm (simplified)
+    // Calculate rotation matrix using Kabsch algorithm (simplified)
     let rotation = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
     
-    # Special case: if we have exactly 3 points, we can compute exact solution
+    // Special case: if we have exactly 3 points, we can compute exact solution
     if (centeredSource.length === 3) {
-      # Compute vectors
+      // Compute vectors
       const v1 = [centeredSource[1][0] - centeredSource[0][0],
                   centeredSource[1][1] - centeredSource[0][1],
                   centeredSource[1][2] - centeredSource[0][2]];
@@ -496,7 +496,7 @@ export class PatchRegistrar {
                   centeredTarget[2][1] - centeredTarget[0][1],
                   centeredTarget[2][2] - centeredTarget[0][2]];
       
-      # Compute cross products
+      // Compute cross products
       const v1xv2 = [
         v1[1] * v2[2] - v1[2] * v2[1],
         v1[2] * v2[0] - v1[0] * v2[2],
@@ -509,16 +509,16 @@ export class PatchRegistrar {
         w1[0] * w2[1] - w1[1] * w2[0]
       ];
       
-      # If cross products are not zero, we can compute rotation
+      // If cross products are not zero, we can compute rotation
       const vLen = Math.hypot(...v1xv2);
       const wLen = Math.hypot(...w1xw2);
       
       if (vLen > EPS && wLen > EPS) {
-        # Normalize cross products
+        // Normalize cross products
         const vNorm = [v1xv2[0]/vLen, v1xv2[1]/vLen, v1xv2[2]/vLen];
         const wNorm = [w1xw2[0]/wLen, w1xw2[1]/wLen, w1xw2[2]/wLen];
         
-        # Calculate rotation axis and angle
+        // Calculate rotation axis and angle
         const dot = vNorm[0]*wNorm[0] + vNorm[1]*wNorm[1] + vNorm[2]*wNorm[2];
         const cross = [
           vNorm[1]*wNorm[2] - vNorm[2]*wNorm[1],
@@ -536,7 +536,7 @@ export class PatchRegistrar {
       }
     }
     
-    # Build homogeneous transformation matrix
+    // Build homogeneous transformation matrix
     const R = rotation;
     const T = [
       targetCentroid[0] - (R[0][0] * sourceCentroid[0] + R[0][1] * sourceCentroid[1] + R[0][2] * sourceCentroid[2]),
@@ -578,20 +578,20 @@ export class PatchRegistrar {
   extractPatchFeatures(patch) {
     const features = [];
     
-    # Sample vertices for feature extraction
-    # In a full implementation, we'd use more sophisticated feature detectors
-    # like SIFT, SURF, or ORB adapted to 3D mesh vertices
+    // Sample vertices for feature extraction
+    // In a full implementation, we'd use more sophisticated feature detectors
+    // like SIFT, SURF, or ORB adapted to 3D mesh vertices
     
-    const step = Math.max(1, Math.floor(patch.vertices.length / 20)); # Sample up to 20 points
+    const step = Math.max(1, Math.floor(patch.vertices.length / 20)); // Sample up to 20 points
     
     for (let i = 0; i < patch.vertices.length; i += step) {
       const vertex = patch.vertices[i];
       const position = [vertex[0], vertex[1], vertex[2]];
       
-      # Estimate normal from neighboring vertices (simplified)
+      // Estimate normal from neighboring vertices (simplified)
       const normal = this.estimateVertexNormal(patch, i);
       
-      # Estimate local scale (simplified as average distance to neighbors)
+      // Estimate local scale (simplified as average distance to neighbors)
       const scale = this.estimateLocalScale(patch, i);
       
       features.push({
@@ -612,10 +612,10 @@ export class PatchRegistrar {
    */
   estimateVertexNormal(patch, vertexIndex) {
     if (patch.indices.length === 0) {
-      return [0, 0, 1]; # Default upward normal
+      return [0, 0, 1]; // Default upward normal
     }
     
-    # Find all triangles that use this vertex
+    // Find all triangles that use this vertex
     const vertexNormal = [0, 0, 0];
     let triangleCount = 0;
     
@@ -627,12 +627,12 @@ export class PatchRegistrar {
       const i3 = patch.indices[i + 2];
       
       if (i1 === vertexIndex || i2 === vertexIndex || i3 === vertexIndex) {
-        # Get the triangle vertices
+        // Get the triangle vertices
         const v1 = patch.vertices[i1];
         const v2 = patch.vertices[i2];
         const v3 = patch.vertices[i3];
         
-        # Calculate triangle normal
+        // Calculate triangle normal
         const p1 = [v1[0], v1[1], v1[2]];
         const p2 = [v2[0], v2[1], v2[2]];
         const p3 = [v3[0], v3[1], v3[2]];
@@ -646,7 +646,7 @@ export class PatchRegistrar {
           u[0] * v[1] - u[1] * v[0]
         ];
         
-        # Normalize and add to sum
+        // Normalize and add to sum
         const len = Math.hypot(...normal);
         if (len > EPS) {
           vertexNormal[0] += normal[0] / len;
@@ -657,20 +657,20 @@ export class PatchRegistrar {
       }
     }
     
-    # Average the normal
+    // Average the normal
     if (triangleCount > 0) {
       vertexNormal[0] /= triangleCount;
       vertexNormal[1] /= triangleCount;
       vertexNormal[2] /= triangleCount;
       
-      # Normalize again
+      // Normalize again
       const len = Math.hypot(...vertexNormal);
       if (len > EPS) {
         return [vertexNormal[0]/len, vertexNormal[1]/len, vertexNormal[2]/len];
       }
     }
     
-    return [0, 0, 1]; # Default if no neighbors found
+    return [0, 0, 1]; // Default if no neighbors found
   }
 
   /**
@@ -693,7 +693,7 @@ export class PatchRegistrar {
     let sumDist = 0;
     let count = 0;
     
-    # Find distances to neighboring vertices (those sharing a triangle)
+    // Find distances to neighboring vertices (those sharing a triangle)
     const neighborIndices = new Set();
     
     for (let i = 0; i < patch.indices.length; i += 3) {
@@ -724,7 +724,7 @@ export class PatchRegistrar {
       count++;
     }
     
-    # If no neighbors found, use distance to a few random vertices
+    // If no neighbors found, use distance to a few random vertices
     if (count === 0 && patch.vertices.length > 1) {
       for (let i = 0; i < Math.min(5, patch.vertices.length); i++) {
         if (i === vertexIndex) continue;
@@ -761,30 +761,30 @@ export class PatchRegistrar {
         
         const targetFeature = targetFeatures[i];
         
-        # Calculate similarity score
+        // Calculate similarity score
         const posDist = PhotoFirstUtils.distance(
           sourceFeature.position,
           targetFeature.position
         );
         
-        # Normal similarity (dot product)
+        // Normal similarity (dot product)
         const normDot = 
           sourceFeature.normal[0] * targetFeature.normal[0] +
           sourceFeature.normal[1] * targetFeature.normal[1] +
           sourceFeature.normal[2] * targetFeature.normal[2];
         
-        # Scale similarity
+        // Scale similarity
         const scaleRatio = Math.min(
           sourceFeature.scale, targetFeature.scale
         ) / Math.max(
           sourceFeature.scale, targetFeature.scale, EPS
         );
         
-        # Combined score (lower is better for distance, higher is better for norm and scale)
+        // Combined score (lower is better for distance, higher is better for norm and scale)
         const score = 
-          -(posDist * 0.5) +           # Position term (negative because we want to minimize)
-          (normDot * 0.3) +            # Normal term
-          (scaleRatio * 0.2);          # Scale term
+          -(posDist * 0.5) +           // Position term (negative because we want to minimize)
+          (normDot * 0.3) +            // Normal term
+          (scaleRatio * 0.2);          // Scale term
         
         if (score > bestScore) {
           bestScore = score;
@@ -792,7 +792,7 @@ export class PatchRegistrar {
         }
       }
       
-      if (bestTargetIndex !== -1 && bestScore > 0.1) { # Minimum similarity threshold
+      if (bestTargetIndex !== -1 && bestScore > 0.1) { // Minimum similarity threshold
         matches.push({
           source: sourceFeatures[sourceFeatures.indexOf(sourceFeature)].position,
           target: targetFeatures[bestTargetIndex].position,
@@ -826,14 +826,14 @@ export class PatchRegistrar {
    */
   calculateMatchConsistency(matches) {
     if (matches.length < 2) {
-      return matches.length === 1 ? 0.5 : 0; # Single match gets medium consistency
+      return matches.length === 1 ? 0.5 : 0; // Single match gets medium consistency
     }
     
-    # For simplicity, we'll just return a fixed value based on count
-    # In a full implementation, we'd compute the actual transformation
-    # for each subset and measure how consistent they are
+    // For simplicity, we'll just return a fixed value based on count
+    // In a full implementation, we'd compute the actual transformation
+    // for each subset and measure how consistent they are
     
-    return Math.min(matches.length / 10, 1.0); # More matches = higher consistency
+    return Math.min(matches.length / 10, 1.0); // More matches = higher consistency
   }
 
   /**
@@ -933,7 +933,7 @@ export const RegistrationUtils = {
     const bounds1 = patch1.getBounds();
     const bounds2 = patch2.getBounds();
     
-    # Check for overlap in each dimension
+    // Check for overlap in each dimension
     const overlapX = 
       Math.max(0, 
         Math.min(bounds1.max[0], bounds2.max[0]) - 
@@ -952,10 +952,10 @@ export const RegistrationUtils = {
         Math.max(bounds1.min[2], bounds2.min[2])
       );
     
-    # Calculate overlap volume
+    // Calculate overlap volume
     const overlapVolume = overlapX * overlapY * overlapZ;
     
-    # Calculate individual volumes
+    // Calculate individual volumes
     const size1 = [
       bounds1.max[0] - bounds1.min[0],
       bounds1.max[1] - bounds1.min[1],
@@ -970,16 +970,16 @@ export const RegistrationUtils = {
     const volume1 = size1[0] * size1[1] * size1[2];
     const volume2 = size2[0] * size2[1] * size2[2];
     
-    # Avoid division by zero
+    // Avoid division by zero
     if (volume1 === 0 || volume2 === 0) {
       return false;
     }
     
-    # Check if overlap ratio is significant for either patch
+    // Check if overlap ratio is significant for either patch
     const overlapRatio1 = overlapVolume / volume1;
     const overlapRatio2 = overlapVolume / volume2;
     
-    return Math.max(overlapRatio1, overlapRatio2) > 0.1; # At least 10% overlap
+    return Math.max(overlapRatio1, overlapRatio2) > 0.1; // At least 10% overlap
   },
 
   /**
@@ -994,15 +994,13 @@ export const RegistrationUtils = {
       return null;
     }
     
-    # For now, return the first patch as a placeholder
-    # In a full implementation, we'd:
-    # 1. Find overlapping vertices
-    # 2. Average their positions
-    # 3. Merge triangle lists
-    # 4. Remove duplicate vertices
+    // For now, return the first patch as a placeholder
+    // In a full implementation, we'd:
+    // 1. Find overlapping vertices
+    // 2. Average their positions
+    // 3. Merge triangle lists
+    // 4. Remove duplicate vertices
     
     return patch1.clone();
   }
 };
-
-export { PatchRegistrar, RegistrationUtils };
