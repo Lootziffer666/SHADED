@@ -61,7 +61,7 @@ class MonocularDepthProvider {
   }
 
   _getModelUrl(name, quant) {
-    const base = 'https://huggingface.co/mudler/depth-anything.cpp-gguf/resolve/main/';
+    const base = '/models/depth-anything/';
     const map = {
       'DA3-SMALL': `depth-anything-small-${quant}.gguf`,
       'DA3-BASE': `depth-anything-base-${quant}.gguf`,
