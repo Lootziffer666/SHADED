@@ -994,13 +994,110 @@ export const RegistrationUtils = {
       return null;
     }
     
-    // For now, return the first patch as a placeholder
-    // In a full implementation, we'd:
-    // 1. Find overlapping vertices
-    // 2. Average their positions
-    // 3. Merge triangle lists
-    // 4. Remove duplicate vertices
+    // Build spatial index for patch1 vertices
+    const vertMap1 = new Map();
+    for (let i = 0; i < patch1.vertices.length; i += 3) {
+      const x = patch1.vertices[i];
+      const y = patch1.vertices[i + 1];
+      const z = patch1.vertices[i + 2];
+      const key = `${Math.round(x / overlapThreshold)},${Math.round(y / overlapThreshold)},${Math.round(z / overlapThreshold)}`;
+      if (!vertMap1.has(key)) vertMap1.set(key, []);
+      vertMap1.get(key).push(i / 3);
+    }
     
-    return patch1.clone();
+    // Find overlapping vertices
+    const overlapping = [];
+    const used1 = new Set();
+    const used2 = new Set();
+    
+    for (let i = 0; i < patch2.vertices.length; i += 3) {
+      const x = patch2.vertices[i];
+      const y = patch2.vertices[i + 1];
+      const z = patch2.vertices[i + 2];
+      const key = `${Math.round(x / overlapThreshold)},${Math.round(y / overlapThreshold)},${Math.round(z / overlapThreshold)}`;
+      
+      if (vertMap1.has(key)) {
+        const idx1 = vertMap1.get(key)[0];
+        overlapping.push({ idx1, idx2: i / 3, x, y, z });
+        used1.add(idx1);
+        used2.add(i / 3);
+      }
+    }
+    
+    if (overlapping.length < 3) {
+      return patch1.clone(); // Not enough overlap to merge meaningfully
+    }
+    
+    // Create merged patch
+    const merged = new SurfacePatch(
+      `merged_${patch1.id}_${patch2.id}`,
+      patch1.camera ? patch1.camera.clone() : null
+    );
+    
+    // Add all vertices from patch1
+    const vertexMap = new Map(); // old index -> new index
+    for (let i = 0; i < patch1.vertices.length; i += 3) {
+      const idx = i / 3;
+      if (used1.has(idx)) {
+        // Find corresponding vertex in patch2 and average
+        const overlap = overlapping.find(o => o.idx1 === idx);
+        if (overlap) {
+          const x = (patch1.vertices[i] + patch2.vertices[overlap.idx2 * 3]) * 0.5;
+          const y = (patch1.vertices[i + 1] + patch2.vertices[overlap.idx2 * 3 + 1]) * 0.5;
+          const z = (patch1.vertices[i + 2] + patch2.vertices[overlap.idx2 * 3 + 2]) * 0.5;
+          merged.addVertex(x, y, z);
+        } else {
+          merged.addVertex(patch1.vertices[i], patch1.vertices[i + 1], patch1.vertices[i + 2]);
+        }
+      } else {
+        merged.addVertex(patch1.vertices[i], patch1.vertices[i + 1], patch1.vertices[i + 2]);
+      }
+      vertexMap.set(idx, merged.vertices.length / 3 - 1);
+    }
+    
+    // Add non-overlapping vertices from patch2
+    for (let i = 0; i < patch2.vertices.length; i += 3) {
+      const idx = i / 3;
+      if (!used2.has(idx)) {
+        merged.addVertex(patch2.vertices[i], patch2.vertices[i + 1], patch2.vertices[i + 2]);
+        vertexMap.set(patch1.vertices.length / 3 + idx, merged.vertices.length / 3 - 1);
+      }
+    }
+    
+    // Merge triangles from patch1
+    for (let i = 0; i < patch1.indices.length; i += 3) {
+      const a = vertexMap.get(patch1.indices[i]);
+      const b = vertexMap.get(patch1.indices[i + 1]);
+      const c = vertexMap.get(patch1.indices[i + 2]);
+      if (a !== undefined && b !== undefined && c !== undefined) {
+        merged.addTriangle(a, b, c);
+      }
+    }
+    
+    // Merge triangles from patch2
+    for (let i = 0; i < patch2.indices.length; i += 3) {
+      const idxA = patch1.vertices.length / 3 + patch2.indices[i];
+      const idxB = patch1.vertices.length / 3 + patch2.indices[i + 1];
+      const idxC = patch1.vertices.length / 3 + patch2.indices[i + 2];
+      const a = vertexMap.get(idxA);
+      const b = vertexMap.get(idxB);
+      const c = vertexMap.get(idxC);
+      if (a !== undefined && b !== undefined && c !== undefined) {
+        merged.addTriangle(a, b, c);
+      }
+    }
+    
+    // Merge UVs and colors if present
+    if (patch1.uvs && patch2.uvs) {
+      merged.uvs = [...patch1.uvs, ...patch2.uvs];
+    }
+    if (patch1.colors && patch2.colors) {
+      merged.colors = [...patch1.colors, ...patch2.colors];
+    }
+    
+    // Update bounding box
+    merged.computeBoundingBox();
+    
+    return merged;
   }
 };

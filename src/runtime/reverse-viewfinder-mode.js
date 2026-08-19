@@ -5,6 +5,7 @@ import { ReverseViewfinderCalibrator } from './reverse-viewfinder-calibrator.js'
 import { PhotoFirstWorld } from './photo-first-reconstruction.js';
 import { DepthToMeshProcessor } from './depth-to-local-mesh.js';
 import { PatchRegistrar } from './patch-registration.js';
+import { MonocularDepthProvider } from './reconstruction/depth-provider.js';
 
 export class ReverseViewfinderMode {
   constructor(editorFacade) {
@@ -23,6 +24,7 @@ export class ReverseViewfinderMode {
     this.world = new PhotoFirstWorld();
     this.depthProcessor = new DepthToMeshProcessor();
     this.registrar = new PatchRegistrar();
+    this.depthProvider = new MonocularDepthProvider();
     
     // UI elements
     this.uiElements = null;
@@ -49,11 +51,21 @@ export class ReverseViewfinderMode {
    * Activates the reverse viewfinder mode
    * @param {File|Blob|null} photoFile - Optional photo file to load
    */
-  activate(photoFile = null) {
+  async activate(photoFile = null) {
     if (this.isActive) return;
     
     this.isActive = true;
     this.mode = 'PLACE';
+    
+    // Initialize depth provider if not already loaded
+    if (!this.depthProvider.isLoaded) {
+      this.showStatus('Loading depth model...', 'info');
+      try {
+        await this.depthProvider.loadModel('DA3-BASE', 'q4_k');
+      } catch (e) {
+        this.showStatus('Depth model load failed, using fallback', 'warn');
+      }
+    }
     
     // Create UI
     this.createUI();
@@ -764,28 +776,36 @@ export class ReverseViewfinderMode {
     // Wait a bit to simulate processing
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Create mock depth data
-    // In reality, this would come from Depth Anything provider
-    const depthMap = new Float32Array(this.photoWidth * this.photoHeight);
-    const confidenceMap = new Float32Array(this.photoWidth * this.photoHeight);
+    // Use real depth provider if available, otherwise generate gradient
+    let depthMap, confidenceMap;
     
-    // Generate simple depth gradient (far at top, near at bottom)
-    for (let y = 0; y < this.photoHeight; y++) {
-      for (let x = 0; x < this.photoWidth; x++) {
-        const index = y * this.photoWidth + x;
-        // Depth increases from top to bottom (0.5 to 3.0 meters)
-        const depth = 0.5 + (y / this.photoHeight) * 2.5;
-        depthMap[index] = depth;
-        
-        // Confidence is high everywhere except edges
-        const edgeDistance = Math.min(
-          x, 
-          y, 
-          this.photoWidth - 1 - x,
-          this.photoHeight - 1 - y
-        );
-        const confidence = Math.min(1.0, edgeDistance / 20.0); // Fall off near edges
-        confidenceMap[index] = confidence;
+    if (this.depthProvider && this.depthProvider.isLoaded) {
+      this.showStatus('Running real depth estimation...', 'info');
+      const result = await this.depthProvider.estimateDepth(this.photoImage, {
+        maxDimension: 1024,
+        returnPose: false,
+        returnSky: false
+      });
+      depthMap = result.depth;
+      confidenceMap = result.confidence;
+    } else {
+      // Fallback: simple gradient depth (for demo/offline)
+      this.showStatus('Using gradient depth fallback...', 'warn');
+      depthMap = new Float32Array(this.photoWidth * this.photoHeight);
+      confidenceMap = new Float32Array(this.photoWidth * this.photoHeight);
+      
+      for (let y = 0; y < this.photoHeight; y++) {
+        for (let x = 0; x < this.photoWidth; x++) {
+          const index = y * this.photoWidth + x;
+          const depth = 0.5 + (y / this.photoHeight) * 2.5;
+          depthMap[index] = depth;
+          
+          const edgeDistance = Math.min(
+            x, y, this.photoWidth - 1 - x, this.photoHeight - 1 - y
+          );
+          const confidence = Math.min(1.0, edgeDistance / 20.0);
+          confidenceMap[index] = confidence;
+        }
       }
     }
     

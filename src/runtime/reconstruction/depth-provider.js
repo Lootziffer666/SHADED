@@ -84,8 +84,8 @@ class MonocularDepthProvider {
   }
 
   async _initWasm() {
-    const wasmUrl = 'https://cdn.jsdelivr.net/npm/@localai/depth-anything.cpp@latest/dist/depth-anything.wasm';
-    const jsUrl = 'https://cdn.jsdelivr.net/npm/@localai/depth-anything.cpp@latest/dist/depth-anything.js';
+    const wasmUrl = '/wasm/depth-anything.wasm';
+    const jsUrl = '/wasm/depth-anything.js';
 
     await new Promise((resolve, reject) => {
       const script = document.createElement('script');
