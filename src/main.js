@@ -156,24 +156,109 @@ export const SHADED = {
 if (typeof window !== 'undefined') {
   window.SHADED = SHADED;
 
-  document.addEventListener('DOMContentLoaded', async () => {
+  const boot = async () => {
     const canvas = document.getElementById('gl');
     const overlay = document.getElementById('ov');
+    const statusEl = () => document.getElementById('status');
+    const setStatus = (t) => { const el = statusEl(); if (el) el.textContent = t; };
+
     if (canvas) {
       try {
         await initSHADED(canvas);
         console.log('[SHADED] Initialized successfully');
       } catch (err) {
         console.error('[SHADED] Initialization failed:', err);
-        document.body.innerHTML = `
-          <div style="padding:28px;font:14px/1.6 system-ui;color:#e6e6f0;background:#14141c;height:100vh">
-            <b>SHADED Initialization Failed</b><br>
-            ${err.message}
-          </div>
-        `;
+        setStatus('Initialisierung fehlgeschlagen: ' + err.message);
+        return;
       }
     }
-  });
+
+    const engine = getEngine();
+
+    // --- File inputs ---
+    const wireFile = (sel, isMaterial, okText) => {
+      const input = document.querySelector(sel);
+      if (!input) return;
+      input.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file || !engine) return;
+        try {
+          if (isMaterial) {
+            await engine.loadImageFile(file, true);
+            setStatus(okText || 'Material-Map geladen');
+          } else {
+            await engine.loadImageFile(file, false);
+            setStatus(okText || 'Szene geladen');
+          }
+        } catch (err) {
+          console.error('[SHADED] load failed:', err);
+          setStatus('Laden fehlgeschlagen: ' + err.message);
+        }
+      });
+    };
+    wireFile('#f-scene', false, 'Szene geladen');
+    wireFile('#f-mat', true, 'Material-Map geladen');
+
+    const depthInput = document.querySelector('#f-depth');
+    if (depthInput) {
+      depthInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file || !engine) return;
+        const img = new Image();
+        img.onload = () => { engine.setDepthImage(img); setStatus('Tiefenkarte geladen'); };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // --- Create button ---
+    const createBtn = document.getElementById('btn-create');
+    if (createBtn) {
+      createBtn.addEventListener('click', () => {
+        if (!engine) return;
+        const ok = engine.erstellen();
+        setStatus(ok ? 'Szene bereit' : 'Zuerst ein Bild laden');
+      });
+    }
+
+    // --- Demo button (no bundled asset in modular build) ---
+    const demoBtn = document.getElementById('btn-demo');
+    if (demoBtn) demoBtn.addEventListener('click', () => engine && engine.loadDemo());
+
+    // --- Keyboard: player movement (WASD / arrows), space = sprint ---
+    // Held keys drive continuous movement via a tick (Playwright does not
+    // auto-repeat keydown), so the player actually traverses a path.
+    const KEY_MAP = {
+      KeyW: [0, -0.01], ArrowUp: [0, -0.01],
+      KeyS: [0, 0.01], ArrowDown: [0, 0.01],
+      KeyA: [-0.01, 0], ArrowLeft: [-0.01, 0],
+      KeyD: [0.01, 0], ArrowRight: [0.01, 0]
+    };
+    const held = new Set();
+    let sprint = false;
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { sprint = true; return; }
+      if (KEY_MAP[e.code]) { held.add(e.code); e.preventDefault(); }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') sprint = false;
+      held.delete(e.code);
+    });
+    const moveTick = setInterval(() => {
+      if (!engine || held.size === 0) return;
+      const s = sprint ? 2.2 : 1;
+      for (const code of held) {
+        const m = KEY_MAP[code];
+        if (m) engine.movePlayer(m[0] * s, m[1] * s);
+      }
+    }, 16);
+    window.addEventListener('beforeunload', () => clearInterval(moveTick));
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 }
 
 export default SHADED;

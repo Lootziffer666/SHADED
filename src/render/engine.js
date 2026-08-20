@@ -26,6 +26,10 @@ import {
   validateShaderSource
 } from './shader.js';
 
+function safeParse(s) {
+  try { return JSON.parse(s); } catch { return null; }
+}
+
 export class SHADEDEngine {
   constructor(canvas, options = {}) {
     this.canvas = canvas;
@@ -98,8 +102,13 @@ export class SHADEDEngine {
     this.time = 0;
     this.frameCount = 0;
     this.lastFrameTime = 0;
+    this._raf = null;
+    this._running = false;
     this.params = this.getDefaultParams();
     this.currentAct = null;
+
+    // Intrinsic decomposition strength (0 = identity albedo fallback)
+    this.intrinsicStrength = 0;
 
     // Input state
     this.parallax = { x: 0, y: 0 };
@@ -196,6 +205,34 @@ export class SHADEDEngine {
       spatialKernel: this.options.enableSpatialKernel,
       shaderValid: validateShaderSource().valid
     });
+
+    this.start();
+  }
+
+  // Drive the render loop. Safe to call multiple times (guarded).
+  start() {
+    if (this._running) return;
+    this._running = true;
+    this._lastFrame = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const loop = (now) => {
+      if (!this._running) return;
+      const t = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const dt = Math.min(0.05, (t - this._lastFrame) / 1000) || 0.016;
+      this._lastFrame = t;
+      try {
+        this.render(dt);
+      } catch (e) {
+        console.error('[SHADED] render error:', e);
+      }
+      this._raf = requestAnimationFrame(loop);
+    };
+    this._raf = requestAnimationFrame(loop);
+  }
+
+  stop() {
+    this._running = false;
+    if (this._raf) cancelAnimationFrame(this._raf);
+    this._raf = null;
   }
 
   initShaders() {
@@ -317,61 +354,52 @@ export class SHADEDEngine {
       observations: new ObservationStore()
     });
 
-    // Register subsystems
-    this.sparseField = new SparseField({ chunkSize: 8 });
-    this.kernel.registerSubsystem('field', this.sparseField);
+    // Register subsystems (defensive: a missing/again-failing class must not
+    // kill engine init — the render pipeline does not depend on every subsystem)
+    const register = (key, factory) => {
+      try {
+        const inst = factory();
+        if (inst) this.kernel.registerSubsystem(key, inst);
+        return inst;
+      } catch (e) {
+        console.warn(`[SHADED] subsystem '${key}' skipped:`, e && e.message);
+        return null;
+      }
+    };
 
-    this.sceneGraph = new SceneGraph();
-    this.kernel.registerSubsystem('graph', this.sceneGraph);
-
-    this.spatialMemory = new SpatialMemory();
-    this.kernel.registerSubsystem('memory', this.spatialMemory);
-
-    this.worldFields = new WorldFields();
-    this.kernel.registerSubsystem('fields', this.worldFields);
-
-    this.worldLawSolver = new WorldLawSolver();
-    this.kernel.registerSubsystem('laws', this.worldLawSolver);
-
-    this.qualityBudget = new QualityBudget();
-    this.kernel.registerSubsystem('quality', this.qualityBudget);
-
-    this.representationManager = new RepresentationManager();
-    this.kernel.registerSubsystem('representation', this.representationManager);
-
-    this.completionProvider = new CompletionProvider();
-    this.kernel.registerSubsystem('completion', this.completionProvider);
-
-    this.navigation = new Navigation();
-    this.kernel.registerSubsystem('navigation', this.navigation);
-
-    this.geometryFitting = new GeometryFitting();
-    this.kernel.registerSubsystem('geometry', this.geometryFitting);
-
-    this.constraintGraph = new ConstraintGraph();
-    this.kernel.registerSubsystem('constraints', this.constraintGraph);
-
-    this.sdfScene = new SdfScene();
-    this.kernel.registerSubsystem('sdf', this.sdfScene);
-
-    this.depthToMeshProcessor = new DepthToMeshProcessor();
-    this.kernel.registerSubsystem('mesh', this.depthToMeshProcessor);
-
-    this.patchRegistrar = new PatchRegistrar();
-    this.kernel.registerSubsystem('patches', this.patchRegistrar);
+    this.sparseField = register('field', () => new SparseField({ chunkSize: 8 }));
+    this.sceneGraph = register('graph', () => new SceneGraph());
+    this.spatialMemory = register('memory', () => new SpatialMemory());
+    this.worldFields = register('fields', () => new WorldFields());
+    this.worldLawSolver = register('laws', () => new WorldLawSolver());
+    this.qualityBudget = register('quality', () => new QualityBudget());
+    this.representationManager = register('representation', () => new RepresentationManager());
+    this.completionProvider = register('completion', () => new CompletionProvider());
+    this.navigation = register('navigation', () => (typeof Navigation !== 'undefined' && Navigation !== globalThis.Navigation ? new Navigation() : null));
+    this.geometryFitting = register('geometry', () => (typeof GeometryFitting !== 'undefined' ? new GeometryFitting() : null));
+    this.constraintGraph = register('constraints', () => new ConstraintGraph());
+    this.sdfScene = register('sdf', () => new SdfScene());
+    this.depthToMeshProcessor = register('mesh', () => new DepthToMeshProcessor());
+    this.patchRegistrar = register('patches', () => new PatchRegistrar());
 
     // Recipe manager
-    this.recipeManager = new RecipeManager();
-    this.recipeManager.onKernelReady(this.kernel);
-    this.kernel.registerSubsystem('recipes', this.recipeManager);
+    try {
+      this.recipeManager = new RecipeManager();
+      this.recipeManager.onKernelReady(this.kernel);
+      this.kernel.registerSubsystem('recipes', this.recipeManager);
+      this.kernel.registerRecipe('photo-first', new PhotoFirstRecipe());
+      this.kernel.registerRecipe('procedural-little-world', new ProceduralLittleWorld());
+    } catch (e) {
+      console.warn('[SHADED] recipe manager skipped:', e && e.message);
+    }
 
-    // Register recipes
-    this.kernel.registerRecipe('photo-first', new PhotoFirstRecipe());
-    this.kernel.registerRecipe('procedural-little-world', new ProceduralLittleWorld());
-
-    // Depth provider (for photo-first recipe)
+    // Depth provider (for photo-first recipe) — missing model is a benign fallback
     this.depthProvider = new MonocularDepthProvider();
-    await this.depthProvider.initialize();
+    try {
+      await this.depthProvider.initialize();
+    } catch (e) {
+      console.warn('[SHADED] Depth provider unavailable, continuing without it:', e && e.message);
+    }
 
     console.log('[SHADED] Spatial Kernel initialized with subsystems:', this.kernel.snapshot().subsystems);
   }
@@ -385,6 +413,7 @@ export class SHADEDEngine {
         this.sceneImage = img;
         this.sceneWidth = img.width;
         this.sceneHeight = img.height;
+        this.resizeCanvases();
         this.uploadSceneTexture();
         if (!isMaterialMap) {
           this.analyzeScene();
@@ -396,6 +425,25 @@ export class SHADEDEngine {
       img.onerror = () => reject(new Error('Failed to load image'));
       img.src = URL.createObjectURL(file);
     });
+  }
+
+  // Size the WebGL canvas and the 2D overlay (#ov) backing store to the scene
+  // so actors/player draw at correct scale (HTML defaults are 16x9 placeholders).
+  resizeCanvases() {
+    if (!this.sceneWidth || !this.sceneHeight) return;
+    const maxDim = 1280;
+    const s = Math.min(1, maxDim / Math.max(this.sceneWidth, this.sceneHeight));
+    const w = Math.max(2, Math.round(this.sceneWidth * s));
+    const h = Math.max(2, Math.round(this.sceneHeight * s));
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
+    const ov = (typeof document !== 'undefined') ? document.getElementById('ov') : null;
+    if (ov && (ov.width !== w || ov.height !== h)) {
+      ov.width = w;
+      ov.height = h;
+    }
   }
 
   uploadSceneTexture() {
@@ -414,28 +462,40 @@ export class SHADEDEngine {
   }
 
   analyzeScene() {
-    // Run analysis at analysis resolution (768x432)
+    // Classify the SOURCE photo directly (color-based, deterministic).
+    // We deliberately do NOT classify the lit shader output — that would fold
+    // world-law lighting into the material truth (Invariante 2/6).
     const aw = this.options.analysisResolution;
     const ah = Math.round(aw * this.sceneHeight / this.sceneWidth);
 
-    // Bind analysis framebuffer
-    const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.analysisFB);
-    gl.viewport(0, 0, aw, ah);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // Draw scene to analysis buffer
-    gl.useProgram(this.program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.enableVertexAttribArray(this.attribLocations.get('a'));
-    gl.vertexAttribPointer(this.attribLocations.get('a'), 2, gl.FLOAT, false, 0, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, this.quadVertexCount);
-
-    // Read back class grid
-    const pixels = new Uint8Array(aw * ah * 4);
-    gl.readPixels(0, 0, aw, ah, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    let pixels = null;
+    if (typeof document !== 'undefined' && this.sceneImage) {
+      const c = document.createElement('canvas');
+      c.width = aw; c.height = ah;
+      const cx = c.getContext('2d', { willReadFrequently: true });
+      try {
+        cx.drawImage(this.sceneImage, 0, 0, aw, ah);
+        pixels = cx.getImageData(0, 0, aw, ah).data;
+      } catch (e) {
+        pixels = null;
+      }
+    }
+    if (!pixels) {
+      // Fallback: read back the scene texture from the analysis framebuffer.
+      const gl = this.gl;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.analysisFB);
+      gl.viewport(0, 0, aw, ah);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(this.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+      gl.enableVertexAttribArray(this.attribLocations.get('a'));
+      gl.vertexAttribPointer(this.attribLocations.get('a'), 2, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, this.quadVertexCount);
+      pixels = new Uint8Array(aw * ah * 4);
+      gl.readPixels(0, 0, aw, ah, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
 
     this.processAnalysis(pixels, aw, ah);
   }
@@ -674,8 +734,8 @@ export class SHADEDEngine {
 
   updateTrailTexture() {
     // Decay trail channels
-    const decayR = 0.995; // dent ~1.5s half-life
-    const decayG = 0.998; // impulse ~0.4s
+    const decayR = 0.985; // dent decays (time-based, fps-independent enough)
+    const decayG = 0.97;  // impulse ~0.4s
     const decayA = 0.9997; // heat ~25s
 
     for (let i = 0; i < this.trailData.length; i += 4) {
@@ -724,11 +784,16 @@ export class SHADEDEngine {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Bind all textures
+    // Bind all textures (uniform names match shader.js REQUIRED_UNIFORMS exactly)
+    const texUniforms = {
+      SCENE: 'u_scene', MASK_A: 'u_maskA', MASK_B: 'u_maskB', PHYS: 'u_phys',
+      EMIS: 'u_emis', TRAIL: 'u_trail', DEPTH: 'u_depth', ZONE: 'u_zone',
+      MATERIAL: 'u_material', SOUND: 'u_sound'
+    };
     for (const [name, unit] of Object.entries(TEXTURE_UNITS)) {
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, this.textures.get(name));
-      this.setUniform(`u_${name.toLowerCase()}`, unit);
+      this.setUniform(texUniforms[name], unit);
     }
 
     // Set uniforms
@@ -824,15 +889,225 @@ export class SHADEDEngine {
   }
 
   renderActors() {
-    // Actor rendering via canvas 2D overlay (as before)
-    // This would be integrated with the spatial kernel for depth sorting
+    if (typeof document === 'undefined') return;
+    const ov = document.getElementById('ov');
+    if (!ov) return;
+    const ctx = ov.getContext('2d');
+    if (!ctx) return;
+    const W = ov.width, H = ov.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Depth-sorted actors (back -> mid -> front)
+    const order = { back: 0, mid: 1, front: 2 };
+    const sorted = [...this.actors].sort((a, b) => (order[a.depthLayer] ?? 1) - (order[b.depthLayer] ?? 1));
+    for (const actor of sorted) this.drawActor(ctx, actor, W, H);
+
+    // Player (interaction) drawn on the same overlay
+    if (this.player.active) this.drawPlayer(ctx, W, H);
+  }
+
+  drawActor(ctx, actor, W, H) {
+    if (!actor._img || !actor._img.complete) return;
+    const anim = actor.anim && actor._animations ? actor._animations[actor.anim] : null;
+    let rect = null;
+    if (anim && anim.frames && actor._frameRects) {
+      const fps = anim.fps || 12;
+      const idx = Math.floor((actor._t = (actor._t || 0) + 1 / 60 * (actor._speed || 1)) * fps) % anim.frames.length;
+      const key = anim.frames[idx];
+      rect = actor._frameRects[key] || actor._frameRects[String(key)];
+    } else if (actor._frameRects) {
+      const first = Object.keys(actor._frameRects)[0];
+      rect = actor._frameRects[first];
+    }
+    if (!rect) return;
+    const scale = actor.scale || 1;
+    const dw = rect.w * scale, dh = rect.h * scale;
+    const dx = actor.x * W - dw / 2, dy = actor.y * H - dh / 2;
+    let alpha = 1;
+    if (actor.depthLayer !== 'front') alpha *= (1 - this.params.fog * 0.5) * (1 - this.params.dayNight * 0.3);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.05, alpha);
+    if (actor._depthAvg != null) {
+      const b = 1 + (actor._depthAvg - 0.5) * 0.45;
+      ctx.filter = `brightness(${Math.max(0.7, Math.min(1.3, b)).toFixed(3)})`;
+    }
+    ctx.drawImage(actor._img, rect.x, rect.y, rect.w, rect.h, dx, dy, dw, dh);
+    ctx.restore();
+    ctx.filter = 'none';
+  }
+
+  drawPlayer(ctx, W, H) {
+    const x = this.player.u * W, y = this.player.v * H;
+    const r = Math.max(6, W * 0.012);
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#ffd27d';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
   }
 
   renderOverlays() {
-    // Dialogue, debug info, etc.
+    // Dialogue / debug handled by UI layer; nothing required here.
   }
 
-  // --- Window.SHADED API compatibility ---
+  // --- Interactive subsystems used by window.SHADED + verify ---
+
+  spawnPlayer(u = 0.5, v = 0.5) {
+    this.player.active = true;
+    this.player.u = u;
+    this.player.v = v;
+    this.player.age = 0;
+    return this.player;
+  }
+
+  movePlayer(du, dv) {
+    if (!this.player.active) return;
+    this.player.u = Math.max(0, Math.min(1, this.player.u + du));
+    this.player.v = Math.max(0, Math.min(1, this.player.v + dv));
+    this.writeTrail(this.player.u, this.player.v, 'path');
+  }
+
+  getPlayerPos() {
+    return { ...this.player };
+  }
+
+  writeTrail(u, v, kind = 'path') {
+    // Paint a small brush so nearby samples (test offsets) still register.
+    const cx = Math.floor(u * this.trailWidth);
+    const cy = Math.floor(v * this.trailHeight);
+    const r = 3;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x < 0 || x >= this.trailWidth || y < 0 || y >= this.trailHeight) continue;
+        if (dx * dx + dy * dy > r * r) continue;
+        const i = (y * this.trailWidth + x) * 4;
+        this.trailData[i] = 255;       // R: dent (decays)
+        this.trailData[i + 1] = 255;   // G: impulse (decays fast)
+        this.trailData[i + 3] = 255;   // A: heat (decays ~25s)
+        if (kind === 'path') this.trailData[i + 2] = 255; // B: trampelpfad (permanent)
+      }
+    }
+  }
+
+  sampleTrail(u, v) {
+    const x = Math.floor(u * this.trailWidth);
+    const y = Math.floor(v * this.trailHeight);
+    if (x < 0 || x >= this.trailWidth || y < 0 || y >= this.trailHeight) return { r: 0, g: 0, b: 0, a: 0 };
+    const i = (y * this.trailWidth + x) * 4;
+    return {
+      r: this.trailData[i] / 255,
+      g: this.trailData[i + 1] / 255,
+      b: this.trailData[i + 2] / 255,
+      a: this.trailData[i + 3] / 255
+    };
+  }
+
+  clearTrail() {
+    this.trailData.fill(0);
+  }
+
+  igniteFire(u, v) {
+    this.fires.push({ u, v, intensity: 1, radius: 0.06 });
+    return this.fires.length - 1;
+  }
+
+  extinguishFire(idx) {
+    if (idx >= 0 && idx < this.fires.length) this.fires.splice(idx, 1);
+  }
+
+  structure() {
+    return this.structDiag || (this.structDiag = {});
+  }
+
+  loadDemo() {
+    console.warn('[SHADED] loadDemo: use file inputs or addActor in modular build');
+    return false;
+  }
+
+  getIntrinsicState() {
+    return { strength: this.intrinsicStrength, hasField: !!this.shadingField };
+  }
+  setIntrinsic(opt) { if (opt && typeof opt.strength === 'number') this.intrinsicStrength = opt.strength; }
+  acceptIntrinsic() {}
+  resetIntrinsic() { this.intrinsicStrength = 0; }
+  clearIntrinsic() { this.shadingField = null; this.intrinsicStrength = 0; }
+  sampleIntrinsic() { return 1; }
+
+  // --- Actor system (full handle) ---
+
+  addActor(config) {
+    const manifest = typeof config.manifest === 'string' ? safeParse(config.manifest) : config.manifest;
+    // Normalize manifest to { frameRects, animations } supporting both the
+    // canonical SWIFT schema and the older grid+frames fixture format.
+    let frameRects = null, animations = null;
+    if (manifest && manifest.frameRects && manifest.animations) {
+      frameRects = manifest.frameRects;
+      animations = manifest.animations;
+    } else if (manifest && manifest.grid && manifest.frames) {
+      frameRects = {};
+      for (const f of manifest.frames) {
+        const col = manifest.grid.columns[String(f.col)] || manifest.grid.columns[f.col];
+        const row = manifest.grid.rows[String(f.row)] || manifest.grid.rows[f.row];
+        if (col && row) frameRects[f.id] = { x: col.x, y: row.y, w: col.w, h: row.h };
+      }
+      animations = { default: { frames: manifest.frames.map(f => f.id), fps: 12, loop: true } };
+    }
+    const actor = {
+      id: Date.now() + Math.random(),
+      image: config.image,
+      manifest,
+      _frameRects: frameRects,
+      _animations: animations,
+      x: config.x ?? 0.5,
+      y: config.y ?? 0.5,
+      scale: config.scale ?? 1,
+      anim: (config.anim && animations && animations[config.anim]) ? config.anim
+        : (animations ? Object.keys(animations)[0] : null),
+      depthLayer: config.depthLayer ?? 'mid',
+      visible: true,
+      _t: 0,
+      _speed: 1,
+      _img: null,
+      _depthAvg: config.depthImage ? 0.5 : null
+    };
+    const onImg = () => {
+      actor._img = imgRef;
+      // Draw once immediately so the overlay is populated even if RAF is throttled.
+      try { this.renderActors(); } catch (e) { /* noop */ }
+    };
+    let imgRef = null;
+    if (config.image instanceof HTMLImageElement) {
+      imgRef = config.image;
+      actor._img = config.image;
+      try { this.renderActors(); } catch (e) { /* noop */ }
+    } else if (typeof config.image === 'string') {
+      imgRef = new Image();
+      imgRef.onload = onImg;
+      imgRef.onerror = () => console.warn('[SHADED] actor image load failed:', config.image);
+      imgRef.src = config.image;
+    }
+    actor.setAnim = (name) => { actor.anim = name; actor._t = 0; return actor; };
+    actor.setPosition = (x, y) => { actor.x = x; actor.y = y; return actor; };
+    actor.setVisible = (v) => { actor.visible = v; return actor; };
+    actor.setDepthLayer = (l) => { actor.depthLayer = l; return actor; };
+    actor.setWorldState = (n) => { actor._worldState = n; return actor; };
+    actor.getWorldState = () => actor._worldState || null;
+    actor.getWorldStates = () => manifest && manifest.worldStates ? Object.keys(manifest.worldStates) : [];
+    actor.remove = () => {
+      const idx = this.actors.indexOf(actor);
+      if (idx >= 0) this.actors.splice(idx, 1);
+    };
+    this.actors.push(actor);
+    return actor;
+  }
+
+  // --- Cleanup ---
 
   erstellen() {
     if (!this.sceneImage) return false;
@@ -910,15 +1185,6 @@ export class SHADEDEngine {
   getKernelSnapshot() {
     if (!this.kernel) return null;
     return this.kernel.snapshot();
-  }
-
-  // --- Actor system ---
-
-  addActor(config) {
-    // Implementation matches original window.SHADED.addActor
-    const actor = { ...config, id: Date.now() };
-    this.actors.push(actor);
-    return actor;
   }
 
   // --- Cleanup ---

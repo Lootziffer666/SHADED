@@ -17,10 +17,21 @@ const LEGACY_IMG = path.join(REPO, 'ResizedImage_2026-06-30_10-29-19_2317[41].pn
 const MAT_IMG = path.join(REPO, '1782824829119.png');
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.gif':'image/gif','.ico':'image/x-icon'};
 
+// Serve the built `dist/` (self-contained ES modules, no Vite aliases) so the
+// verify suite can load the modular engine. Repo root is served for everything
+// else (images, tools/, editor/) so file inputs and asset URLs resolve.
+const DIST = path.join(REPO, 'dist');
 const server = http.createServer((req, res) => {
-  const p = path.join(REPO, decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '') || 'index.html');
+  let urlPath = decodeURIComponent(req.url.split('?')[0]);
+  if (urlPath === '/' || urlPath === '/index.html') urlPath = '/index.html';
+  let p;
+  if (urlPath === '/index.html' || urlPath.startsWith('/assets/')) {
+    p = path.join(DIST, urlPath);
+  } else {
+    p = path.join(REPO, urlPath.replace(/^\//, ''));
+  }
   try {
-    const data = fs.readFileSync(p === REPO + '/' ? path.join(REPO, 'index.html') : p);
+    const data = fs.readFileSync(p);
     res.writeHead(200, { 'Content-Type': MIME[path.extname(p).toLowerCase()] || 'application/octet-stream' });
     res.end(data);
   } catch (e) { res.writeHead(404); res.end(); }
@@ -28,7 +39,7 @@ const server = http.createServer((req, res) => {
 
 (async () => {
   await new Promise(r => server.listen(8931, r));
-  const launchOpts = { args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] };
+  const launchOpts = { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] };
   if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
   else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOpts);
@@ -46,7 +57,10 @@ const server = http.createServer((req, res) => {
   // gezielt abgezogen, alle anderen 404 bleiben echte Fehler.
   const notFound = [];
   page.on('response', r => { if (r.status() === 404) notFound.push(r.url()); });
-  const isOptionalCompanion = u => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+  const isOptionalCompanion = u =>
+    /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u) ||   // depth/shading companion images
+    /\/(models|wasm)\//.test(u) ||                          // depth-provider model/wasm (absent in CI)
+    /\.(gguf|wasm)(\?|$)/i.test(u);
   let classFailures = 0, actorFailures = 0, trailFailures = 0, linkFailures = 0;
 
   // Screenshot via Viewport-Clip (kein "element stability"-Wait, der auf dauerhaft

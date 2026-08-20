@@ -36,6 +36,20 @@ class MonocularDepthProvider {
   setCompleteCallback(cb) { this.onComplete = cb; }
   setErrorCallback(cb) { this.onError = cb; }
 
+  // Graceful init used by the engine. Never throws — a missing WASM/model is a
+  // benign fallback (gradient depth), not a fatal error.
+  async initialize(modelName = this.currentModel, quantization = this.quantization) {
+    try {
+      const ok = await this.loadModel(modelName, quantization);
+      this.isLoaded = ok;
+      return ok;
+    } catch (e) {
+      console.warn('[DepthProvider] initialization skipped (model/WASM unavailable):', e && e.message);
+      this.isLoaded = false;
+      return false;
+    }
+  }
+
   async loadModel(modelName = 'DA3-BASE', quantization = 'q4_k') {
     this.currentModel = modelName;
     this.quantization = quantization;
