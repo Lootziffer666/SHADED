@@ -43,35 +43,7 @@ const server = http.createServer((req, res) => {
     } catch { res.writeHead(404); res.end(); }
     return;
   }
-  // @kernel shim: serve spatial-kernel chunk for bare imports
-  if (pathname.startsWith('/@kernel/')) {
-    const spatialKernelFiles = fs.readdirSync(path.join(REPO, 'dist', 'assets')).filter(f => f.startsWith('spatial-kernel-') && f.endsWith('.js'));
-    if (spatialKernelFiles.length > 0) {
-      const kernelChunk = fs.readFileSync(path.join(REPO, 'dist', 'assets', spatialKernelFiles[0]), 'utf8');
-      // Parse the minified exports and create a proper kernel shim
-      // The chunk exports: r as G (GeometryObservation), t as O (OBS_PROVENANCE), 
-      // s as S (SOURCE_TYPE), o as a (SpatialKernel), i as b (ObservationStore)
-      const shim = `// @kernel shim - re-exports spatial-kernel chunk with proper named exports
-import * as kernel from './${spatialKernelFiles[0]}';
-
-// Re-export with proper names matching source imports
-export const SpatialKernel = kernel.a;
-export const ObservationStore = kernel.b;
-export const GeometryObservation = kernel.G;
-export const SOURCE_TYPE = kernel.S;
-export const OBS_PROVENANCE = kernel.O;
-export const RecipeManager = kernel.R;
-
-// Also export as default for @kernel/index.js compatibility
-export default kernel;
-`;
-      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' });
-      res.end(shim);
-      return;
-    }
-    res.writeHead(404); res.end(); return;
-  }
-  // Runtime modules: serve source files (they may have @kernel imports handled by shim above)
+  // Runtime modules: serve source files (used by service-worker cache checks)
   if (pathname.startsWith('/runtime/')) {
     const file = path.join(REPO, 'src', pathname.replace(/^\/runtime\//, 'runtime/'));
     try {
@@ -102,7 +74,7 @@ try {
   console.error('[MOBILE] Loading editor...');
   await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load', timeout: 60000 });
   console.error('[MOBILE] Waiting for engine iframe...');
-  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 30000 });
+  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, undefined, { timeout: 30000 });
 
   const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
@@ -136,7 +108,7 @@ try {
   // Der echte Demo-Button muss den produktiven Importpfad bedienen.
   console.error('[MOBILE] Loading demo image...');
   await page.click('#world-demo');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 30000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 30000 });
   check('World Studio lädt das Demo-Bild direkt', true);
 
   // Die räumliche Pipeline wird mit einem winzigen echten PNG-Fixture gefahren. Die kanonische
@@ -144,14 +116,14 @@ try {
   // und testet hier nicht mehr Verhalten als ein kleines Bild.
   console.error('[MOBILE] Uploading CI spatial fixture...');
   await page.locator('#world-file').setInputFiles({ name: 'ci-spatial-fixture.png', mimeType: 'image/png', buffer: CI_SCENE_PNG });
-  await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', { timeout: 30000 });
+  await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', undefined, { timeout: 30000 });
   check('Kleines CI-Bild übernimmt denselben 1-Bild-Workflow', true);
 
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
   console.error('[MOBILE] Generating world (software fallback)...');
   await page.click('#world-generate');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 180000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 180000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
   check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
 

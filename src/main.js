@@ -69,8 +69,10 @@ export const SHADED = {
   worldState: () => engine?.getWorldState?.() ?? {},
 
   spatial: {
-    pointCloud: () => engine?.buildPointCloud?.(),
-    downloadPointCloud: () => engine?.downloadPointCloud?.()
+    pointCloud: (opts) => engine?.buildPointCloud?.(opts),
+    downloadPointCloud: () => engine?.downloadPointCloud?.(),
+    voxel: () => engine?.getVoxelState?.(),
+    setDepthImage: (img) => engine?.setDepthImage?.(img),
   },
 
   loadDemo: async () => engine?.loadDemo?.(),

@@ -176,15 +176,15 @@ await page.setInputFiles('#f-scene', BASE_IMG);
   
   // Szene mit Depth-Companion: Auto-Load ueberschreibt den Status fast sofort
   // wieder auf "Tiefenkarte geladen" - beides bestaetigt, dass sceneImg gesetzt ist.
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), undefined, { timeout: 60000 });
   await page.setInputFiles('#f-mat', MARKER_IMG);
   console.error('[VERIFY] Waiting for material map...');
-  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'), {timeout: 30000});
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'), undefined, {timeout: 30000});
   console.error('[VERIFY] Creating scene...');
   await page.click('#btn-create');
   
   console.error('[VERIFY] Waiting for SHADED ready...');
-  await page.waitForFunction(() => window.SHADED.isReady(), {timeout: 60000});
+  await page.waitForFunction(() => window.SHADED.isReady(), undefined, {timeout: 60000});
   await page.waitForTimeout(400);
   await logClasses('dorf-marker');
 

@@ -1434,6 +1434,96 @@ export class SHADEDEngine {
     return false;
   }
 
+  setDepthImage(img) {
+    this.depthImage = img;
+    if (this.sceneImage) {
+      this.depthMap = this._generateDepthFromImage();
+    }
+  }
+
+  buildPointCloud(opts = {}) {
+    if (!this.sceneImage) return { points: [], depth: null };
+    const step = opts.step || 1;
+    const w = this.sceneWidth, h = this.sceneHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(this.sceneImage, 0, 0, w, h);
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const depthData = this._getDepthData(step);
+    const points = [];
+    for (let y = 0; y < h; y += step) {
+      for (let x = 0; x < w; x += step) {
+        const i = (y * w + x) * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const u = x / w, v = y / h;
+        const depth = depthData ? depthData[y * w + x] || 0 : this._gradientDepth(x, y, w, h);
+        const z = (depth - 0.5) * 2;
+        const material = this.getMaterialTypeAt(u, v);
+        points.push({ x: u * 2 - 1, y: 1 - v * 2, z, r, g, b, material, pixelX: x, pixelY: y });
+      }
+    }
+    canvas.width = 0;
+    canvas.height = 0;
+    return { points, depth: this.depthMap };
+  }
+
+  downloadPointCloud() {
+    const pc = this.buildPointCloud();
+    const blob = new Blob([JSON.stringify(pc)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pointcloud.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return pc;
+  }
+
+  _getDepthData(step = 1) {
+    if (!this.depthImage) return null;
+    const w = this.depthImage.width, h = this.depthImage.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(this.depthImage, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const result = [];
+    for (let i = 0; i < data.length; i += 4) {
+      result.push(data[i] / 255);
+    }
+    canvas.width = 0;
+    canvas.height = 0;
+    return result;
+  }
+
+  _gradientDepth(x, y, w, h) {
+    const diag = (x + y) / (w + h);
+    const fade = Math.abs(0.5 - x / w) * 0.3 + Math.abs(0.5 - y / h) * 0.3;
+    return Math.min(0.95, diag + fade);
+  }
+
+  _generateDepthFromImage() {
+    if (!this.sceneImage || !this.depthImage) return null;
+    const w = this.sceneWidth, h = this.sceneHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(this.depthImage, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const result = new Float32Array(w * h);
+    for (let i = 0; i < result.length; i++) {
+      result[i] = data[i * 4] / 255;
+    }
+    canvas.width = 0;
+    canvas.height = 0;
+    return result;
+  }
+
   getIntrinsicState() {
     return {
       strength: this.intrinsicStrength,

@@ -25,43 +25,10 @@ const server = http.createServer((request, response) => {
     const file = path.join(DIST, pathname);
     try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': mime[path.extname(pathname)] || 'application/octet-stream', 'Cache-Control': 'no-cache'}); fs.createReadStream(file).pipe(response); return; } catch { response.writeHead(404); response.end(); return; }
   }
-  // @kernel shim: serve spatial-kernel chunk with proper named exports
-  if (pathname.startsWith('/@kernel/')) {
-    const spatialKernelFiles = fs.readdirSync(path.join(DIST, 'assets')).filter(f => f.startsWith('spatial-kernel-') && f.endsWith('.js'));
-    if (spatialKernelFiles.length > 0) {
-      const kernelChunk = fs.readFileSync(path.join(DIST, 'assets', spatialKernelFiles[0]), 'utf8');
-      const shim = `// @kernel shim - re-exports spatial-kernel chunk with proper named exports
-import * as kernel from './${spatialKernelFiles[0]}';
-
-// Re-export with proper names matching source imports
-export const SpatialKernel = kernel.a;
-export const ObservationStore = kernel.b;
-export const GeometryObservation = kernel.G;
-export const SOURCE_TYPE = kernel.S;
-export const OBS_PROVENANCE = kernel.O;
-export const RecipeManager = kernel.R;
-
-// Also export as default for @kernel/index.js compatibility
-export default kernel;
-`;
-      response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(shim); return;
-    }
-    response.writeHead(404); response.end(); return;
-  }
   // Runtime modules: serve source files
   if (pathname.startsWith('/runtime/')) {
     const file = path.join(REPO, 'src', pathname.replace(/^\/runtime\//, 'runtime/'));
     try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
-  }
-  // Serve editor from dist/editor
-  if (pathname === '/editor/index.html' || pathname === '/editor/') {
-    const file = path.join(DIST_EDITOR, 'index.html');
-    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
-  }
-  // Serve assets from dist/
-  if (pathname.startsWith('/assets/')) {
-    const file = path.join(DIST, pathname);
-    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': mime[path.extname(pathname)] || 'application/octet-stream', 'Cache-Control': 'no-cache'}); fs.createReadStream(file).pipe(response); return; } catch { response.writeHead(404); response.end(); return; }
   }
   // Fallback to dist/ for root, repo root for other files
   if (pathname === '/') {
@@ -96,7 +63,7 @@ try {
   await page.evaluate(() => navigator.serviceWorker.ready).catch(() => console.error('[PWA] SW ready timeout, continuing')).then(() => console.error('[PWA] SW ready'));
   await page.reload({waitUntil: 'domcontentloaded', timeout: 60000});
   console.error('[PWA] Waiting for SW controller...');
-  await page.waitForFunction(() => !!navigator.serviceWorker.controller, {timeout: 30000}).catch(() => console.error('[PWA] SW controller timeout, continuing')).then(() => console.error('[PWA] SW controller ready'));
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, undefined, {timeout: 30000}).catch(() => console.error('[PWA] SW controller timeout, continuing')).then(() => console.error('[PWA] SW controller ready'));
 
   const cacheState = await page.evaluate(async cacheName => {
     const names = await caches.keys(), cache = await caches.open(cacheName);
@@ -116,15 +83,15 @@ try {
 
   await page.click('#btn-demo');
   console.error('[PWA] Waiting for demo to load...');
-  try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), {timeout: 120000}); }
+  try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), undefined, {timeout: 120000}); }
   catch { throw new Error(`Demo-Laden fehlgeschlagen: ${await page.locator('#status').textContent()} | ${failures.join(' | ')}`); }
   console.error('[PWA] Demo loaded, creating scene...');
   await page.click('#btn-create');
   console.error('[PWA] Waiting for SHADED to be ready...');
-  await page.waitForFunction(() => window.SHADED?.isReady?.(), {timeout: 60000});
+  await page.waitForFunction(() => window.SHADED?.isReady?.(), undefined, {timeout: 60000});
   await page.click('#btn-spatial-view');
   console.error('[PWA] Waiting for spatial viewer...');
-  await page.waitForFunction(() => !document.getElementById('spatial-viewer').hidden && /RMSE/.test(document.getElementById('spatial-fit-status').textContent), {timeout: 120000});
+  await page.waitForFunction(() => !document.getElementById('spatial-viewer').hidden && /RMSE/.test(document.getElementById('spatial-fit-status').textContent), undefined, {timeout: 120000});
   const spatial = await page.evaluate(() => {
     const before = window.SHADED.spatial.voxel.state(), fit = window.SHADED.spatial.voxel.fit();
     const paint = window.SHADED.spatial.voxel.paint([0, 0, 0], {pressure: 0.8, tiltX: 30, radius: 0.08, opacity: 0.7, material: 'wood', color: [90, 60, 30]});
@@ -145,7 +112,7 @@ try {
   assert(offlineFetches.every(result => result.ok), 'Offline-Abruf der Runtime oder Demo-Datei ist fehlgeschlagen');
   await page.click('#btn-demo');
   console.error('[PWA] Waiting for offline demo to load...');
-  try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), {timeout: 120000}); }
+  try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), undefined, {timeout: 120000}); }
   catch { throw new Error(`Offline-Demo fehlgeschlagen: ${await page.locator('#status').textContent()} | ${failures.join(' | ')}`); }
   assert(!failures.length, `Browserfehler: ${failures.join(' | ')}`);
   console.log(`✅ Browser-PWA aktiv: ${expectedCache}, Offline-Navigation, Demo-Cache, WebGL-Raumansicht und Voxel-Editor geprüft (${origin})`);

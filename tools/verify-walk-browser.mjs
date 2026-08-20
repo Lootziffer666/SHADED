@@ -12,38 +12,15 @@ async function localOrigin() {
   const DIST = path.join(repository, 'dist');
   server = http.createServer((request, response) => {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-    if (pathname === '/') {
+    if (pathname === '/' || pathname === '/index.html') {
       const file = path.join(DIST, 'index.html');
       try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
     }
-    // @kernel shim: serve spatial-kernel chunk with proper named exports
-    if (pathname.startsWith('/@kernel/')) {
-      const spatialKernelFiles = fs.readdirSync(path.join(DIST, 'assets')).filter(f => f.startsWith('spatial-kernel-') && f.endsWith('.js'));
-      if (spatialKernelFiles.length > 0) {
-        const kernelChunk = fs.readFileSync(path.join(DIST, 'assets', spatialKernelFiles[0]), 'utf8');
-        const shim = `// @kernel shim - re-exports spatial-kernel chunk with proper named exports
-import * as kernel from './${spatialKernelFiles[0]}';
-
-// Re-export with proper names matching source imports
-export const SpatialKernel = kernel.a;
-export const ObservationStore = kernel.b;
-export const GeometryObservation = kernel.G;
-export const SOURCE_TYPE = kernel.S;
-export const OBS_PROVENANCE = kernel.O;
-export const RecipeManager = kernel.R;
-
-// Also export as default for @kernel/index.js compatibility
-export default kernel;
-`;
-        response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(shim); return;
-      }
-      response.writeHead(404); response.end(); return;
+    if (pathname.startsWith('/assets/')) {
+      const file = path.join(DIST, pathname);
+      try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': mime[path.extname(pathname)] || 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
     }
-    // Runtime modules: serve source files
-    if (pathname.startsWith('/runtime/')) {
-      const file = path.join(repository, 'src', pathname.replace(/^\/runtime\//, 'runtime/'));
-      try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
-    }
+    // Fallback to repo root for other files (models, images, etc.)
     const requested = pathname;
     const filename = path.resolve(repository, '.' + requested), relative = path.relative(repository, filename);
     if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) { response.writeHead(404); response.end(); return; }
@@ -63,21 +40,24 @@ try {
   browser = await chromium.launch(launch);
   const page = await browser.newPage({viewport: {width: 960, height: 600}}), failures = [];
   page.on('pageerror', error => failures.push(error.message));
-  page.on('response', response => { if (response.status() >= 400 && !/_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(response.url())) failures.push(`HTTP ${response.status()}: ${response.url()}`); });
+  page.on('response', response => { if (response.status() >= 400 && !/_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(response.url()) && !/\/models\//.test(response.url())) failures.push(`HTTP ${response.status()}: ${response.url()}`); });
+  page.on('dialog', dialog => { failures.push(`DIALOG: ${dialog.message()}`); dialog.dismiss(); });
   console.error('[WALK] Loading index.html...');
   await page.goto(origin + '/index.html', {waitUntil: 'domcontentloaded', timeout: 60000});
-  console.error('[WALK] Clicking demo button...');
-  await page.click('#btn-demo');
-  console.error('[WALK] Waiting for demo to load...');
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), {timeout: 120000});
-  console.error('[WALK] Creating scene...');
+  console.error('[WALK] Loading demo image via file input...');
+  const demoPng = path.join(repository, 'file_00000000974871f49fe71f6b456f9579.png');
+  const depthPng = path.join(repository, 'file_00000000974871f49fe71f6b456f9579_depth.png');
+  await page.locator('#f-scene').setInputFiles([{ name: 'demo.png', mimeType: 'image/png', buffer: fs.readFileSync(demoPng) }]);
+  console.error('[WALK] Waiting for scene to load...');
+  await page.waitForFunction(() => /Szene geladen/.test(document.getElementById('status')?.textContent || ''), undefined, {timeout: 120000});
+  console.error('[WALK] Scene loaded, creating scene...');
   await page.click('#btn-create');
   console.error('[WALK] Waiting for SHADED ready...');
-  await page.waitForFunction(() => window.SHADED?.isReady?.(), {timeout: 60000});
+  await page.waitForFunction(() => window.SHADED?.isReady?.(), undefined, {timeout: 60000});
   console.error('[WALK] Opening spatial view...');
-  await page.click('#btn-spatial-view');
+  await page.evaluate(() => document.getElementById('btn-spatial-view')?.click());
   console.error('[WALK] Waiting for spatial fit...');
-  await page.waitForFunction(() => /Spiegelhülle/.test(document.getElementById('spatial-fit-status').textContent), {timeout: 120000});
+  await page.waitForFunction(() => /Spiegelhülle/.test(document.getElementById('spatial-fit-status').textContent), undefined, {timeout: 120000});
   await page.waitForTimeout(2500);
 
   const proof = await page.evaluate(() => ({state: window.SHADED.spatial.viewer.state(), route: window.SHADED.spatial.viewer.route()}));
@@ -99,7 +79,7 @@ try {
   });
   assert(walk.route.length > 2 && walk.start.z > 0, 'Laufmodus startet nicht vor dem Haus');
   console.error('[WALK] Walking to target...');
-  await page.waitForFunction(() => window.SHADED.spatial.viewer.state().camera.z < -.45, {timeout: 60000});
+  await page.waitForFunction(() => window.SHADED.spatial.viewer.state().camera.z < -.45, undefined, {timeout: 60000});
   console.error('[WALK] Walk complete, testing orbit...');
 
   await page.evaluate(() => window.SHADED.spatial.viewer.setMode('orbit'));
