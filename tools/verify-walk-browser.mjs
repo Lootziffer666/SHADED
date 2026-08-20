@@ -9,8 +9,14 @@ const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset
 let server;
 
 async function localOrigin() {
+  const DIST = path.join(repository, 'dist');
   server = http.createServer((request, response) => {
-    const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname), requested = pathname === '/' ? '/index.html' : pathname;
+    const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    if (pathname === '/') {
+      const file = path.join(DIST, 'index.html');
+      try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
+    }
+    const requested = pathname;
     const filename = path.resolve(repository, '.' + requested), relative = path.relative(repository, filename);
     if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) { response.writeHead(404); response.end(); return; }
     response.writeHead(200, {'Content-Type': mime[path.extname(filename)] || 'application/octet-stream', 'Cache-Control': 'no-cache'});
@@ -24,7 +30,7 @@ const assert = (condition, message) => { if (!condition) throw new Error(message
 const origin = (process.env.BASE_URL || await localOrigin()).replace(/\/$/, '');
 let browser;
 try {
-  const launch = {headless: true, args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist']};
+  const launch = {headless: true, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']};
   if (process.env.CHROMIUM) launch.executablePath = process.env.CHROMIUM;
   browser = await chromium.launch(launch);
   const page = await browser.newPage({viewport: {width: 960, height: 600}}), failures = [];

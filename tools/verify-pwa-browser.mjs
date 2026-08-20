@@ -4,14 +4,34 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const REPO = path.join(HERE, '..');
+const DIST = path.join(REPO, 'dist');
+const DIST_EDITOR = path.join(DIST, 'editor');
+
+const serviceWorkerSource = fs.readFileSync(path.join(REPO, 'service-worker.js'), 'utf8');
 const expectedCache = serviceWorkerSource.match(/const\s+CACHE\s*=\s*['"]([^'"]+)['"]/)?.[1];
 if (!expectedCache) throw new Error('Service-Worker-Cacheversion konnte nicht aus service-worker.js gelesen werden');
 const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.css':'text/css; charset=utf-8','.ico':'image/x-icon'};
 const server = http.createServer((request, response) => {
-  const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname), requested = pathname === '/' ? '/index.html' : pathname;
-  const filename = path.resolve(root, '.' + requested), relative = path.relative(root, filename);
+  const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+  // Serve editor from dist/editor
+  if (pathname === '/editor/index.html' || pathname === '/editor/') {
+    const file = path.join(DIST_EDITOR, 'index.html');
+    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
+  }
+  // Serve assets from dist/
+  if (pathname.startsWith('/assets/')) {
+    const file = path.join(DIST, pathname);
+    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': mime[path.extname(pathname)] || 'application/octet-stream', 'Cache-Control': 'no-cache'}); fs.createReadStream(file).pipe(response); return; } catch { response.writeHead(404); response.end(); return; }
+  }
+  // Fallback to dist/ for root, repo root for other files
+  if (pathname === '/') {
+    const file = path.join(DIST, 'index.html');
+    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
+  }
+  const requested = pathname;
+  const filename = path.resolve(REPO, '.' + requested), relative = path.relative(REPO, filename);
   if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) { response.writeHead(404); response.end(); return; }
   response.writeHead(200, {'Content-Type': mime[path.extname(filename)] || 'application/octet-stream', 'Cache-Control': 'no-cache'});
   fs.createReadStream(filename).pipe(response);
@@ -41,10 +61,12 @@ try {
   const cacheState = await page.evaluate(async cacheName => {
     const names = await caches.keys(), cache = await caches.open(cacheName);
     const required = [
-      '/index.html', '/editor/index.html', '/runtime/install.js', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
+      '/index.html', '/editor/index.html',
+      '/assets/editor-*.js', '/assets/editor-*.css',
+      '/runtime/install.js', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
       '/runtime/sparse-voxel-world.mjs', '/runtime/surface-world-simulation.mjs',
       '/file_00000000974871f49fe71f6b456f9579.png', '/file_00000000974871f49fe71f6b456f9579_depth.png',
-      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js', '/editor/app.js'
+      '/file_00000000c84071f4bcd6ff9afdba7246.png'
     ];
     const hits = await Promise.all(required.map(async pathname => [pathname, !!(await cache.match(pathname))]));
     return {names, hits};

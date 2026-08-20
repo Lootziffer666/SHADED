@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
+const DIST_EDITOR = path.join(REPO, 'dist', 'editor');
 let failed = false;
 const errors = [];
 const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
@@ -13,17 +14,46 @@ const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAA
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-  const rel = pathname === '/' ? 'editor/index.html' : pathname.replace(/^\//, '');
-  const file = path.join(REPO, rel);
+  if (pathname === '/') {
+    const file = path.join(REPO, 'dist', 'index.html');
+    try {
+      const data = fs.readFileSync(file);
+      res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+    return;
+  }
+  if (pathname === '/editor/index.html' || pathname === '/editor/') {
+    const file = path.join(DIST_EDITOR, 'index.html');
+    try {
+      const data = fs.readFileSync(file);
+      res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+    return;
+  }
+  if (pathname.startsWith('/assets/')) {
+    const file = path.join(REPO, 'dist', pathname);
+    try {
+      const data = fs.readFileSync(file);
+      const type = pathname.endsWith('.js') ? 'text/javascript' : pathname.endsWith('.css') ? 'text/css' : 'image/png';
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+    return;
+  }
+  // Fallback to repo root for other files (models, etc.)
+  const file = path.join(REPO, pathname.replace(/^\//, ''));
   try {
     const data = fs.readFileSync(file);
     const type = file.endsWith('.html') ? 'text/html' : file.endsWith('.js') || file.endsWith('.mjs') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') || file.endsWith('.webmanifest') ? 'application/json' : file.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
-    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(data);
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    res.end(data);
   } catch { res.writeHead(404); res.end(); }
 });
 
 await new Promise(resolve => server.listen(8941, resolve));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36' });
 const page = await context.newPage();
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
