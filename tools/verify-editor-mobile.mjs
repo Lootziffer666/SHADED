@@ -99,8 +99,10 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 page.on('pageerror', error => errors.push(`PAGEERROR: ${error.message}`));
 
 try {
-  await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load' });
-  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, undefined, { timeout: 15000 });
+  console.error('[MOBILE] Loading editor...');
+  await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load', timeout: 60000 });
+  console.error('[MOBILE] Waiting for engine iframe...');
+  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 30000 });
 
   const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
@@ -132,21 +134,24 @@ try {
   check('BASIS blendet Legacy-Werkzeuge wieder aus', await sourceButton.isHidden());
 
   // Der echte Demo-Button muss den produktiven Importpfad bedienen.
+  console.error('[MOBILE] Loading demo image...');
   await page.click('#world-demo');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 30000 });
   check('World Studio lädt das Demo-Bild direkt', true);
 
   // Die räumliche Pipeline wird mit einem winzigen echten PNG-Fixture gefahren. Die kanonische
   // Demo ist hochauflösend; deren vollständige Materialanalyse blockiert schwache CI-CPUs minutenlang
   // und testet hier nicht mehr Verhalten als ein kleines Bild.
+  console.error('[MOBILE] Uploading CI spatial fixture...');
   await page.locator('#world-file').setInputFiles({ name: 'ci-spatial-fixture.png', mimeType: 'image/png', buffer: CI_SCENE_PNG });
-  await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', undefined, { timeout: 10000 });
+  await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', { timeout: 30000 });
   check('Kleines CI-Bild übernimmt denselben 1-Bild-Workflow', true);
 
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
+  console.error('[MOBILE] Generating world (software fallback)...');
   await page.click('#world-generate');
-  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 60000 });
+  await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 180000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
   check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
 

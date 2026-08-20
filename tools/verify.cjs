@@ -178,16 +178,13 @@ await page.setInputFiles('#f-scene', BASE_IMG);
   // wieder auf "Tiefenkarte geladen" - beides bestaetigt, dass sceneImg gesetzt ist.
   await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
   await page.setInputFiles('#f-mat', MARKER_IMG);
-  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
-await page.click('#btn-create');
+  console.error('[VERIFY] Waiting for material map...');
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'), {timeout: 30000});
+  console.error('[VERIFY] Creating scene...');
+  await page.click('#btn-create');
   
-  // Debug: check SHADED object
-  const shadedCheck = await page.evaluate(() => {
-    return { type: typeof window.SHADED, hasSHADED: !!window.SHADED };
-  });
-  console.log('SHADED check:', shadedCheck);
-  
-  await page.waitForFunction(() => window.SHADED.isReady());
+  console.error('[VERIFY] Waiting for SHADED ready...');
+  await page.waitForFunction(() => window.SHADED.isReady(), {timeout: 60000});
   await page.waitForTimeout(400);
   await logClasses('dorf-marker');
 

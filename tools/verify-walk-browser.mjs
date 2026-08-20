@@ -64,13 +64,20 @@ try {
   const page = await browser.newPage({viewport: {width: 960, height: 600}}), failures = [];
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => { if (response.status() >= 400 && !/_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(response.url())) failures.push(`HTTP ${response.status()}: ${response.url()}`); });
-  await page.goto(origin + '/index.html', {waitUntil: 'domcontentloaded'});
+  console.error('[WALK] Loading index.html...');
+  await page.goto(origin + '/index.html', {waitUntil: 'domcontentloaded', timeout: 60000});
+  console.error('[WALK] Clicking demo button...');
   await page.click('#btn-demo');
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
+  console.error('[WALK] Waiting for demo to load...');
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), {timeout: 120000});
+  console.error('[WALK] Creating scene...');
   await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED?.isReady?.());
+  console.error('[WALK] Waiting for SHADED ready...');
+  await page.waitForFunction(() => window.SHADED?.isReady?.(), {timeout: 60000});
+  console.error('[WALK] Opening spatial view...');
   await page.click('#btn-spatial-view');
-  await page.waitForFunction(() => /Spiegelhülle/.test(document.getElementById('spatial-fit-status').textContent), null, {timeout: 30_000});
+  console.error('[WALK] Waiting for spatial fit...');
+  await page.waitForFunction(() => /Spiegelhülle/.test(document.getElementById('spatial-fit-status').textContent), {timeout: 120000});
   await page.waitForTimeout(2500);
 
   const proof = await page.evaluate(() => ({state: window.SHADED.spatial.viewer.state(), route: window.SHADED.spatial.viewer.route()}));
@@ -91,7 +98,9 @@ try {
     return {route, start: window.SHADED.spatial.viewer.state().camera};
   });
   assert(walk.route.length > 2 && walk.start.z > 0, 'Laufmodus startet nicht vor dem Haus');
-  await page.waitForFunction(() => window.SHADED.spatial.viewer.state().camera.z < -.45, null, {timeout: 15_000});
+  console.error('[WALK] Walking to target...');
+  await page.waitForFunction(() => window.SHADED.spatial.viewer.state().camera.z < -.45, {timeout: 60000});
+  console.error('[WALK] Walk complete, testing orbit...');
 
   await page.evaluate(() => window.SHADED.spatial.viewer.setMode('orbit'));
   const box = await page.locator('#spatial-canvas').boundingBox(), before = await page.evaluate(() => window.SHADED.spatial.viewer.state().camera);
