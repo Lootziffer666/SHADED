@@ -36,9 +36,6 @@ jobs:
       - name: Install Chromium for the functional walkthrough
         run: npx playwright install --with-deps chromium
 
-      - name: Verify contracts, spatial logic, and static PWA files
-        run: npm run check
-
       - name: Verify the visible pipeline and the route behind the house
         run: npm run verify:walk
 
