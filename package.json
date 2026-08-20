@@ -27,8 +27,7 @@
     "pipeline": "node tools/pipeline/koelnmesse-pipeline.js",
     "pipeline:resume": "node tools/pipeline/koelnmesse-pipeline.js --resume",
     "lint": "eslint src --ext .js,.mjs,.ts",
-    "typecheck": "tsc --noEmit",
-    "check": "eslint src --ext .js,.mjs,.ts && tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "webgl",
