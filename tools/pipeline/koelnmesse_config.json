@@ -1,0 +1,36 @@
+{
+  "gmlPath": "./data/koelnmesse_buildings.gml",
+  "imagesDir": "./data/koelnmesse_photos",
+  "workspaceDir": "./workspace",
+  "outputDir": "./output",
+  
+  "sourceCRS": "EPSG:25832",
+  "targetCRS": "EPSG:25832",
+  
+  "runGIS": true,
+  "runCOLMAP": true,
+  "runSHADED": true,
+  "runBlender": true,
+  "exportFinal": true,
+  
+  "colmapOptions": {
+    "singleCamera": true,
+    "cameraModel": "SIMPLE_PINHOLE",
+    "matcherType": "exhaustive",
+    "dense": true,
+    "numThreads": -1
+  },
+  
+  "shadedOptions": {
+    "useMaterialSegmentation": true,
+    "useWorldLaws": true,
+    "maxImages": -1
+  },
+  
+  "blenderOptions": {
+    "blenderExecutable": "blender",
+    "centerAtOrigin": false,
+    "exportCombinedOBJ": true,
+    "exportFormats": ["gltf", "obj", "usd"]
+  }
+}

@@ -1,0 +1,6 @@
+.world-import-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:7px}
+.world-import-actions button,.world-import-btn{position:relative;display:flex;align-items:center;justify-content:center;min-height:34px;padding:6px 7px;border:1px solid rgba(255,255,255,.11);border-radius:9px;background:#11131a;color:#cbd5e1;font-size:9px;text-align:center;cursor:pointer;overflow:hidden}
+.world-import-actions button:hover,.world-import-btn:hover{border-color:#4f8cff;background:#151a27}
+.world-import-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.world-import-note{margin-top:6px;color:#778196;font-size:9px;line-height:1.4}.world-import-note code{color:#9cb7e8;font-family:ui-monospace,monospace}
+@media(max-width:420px){.world-import-actions{grid-template-columns:1fr 1fr}.world-import-actions #world-demo{grid-column:1/-1}}

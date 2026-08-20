@@ -1,0 +1,29 @@
+/* World Studio owns the default UX. The old toolbox survives only behind ERWEITERT. */
+body:has(#world-studio):not(.world-expert-open) .tool-rail,
+body:has(#world-studio):not(.world-expert-open) .inspector,
+body:has(#world-studio):not(.world-expert-open) .timeline-dock,
+body:has(#world-studio):not(.world-expert-open) .viewport-hud.hud-right{
+  display:none!important;
+}
+body:has(#world-studio):not(.world-expert-open) .viewport-hud.hud-left{
+  left:12px!important;
+}
+.world-studio-expert{
+  flex:0 0 auto;
+  height:34px;
+  padding:0 10px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  background:#11131a;
+  color:#8f99ab;
+  font:700 9px/1 ui-monospace,monospace;
+  letter-spacing:.08em;
+  cursor:pointer;
+}
+.world-studio-expert.active{border-color:#60a5fa;color:#fff;background:#17233a}
+body.world-expert-open #world-studio{opacity:.94}
+@media(max-width:860px){
+  body:has(#world-studio):not(.world-expert-open) #world-studio{bottom:8px;max-height:min(72dvh,650px)}
+  body:has(#world-studio):not(.world-expert-open) .viewport-hud.hud-left{display:none!important}
+  .world-studio-expert{padding:0 7px;font-size:8px}
+}
