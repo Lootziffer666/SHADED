@@ -28,15 +28,16 @@ const colAt = (img, x, y) => { const i = (y * img.width + x) * 4; return [img.da
   ok(seamAfter < seamBefore, `TextureStationarizer reduces seam energy (${seamBefore} -> ${seamAfter})`);
 }
 
-// 2) MultiViewTextureFuser averages exposure differences
+// 2) MultiViewTextureFuser aligns exposure then merges (recovers the surface)
 {
   const w = 16, h = 16;
-  const a = makeImage(w, h, () => [200, 200, 200]);
-  const b = makeImage(w, h, () => [60, 60, 60]);
+  const a = makeImage(w, h, () => [200, 200, 200]);   // bright exposure of surface
+  const b = makeImage(w, h, () => [60, 60, 60]);       // dark exposure of SAME surface
   const fused = TEXTURE_OPERATORS.MultiViewTextureFuser([a, b]);
   let s = 0, n = 0; for (let i = 0; i < fused.data.length; i += 4) { s += fused.data[i]; n++; }
   const mean = s / n;
-  ok(mean > 100 && mean < 160, `MultiViewTextureFuser mean between inputs (${mean.toFixed(1)})`);
+  // Exposure-aligned fusion should recover the brighter surface, not the midpoint.
+  ok(mean > 150, `MultiViewTextureFuser recovers surface exposure (mean=${mean.toFixed(1)}, dark was 60)`);
 }
 
 // 3) PaletteNormalizer quantizes to <= numColors distinct colors
@@ -57,8 +58,8 @@ const colAt = (img, x, y) => { const i = (y * img.width + x) * 4; return [img.da
   const i = (3 * w + 3) * 4; img.data[i] = 255; img.data[i + 1] = 255; img.data[i + 2] = 255;
   const { baseColor, emissive } = TEXTURE_OPERATORS.EmissiveSeparator(img, { threshold: 0.85 });
   const ei = (3 * w + 3) * 4;
-  ok(emissive[ei] === 255, 'EmissiveSeparator flags bright pixel in emissive mask');
-  ok(baseColor[ei] < 200, 'EmissiveSeparator dims base color where emissive');
+  ok(emissive.data[ei] === 255, 'EmissiveSeparator flags bright pixel in emissive mask');
+  ok(baseColor.data[ei] < 200, 'EmissiveSeparator dims base color where emissive');
   let emCount = 0; for (let p = 0; p < emissive.data.length; p += 4) if (emissive.data[p] > 0) emCount++;
   ok(emCount === 1, `EmissiveSeparator isolates exactly one emissive pixel (${emCount})`);
 }
