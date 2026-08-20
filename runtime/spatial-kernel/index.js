@@ -18,3 +18,5 @@ export { WorldFields } from './world-fields.js';
 export { WorldLawSolver, registerReferenceLaws, evaporationLaw, freezeThawLaw, rainToMudLaw, fireFuelLaw } from './world-law-solver.js';
 export { optimizeMesh, weldVertices, removeDegenerate, quantizePositions, simplifyGreedy, indexMesh } from './mesh-pipeline.js';
 export { geometryNeighbourhood, estimatePointNormalsRobust, connectedComponents3D, fitGeometricPrimitivesExtended } from './reconstruction.js';
+export { HybridLittleWorld } from './recipes/hybrid-little-world.js';
+export { createDefaultKernel, installKernel } from './bootstrap.js';
