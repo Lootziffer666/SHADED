@@ -155,6 +155,7 @@ export const SHADED = {
 // Auto-initialize on DOM ready
 if (typeof window !== 'undefined') {
   window.SHADED = SHADED;
+  window.__SHADED_SCRIPT_RUNNING__ = true;
 
   const boot = async () => {
     const canvas = document.getElementById('gl');
