@@ -8,12 +8,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
 const DIST = path.join(REPO, 'dist');
 const DIST_EDITOR = path.join(DIST, 'editor');
-console.error('[DEBUG] HERE:', HERE);
-console.error('[DEBUG] REPO:', REPO);
-console.error('[DEBUG] DIST:', DIST);
-console.error('[DEBUG] DIST exists:', fs.existsSync(DIST));
-console.error('[DEBUG] dist/index.html exists:', fs.existsSync(path.join(DIST, 'index.html')));
-console.error('[DEBUG] dist/editor/index.html exists:', fs.existsSync(path.join(DIST_EDITOR, 'index.html')));
 let failed = false;
 const errors = [];
 const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
@@ -21,7 +15,6 @@ const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAA
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-  console.error('[SERVER]', pathname);
   if (pathname === '/' || pathname === '/index.html') {
     const file = path.join(REPO, 'dist', 'index.html');
     try {
