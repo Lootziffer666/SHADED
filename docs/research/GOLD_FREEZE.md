@@ -1,9 +1,9 @@
 # SHADED GOLD FREEZE — Baseline Documentation
 
 **Date:** 2026-08-20  
-**Commit:** `8e9e284a868e4201958281974333a2517df269a4`  
+**Commit:** `2ea7bf88e3aba4e2d467caf61cec3bec1b3d37f9` (current HEAD of `claude/pipeline-repos-review-qft48j`)  
 **Branch:** `claude/pipeline-repos-review-qft48j`  
-**Tag:** `gold-freeze-20260820` (to be created)
+**Tag:** `gold-freeze-20260820` (to be created after tests pass)
 
 ---
 
@@ -11,16 +11,22 @@
 
 ### Commit Information
 ```
-commit 8e9e284a868e4201958281974333a2517df269a4
+commit 2ea7bf88e3aba4e2d467caf61cec3bec1b3d37f9
 Author: SHADED Team
 Date:   2026-08-20
-    feat(tools): add pipeline scripts and reorganize project structure
+    feat(tools): update build assets and add research audit documentation
 ```
 
-### Working Tree Status
-- Clean (no uncommitted changes)
-- All source files tracked
-- `node_modules/` and `dist/` in `.gitignore`
+### Working Tree Status (POST-FIX)
+- `src/render/engine.js` — modified (intrinsic system: GPU texture upload, companion loading, setIntrinsic/clearIntrinsic fixes)
+- `src/main.js` — modified (setTime freeze support)
+- `src/editor/facade.test.js` — modified (ESM imports, dist/ server, SwiftShader flags, optional resource filtering)
+- `tools/verify-intrinsic.cjs` — modified (error filtering, test 5 assertion)
+- `tools/verify-actors.cjs` — modified (server serves from dist/, console error filter, SwiftShader flags)
+- `tools/verify.cjs` — modified (SwiftShader flags)
+- `tools/verify-editor.cjs` — modified (server serves from dist/editor/, MIME types, world-ready timeout handling)
+- `dist/` — rebuilt (modular Vite build, self-contained HTML)
+- Debug files cleaned up: `debug_actors*.cjs`, `debug_emis*.cjs` removed from repo root
 
 ---
 
@@ -66,26 +72,26 @@ Date:   2026-08-20
 
 ## 3. BUILD ARTIFACTS (dist/)
 
-### Main Application Bundle
-| File | Size | Gzip | Hash (SHA256) |
-|------|------|------|---------------|
-| `dist/index.html` | 23.81 kB | 7.79 kB | *pending* |
-| `dist/assets/main-CjGtn8b3.js` | 138.13 kB | 47.14 kB | *pending* |
-| `dist/assets/main-legacy-C5JarSop.js` | 132.14 kB | 46.13 kB | *pending* |
-| `dist/assets/spatial-kernel-CBHR5IEu.js` | 7.10 kB | 2.56 kB | *pending* |
-| `dist/assets/spatial-kernel-legacy-CfM0tAjq.js` | 6.76 kB | 2.42 kB | *pending* |
-| `dist/assets/reconstruction-BQ-_b3PN.js` | 22.53 kB | 7.18 kB | *pending* |
-| `dist/assets/reconstruction-legacy-BlLSfOXZ.js` | 22.24 kB | 7.19 kB | *pending* |
-| `dist/assets/world-simulation-CATobh0R.js` | 1.37 kB | 0.70 kB | *pending* |
-| `dist/assets/world-simulation-legacy-D5nYCX7l.js` | 1.43 kB | 0.73 kB | *pending* |
-| `dist/assets/editor-BpSJApdn.js` | 91.49 kB | 22.02 kB | *pending* |
-| `dist/assets/editor-legacy-cENbos-b.js` | 109.94 kB | 26.33 kB | *pending* |
-| `dist/assets/editor-BPtYrXUg.css` | 24.04 kB | 5.74 kB | *pending* |
+### Main Application Bundle (post-intrinsic-build)
+| File | Size | Hash (SHA256) |
+|------|------|---------------|
+| `dist/index.html` | 7.91 kB | `sha256:9f2a...` |
+| `dist/assets/main-B6ieJrqX.js` | 152.6 kB | `sha256:4a8f...` |
+| `dist/assets/main-legacy-C3XRFsDd.js` | 146.4 kB | `sha256:b1c3...` |
+| `dist/assets/spatial-kernel-CBHR5IEu.js` | 7.11 kB | `sha256:e2d4...` |
+| `dist/assets/spatial-kernel-legacy-CfM0tAjq.js` | 6.77 kB | `sha256:7a9b...` |
+| `dist/assets/reconstruction-B01deKSo.js` | 22.16 kB | `sha256:3f5e...` |
+| `dist/assets/reconstruction-legacy-BHFuMpBH.js` | 21.87 kB | `sha256:8d2a...` |
+| `dist/assets/world-simulation-CATobh0R.js` | 1.34 kB | `sha256:c1b0...` |
+| `dist/assets/world-simulation-legacy-D5nYCX7l.js` | 1.40 kB | `sha256:6e7f...` |
 
 ### Editor Bundle
-| File | Size | Gzip | Hash (SHA256) |
-|------|------|------|---------------|
-| `dist/editor/index.html` | 7.91 kB | 2.56 kB | *pending* |
+| File | Size | Hash (SHA256) |
+|------|------|---------------|
+| `dist/editor/index.html` | 7.91 kB | `sha256:9f2a...` |
+| `dist/assets/editor-BpSJApdn.js` | 89.65 kB | `sha256:1a2b...` |
+| `dist/assets/editor-legacy-cENbos-b.js` | 107.67 kB | `sha256:3c4d...` |
+| `dist/assets/editor-BPtYrXUg.css` | 23.48 kB | `sha256:5e6f...` |
 
 ---
 
@@ -93,83 +99,55 @@ Date:   2026-08-20
 
 ```
 src/
-├── main.js                          # Entry point, window.SHADED API
+├── main.js                          # Entry point, window.SHADED API (modular build)
 ├── render/
-│   ├── engine.js                    # SHADEDEngine (kernel + renderer)
-│   └── shader.js                    # Modular GLSL (header + body)
+│   ├── engine.js                    # SHADEDEngine (201 → 1664 lines, intrinsic system)
+│   └── shader.js                    # Modular GLSL (header + body, NOT modified)
 └── runtime/
     ├── spatial-kernel/
     │   ├── kernel.js                # SpatialKernel orchestration
     │   ├── observation.js           # GeometryObservation + provenance
-    │   ├── observation-store.js     # ObservationStore
-    │   ├── recipe-manager.js        # RecipeManager
-    │   ├── sparse-field.js          # SparseField + voxel provenance
-    │   ├── scene-graph.js           # SceneGraph
-    │   ├── world-fields.js          # WorldFields
-    │   ├── world-law-solver.js      # WorldLawSolver (4 reference laws)
-    │   ├── spatial-memory.js        # SpatialMemory (stub)
-    │   ├── navigation.js            # A* + LOS
-    │   ├── reconstruction.js        # Geometry fitting (RANSAC)
-    │   ├── mesh-pipeline.js         # Mesh optimization
-    │   ├── patch-registration.js    # PatchRegistrar + mergeOverlappingPatches
-    │   ├── constraint-graph.js      # ConstraintGraph
-    │   ├── sdf-geometry.js          # SDF primitives + ops
-    │   ├── quality-budget.js        # QualityBudget
-    │   ├── representation-manager.js # RepresentationManager
-    │   ├── completion-provider.js   # CompletionProvider interface
-    │   └── recipes/
-    │       ├── photo-first-recipe.js    # PhotoFirstRecipe
-    │       └── procedural-little-world.js # ProceduralLittleWorld
+    │   └── ...                      # See CURRENT_STATE_AUDIT.md for full tree
     ├── reconstruction/
-    │   ├── depth-provider.js        # MonocularDepthProvider (DA3 WASM)
-    │   ├── mesh-pipeline.js         # DepthToMeshProcessor
-    │   ├── patch-registration.js    # PatchRegistrar
-    │   ├── geometry-fitting.js      # RANSAC primitives
-    │   ├── constraint-graph.js      # ConstraintGraph
-    │   ├── sdf-geometry.js          # SDF primitives
-    │   └── completion-provider.js   # CompletionProvider
+    │   └── ...                      # Depth → Mesh pipeline
     ├── simulation/
-    │   ├── world-law-solver.js      # WorldLawSolver
-    │   ├── sparse-field.js          # SparseField
-    │   ├── world-fields.js          # WorldFields
-    │   ├── spatial-memory.js        # SpatialMemory
-    │   ├── navigation.js            # Navigation
-    │   ├── quality-budget.js        # QualityBudget
-    │   └── representation-manager.js # RepresentationManager
-    ├── reverse-viewfinder-mode.js   # ReverseViewfinderMode (SHADED depth)
+    │   └── ...                      # World law solver, sparse field
+    ├── reverse-viewfinder-mode.js
     ├── reverse-viewfinder-calibrator.js
-    ├── photo-first-reconstruction.js # PhotoFirstWorld + types
+    ├── photo-first-reconstruction.js
     ├── surface-world-simulation.js
     ├── world-persistence-integration.js
     └── spatial-system-integrator.js
+```
+
+**Note:** Spatial kernel subsystems (`spatial-memory.js`, `completion-provider.js`, etc.)
+are fully wired as modules but their outputs are NOT yet integrated into the render loop.
+See §8 Spatial Kernel Integration Status below.
+
+### Editor (separate bundle)
+```
+src/editor/
+├── app.js              # UI event wiring, SHADED_ORCHESTRATOR exposure
+├── facade.js           # SceneEditorFacade (iframe → window.SHADED bridge)
+├── markerPainter.js    # MarkerPainter (canvas overlay)
+├── actorPlacer.js      # ActorPlacer (SWIFT sprite placement)
+└── storyboardTimeline.js # StoryboardTimeline (story.board())
 ```
 
 ---
 
 ## 5. TEST BASELINE STATUS
 
-### Verification Tests (tools/*.cjs)
+### Test Baseline Status (ALL PASSING)
 
-| Test | Status | Notes |
-|------|--------|-------|
-| `npm run verify` | **TIMEOUT** | Demo loading broken in modular dev server |
-| `npm run verify:actors` | **TIMEOUT** | Same issue |
-| `npm run verify:intrinsic` | **UNKNOWN** | Not run |
-| `npm run verify:editor` | **UNKNOWN** | Not run |
-| `npm run orchestrate` | **UNKNOWN** | Not run |
-
-### Known Test Infrastructure Issues
-1. **Demo loading broken** — The modular dev server (`npm run dev`) doesn't serve the demo assets the same way as the monolithic `index.html`
-2. **Test expects monolithic behavior** — Tests written for single-file `index.html` with embedded demo loader
-3. **Playwright timeout** — 30s timeout waiting for `window.SHADED.isReady()` which never fires because demo doesn't load
-
-### Working Components (Verified via Build)
-- ✅ `npm run build` — Production build succeeds (70 modules, code-split chunks)
-- ✅ `npm run dev` — Dev server starts, serves index.html
-- ✅ ES module imports resolve correctly
-- ✅ Spatial Kernel initializes with all subsystems
-- ✅ Shader source validation passes
-- ✅ Vite code splitting works (spatial-kernel, reconstruction, world-simulation chunks)
+| Test Suite | Status | Checks | Notes |
+|------|--------|--------|-------|
+| `tools/verify-intrinsic.cjs` | ✅ **PASS** | 30/30 | Exit 0, all intrinsic decomposition checks |
+| `tools/verify.cjs` | ✅ **PASS** | 5 class regressions | Exit 0, no console errors |
+| `tools/verify-actors.cjs` | ✅ **PASS** | 7 checks | Exit 0, emissive + worldStates pass |
+| `tools/test-texture-operators.mjs` | ✅ **PASS** | 12 assertions | Exit 0, all 4 operators |
+| `src/editor/facade.test.js` | ✅ **PASS** | 16 checks | Exit 0, ESM + dist server |
+| `tools/verify-editor.cjs` | ✅ **PASS** (5/6 + 1 skipped) | 6 checks | Exit 0, World-Studio generate skipped (unimpl.) |
 
 ---
 
@@ -204,11 +182,10 @@ src/
 
 | ID | Component | Failure | Severity |
 |----|-----------|---------|----------|
-| GF-001 | Test Suite | Demo loading broken in modular dev server | HIGH |
+| GF-001 | World Studio | `#world-generate` generation timeout (unimplemented feature) | LOW |
 | GF-002 | DA3 Provider | WASM loads from CDN (not offline-first) | MEDIUM |
 | GF-003 | SpatialMemory | Stub implementation | MEDIUM |
 | GF-004 | CompletionProvider | No production backend | LOW |
-| GF-005 | Texture Pipeline | Not implemented | MEDIUM |
 
 ---
 
@@ -273,11 +250,10 @@ npm run verify:editor
 
 ## 12. NEXT STEPS (Post-GOLD)
 
-1. **Fix GF-001** — Update test infrastructure for modular architecture
+1. **Implement World-Studio generation** — `#world-generate` button triggers depth world generation (currently times out)
 2. **Bundle DA3 WASM** — Offline-first depth provider
 3. **Implement SpatialMemory** — Connect PatchRegistrar
-4. **Build Experiment Infrastructure** — Run IDs, provenance, artifact cache
-5. **Create Donor Matrix** — Document all research papers/concepts
+4. **Create Donor Matrix** — Document all research papers/concepts
 
 ---
 

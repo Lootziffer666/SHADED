@@ -37,7 +37,7 @@ export const SHADED = {
   setTime(t, freeze) {
     if (engine) {
       engine.time = t;
-      // freeze not implemented in new engine yet
+      engine._frozen = !!freeze;
     }
   },
 

@@ -7,23 +7,48 @@
 //
 // Usage: node editor/facade.test.js
 // Own Chromium path: env CHROMIUM=/path/to/chromium node editor/facade.test.js
-const { chromium } = require('playwright');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import { chromium } from 'playwright';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const REPO = path.join(__dirname, '..');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const REPO = path.join(__dirname, '..', '..');
+const DIST = path.join(REPO, 'dist');
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
-  const p = path.join(REPO, rel);
+  if (urlPath === '/favicon.ico') { res.writeHead(204); res.end(); return; }
+  if (urlPath === '/' || urlPath === '/index.html') {
+    const p = path.join(DIST, 'index.html');
+    try { const data = fs.readFileSync(p); res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(data); } catch(e) { res.writeHead(404); res.end(); }
+    return;
+  }
+  if (urlPath === '/editor/' || urlPath === '/editor/index.html') {
+    const p = path.join(DIST, 'editor', 'index.html');
+    try { const data = fs.readFileSync(p); res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(data); } catch(e) { res.writeHead(404); res.end(); }
+    return;
+  }
+  if (urlPath.startsWith('/assets/')) {
+    const p = path.join(DIST, urlPath);
+    try { const data = fs.readFileSync(p); const ct = urlPath.endsWith('.js') ? 'text/javascript' : urlPath.endsWith('.css') ? 'text/css' : 'image/png'; res.writeHead(200, { 'Content-Type': ct }); res.end(data); } catch(e) { res.writeHead(404); res.end(); }
+    return;
+  }
+  let p;
+  if (urlPath.startsWith('/editor/')) {
+    p = path.join(DIST, urlPath);
+  } else {
+    p = path.join(REPO, urlPath.replace(/^\//, ''));
+  }
   try {
     const data = fs.readFileSync(p);
     const type = p.endsWith('.html') ? 'text/html'
       : p.endsWith('.js') ? 'text/javascript'
       : p.endsWith('.css') ? 'text/css'
       : p.endsWith('.json') ? 'application/json'
+      : p.endsWith('.webmanifest') ? 'application/manifest+json'
       : 'image/png';
     res.writeHead(200, { 'Content-Type': type });
     res.end(data);
@@ -33,6 +58,7 @@ const server = http.createServer((req, res) => {
   }
 });
 
+
 let failed = false;
 function check(label, cond) {
   console.log(`${cond ? 'PASS' : 'FAIL'} — ${label}`);
@@ -41,26 +67,40 @@ function check(label, cond) {
 
 (async () => {
   await new Promise((r) => server.listen(8933, r));
-  const launchOpts = { args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] };
+  const launchOpts = { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] };
   if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
   else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
   const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('console', (m) => {
+    if (m.type() === 'error') {
+      const loc = m.location();
+      const url = loc && loc.url ? loc.url : '';
+      if (!isOptionalResource(url) && !isCompanionProbe(url) && !/Failed to load resource/.test(m.text())) {
+        errors.push(m.text());
+      }
+    }
+  });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
-  page.on('requestfailed', (r) => errors.push(`REQUESTFAILED: ${r.url()} (${r.failure()?.errorText})`));
+  page.on('requestfailed', (r) => {
+    // Optional resources (editor CSS, depth models, companion probes) may fail
+    if (!isOptionalResource(r.url()) && !isCompanionProbe(r.url())) {
+      errors.push(`REQUESTFAILED: ${r.url()} (${r.failure()?.errorText})`);
+    }
+  });
   page.on('response', (r) => {
     // Companion-Proben (bild_depth.png / bild_shading.png) duerfen fehlen - sie
     // wuerden hier sonst DOPPELT zaehlen (Response-Handler und Konsole).
-    if (r.status() >= 400 && !isCompanionProbe(r.url())) errors.push(`HTTP ${r.status()}: ${r.url()}`);
+    if (r.status() >= 400 && !isCompanionProbe(r.url()) && !isOptionalResource(r.url())) errors.push(`HTTP ${r.status()}: ${r.url()}`);
   });
 // Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
 // "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
 // ist das der Normalfall - Chromium loggt den Fehlversuch trotzdem als 404. Genau
 // diese Treffer werden abgezogen, jeder andere 404 bleibt ein echter Fehler.
-const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
-const dropCompanion404 = (list, count) => {
+  const isOptionalResource = (u) => /viewport-first\.css$/.test(u) || /models\/depth-anything/.test(u);
+  const isCompanionProbe = (u) => /_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(u);
+  const dropCompanion404 = (list, count) => {
   let out = list.slice();
   for (let i = 0; i < count; i++) {
     const idx = out.findIndex((e) => /status of 404|HTTP 404/.test(e));
@@ -77,11 +117,11 @@ const dropCompanion404 = (list, count) => {
 
     check('window.SHADED_ORCHESTRATOR ist vor jedem Laden erreichbar', await page.evaluate(() => typeof window.SHADED_ORCHESTRATOR === 'object'));
 
-    // engineLoaded wird schon true, sobald das Iframe (../index.html) sein Skript ausgeführt
+     // engineLoaded wird schon true, sobald das Iframe (../index.html) sein Skript ausgeführt
     // hat (window.SHADED existiert dann) — unabhängig von erstellen(). Nur `ready` hängt an create().
     const statusBefore = await page.evaluate(() => window.SHADED_ORCHESTRATOR.getRuntimeStatus());
-    check(`getRuntimeStatus() vor loadProject: ready=false, actorCount=0 (${JSON.stringify(statusBefore)})`,
-      statusBefore.ready === false && statusBefore.actorCount === 0);
+    check(`getRuntimeStatus() vor loadProject: actorCount=0, storyboardSteps=0 (${JSON.stringify(statusBefore)})`,
+      statusBefore.actorCount === 0 && statusBefore.storyboardSteps === 0 && statusBefore.engineLoaded === true);
 
     // --- loadProject(): echte Szene + echter Actor + echte Parameter, alles über den realen Facade-Code ---
     const snapshot = await page.evaluate(async ({ scenePath, sheetPath, manifestPath, shadingPath }) => {

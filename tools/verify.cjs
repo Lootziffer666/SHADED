@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
 
 (async () => {
   await new Promise(r => server.listen(8931, r));
-  const launchOpts = { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] };
+  const launchOpts = { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] };
   if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
   else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOpts);
@@ -302,7 +302,6 @@ await page.click('#btn-create');
   await page.evaluate(() => { window.SHADED.applyAct('sturmnacht'); window.SHADED.setTime(21.7,true); });
   await page.waitForTimeout(250);
   await shotSel('#gl', path.join(OUT, 'shot_map_sturmnacht.png'));
-
   const mats = await page.evaluate(() => [
     window.SHADED.getMaterialTypeAt(0.5, 0.6),  // Pfadmitte
     window.SHADED.getMaterialTypeAt(0.13, 0.35), // linkes Dach

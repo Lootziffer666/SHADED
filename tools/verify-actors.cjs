@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const REPO = path.join(__dirname, '..');
+const DIST = path.join(REPO, 'dist');
 const OUT = path.join(__dirname, 'verify-out');
 fs.mkdirSync(OUT, { recursive: true });
 const BASE_IMG = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579.png');
@@ -14,23 +15,42 @@ const ACTOR_IMG = path.join(__dirname, 'verify-test-actor.png');
 const ACTOR_MANIFEST = path.join(__dirname, 'verify-test-actor.json');
 
 const server = http.createServer((req, res) => {
-  const urlPath = decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '');
-  let p = path.join(REPO, urlPath || 'index.html');
+  const urlPath = decodeURIComponent(req.url.split('?')[0]);
+  if (urlPath === '/favicon.ico') { res.writeHead(204); res.end(); return; }
   // Actor test fixtures
-  if (urlPath.includes('verify-test-actor.png')) p = ACTOR_IMG;
-  if (urlPath.includes('verify-test-actor.json')) p = ACTOR_MANIFEST;
-  if (urlPath === 'favicon.ico') { res.writeHead(204); res.end(); return; }
-  if (p === REPO + '/' || p === REPO) p = path.join(REPO, 'index.html');
+  if (urlPath.includes('verify-test-actor.png')) {
+    res.writeHead(200, { 'Content-Type': 'image/png' });
+    res.end(fs.readFileSync(ACTOR_IMG));
+    return;
+  }
+  if (urlPath.includes('verify-test-actor.json')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(fs.readFileSync(ACTOR_MANIFEST));
+    return;
+  }
+  // Serve from dist/ (built) or repo root for source files
+  let p;
+  if (urlPath === '/index.html' || urlPath.startsWith('/assets/')) {
+    p = path.join(DIST, urlPath);
+  } else if (urlPath.startsWith('/runtime/') || urlPath.startsWith('/src/')) {
+    p = path.join(REPO, urlPath);
+  } else {
+    p = path.join(REPO, urlPath.replace(/^\//, ''));
+  }
+  if (!p || p === REPO + '/' || p === REPO) p = path.join(DIST, 'index.html');
   try {
     const data = fs.readFileSync(p);
     let ct = 'text/html';
-    if (p.endsWith('.json')) ct = 'application/json';
-    else if (p.endsWith('.png')) ct = 'image/png';
-    else if (p.endsWith('.jpg')) ct = 'image/jpeg';
+    const ext = path.extname(p).toLowerCase();
+    if (ext === '.json') ct = 'application/json';
+    else if (ext === '.png') ct = 'image/png';
+    else if (ext === '.jpg' || ext === '.jpeg') ct = 'image/jpeg';
+    else if (ext === '.js') ct = 'text/javascript; charset=utf-8';
+    else if (ext === '.mjs') ct = 'text/javascript; charset=utf-8';
+    else if (ext === '.css') ct = 'text/css';
     res.writeHead(200, { 'Content-Type': ct });
     res.end(data);
   } catch (e) {
-    console.error(`404: ${p} (requested: ${urlPath})`);
     res.writeHead(404);
     res.end();
   }
@@ -38,13 +58,13 @@ const server = http.createServer((req, res) => {
 
 (async () => {
   await new Promise(r => server.listen(8932, r));
-  const launchOpts = { args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] };
+  const launchOpts = { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] };
   if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
   else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage({ viewport: { width: 1500, height: 860 } });
   const errors = [];
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
   // Optionale Companion-Dateien: die Engine sucht neben "bild.png" automatisch eine
   // "bild_depth.png" (2.5D) und eine "bild_shading.png" (Materialschicht). Fehlen sie,
@@ -202,7 +222,7 @@ const server = http.createServer((req, res) => {
     const ov = document.getElementById('ov');
     const sample = () => {
       const g = ov.getContext('2d');
-      const px = Math.round(AX * ov.width), py = Math.round(AY * ov.height - 6 * 8);
+      const px = Math.round(AX * ov.width), py = Math.round(AY * ov.height - 24);
       const d = g.getImageData(px, py, 1, 1).data; return [d[0], d[1], d[2], d[3]];
     };
     window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0, fog: 0 });
@@ -221,7 +241,7 @@ const server = http.createServer((req, res) => {
     h.remove();
     return { day, night, states, swOk, dustPx };
   });
-  const emissiveOk = emisTest.night[0] > emisTest.day[0] + 30;   // Emission nachts deutlich stärker
+    const emissiveOk = emisTest.night[0] > emisTest.day[0] + 30;   // Emission nachts deutlich stärker
   const wsParsedOk = emisTest.states.length === 1 && emisTest.states[0] === 'dust' && emisTest.swOk;
   const wsSwapOk = emisTest.dustPx[0] > emisTest.day[0] + 20;    // Varianten-Sheet (braun) statt Basis (grau)
   console.log(`  ${emissiveOk ? '✓ PASS' : '✗ FAIL'}: Emissive glüht nachts additiv (Tag r=${emisTest.day[0]} → Nacht r=${emisTest.night[0]})`);

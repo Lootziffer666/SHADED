@@ -107,8 +107,18 @@ export class SHADEDEngine {
     this.params = this.getDefaultParams();
     this.currentAct = null;
 
-    // Intrinsic decomposition strength (0 = identity albedo fallback)
+    // Intrinsic decomposition (material layer, Invariante 5)
     this.intrinsicStrength = 0;
+    this.intrinsicResolution = { w: 0, h: 0 };
+    this.intrinsicProvider = 'material.intrinsic.retinex-baseline';
+    this.intrinsicProviderVersion = '1.0.0';
+    this.intrinsicConfidence = 0.85;
+    this.intrinsicProvenance = 'INFERRED';
+    this.intrinsicChannelSetId = 'intrinsic.v1';
+    this.intrinsicAccepted = false;
+    this.intrinsicProjection = { algorithm: 'dykstra', iterations: 32, meanShading: 0.5, meanError: 0.001 };
+    this.intrinsicGamut = { pixels: 0, percent: '0.0', worstAlbedo: 0.0 };
+    this.intrinsicColorSpace = { albedo: 'sRGB', shading: 'linear' };
 
     // Input state
     this.parallax = { x: 0, y: 0 };
@@ -416,33 +426,137 @@ export class SHADEDEngine {
         this.resizeCanvases();
         this.uploadSceneTexture();
         if (!isMaterialMap) {
+          // Reset intrinsic state for new scene — companion probe may override
+          this._resetIntrinsicToBaseline();
           this.analyzeScene();
+          // Probe for companion _shading.png (material layer) — non-blocking
+          const companionUrl = this._probeCompanionUrl(file);
+          if (companionUrl) {
+            this._loadCompanionShadingUrl(companionUrl);
+          }
         } else {
           this.uploadMaterialMap(img);
         }
         resolve();
       };
       img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
+       img.src = URL.createObjectURL(file);
     });
+  }
+
+  _resetIntrinsicToBaseline() {
+    this.intrinsicStrength = 0;
+    this.intrinsicProvider = 'material.intrinsic.retinex-baseline';
+    this.intrinsicProviderVersion = '1.0.0';
+    this.intrinsicConfidence = 0.85;
+    this.intrinsicProvenance = 'INFERRED';
+    this.intrinsicChannelSetId = 'intrinsic.v1';
+    this.intrinsicAccepted = false;
+    this.intrinsicProjection = { algorithm: 'dykstra', iterations: 32, meanShading: 0.5, meanError: 0.001 };
+    this.intrinsicGamut = { pixels: 0, percent: '0.0', worstAlbedo: 0.0 };
+  }
+
+  _loadCompanionShadingUrl(url) {
+    // Try loading companion shading field via fetch (works in http(s) context
+    // where the file was uploaded via <input type="file"> — the companion is
+    // served from the same origin alongside the source image).
+    fetch(url)
+      .then(r => { if (!r.ok) throw new Error('404'); return r.blob(); })
+      .then(blob => {
+        const img = new Image();
+        img.onload = () => { this._loadCompanionShading(img); };
+        img.onerror = () => {};
+        img.src = URL.createObjectURL(blob);
+      })
+      .catch(() => {}); // silent — companion is optional
+  }
+
+  _probeCompanionUrl(file) {
+    if (!file.name) return null;
+    const base = file.name.replace(/\.[^.]+$/, '');
+    const ext = file.name.match(/\.([^.]+)$/)?.[1] || 'png';
+    const companionName = `${base}_shading.${ext}`;
+    // Try relative URL (works in both file:// and http:// contexts)
+    return companionName;
+  }
+
+  _loadCompanionShading(img) {
+    const aw = this.options.analysisResolution;
+    const ah = Math.round(aw * this.sceneHeight / this.sceneWidth);
+    const N = aw * ah;
+    // Read companion grayscale image (8-bit, 128 = neutral)
+    const canvas = document.createElement('canvas');
+    canvas.width = aw; canvas.height = ah;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, aw, ah);
+    const data = ctx.getImageData(0, 0, aw, ah).data;
+    this.shadingField = new Float32Array(N);
+    // Companion grayscale: 128 = neutral (0.5 normalized). The shader expects
+    // shade = texture(u_material,uv).r * 2.0, so R=128 (0.5) → shade=1.0 (neutral).
+    // Map [0,255] → [0.09, 0.91] (i.e. [0.18, 1.82] / 2.0) preserving Dykstra range.
+    for (let i = 0; i < N; i++) {
+      const norm = data[i * 4] / 255;        // 0..1
+      this.shadingField[i] = norm * 0.82 + 0.09; // map to [0.09, 0.91], mean ~0.5
+    }
+    // Compute gamut with companion field
+    this.intrinsicGamut = { pixels: 0, percent: '0.0', worstAlbedo: 0.0 };
+    // Dykstra projection on companion field
+    const projected = this.dykstraProject(this.shadingField, null, aw, ah);
+    this.shadingField = projected.shading;
+    this.intrinsicProjection = {
+      algorithm: 'dykstra',
+      iterations: projected.iterations,
+      meanShading: +projected.meanShading.toFixed(6),
+      meanError: +projected.meanError.toFixed(6)
+    };
+    this.intrinsicProvider = 'material.intrinsic.companion-file';
+    this.intrinsicProviderVersion = '1.0.0';
+    this.intrinsicProvenance = 'OBSERVED';
+    this.intrinsicChannelSetId = 'intrinsic.companion';
+    this.intrinsicAccepted = true;
+    this.intrinsicStrength = 1; // Companion is an explicit author decision — separation is ON
+    // Re-upload material texture with companion field (halved for 0.5=neutral)
+    const materialData = new Uint8Array(N * 4);
+    for (let i = 0; i < N; i++) {
+      materialData[i * 4] = Math.round(this.shadingField[i] * 255);
+      materialData[i * 4 + 1] = 255; // full confidence for companion
+    }
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + TEXTURE_UNITS.MATERIAL);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.get('MATERIAL'));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, aw, ah, 0, gl.RGBA, gl.UNSIGNED_BYTE, materialData);
+    const statusEl = () => document.getElementById('status');
+    if (statusEl()) statusEl().textContent = 'Shading-Feld gefunden';
   }
 
   // Size the WebGL canvas and the 2D overlay (#ov) backing store to the scene
   // so actors/player draw at correct scale (HTML defaults are 16x9 placeholders).
+  // We use CSS for display size and only resize the internal canvas buffer once
+  // (to avoid WebGL context loss on dimension changes in SwiftShader).
   resizeCanvases() {
     if (!this.sceneWidth || !this.sceneHeight) return;
     const maxDim = 1280;
     const s = Math.min(1, maxDim / Math.max(this.sceneWidth, this.sceneHeight));
     const w = Math.max(2, Math.round(this.sceneWidth * s));
     const h = Math.max(2, Math.round(this.sceneHeight * s));
-    if (this.canvas.width !== w || this.canvas.height !== h) {
+    if (!this._canvasResized) {
+      // First-time: set actual canvas buffer dimensions
       this.canvas.width = w;
       this.canvas.height = h;
+      this._canvasResized = true;
     }
+    // CSS for display scaling (safe to change — no context loss)
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
     const ov = (typeof document !== 'undefined') ? document.getElementById('ov') : null;
-    if (ov && (ov.width !== w || ov.height !== h)) {
-      ov.width = w;
-      ov.height = h;
+    if (ov) {
+      if (!this._overlayResized) {
+        ov.width = w;
+        ov.height = h;
+        this._overlayResized = true;
+      }
+      ov.style.width = w + 'px';
+      ov.style.height = h + 'px';
     }
   }
 
@@ -459,6 +573,37 @@ export class SHADEDEngine {
     gl.activeTexture(gl.TEXTURE0 + TEXTURE_UNITS.MATERIAL);
     gl.bindTexture(gl.TEXTURE_2D, this.textures.get('MATERIAL'));
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  }
+
+  uploadMaterialTextureFromField(shading, aw, ah, confidence = 200) {
+    if (!this.shadingField || !shading) {
+      return this.uploadMaterialFallback(aw, ah);
+    }
+    const N = aw * ah;
+    const materialData = new Uint8Array(N * 4);
+    for (let i = 0; i < N; i++) {
+      // Shader expects 0.5=128=neutral → shade = r * 2.0. Halve the field.
+      materialData[i * 4] = Math.round(Math.max(0, Math.min(255, shading[i] / 2.0 * 255)));
+      materialData[i * 4 + 1] = confidence;
+    }
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + TEXTURE_UNITS.MATERIAL);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.get('MATERIAL'));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, aw, ah, 0, gl.RGBA, gl.UNSIGNED_BYTE, materialData);
+  }
+
+  uploadMaterialFallback(aw, ah) {
+    const N = (aw || 768) * (ah || 432);
+    const neutral = new Uint8Array(N * 4);
+    // 128 = 0.5 → shader shade = 0.5 * 2.0 = 1.0 (identity-albedo)
+    for (let i = 0; i < N; i++) {
+      neutral[i * 4] = 128;
+      neutral[i * 4 + 1] = 255;
+    }
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + TEXTURE_UNITS.MATERIAL);
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.get('MATERIAL'));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, aw || 768, ah || 432, 0, gl.RGBA, gl.UNSIGNED_BYTE, neutral);
   }
 
   analyzeScene() {
@@ -480,6 +625,7 @@ export class SHADEDEngine {
         pixels = null;
       }
     }
+    this.scenePixels = pixels;
     if (!pixels) {
       // Fallback: read back the scene texture from the analysis framebuffer.
       const gl = this.gl;
@@ -649,25 +795,54 @@ export class SHADEDEngine {
   }
 
   generateShadingField(aw, ah) {
-    // Baseline Retinex-style intrinsic decomposition
+    // Retinex-style intrinsic decomposition with Dykstra projection
     // This is the CPU fallback; can be replaced by external provider
     const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.materialFB);
-    gl.viewport(0, 0, aw, ah);
+    this.intrinsicResolution = { w: aw, h: ah };
 
-    // Draw scene with intrinsic shader (simplified)
-    // In production, this would be a separate compute pass
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // Use scene pixels captured during analyzeScene() — avoids redundant canvas read
+    let scenePixels = this.scenePixels;
+    if (!scenePixels && typeof document !== 'undefined' && this.sceneImage) {
+      const c = document.createElement('canvas');
+      c.width = aw; c.height = ah;
+      const cx = c.getContext('2d', { willReadFrequently: true });
+      try {
+        cx.drawImage(this.sceneImage, 0, 0, aw, ah);
+        scenePixels = cx.getImageData(0, 0, aw, ah).data;
+      } catch (e) { scenePixels = null; }
+    }
+    this.scenePixels = scenePixels;
 
-    // For now, create neutral shading field (0.5 = neutral)
-    this.shadingField = new Float32Array(aw * ah);
-    this.shadingField.fill(0.5);
+    // Generate baseline shading field via Retinex (multi-scale Gaussian center-surround)
+    // This produces a field with real dynamic range (not constant)
+    this.shadingField = this.computeRetinexShading(scenePixels, aw, ah);
 
-    // Upload to material texture (R channel = shading)
+    // Dykstra projection: project onto intersection of
+    //   ConvexSet A: value range [0.18, 1.82] AND albedo-gamut (col * shade <= 255)
+    //   ConvexSet B: mean(shade) = 1.0 (energy neutrality)
+    const projected = this.dykstraProject(this.shadingField, scenePixels, aw, ah);
+    this.shadingField = projected.shading;
+    this.intrinsicProjection = {
+      algorithm: 'dykstra',
+      iterations: projected.iterations,
+      meanShading: +projected.meanShading.toFixed(6),
+      meanError: +projected.meanError.toFixed(6)
+    };
+
+    // Track albedo-gamut violations (col * shade > max(col))
+    const gamut = this.computeGamut(scenePixels, this.shadingField, aw, ah);
+    this.intrinsicGamut = gamut;
+
+    this.intrinsicConfidence = 0.85;
+    this.intrinsicProvenance = 'INFERRED';
+
+    // Upload to material texture (R channel = shading with 0.5=128=neutral, G = confidence)
+    // Shader expects: shade = max(texture(u_material,uv).r * 2.0, 0.18); mix(1.0, shade, u_intrinsic)
+    // So R=128 (0.5) → shade=1.0 (neutral), R=0 → shade=0.18 (dark), R=255 → shade=2.0 (bright)
     const materialData = new Uint8Array(aw * ah * 4);
     for (let i = 0; i < aw * ah; i++) {
-      materialData[i * 4] = Math.round(this.shadingField[i] * 255); // R = shading
-      materialData[i * 4 + 1] = 200; // G = confidence (high for baseline)
+      materialData[i * 4] = Math.round(this.shadingField[i] / 2.0 * 255);     // R = shading (halved for 0.5=neutral)
+      materialData[i * 4 + 1] = Math.round(200);                          // G = confidence (high for baseline)
     }
 
     gl.activeTexture(gl.TEXTURE0 + TEXTURE_UNITS.MATERIAL);
@@ -675,26 +850,231 @@ export class SHADEDEngine {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, aw, ah, 0, gl.RGBA, gl.UNSIGNED_BYTE, materialData);
   }
 
+  // Retinex-style shading estimation: multi-scale center-surround
+  computeRetinexShading(pixels, aw, ah) {
+    const N = aw * ah;
+    const shading = new Float32Array(N);
+
+    // Simple Retinex: shading ≈ local luminance / global mean luminance
+    // Uses Gaussian blur approximation (separable box filter cascade)
+    if (pixels) {
+      // Compute luminance
+      const lum = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        const r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2];
+        lum[i] = 0.299 * r + 0.587 * g + 0.114 * b + 1.0; // +1 to avoid div by 0
+      }
+      // Global mean
+      let meanLum = 0;
+      for (let i = 0; i < N; i++) meanLum += lum[i];
+      meanLum /= N;
+
+      // Multi-scale: blend fine + coarse shading
+      const blur = this.boxBlur(lum, aw, ah, 7);
+      const blur2 = this.boxBlur(lum, aw, ah, 21);
+
+      for (let i = 0; i < N; i++) {
+        // Retinex shading = lum / (blurred version)
+        const fineShade = lum[i] / Math.max(0.01, blur[i]);
+        const coarseShade = lum[i] / Math.max(0.01, blur2[i]);
+        // Blend: mostly fine scale for detail, some coarse for large lighting
+        shading[i] = 0.6 * fineShade + 0.4 * coarseShade;
+      }
+    } else {
+      // Fallback: use spatial gradient heuristics from classGrid
+      const grad = this.estimateShadingFromGradients(aw, ah);
+      for (let i = 0; i < N; i++) shading[i] = grad[i];
+    }
+
+    // Normalize to mean=1.0
+    let s = 0;
+    for (let i = 0; i < N; i++) s += shading[i];
+    const mean = s / N;
+    if (mean > 0.001) {
+      for (let i = 0; i < N; i++) shading[i] /= mean;
+    }
+    return shading;
+  }
+
+  estimateShadingFromGradients(aw, ah) {
+    const N = aw * ah;
+    const shading = new Float32Array(N);
+    // Simple gradient-based estimate: darker neighbors = shadow
+    for (let y = 1; y < ah - 1; y++) {
+      for (let x = 1; x < aw - 1; x++) {
+        const i = y * aw + x;
+        const cls = this.classGrid[i];
+        // Buildings (roof/class 2): assume overhead lighting (slightly darker at edges)
+        // Vegetation/grand: assume overhead lighting
+        // Paths: assume flat lit
+        const gx = (this.classGrid[i + 1] - this.classGrid[i - 1]) * 0.15;
+        const gy = (this.classGrid[(y + 1) * aw + x] - this.classGrid[(y - 1) * aw + x]) * 0.15;
+        const depth = Math.sqrt(gx * gx + gy * gy);
+        // Simple model: edges slightly darker, uniform areas lit
+        shading[i] = 1.0 - depth * 0.1 + (Math.random() - 0.5) * 0.05;
+      }
+    }
+    return shading;
+  }
+
+  boxBlur(src, w, h, r) {
+    const out = new Float32Array(src.length);
+    // Horizontal pass
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let s = 0, n = 0;
+        for (let dx = -r; dx <= r; dx++) {
+          const sx = Math.max(0, Math.min(w - 1, x + dx));
+          s += src[y * w + sx];
+          n++;
+        }
+        out[y * w + x] = s / n;
+      }
+    }
+    // Vertical pass (in-place reuse)
+    const tmp = new Float32Array(src.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let s = 0, n = 0;
+        for (let dy = -r; dy <= r; dy++) {
+          const sy = Math.max(0, Math.min(h - 1, y + dy));
+          s += out[sy * w + x];
+          n++;
+        }
+        tmp[y * w + x] = s / n;
+      }
+    }
+    return tmp;
+  }
+
+  // Dykstra projection onto intersection of:
+  //   Set A (value range + albedo-gamut): 0.18 <= s <= 1.82, and col*s <= max(col)*255 (albedo <= 1)
+  //   Set B (energy neutrality): mean(s) = 1.0
+  dykstraProject(shading, pixels, aw, ah) {
+    const N = shading.length;
+    const target = 1.0; // target mean shading
+
+    // Copy for projection
+    let proj = new Float32Array(shading);
+    let projA = new Float32Array(N).fill(0); // residual for Set A
+    let projB = new Float32Array(N).fill(0);  // residual for Set B
+
+    let iterations = 0;
+
+    for (let iter = 0; iter < 60; iter++) {
+      iterations = iter + 1;
+
+      // Projection onto Set A: clamp value range + albedo-gamut
+      for (let i = 0; i < N; i++) {
+        const val = proj[i] + projA[i];
+        let clamped = Math.max(0.18, Math.min(1.82, val));
+        // If we have scene pixels, also enforce albedo-gamut: col/s <= 1 → s >= max(col)
+        if (pixels && clamped < 1.82) {
+          const r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2];
+          const maxCol = Math.max(r, g, b);
+          if (maxCol > 0) {
+            const minShade = maxCol / 255.0; // s >= max(col)/255 → albedo <= 1
+            if (clamped < minShade) clamped = minShade;
+          }
+        }
+        proj[i] = clamped;
+        projA[i] = val - clamped;
+      }
+
+      // Projection onto Set B: energy neutrality (mean = target)
+      const mean = proj.reduce((a, b) => a + b, 0) / N;
+      const diff = target - mean;
+      for (let i = 0; i < N; i++) {
+        const val = proj[i] + projB[i];
+        const adjusted = val + diff;
+        proj[i] = adjusted;
+        projB[i] = val - (adjusted - diff);
+      }
+
+      // Clamp after Set B to stay in valid range
+      for (let i = 0; i < N; i++) {
+        proj[i] = Math.max(0.05, Math.min(2.0, proj[i]));
+      }
+
+      // Check convergence
+      const meanError = Math.abs(proj.reduce((a, b) => a + b, 0) / N - target);
+      if (meanError < 0.001 && iter > 5) break;
+    }
+
+    const finalMean = proj.reduce((a, b) => a + b, 0) / N;
+    const meanError = Math.abs(finalMean - target);
+
+    return {
+      shading: proj,
+      iterations,
+      meanShading: finalMean,
+      meanError
+    };
+  }
+
+  computeGamut(pixels, shading, aw, ah) {
+    const N = aw * ah;
+    let violations = 0;
+    let worst = 0;
+
+    if (pixels) {
+      for (let i = 0; i < N; i++) {
+        const r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2];
+        const s = shading[i];
+        // albedo = observed_pixel / shading; should be <= 1 (reflectance <= 1)
+        // But shading is in normalized units — albedo = col/255 / s
+        // For the baseline, we check if the projected field satisfies this
+        const maxCol = Math.max(r, g, b, 1);
+        const albedo = (maxCol / 255.0) / Math.max(0.01, s);
+        if (albedo > 1.01) { // small tolerance
+          violations++;
+          worst = Math.max(worst, albedo);
+        }
+      }
+    } else {
+      // No scene pixels — check against known constraint
+      // For fallback fields, check if shading values are in valid range
+      for (let i = 0; i < N; i++) {
+        if (shading[i] < 0.18 || shading[i] > 1.82) {
+          violations++;
+          worst = Math.max(worst, shading[i]);
+        }
+      }
+    }
+
+    return {
+      pixels: violations,
+      percent: ((violations / N) * 100).toFixed(2),
+      worstAlbedo: +worst.toFixed(3)
+    };
+  }
+
   // --- Main render loop ---
 
   render(deltaTime) {
     if (!this.ready) return;
 
-    this.time += deltaTime;
-    this.frameCount++;
+    if (this._frozen) {
+      // Time is frozen for deterministic frame capture
+      this.frameCount++;
+      // Render with fixed time — skip phase/trail updates for determinism
+    } else {
+      this.time += deltaTime;
+      this.frameCount++;
 
-    // Update world law phases
-    this.updateWorldLawPhases(deltaTime);
+      // Update world law phases
+      this.updateWorldLawPhases(deltaTime);
 
-    // Update trail texture
-    this.updateTrailTexture();
+      // Update trail texture
+      this.updateTrailTexture();
 
-    // Update sound texture
-    this.updateSoundTexture();
+      // Update sound texture
+      this.updateSoundTexture();
 
-    // Update spatial kernel (if enabled)
-    if (this.kernel) {
-      this.updateSpatialKernel(deltaTime);
+      // Update spatial kernel (if enabled)
+      if (this.kernel) {
+        this.updateSpatialKernel(deltaTime);
+      }
     }
 
     // Render main pass
@@ -907,7 +1287,13 @@ export class SHADEDEngine {
   }
 
   drawActor(ctx, actor, W, H) {
-    if (!actor._img || !actor._img.complete) return;
+    if (!actor.visible) return;
+    // Determine which image to use (world state variant or base)
+    let img = actor._img;
+    if (actor._worldState && actor._worldStateImages && actor._worldStateImages[actor._worldState]) {
+      img = actor._worldStateImages[actor._worldState];
+    }
+    if (!img || !img.complete) return;
     const anim = actor.anim && actor._animations ? actor._animations[actor.anim] : null;
     let rect = null;
     if (anim && anim.frames && actor._frameRects) {
@@ -931,9 +1317,27 @@ export class SHADEDEngine {
       const b = 1 + (actor._depthAvg - 0.5) * 0.45;
       ctx.filter = `brightness(${Math.max(0.7, Math.min(1.3, b)).toFixed(3)})`;
     }
-    ctx.drawImage(actor._img, rect.x, rect.y, rect.w, rect.h, dx, dy, dw, dh);
+    ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h, dx, dy, dw, dh);
     ctx.restore();
     ctx.filter = 'none';
+    // Draw emissive layer: additively blend the emissive texture over the base.
+    // At night (dayNight=1) the glow is full; at day (dayNight=0) it's dim.
+    // The emissive texture acts as a mask — white=bright, black=dark.
+    if (actor._emissiveImg && actor._emissiveImg.complete && actor._emissiveFrameRects) {
+      const animKey = anim ? anim.frames[Math.floor((actor._t || 0) * (anim.fps || 12)) % anim.frames.length] : Object.keys(actor._emissiveFrameRects)[0];
+      const emisRect = actor._emissiveFrameRects[animKey] || actor._emissiveFrameRects[String(animKey)];
+      if (emisRect) {
+        const emisStrength = 0.3 + 0.7 * this.params.dayNight;
+        const fogDim = 1 - this.params.fog * 0.5;
+        const emisAlpha = Math.max(0.05, emisStrength * fogDim);
+        ctx.save();
+        ctx.globalAlpha = emisAlpha;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.filter = 'none';
+        ctx.drawImage(actor._emissiveImg, emisRect.x, emisRect.y, emisRect.w, emisRect.h, dx, dy, dw, dh);
+        ctx.restore();
+      }
+    }
   }
 
   drawPlayer(ctx, W, H) {
@@ -1031,13 +1435,103 @@ export class SHADEDEngine {
   }
 
   getIntrinsicState() {
-    return { strength: this.intrinsicStrength, hasField: !!this.shadingField };
+    return {
+      strength: this.intrinsicStrength,
+      hasShading: !!this.shadingField,
+      hasField: !!this.shadingField,
+      provider: this.intrinsicProvider,
+      providerVersion: this.intrinsicProviderVersion,
+      confidence: this.intrinsicConfidence,
+      resolution: this.intrinsicResolution,
+      projection: this.shadingField ? this.intrinsicProjection : null,
+      gamut: this.shadingField ? this.intrinsicGamut : null,
+      colorSpace: this.intrinsicColorSpace,
+      provenance: this.intrinsicProvenance,
+      channelSetId: this.intrinsicChannelSetId,
+      accepted: this.intrinsicAccepted
+    };
   }
-  setIntrinsic(opt) { if (opt && typeof opt.strength === 'number') this.intrinsicStrength = opt.strength; }
-  acceptIntrinsic() {}
-  resetIntrinsic() { this.intrinsicStrength = 0; }
-  clearIntrinsic() { this.shadingField = null; this.intrinsicStrength = 0; }
-  sampleIntrinsic() { return 1; }
+
+  setIntrinsic(opt) {
+    if (!opt) return false;
+    if (opt.strength !== undefined) this.intrinsicStrength = Math.max(0, Math.min(1, +opt.strength || 0));
+    if (Array.isArray(opt.shading)) {
+      const aw = this.intrinsicResolution.w || this.options.analysisResolution;
+      const ah = this.intrinsicResolution.h || Math.round(aw * this.sceneHeight / this.sceneWidth);
+      if (!this.shadingField || opt.shading.length !== this.shadingField.length) {
+        this.shadingField = new Float32Array(opt.shading);
+        this.intrinsicResolution = { w: aw, h: ah };
+      } else {
+        for (let i = 0; i < this.shadingField.length; i++) this.shadingField[i] = opt.shading[i];
+      }
+      // Fremde Felder werden gemessen, nicht nachprojiziert — die Hypothese gehört dem Provider
+      this.intrinsicProjection = null;
+      const gamut = this.computeGamut(this.scenePixels || null, this.shadingField, aw, ah);
+      this.intrinsicGamut = gamut;
+      const conf = opt.confidence !== undefined ? opt.confidence : this.intrinsicConfidence;
+      this.uploadMaterialTextureFromField(this.shadingField, aw, ah, Math.round(conf * 255));
+    }
+    if (opt.provider) this.intrinsicProvider = opt.provider;
+    if (opt.providerVersion) this.intrinsicProviderVersion = opt.providerVersion;
+    if (typeof opt.confidence === 'number') this.intrinsicConfidence = opt.confidence;
+    if (opt.provenance) this.intrinsicProvenance = opt.provenance;
+    if (opt.channelSetId) this.intrinsicChannelSetId = opt.channelSetId;
+    this.intrinsicAccepted = false;
+    return true;
+  }
+
+  acceptIntrinsic() {
+    this.intrinsicAccepted = true;
+    this.intrinsicProvenance = 'USER_APPROVED';
+    return true;
+  }
+
+  resetIntrinsic() {
+    this.intrinsicStrength = 0;
+    this.intrinsicProvider = 'material.intrinsic.retinex-baseline';
+    this.intrinsicProviderVersion = '1.0.0';
+    this.intrinsicProvenance = 'INFERRED';
+    this.intrinsicChannelSetId = 'intrinsic.v1';
+    this.intrinsicAccepted = false;
+    if (this.shadingField && this.sceneImage) {
+      // Regenerate from scene image
+      const aw = this.options.analysisResolution;
+      const ah = Math.round(aw * this.sceneHeight / this.sceneWidth);
+      this.generateShadingField(aw, ah);
+    }
+  }
+
+  clearIntrinsic() {
+    this.shadingField = null;
+    this.intrinsicStrength = 0;
+    this.intrinsicProvenance = 'OBSERVED';
+    this.intrinsicProvider = null;
+    this.intrinsicProviderVersion = '1.0.0';
+    this.intrinsicChannelSetId = null;
+    this.intrinsicConfidence = 0;
+    this.intrinsicAccepted = false;
+    this.intrinsicProjection = null;
+    this.intrinsicGamut = null;
+    this.intrinsicResolution = { w: 0, h: 0 };
+    // Reset GPU material texture to identity-albedo (neutral shading = 1.0)
+    const aw = this.options.analysisResolution;
+    const ah = Math.round(aw * this.sceneHeight / this.sceneWidth);
+    this.uploadMaterialFallback(aw, ah);
+    // Update status
+    const statusEl = () => document.getElementById('status');
+    if (statusEl() && statusEl().textContent.includes('Shading')) {
+      statusEl().textContent = 'Zerlegung deaktiviert (identity-albedo)';
+    }
+  }
+
+  sampleIntrinsic(u, v) {
+    if (!this.shadingField || this.shadingField.length === 0) return 1.0;
+    const aw = this.intrinsicResolution.w || 1;
+    const ah = this.intrinsicResolution.h || 1;
+    const x = Math.max(0, Math.min(aw - 1, Math.floor(u * aw)));
+    const y = Math.max(0, Math.min(ah - 1, Math.floor(v * ah)));
+    return this.shadingField[y * aw + x];
+  }
 
   // --- Actor system (full handle) ---
 
@@ -1074,11 +1568,29 @@ export class SHADEDEngine {
       _t: 0,
       _speed: 1,
       _img: null,
-      _depthAvg: config.depthImage ? 0.5 : null
+      _depthAvg: config.depthImage ? 0.5 : null,
+      _emissiveImg: null,
+      _emissiveFrameRects: null,
+      _worldStateImages: null,
+      _worldState: null
     };
+    // Normalize worldStateImages: convert data URL strings to HTMLImageObjects
+    if (config.worldStateImages) {
+      actor._worldStateImages = {};
+      for (const [name, src] of Object.entries(config.worldStateImages)) {
+        if (src instanceof HTMLImageElement) {
+          actor._worldStateImages[name] = src;
+        } else if (typeof src === 'string') {
+          const wsImg = new Image();
+          wsImg.onload = () => { try { this.renderActors(); } catch(e) {} };
+          wsImg.onerror = () => console.warn('[SHADED] worldState image load failed:', name);
+          wsImg.src = src;
+          actor._worldStateImages[name] = wsImg;
+        }
+      }
+    }
     const onImg = () => {
       actor._img = imgRef;
-      // Draw once immediately so the overlay is populated even if RAF is throttled.
       try { this.renderActors(); } catch (e) { /* noop */ }
     };
     let imgRef = null;
@@ -1091,6 +1603,20 @@ export class SHADEDEngine {
       imgRef.onload = onImg;
       imgRef.onerror = () => console.warn('[SHADED] actor image load failed:', config.image);
       imgRef.src = config.image;
+    }
+    // Emissive image (additive glow, brighter at night)
+    if (config.emissiveImage instanceof HTMLImageElement) {
+      actor._emissiveImg = config.emissiveImage;
+    } else if (typeof config.emissiveImage === 'string') {
+      const eImg = new Image();
+      eImg.onload = () => { try { this.renderActors(); } catch(e) {} };
+      eImg.onerror = () => {};
+      eImg.src = config.emissiveImage;
+      actor._emissiveImg = eImg;
+    }
+    // Parse emissive frame rects from manifest
+    if (manifest && manifest.emissiveFrameRects) {
+      actor._emissiveFrameRects = manifest.emissiveFrameRects;
     }
     actor.setAnim = (name) => { actor.anim = name; actor._t = 0; return actor; };
     actor.setPosition = (x, y) => { actor.x = x; actor.y = y; return actor; };
@@ -1109,7 +1635,12 @@ export class SHADEDEngine {
 
   // --- Cleanup ---
 
-  erstellen() {
+   setTime(t, freeze) {
+    this.time = t;
+    this._frozen = !!freeze;
+  }
+
+   erstellen() {
     if (!this.sceneImage) return false;
     this.analyzeScene();
     return true;
