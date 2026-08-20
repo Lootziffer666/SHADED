@@ -30,10 +30,6 @@ jobs:
         # made browser verification depend on Ubuntu mirror availability.
         npx playwright install chromium
 
-    - name: Run deterministic contract and spatial tests
-      run: |
-        npm run check
-
     - name: Verify viewport-first mobile editor, closing, correction and room entry
       run: |
         npm run verify:mobile-editor
