@@ -16,6 +16,34 @@ async function localOrigin() {
       const file = path.join(DIST, 'index.html');
       try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
     }
+    // @kernel shim: serve spatial-kernel chunk with proper named exports
+    if (pathname.startsWith('/@kernel/')) {
+      const spatialKernelFiles = fs.readdirSync(path.join(DIST, 'assets')).filter(f => f.startsWith('spatial-kernel-') && f.endsWith('.js'));
+      if (spatialKernelFiles.length > 0) {
+        const kernelChunk = fs.readFileSync(path.join(DIST, 'assets', spatialKernelFiles[0]), 'utf8');
+        const shim = `// @kernel shim - re-exports spatial-kernel chunk with proper named exports
+import * as kernel from './${spatialKernelFiles[0]}';
+
+// Re-export with proper names matching source imports
+export const SpatialKernel = kernel.a;
+export const ObservationStore = kernel.b;
+export const GeometryObservation = kernel.G;
+export const SOURCE_TYPE = kernel.S;
+export const OBS_PROVENANCE = kernel.O;
+export const RecipeManager = kernel.R;
+
+// Also export as default for @kernel/index.js compatibility
+export default kernel;
+`;
+        response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(shim); return;
+      }
+      response.writeHead(404); response.end(); return;
+    }
+    // Runtime modules: serve source files
+    if (pathname.startsWith('/runtime/')) {
+      const file = path.join(repository, 'src', pathname.replace(/^\/runtime\//, 'runtime/'));
+      try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
+    }
     const requested = pathname;
     const filename = path.resolve(repository, '.' + requested), relative = path.relative(repository, filename);
     if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) { response.writeHead(404); response.end(); return; }

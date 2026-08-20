@@ -6,7 +6,14 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
-const DIST_EDITOR = path.join(REPO, 'dist', 'editor');
+const DIST = path.join(REPO, 'dist');
+const DIST_EDITOR = path.join(DIST, 'editor');
+console.error('[DEBUG] HERE:', HERE);
+console.error('[DEBUG] REPO:', REPO);
+console.error('[DEBUG] DIST:', DIST);
+console.error('[DEBUG] DIST exists:', fs.existsSync(DIST));
+console.error('[DEBUG] dist/index.html exists:', fs.existsSync(path.join(DIST, 'index.html')));
+console.error('[DEBUG] dist/editor/index.html exists:', fs.existsSync(path.join(DIST_EDITOR, 'index.html')));
 let failed = false;
 const errors = [];
 const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'} — ${label}`); if (!condition) failed = true; };
@@ -14,7 +21,8 @@ const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAA
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-  if (pathname === '/') {
+  console.error('[SERVER]', pathname);
+  if (pathname === '/' || pathname === '/index.html') {
     const file = path.join(REPO, 'dist', 'index.html');
     try {
       const data = fs.readFileSync(file);
@@ -38,6 +46,44 @@ const server = http.createServer((req, res) => {
       const data = fs.readFileSync(file);
       const type = pathname.endsWith('.js') ? 'text/javascript' : pathname.endsWith('.css') ? 'text/css' : 'image/png';
       res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+    return;
+  }
+  // @kernel shim: serve spatial-kernel chunk for bare imports
+  if (pathname.startsWith('/@kernel/')) {
+    const spatialKernelFiles = fs.readdirSync(path.join(REPO, 'dist', 'assets')).filter(f => f.startsWith('spatial-kernel-') && f.endsWith('.js'));
+    if (spatialKernelFiles.length > 0) {
+      const kernelChunk = fs.readFileSync(path.join(REPO, 'dist', 'assets', spatialKernelFiles[0]), 'utf8');
+      // Parse the minified exports and create a proper kernel shim
+      // The chunk exports: r as G (GeometryObservation), t as O (OBS_PROVENANCE), 
+      // s as S (SOURCE_TYPE), o as a (SpatialKernel), i as b (ObservationStore)
+      const shim = `// @kernel shim - re-exports spatial-kernel chunk with proper named exports
+import * as kernel from './${spatialKernelFiles[0]}';
+
+// Re-export with proper names matching source imports
+export const SpatialKernel = kernel.a;
+export const ObservationStore = kernel.b;
+export const GeometryObservation = kernel.G;
+export const SOURCE_TYPE = kernel.S;
+export const OBS_PROVENANCE = kernel.O;
+export const RecipeManager = kernel.R;
+
+// Also export as default for @kernel/index.js compatibility
+export default kernel;
+`;
+      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' });
+      res.end(shim);
+      return;
+    }
+    res.writeHead(404); res.end(); return;
+  }
+  // Runtime modules: serve source files (they may have @kernel imports handled by shim above)
+  if (pathname.startsWith('/runtime/')) {
+    const file = path.join(REPO, 'src', pathname.replace(/^\/runtime\//, 'runtime/'));
+    try {
+      const data = fs.readFileSync(file);
+      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' });
       res.end(data);
     } catch { res.writeHead(404); res.end(); }
     return;

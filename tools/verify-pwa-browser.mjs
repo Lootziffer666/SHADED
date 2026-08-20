@@ -25,6 +25,44 @@ const server = http.createServer((request, response) => {
     const file = path.join(DIST, pathname);
     try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': mime[path.extname(pathname)] || 'application/octet-stream', 'Cache-Control': 'no-cache'}); fs.createReadStream(file).pipe(response); return; } catch { response.writeHead(404); response.end(); return; }
   }
+  // @kernel shim: serve spatial-kernel chunk with proper named exports
+  if (pathname.startsWith('/@kernel/')) {
+    const spatialKernelFiles = fs.readdirSync(path.join(DIST, 'assets')).filter(f => f.startsWith('spatial-kernel-') && f.endsWith('.js'));
+    if (spatialKernelFiles.length > 0) {
+      const kernelChunk = fs.readFileSync(path.join(DIST, 'assets', spatialKernelFiles[0]), 'utf8');
+      const shim = `// @kernel shim - re-exports spatial-kernel chunk with proper named exports
+import * as kernel from './${spatialKernelFiles[0]}';
+
+// Re-export with proper names matching source imports
+export const SpatialKernel = kernel.a;
+export const ObservationStore = kernel.b;
+export const GeometryObservation = kernel.G;
+export const SOURCE_TYPE = kernel.S;
+export const OBS_PROVENANCE = kernel.O;
+export const RecipeManager = kernel.R;
+
+// Also export as default for @kernel/index.js compatibility
+export default kernel;
+`;
+      response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(shim); return;
+    }
+    response.writeHead(404); response.end(); return;
+  }
+  // Runtime modules: serve source files
+  if (pathname.startsWith('/runtime/')) {
+    const file = path.join(REPO, 'src', pathname.replace(/^\/runtime\//, 'runtime/'));
+    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
+  }
+  // Serve editor from dist/editor
+  if (pathname === '/editor/index.html' || pathname === '/editor/') {
+    const file = path.join(DIST_EDITOR, 'index.html');
+    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}); response.end(data); return; } catch { response.writeHead(404); response.end(); return; }
+  }
+  // Serve assets from dist/
+  if (pathname.startsWith('/assets/')) {
+    const file = path.join(DIST, pathname);
+    try { const data = fs.readFileSync(file); response.writeHead(200, {'Content-Type': mime[path.extname(pathname)] || 'application/octet-stream', 'Cache-Control': 'no-cache'}); fs.createReadStream(file).pipe(response); return; } catch { response.writeHead(404); response.end(); return; }
+  }
   // Fallback to dist/ for root, repo root for other files
   if (pathname === '/') {
     const file = path.join(DIST, 'index.html');
@@ -43,7 +81,7 @@ let browser;
 try {
   await listen();
   const address = server.address(), origin = `http://127.0.0.1:${address.port}`;
-  const launch = {headless: true, args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist']};
+  const launch = {headless: true, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']};
   if (process.env.CHROMIUM) launch.executablePath = process.env.CHROMIUM;
   browser = await chromium.launch(launch);
   const context = await browser.newContext({serviceWorkers: 'allow'}), page = await context.newPage(), failures = [];
