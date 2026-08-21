@@ -17,6 +17,7 @@ import { RecipeManager } from './recipe-manager.js';
 import { PhotoFirstRecipe } from './recipes/photo-first-recipe.js';
 import { ProceduralLittleWorld } from './recipes/procedural-little-world.js';
 import { HybridLittleWorld } from './recipes/hybrid-little-world.js';
+import { HallPlannerRecipe } from './recipes/hall-planner-recipe.js';
 import { QualityBudget, QUALITY } from './quality-budget.js';
 import { RepresentationManager } from './representation-manager.js';
 import { SpatialMemory } from './spatial-memory.js';
@@ -37,6 +38,7 @@ export function createDefaultKernel(opts = {}) {
   rm.register('photo-first', new PhotoFirstRecipe(opts.photoFirstOptions || {}));
   rm.register('procedural-little-world', new ProceduralLittleWorld(opts.proceduralOptions || { seed: 1337 }));
   rm.register('hybrid-little-world', new HybridLittleWorld(opts.hybridOptions || { seed: 5 }));
+  rm.register('hall-planner', new HallPlannerRecipe(opts.hallPlannerOptions || {}));
   kernel.registerSubsystem('recipes', rm);
 
   const budget = new QualityBudget(opts.profile || QUALITY.BROWSER);

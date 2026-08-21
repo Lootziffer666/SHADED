@@ -19,4 +19,5 @@ export { WorldLawSolver, registerReferenceLaws, evaporationLaw, freezeThawLaw, r
 export { optimizeMesh, weldVertices, removeDegenerate, quantizePositions, simplifyGreedy, indexMesh } from './mesh-pipeline.js';
 export { geometryNeighbourhood, estimatePointNormalsRobust, connectedComponents3D, fitGeometricPrimitivesExtended } from './reconstruction.js';
 export { HybridLittleWorld } from './recipes/hybrid-little-world.js';
+export { HallPlannerRecipe } from './recipes/hall-planner-recipe.js';
 export { createDefaultKernel, installKernel } from './bootstrap.js';
