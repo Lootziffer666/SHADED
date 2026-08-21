@@ -1,0 +1,19 @@
+{
+  "experimentId": "exp-043",
+  "title": "MoGe-3 spatial neighbourhood upgrade",
+  "operator": "GeometryNeighbourhood",
+  "donor": "MoGe-3",
+  "mode": "research",
+  "parameters": { "kernel_radius": 0.3, "max_neighbors": 32 },
+  "inputs": [{ "type": "point_cloud", "path": "file_00000000974871f49fe71f6b456f9579.png" }],
+  "metrics": [
+    { "name": "false_match_rate", "threshold": 0.15, "operator": "lte" },
+    { "name": "true_match_rate", "threshold": 0.85, "operator": "gte" },
+    { "name": "runtime_ms", "threshold": 5000, "operator": "lte" }
+  ],
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "b341f7f46390216e81c97e01259a573fd2e9896c",
+    "tree": "ff1d67176d0a99c715416e29cc31098aad1a0147"
+  }
+}

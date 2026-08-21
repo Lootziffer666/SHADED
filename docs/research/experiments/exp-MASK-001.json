@@ -1,0 +1,41 @@
+{
+  "experiment": "exp-MASK-001",
+  "name": "SemanticMaskFilter: SAM2 + SegFormer pre-filtering for visitor/temporary object removal",
+  "priority": "P0",
+  "status": "planning",
+  "donor": "SAM2 (Meta) + SegFormer (MIT)",
+  "license": "Apache-2.0",
+  "provider": "tools/providers/shaded_semantic_mask_filter.py",
+  "dependencies": {
+    "runtime": ["python3", "torch", "transformers", "segment_anything_2"],
+    "hardware": "GPU recommended for SAM2"
+  },
+  "inputs": {
+    "image_sequence": "test/fixtures/hall_multi_view/images/",
+    "camera_poses": "test/fixtures/hall_multi_view/colmap-sparse/0/images.txt",
+    "description": "Multi-view photo sequence of hall with visitors"
+  },
+  "operator": "SemanticMaskFilter",
+  "config": {
+    "person_confidence": 0.8,
+    "temporary_object_confidence": 0.7,
+    "mask_propagation": true,
+    "min_track_length": 3
+  },
+  "expected": {
+    "person_mask_accuracy": { "min": 0.9, "unit": "IoU vs manual annotation" },
+    "track_consistency": { "min": 0.85, "unit": "across 8 consecutive frames" },
+    "filtered_point_reduction": { "min": 30, "unit": "pct fewer outliers entering TSDF" },
+    "runtime_per_frame_sec": { "max": 2.0, "device": "cuda:A6000" }
+  },
+  "thresholds": {
+    "person_iou": { "min": 0.85 },
+    "temporary_object_iou": { "min": 0.7 },
+    "track_fragmentation": { "max": 0.3, "unit": "discontinuities per track" },
+    "memory_per_frame_mb": { "max": 512, "device": "cuda:A6000" }
+  },
+  "disposition_if_pass": "keep_default (vorgeschaltet vor TSDFFusion)",
+  "disposition_if_fail": "research_only",
+  "rescue": "T-3DGS/SpotLessSplats (exp-T3DGS-001) — distractor-aware reconstruction",
+  "notes": "SemanticMaskFilter runs BEFORE TSDF fusion (not after). It generates per-frame masks via SAM2 + SegFormer, tracks humans across frames, and filters masked regions from depth before volumetric integration. This prevents visitor artifacts from entering the TSDF grid."
+}

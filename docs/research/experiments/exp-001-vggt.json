@@ -1,0 +1,46 @@
+{
+  "experiment": "exp-001-vggt",
+  "name": "VGGT vs DepthAnything V3 single-view depth+points",
+  "priority": "P0",
+  "status": "dry-run",
+  "donor": "VGGT (Wang et al. CVPR 2025)",
+  "license": "Apache-2.0",
+  "provider": "tools/providers/shaded_vggt.py",
+  "dependencies": {
+    "runtime": ["python3", "torch", "vggt", "numpy", "Pillow"],
+    "gpu": "optional (cuda recommended)",
+    "models": ["facebook/vggt"]
+  },
+  "inputs": {
+    "scene": "file_00000000974871f49fe71f6b456f9579.png",
+    "description": "Canonical K1 building facade — shared with exp-001"
+  },
+  "operator": "VGGTDepthProvider",
+  "config": {
+    "model": "facebook/vggt",
+    "precision": "fp16",
+    "max_edge": 1024,
+    "point_budget": 250000,
+    "use_points": true,
+    "denoise_depth": true
+  },
+  "expected": {
+    "depth_convention": "metric-depth-meters",
+    "metric": true,
+    "channels": ["depth", "confidence", "normals", "points"],
+    "depth_shape_match": true,
+    "points_shape_second_dim": 6,
+    "schema_valid": true
+  },
+  "thresholds": {
+    "depth_mse_mm_vs_ground_truth": { "max": 35.0, "metric": true, "note": "VGGT CVPR SOTA ~28mm on ETH3D" },
+    "point_coverage_pct": { "min": 85, "note": "fraction of pixels with finite depth" },
+    "runtime_sec": { "max": 5.0, "device": "cuda:A6000" },
+    "normal_consistency": { "min": 0.85, "note": "mean abs dot product of normals vs ground-truth" },
+    "vram_gb": { "max": 8.0, "precision": "fp16" }
+  },
+  "disposition_if_pass": "keep_conditional (VGGT = best-in-class depth+camera+points)",
+  "disposition_if_fail": "research_only (external provider)",
+  "rescue": "DepthAnything V3 (exp-001) — same v1 schema, no camera prediction",
+  "notes": "VGGT predicts camera intrinsics+extrinsics alongside depth — use extrinsics to orient SparseField anchors. Single forward pass, <1s inference."
+}

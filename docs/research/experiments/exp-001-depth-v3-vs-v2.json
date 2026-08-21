@@ -1,0 +1,26 @@
+{
+  "experimentId": "exp-001",
+  "title": "DepthAnything V3 vs V2 Depth Quality",
+  "operator": "DepthProvider",
+  "donor": "Depth Anything V3",
+  "mode": "research",
+  "parameters": { "depth_model": "depth_anything_v3", "input_resolution": 512 },
+  "inputs": [{ "type": "image", "path": "file_00000000974871f49fe71f6b456f9579.png" }],
+  "outputs": [{ "kind": "depth_map", "path": "artifacts/run-20260821-090000Z/exp-001/depth_v3.png" }],
+  "metrics": [
+    { "name": "depth_mse_mm", "threshold": 25.0, "operator": "lte" },
+    { "name": "depth_edge_f1", "threshold": 0.70, "operator": "gte" },
+    { "name": "depth_completeness_pct", "threshold": 95.0, "operator": "gte" },
+    { "name": "console_errors", "threshold": 0, "operator": "eq" }
+  ],
+  "expectedClassCounts": {
+    "dorf-marker": {"foliage": 5872, "grass": 4885, "wood": 3636, "rock": 1186, "roof": 2818, "window": 197, "path": 2142}
+  },
+  "probes": ["K1-building", "K2-ground", "K3-canopy", "K-sky", "storm-night", "day-after"],
+  "timeoutSeconds": 600,
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "b341f7f46390216e81c97e01259a573fd2e9896c",
+    "tree": "ff1d67176d0a99c715416e29cc31098aad1a0147"
+  }
+}

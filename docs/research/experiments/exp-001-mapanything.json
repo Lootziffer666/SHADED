@@ -1,0 +1,45 @@
+{
+  "experiment": "exp-001-mapanything",
+  "name": "MapAnything geospatial routing as geometric constraint provider",
+  "priority": "P1",
+  "status": "dry-run",
+  "donor": "MapAnything (Salesforce Maps)",
+  "license": "commercial-api",
+  "provider": "tools/providers/shaded_mapanything.py",
+  "dependencies": {
+    "runtime": ["python3", "numpy", "Pillow"],
+    "api": "MapAnything Distance Matrix / Routing API (REST)",
+    "api_key": "required for live calls"
+  },
+  "inputs": {
+    "scene": "test/fixtures/charlotte-routes.geojson",
+    "description": "GeoJSON with depot point + 2 route LineStrings (Charlotte NC bbox)"
+  },
+  "operator": "MapAnythingGeospatialProvider",
+  "config": {
+    "api_url": "https://api.mapanything.com",
+    "traffic_window_index": 0,
+    "max_edge": 512,
+    "point_budget": 250000
+  },
+  "expected": {
+    "depth_convention": "relative-depth-higher-far",
+    "metric": false,
+    "channels": ["depth", "confidence", "points", "normals"],
+    "camera_block": "geographic-bounds encoded as intrinsics",
+    "routes_rasterised": true,
+    "waypoint_anchors_extracted": true,
+    "schema_valid": true
+  },
+  "thresholds": {
+    "routes_rasterised_correctly": { "min": 90, "unit": "pct of route cells covered" },
+    "waypoint_count": { "min": 4, "note": "depot + route endpoints" },
+    "depth_nonzero_cells": { "min": 1, "note": "at least one traversable cell" },
+    "normal_heading_consistency": { "min": 0.9, "note": "heading direction should be smooth along route" },
+    "api_call_success_rate": { "min": 95, "unit": "pct", "note": "with valid API key" }
+  },
+  "disposition_if_pass": "keep_conditional (geospatial routing as GeometryObservation constraints)",
+  "disposition_if_fail": "research_only (API-dependent)",
+  "rescue": "GeoJSON-only fallback (no API key needed — reads LineString routes directly)",
+  "notes": "MapAnything provides up to 7,500×7,500 distance matrix with 9 traffic windows. This provider rasterises route travel-time onto a grid (depth), derives heading-angles as normals, and extracts waypoints as 3D anchor points. No GPU/Torch needed — pure REST client. Fixture mode allows offline testing."
+}

@@ -1,0 +1,39 @@
+{
+  "experiment": "exp-SFS-001",
+  "name": "Shape-from-Shading for old photos with harsh side-lighting",
+  "priority": "P1",
+  "status": "planning",
+  "donor": "Woodham 1980 (SfS), Horn 1989 (SfS), DeepPS2 (2022)",
+  "license": "MIT (SfS) / Apache-2.0 (DeepPS2)",
+  "provider": "external (SfS/PS wrapper)",
+  "dependencies": {
+    "runtime": ["python3", "numpy"],
+    "optional": ["torch (DeepPS2)"],
+    "input": ["old_photo_hard_light.jpg"]
+  },
+  "inputs": {
+    "photo": "test/fixtures/kinderbilder/old_photo_hard_light.jpg",
+    "description": "1970s family photo with harsh side-window lighting — depth models fail here",
+    "image_count": 1
+  },
+  "operator": "PhotometricStereoProvider",
+  "config": {
+    "method": "sfS_single",
+    "regularization": 0.1
+  },
+  "expected": {
+    "normal_map_generated": true,
+    "albedo_extracted": true,
+    "lighting_estimated": true,
+    "detail_enhancement_vs_depth_model": { "min": 20, "unit": "pct more surface detail on textured surfaces" }
+  },
+  "thresholds": {
+    "normal_error_deg": { "max": 20.0, "note": "vs synthetic ground truth" },
+    "albedo_consistency": { "min": 0.9, "unit": "SSIM across illumination estimates" },
+    "runtime_sec": { "max": 1.0, "device": "CPU" }
+  },
+  "disposition_if_pass": "keep_conditional (supplemental geometry channel for old photos)",
+  "disposition_if_fail": "research_only",
+  "rescue": "DA3/VGGT monocular depth (baseline)",
+  "notes": "Shape-from-Shading works where multi-view fails: single old photos with harsh side-lighting produce more surface detail than any depth model. For multi-image input, photometric stereo gives better results. DeepPS2 allows 2-image input without ground truth."
+}

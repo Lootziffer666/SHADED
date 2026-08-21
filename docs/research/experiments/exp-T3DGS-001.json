@@ -1,0 +1,43 @@
+{
+  "experiment": "exp-T3DGS-001",
+  "name": "T-3DGS distractor-robust reconstruction on visitor-heavy hall scenes",
+  "priority": "P0",
+  "status": "planning",
+  "donor": "T-3DGS (CVPR 2024)",
+  "license": "Apache-2.0",
+  "provider": "external (T-3DGS pipeline wrapper)",
+  "dependencies": {
+    "runtime": ["python3", "torch", "numpy", "Pillow"],
+    "gpu": "required (CUDA recommended)",
+    "repo": "https://github.com/T-3DGS/T-3DGS"
+  },
+  "inputs": {
+    "scene_visitor": "test/fixtures/hall_visitor_heavy.mp4",
+    "description": "Walking-tour video of hall with 5–15 visitors in frame at any time",
+    "frames": 64,
+    "resolution": "1080p"
+  },
+  "operator": "DistractorRobustGaussianRep",
+  "config": {
+    "method": "t3dgs",
+    "uncertainty_predictor": true,
+    "transient_mask_refiner": true,
+    "max_gaussians": 2000000,
+    "denoise_iters": 3
+  },
+  "expected": {
+    "visitor_artifact_reduction": { "min": 80, "unit": "pct reduction in moving-object voxels" },
+    "chamfer_decrease_vs_flat": { "min": 30, "unit": "pct vs non-distractor-aware GaussianRep" },
+    "normal_consistency_improvement": { "min": 0.15 },
+    "schema_valid": true
+  },
+  "thresholds": {
+    "reprojection_error_mm": { "max": 2.5, "note": "vs ground-truth laser scan" },
+    "completeness": { "min": 90, "note": "percentage of static architecture recovered" },
+    "artifact_score": { "max": 0.1, "note": "visitor ghosting normalised 0–1" }
+  },
+  "disposition_if_pass": "keep_conditional (primary reconstruction for visitor-heavy scenes)",
+  "disposition_if_fail": "research_only (external pipeline)",
+  "rescue": "COLMAP (exp-COLMAP-001) with pre-masked frames via SeeingThroughClutter",
+  "notes": "T-3DGS uses a Reconstruction Uncertainty Predictor and Transient Mask Refiner to explicitly filter moving objects. This is the P0 distractor-robust baseline for all visitor-heavy scene experiments. Input is video — T-3DGS leverages multi-view temporal consistency."
+}

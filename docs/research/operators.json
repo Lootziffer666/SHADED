@@ -1,0 +1,731 @@
+{
+  "$schema": "docs/research/operators.schema.json",
+  "description": "Registry of all experimental operators from EG_DONOR_MATRIX.md",
+  "_meta": {
+    "generated": "2026-08-21",
+    "basedOn": "docs/research/EG_DONOR_MATRIX.md",
+    "schema": "docs/research/operators.schema.json"
+  },
+  "DepthProvider": {
+    "disposition": "keep_default",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Depth Anything V3",
+    "mode": "research",
+    "experiment": "exp-001",
+    "priority": "P0",
+    "dependencies": ["node:v22", "torch:2.3"],
+    "consumes": ["image", "camera"],
+    "produces": ["depth", "confidence"],
+    "configSchema": {
+      "type": "object",
+      "required": ["depth_model"],
+      "properties": {
+        "depth_model": { "type": "string", "enum": ["depth_anything_v2", "depth_anything_v3"] },
+        "input_resolution": { "type": "integer", "minimum": 256, "maximum": 1024 }
+      }
+    }
+  },
+  "GaussianRepresentation": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT (GPL-3 study)",
+    "donor": "3D Gaussian Splatting",
+    "mode": "research",
+    "experiment": "exp-040",
+    "priority": "P1"
+  },
+  "ImageTo3DCompletion": {
+    "disposition": "off_by_default",
+    "implType": "external_provider",
+    "license": "MIT",
+    "donor": "TRELLIS",
+    "mode": "research",
+    "experiment": "exp-042",
+    "priority": "P0"
+  },
+  "GeometryNeighbourhood": {
+    "disposition": "replace",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "MoGe-3",
+    "mode": "research",
+    "experiment": "exp-043",
+    "priority": "P0"
+  },
+  "IntrinsicDecomposer": {
+    "disposition": "teacher_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "IntrinsicNet/De-Lighter",
+    "mode": "teacher",
+    "experiment": "exp-044",
+    "priority": "P0"
+  },
+  "HybridLineRenderer": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Enhanced Cartoon Rendering",
+    "mode": "research",
+    "experiment": "exp-021",
+    "priority": "P1"
+  },
+  "TextureStationarizer": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Texture Stationarization",
+    "mode": "research",
+    "experiment": "exp-010",
+    "priority": "P0"
+  },
+  "MultiViewTextureFuser": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Seamless Multi-Texturing",
+    "mode": "research",
+    "experiment": "exp-011",
+    "priority": "P0"
+  },
+  "PaletteNormalizer": {
+    "disposition": "keep_default",
+    "implType": "replace_enhance",
+    "license": "internal",
+    "donor": "Recolorable Posterization",
+    "mode": "gold",
+    "experiment": "exp-012",
+    "priority": "P0"
+  },
+  "NavigationBuilder": {
+    "disposition": "already_impl",
+    "implType": "already_impl",
+    "license": "internal",
+    "donor": "A*",
+    "mode": "gold",
+    "experiment": "exp-050",
+    "priority": "P0"
+  },
+  "MotionSmoother": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Adaptive velocity smoothing",
+    "mode": "research",
+    "experiment": "exp-031",
+    "priority": "P0"
+  },
+  "ContactDetector": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "ContactVision",
+    "mode": "research",
+    "experiment": "exp-033",
+    "priority": "P1"
+  },
+  "PositionToRotation": {
+    "disposition": "research_only",
+    "implType": "research_concept",
+    "license": "unknown",
+    "donor": "IK-GAT",
+    "mode": "research",
+    "experiment": "exp-032",
+    "priority": "P2"
+  },
+  "AppearanceDrivenSimplifier": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Appearance-Driven Simplification",
+    "mode": "research",
+    "experiment": "exp-055",
+    "priority": "P0"
+  },
+  "StylizedSurfaceShader": {
+    "disposition": "keep_conditional",
+    "implType": "shader_integration",
+    "license": "internal",
+    "donor": "Borderlands-style cel shading",
+    "mode": "research",
+    "experiment": "exp-020",
+    "priority": "P1"
+  },
+  "PrimitiveFitter": {
+    "disposition": "keep_default",
+    "implType": "upgrade",
+    "license": "internal",
+    "donor": "Primitive-driven reconstruction",
+    "mode": "gold",
+    "experiment": "exp-015",
+    "priority": "P0"
+  },
+  "HallPlanner": {
+    "disposition": "keep_conditional",
+    "implType": "integration",
+    "license": "MIT",
+    "donor": "RoomRunner / LayoutNet",
+    "mode": "research",
+    "experiment": "exp-041",
+    "priority": "P0"
+  },
+  "ProvenanceTracker": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "internal",
+    "donor": "Provenance DAG",
+    "mode": "gold",
+    "experiment": "exp-001",
+    "priority": "P0"
+  },
+  "VGGTDepthProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "VGGT (CVPR 2025)",
+    "mode": "research",
+    "experiment": "exp-001-vggt",
+    "priority": "P0",
+    "dependencies": ["node:v22", "torch:2.3", "vggt"],
+    "consumes": ["image"],
+    "produces": ["depth", "confidence", "points", "normals"],
+    "providerFile": "tools/providers/shaded_vggt.py",
+    "configSchema": {
+      "type": "object",
+      "required": ["model"],
+      "properties": {
+        "model": { "type": "string", "default": "facebook/vggt" },
+        "use_points": { "type": "boolean", "default": false },
+        "denoise_depth": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "MapAnythingGeospatialProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "commercial-api",
+    "donor": "MapAnything (Salesforce Maps)",
+    "mode": "research",
+    "experiment": "exp-001-mapanything",
+    "priority": "P1",
+    "dependencies": ["node:v22"],
+    "consumes": ["geojson", "api_key"],
+    "produces": ["depth", "confidence", "points", "normals"],
+    "providerFile": "tools/providers/shaded_mapanything.py",
+    "configSchema": {
+      "type": "object",
+      "required": ["api_url"],
+      "properties": {
+        "api_url": { "type": "string", "default": "https://api.mapanything.com" },
+        "traffic_window_index": { "type": "integer", "minimum": 0, "maximum": 8, "default": 0 },
+        "use_fixture": { "type": "string", "description": "Local JSON fixture path (skip API call)" }
+      }
+    }
+  },
+  "COLMAPPhotogrammetryProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "GPL-3 (study only)",
+    "donor": "COLMAP",
+    "mode": "research",
+    "experiment": "exp-COLMAP-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy", "colmap_binary"],
+    "consumes": ["image_directory"],
+    "produces": ["depth", "confidence", "points", "normals"],
+    "providerFile": "tools/providers/shaded_colmap.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "max_edge": { "type": "integer", "default": 1024 },
+        "point_budget": { "type": "integer", "default": 250000 },
+        "dense_depth": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "T3DGSReconstructionProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "T-3DGS (CVPR 2024)",
+    "mode": "research",
+    "experiment": "exp-T3DGS-001",
+    "priority": "P0",
+    "dependencies": ["python3", "torch", "cuda"],
+    "consumes": ["video", "multi_view_images"],
+    "produces": ["depth", "points", "normals", "confidence"],
+    "providerFile": "external (T-3DGS pipeline wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "uncertainty_predictor": { "type": "boolean", "default": true },
+        "transient_mask_refiner": { "type": "boolean", "default": true },
+        "max_gaussians": { "type": "integer", "default": 2000000 },
+        "denoise_iters": { "type": "integer", "default": 3 }
+      }
+    }
+  },
+  "SpotLessSplatsProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "SpotLessSplats (CVPR 2024)",
+    "mode": "research",
+    "experiment": "exp-SLS-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "cuda", "dinov2_features"],
+    "consumes": ["video", "multi_view_images"],
+    "produces": ["depth", "points", "normals", "confidence"],
+    "providerFile": "external (SLS pipeline wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "feature_extractor": { "type": "string", "default": "DINOv2" },
+        "optimization": { "type": "string", "default": "robust_m_step" },
+        "mask_propagation": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "SeeingThroughClutterRemover": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "custom (research)",
+    "donor": "SeeingThroughClutter (CVPR 2025)",
+    "mode": "research",
+    "experiment": "exp-STC-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "vlm"],
+    "consumes": ["single_image"],
+    "produces": ["image_no_clutter"],
+    "providerFile": "external (VLM iterative removal)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "iterations": { "type": "integer", "default": 5 },
+        "vlm_model": { "type": "string", "default": "gpt-4o" }
+      }
+    }
+  },
+  "BIMGeometryExtractor": {
+    "disposition": "keep_conditional",
+    "implType": "bridge_concept",
+    "license": "MIT",
+    "donor": "Scan-to-BIM roof reconstruction",
+    "mode": "research",
+    "experiment": "exp-BIM-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy", "geospatial_footprints"],
+    "consumes": ["uav_photogrammetry", "geospatial_footprints"],
+    "produces": ["ifc_mesh", "semantic_faces"],
+    "providerFile": "external (UAV photogrammetry + footprint constraints)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "smoothing_method": { "type": "string", "default": "taubin" },
+        "min_planar_area": { "type": "number", "default": 2.0 }
+      }
+    }
+  },
+  "DGSLAMDynamicBackend": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "DG-SLAM",
+    "mode": "research",
+    "experiment": "exp-DGSLAM-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "cuda"],
+    "consumes": ["video_walkthrough"],
+    "produces": ["camera_trajectory", "depth", "points"],
+    "providerFile": "external (DG-SLAM SLAM)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "dynamic_object_thresholds": { "type": "object" },
+         "track_vis": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "TSDFFusion": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "MIT (Open3D)",
+    "donor": "Open3D TSDF Integration + Marching Cubes",
+    "mode": "gold",
+    "experiment": "exp-TSDF-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy", "open3d_optional"],
+    "consumes": ["depth_maps", "camera_poses"],
+    "produces": ["depth", "points", "normals", "confidence", "mesh_opt"],
+    "providerFile": "tools/providers/shaded_tsdf_fusion.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "voxel_size": { "type": "number", "default": 0.01 },
+        "truncation": { "type": "number", "default": 0.05 },
+        "max_depth": { "type": "number", "default": 5.0 },
+        "export_mesh": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "PlanarSpaceSegmenter": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "MIT (Open3D) / BSD (PROSAC)",
+    "donor": "RANSAC plane fitting + PROSAC sampling",
+    "mode": "gold",
+    "experiment": "exp-RANSAC-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy", "scipy_optional"],
+    "consumes": ["point_cloud"],
+    "produces": ["depth", "points", "normals", "confidence", "plane_labels"],
+    "providerFile": "tools/providers/shaded_ransac_planes.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "distance_threshold": { "type": "number", "default": 0.05 },
+        "num_iterations": { "type": "integer", "default": 1000 },
+        "min_points": { "type": "integer", "default": 10000 },
+        "vertical_tolerance_deg": { "type": "number", "default": 20.0 }
+      }
+    }
+  },
+  "RoomEnvelopesLayoutEstimator": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Room Envelopes (CVPR 2025)",
+    "mode": "research",
+    "experiment": "exp-ROOm-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "transformers"],
+    "consumes": ["single_image"],
+    "produces": ["depth", "points", "layout_polygons"],
+    "providerFile": "external (feed-forward model wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "num_iterations": { "type": "integer", "default": 5 },
+        "confidence_threshold": { "type": "number", "default": 0.5 }
+      }
+    }
+  },
+  "ScreenedPoissonReconstructor": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "MPL-2.0 (Poisson)",
+    "donor": "Screened Poisson Surface Reconstruction",
+    "mode": "research",
+    "experiment": "exp-POISSON-001",
+    "priority": "P1",
+    "dependencies": ["python3", "open3d"],
+    "consumes": ["oriented_point_cloud"],
+    "produces": ["mesh", "vertices", "triangles"],
+    "providerFile": "external (Open3D.poisson_reconstruction)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "depth": { "type": "integer", "default": 9 },
+        "scale": { "type": "number", "default": 1.1 },
+        "linear_fit": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "DirectionalTSDFExtension": {
+    "disposition": "research_only",
+    "implType": "study_reference",
+    "license": "Apache-2.0 (Splietker et al.)",
+    "donor": "Directional TSDF",
+    "mode": "research",
+    "experiment": "exp-DTSDF-001",
+    "priority": "P2",
+    "dependencies": ["python3", "open3d"],
+    "consumes": ["multiview_depth_maps"],
+    "produces": ["mesh", "surface_orientation_field"],
+    "providerFile": "study reference (IROS 2019)",
+    "configSchema": { "type": "object", "properties": {} }
+  },
+  "SurfaceSeparator": {
+    "disposition": "research_only",
+    "implType": "research_concept",
+    "license": "Apache-2.0",
+    "donor": "Diffusion-Driven Inter-Outer Surface Separation",
+    "mode": "research",
+    "experiment": "exp-SEPARATOR-001",
+    "priority": "P2",
+    "dependencies": ["python3", "torch"],
+    "consumes": ["point_cloud"],
+    "produces": ["inner_surface", "outer_surface"],
+    "providerFile": "external (paper study)",
+    "configSchema": { "type": "object", "properties": {} }
+  },
+  "ScaleAlignmentCalibrator": {
+    "disposition": "keep_default",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Murre et al. — SfM-guided Monocular Depth Estimation (CVPR 2025)",
+    "mode": "gold",
+    "experiment": "exp-SCALE-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy", "scipy_optional"],
+    "consumes": ["monocular_depth", "sfm_sparse_depth"],
+    "produces": ["metric_depth", "scale_factor", "shift_offset"],
+    "providerFile": "tools/providers/shaded_scale_align.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "ransac_iterations": { "type": "integer", "default": 1000 },
+        "distance_threshold": { "type": "number", "default": 0.02 },
+        "min_inliers_ratio": { "type": "number", "default": 0.6 }
+      }
+    },
+    "pipelineStage": "post-depth-pre-tsdf"
+  },
+  "SemanticMaskFilter": {
+    "disposition": "keep_default",
+    "implType": "external_provider",
+    "license": "Apache-2.0 (SAM2) / MIT (SegFormer)",
+    "donor": "SAM2 + SegFormer hybrid masking",
+    "mode": "gold",
+    "experiment": "exp-MASK-001",
+    "priority": "P0",
+    "dependencies": ["python3", "torch", "transformers", "segment_anything_2"],
+    "consumes": ["image_sequence", "camera_poses"],
+    "produces": ["mask_sequence", "human_tracks", "filtered_point_cloud"],
+    "providerFile": "tools/providers/shaded_semantic_mask_filter.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "person_confidence": { "type": "number", "default": 0.8 },
+        "temporary_object_confidence": { "type": "number", "default": 0.7 },
+        "mask_propagation": { "type": "boolean", "default": true },
+        "min_track_length": { "type": "integer", "default": 3 }
+      }
+    },
+    "pipelineStage": "pre-tsdf"
+  },
+  "HierarchicalChunkPartitioner": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "MIT (Cesium-3D-Tiles inspired)",
+    "donor": "Out-of-core mesh chunking + Octree LOD (ISPRS 2022)",
+    "mode": "gold",
+    "experiment": "exp-CHUNK-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy"],
+    "consumes": ["point_cloud"],
+    "produces": ["chunked_observation", "octree_lod"],
+    "providerFile": "runtime/spatial-kernel/chunk-partitioner.js",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "chunk_size_meters": { "type": "number", "default": 5.0 },
+        "max_points_per_chunk": { "type": "integer", "default": 500000 },
+        "memory_budget_mb": { "type": "integer", "default": 500 },
+        "min_lod_level": { "type": "integer", "default": 0 },
+        "max_lod_level": { "type": "integer", "default": 3 }
+      }
+    },
+    "pipelineStage": "pre-tsdf"
+  },
+  "SequenceConsistencyAligner": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "MIT",
+    "donor": "Local scale-shift alignment across capture sessions",
+    "mode": "research",
+    "experiment": "exp-SEQ-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy"],
+    "consumes": ["per_session_depth", "overlapping_frames"],
+    "produces": ["global_scale_shift", "drift_corrected_chunks"],
+    "providerFile": "tools/providers/shaded_sequence_align.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "overlap_min_frames": { "type": "integer", "default": 10 },
+        "scale_tolerance": { "type": "number", "default": 0.01 },
+        "max_sessions": { "type": "integer", "default": 10 }
+      }
+    },
+    "pipelineStage": "post-segment-pre-fusion"
+  },
+  "WonderJourneyWorldGenerator": {
+    "disposition": "research_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "WonderJourney — Perpetual 3D scene generation",
+    "mode": "research",
+    "experiment": "exp-WORLDGEN-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "diffusion"],
+    "consumes": ["single_image_or_text"],
+    "produces": ["gaussian_splats", "point_cloud_sequence"],
+    "providerFile": "external (WonderJourney pipeline)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string", "enum": ["single", "perpetual"] },
+        "resolution": { "type": "integer", "default": 512 },
+        "steps": { "type": "integer", "default": 30 }
+      }
+    }
+  },
+  "SplatterImageProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "CC-BY-NC 4.0 (paper), implementation varies",
+    "donor": "Splatter Image — Direct pixel-to-gaussian",
+    "mode": "research",
+    "experiment": "exp-WORLDGEN-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch"],
+    "consumes": ["single_image"],
+    "produces": ["gaussian_splats"],
+    "providerFile": "external (Splatter Image)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "single_pass": { "type": "boolean", "default": true }
+      }
+    },
+    "hardwareTier": "bottom"
+  },
+  "DiffusionGSProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "DiffusionGS — Fast diffusion-based 3DGS",
+    "mode": "research",
+    "experiment": "exp-WORLDGEN-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "diffusers"],
+    "consumes": ["single_image"],
+    "produces": ["gaussian_splats"],
+    "providerFile": "external (DiffusionGS)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "denoising_steps": { "type": "integer", "default": 30 },
+        "output_type": { "type": "string", "default": "splat" }
+      }
+    },
+    "hardwareTier": "top"
+  },
+  "LyraVideoReconstructor": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Lyra — Video-to-3D generation via self-distillation",
+    "mode": "research",
+    "experiment": "exp-LYRA-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "cuda"],
+    "consumes": ["video"],
+    "produces": ["gaussian_splats_4d"],
+    "providerFile": "external (Lyra pipeline)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "video_fps": { "type": "integer", "default": 30 },
+        "gs_resolution": { "type": "integer", "default": 1024 },
+        "distillation_steps": { "type": "integer", "default": 20 }
+      }
+    },
+    "hardwareTier": "top"
+  },
+  "PhotometricStereoProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "MIT (code) / Apache-2.0 (DeepPS2)",
+    "donor": "Shape-from-Shading / Photometric Stereo (Woodham 1980, Horn 1989, DeepPS2)",
+    "mode": "research",
+    "experiment": "exp-SFS-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy", "torch_optional"],
+    "consumes": ["single_image", "multi_light_images"],
+    "produces": ["normals", "albedo", "lighting"],
+    "providerFile": "external (SfS/PS wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["sfS_single", "photometric_stereo", "deepPS2"], "default": "photometric_stereo" },
+        "num_lights": { "type": "integer", "default": 4, "note": "for multi-image PS" },
+        "regularization": { "type": "number", "default": 0.1 }
+      }
+    },
+    "hardwareTier": "bottom",
+    "synergy": "Geometrieergänzung für alte Fotos mit hartem Licht, wo Depth-Modelle versagen"
+  },
+  "MeshGraphNetLODController": {
+    "disposition": "research_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "MeshGraphNets (DeepMind/Stanford)",
+    "mode": "research",
+    "experiment": "exp-MGN-001",
+    "priority": "P2",
+    "dependencies": ["python3", "torch", "torch_geometric"],
+    "consumes": ["tsdf_chunks", "mesh_graph"],
+    "produces": ["adaptive_resolution_map", "refinement_regions"],
+    "providerFile": "external (MeshGraphNet wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "mesh_feature_dim": { "type": "integer", "default": 128 },
+        "edge_feature_dim": { "type": "integer", "default": 64 },
+        "predict_type": { "type": "string", "enum": ["refinement", "derefinement", "both"], "default": "both" }
+      }
+    },
+    "synergy": "Ersetzt feste Octree-Regel im ChunkPartitioner durch gelernte adaptive LOD",
+    "portability": "mesh-agnostisch — funktioniert auf feinen und groben Netzen ohne Retraining"
+  },
+  "NeuralCellularAutomatonProvider": {
+    "disposition": "research_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Growing Neural Cellular Automata (Mordvintsev et al.)",
+    "mode": "research",
+    "experiment": "exp-NCA-001",
+    "priority": "P2",
+    "dependencies": ["python3", "torch"],
+    "consumes": ["seed_noise", "class_constraints"],
+    "produces": ["voxel_structure", "gaussian_splats"],
+    "providerFile": "external (NCA pipeline)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "grid_size": { "type": "array", "items": { "type": "integer" }, "default": [32, 32, 32] },
+        "channel_dim": { "type": "integer", "default": 32 },
+        "step_count": { "type": "integer", "default": 32 },
+        "selfrepair": { "type": "boolean", "default": true }
+      }
+    },
+    "hardwareTier": "bottom_minimal",
+    "synergy": "Radikal kleines Modell (<100KB) für extreme Low-End-Hardware-Tiers"
+  },
+  "GraphSLAMLoopClosure": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "GPL-3 (OpenCV) / BSD-3 (DBoW2)",
+    "donor": "Graph-SLAM + Bag-of-Words Loop Closure",
+    "mode": "research",
+    "experiment": "exp-SLAM-001",
+    "priority": "P1",
+    "dependencies": ["python3", "opencv_contrib", "bow_descriptors"],
+    "consumes": ["video_frames", "initial_poses"],
+    "produces": ["corrected_trajectory", "pose_graph", "loop_closures"],
+    "providerFile": "external (GraphSLAM wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "vocabulary_file": { "type": "string", "description": "Pre-trained BoW vocabulary" },
+        "loopclosure_threshold": { "type": "number", "default": 0.75 },
+        "optimization_iterations": { "type": "integer", "default": 30 }
+      }
+    },
+    "synergy": "Billigere Drift-Korrektur gegenüber Bundle-Adjustment für multi-session Video",
+    "portability": "läuft auf CPU, kein GPU nötig"
+  }
+}

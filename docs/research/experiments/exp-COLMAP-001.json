@@ -1,0 +1,41 @@
+{
+  "experiment": "exp-COLMAP-001",
+  "name": "COLMAP reference photogrammetry on static hall scene",
+  "priority": "P1",
+  "status": "planning",
+  "donor": "COLMAP (Schöps et al.)",
+  "license": "GPL-3 (study only — external subprocess, no code embedding)",
+  "provider": "tools/providers/shaded_colmap.py",
+  "dependencies": {
+    "runtime": ["python3", "numpy", "Pillow"],
+    "colmap": "COLMAP binary (apt install colmap or compile from source)"
+  },
+  "inputs": {
+    "scene": "test/fixtures/hall_static_50img/",
+    "description": "50 static photos of hall scene (no visitors)",
+    "image_count": 50,
+    "resolution": "4000×3000"
+  },
+  "operator": "StructureFromMotion",
+  "config": {
+    "sparse": {"camera_model": "PINHOLE", "matching_strategy": "exhaustive"},
+    "dense": {"max_image_size": 1024, "geom_consistency": true, "use_consistency": true},
+    "export_format": "SHADED.spatial-provider-result.v1"
+  },
+  "expected": {
+    "depth_shape": "matches_input_resolution",
+    "points_channels": ["depth", "confidence", "normals", "points"],
+    "camera_block": "reconstructed_intrinsics_and_extrinsics",
+    "schema_valid": true
+  },
+  "thresholds": {
+    "sparse_reprojection_error_px": { "max": 1.5, "unit": "mean reprojection error" },
+    "dense_completeness": { "min": 85, "unit": "pct visible points reconstructed" },
+    "point_cloud_quality_rmse_mm": { "max": 5.0, "vs_laser_ground_truth": true },
+    "runtime_min": { "max": 30, "note": "50 images on 4-core CPU" }
+  },
+  "disposition_if_pass": "keep_conditional (reference baseline for COLMAP comparison)",
+  "disposition_if_fail": "research_only (external only)",
+  "rescue": "VGGT (exp-001-vggt) — single forward pass, no SfM needed",
+  "notes": "COLMAP is the open-source photogrammetry reference. Runs as external subprocess. GPL-3 license means code cannot be embedded in SHADED, but is allowed for external experiments and comparison. Use with pre-masked images (via SeeingThroughClutter) for distractor robustness."
+}
