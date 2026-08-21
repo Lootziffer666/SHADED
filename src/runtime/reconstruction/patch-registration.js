@@ -254,9 +254,7 @@ export class PatchRegistrar {
           // Calculate fidelity based on number of matches and consistency
           const matchCount = matches.length;
           const consistency = this.calculateMatchConsistency(matches);
-          const fidelity = Math.min(matchCount / 20, 1.0) * consistency;
-          consistency = this.calculateMatchConsistency(matches);
-          fidelity = Math.min(matchCount / 20, 1.0) * consistency; // Normalize by expected matches
+          const fidelity = Math.min(matchCount / 20, 1.0) * consistency; // Normalize by expected matches
           
           if (fidelity > bestFidelity) {
             bestFidelity = fidelity;

@@ -860,6 +860,48 @@ export const PhotoFirstUtils = {
   },
 
   /**
+   * Creates an identity 4x4 matrix
+   * @returns {number[]} - 4x4 identity matrix (column-major)
+   */
+  createIdentityMatrix() {
+    return [
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1
+    ];
+  },
+
+  /**
+   * Transforms a 3D point by a 4x4 matrix
+   * @param {[number, number, number]} pt - Point [x, y, z]
+   * @param {number[]} matrix - 4x4 matrix (column-major)
+   * @returns {[number, number, number]} - Transformed point
+   */
+  transformPoint(pt, matrix) {
+    const [x, y, z] = pt;
+    const w = matrix[3] * x + matrix[7] * y + matrix[11] * z + matrix[15];
+    return [
+      (matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12]) / w,
+      (matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13]) / w,
+      (matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14]) / w
+    ];
+  },
+
+  /**
+   * Calculates Euclidean distance between two 3D points
+   * @param {[number, number, number]} a - First point
+   * @param {[number, number, number]} b - Second point
+   * @returns {number} - Distance
+   */
+  distance(a, b) {
+    const dx = a[0] - b[0];
+    const dy = a[1] - b[1];
+    const dz = a[2] - b[2];
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  },
+
+  /**
    * Calculates normal deviation between two points
    * @param {[number, number, number]} normal1 - First normal vector
    * @param {[number, number, number]} normal2 - Second normal vector

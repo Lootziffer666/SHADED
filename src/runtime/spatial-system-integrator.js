@@ -393,13 +393,9 @@ export class SpatialSystemIntegrator {
         
         // Set depth metadata on patch
         patch.depthMetadata = {
-          minDepth: depthData.depthMap ? 
-            Math.min(...depthData.depthMap.filter(d => isFinite(d) && d > 0)) : 0,
-          maxDepth: depthData.depthMap ? 
-            Math.max(...depthData.depthMap.filter(d => isFinite(d) && d > 0)) : 0,
-          meanDepth: depthData.depthMap ?
-            depthData.depthMap.reduce((sum, d) => sum + (isFinite(d) && d > 0 ? d : 0), 0) / 
-            depthData.depthMap.filter(d => isFinite(d) && d > 0).length : 0,
+          minDepth: this._depthMin(depthData.depthMap),
+          maxDepth: this._depthMax(depthData.depthMap),
+          meanDepth: this._depthMean(depthData.depthMap),
           depthUnits: depthData.scale,
           scaleFactor: depthData.scale === 'metric' ? 1.0 : 1.0 // Would be calculated from known objects
         };
@@ -577,6 +573,36 @@ export class SpatialSystemIntegrator {
    */
   clearCache() {
     this.depthCache.clear();
+  }
+
+  _depthMin(depthMap) {
+    if (!depthMap) return 0;
+    let min = Infinity;
+    for (let i = 0; i < depthMap.length; i++) {
+      const d = depthMap[i];
+      if (isFinite(d) && d > 0 && d < min) min = d;
+    }
+    return min === Infinity ? 0 : min;
+  }
+
+  _depthMax(depthMap) {
+    if (!depthMap) return 0;
+    let max = -Infinity;
+    for (let i = 0; i < depthMap.length; i++) {
+      const d = depthMap[i];
+      if (isFinite(d) && d > 0 && d > max) max = d;
+    }
+    return max === -Infinity ? 0 : max;
+  }
+
+  _depthMean(depthMap) {
+    if (!depthMap) return 0;
+    let sum = 0, count = 0;
+    for (let i = 0; i < depthMap.length; i++) {
+      const d = depthMap[i];
+      if (isFinite(d) && d > 0) { sum += d; count++; }
+    }
+    return count > 0 ? sum / count : 0;
   }
 
   /**
