@@ -299,6 +299,38 @@ Checks:
 - **Integration:** Study for TSDF-extensions research
 - **Experiment:** `exp-DTSDF-001`, `exp-SEPARATOR-001`
 
+### 7.14 Shape-from-Shading / Photometric Stereo
+
+- **License:** MIT (classic algorithms), Apache-2.0 (DeepPS2)
+- **Usage:** External provider wrapper
+- **Cannot:** No deep learning required for basic SfS
+- **Integration:** Single-image normal estimation for old photos with harsh lighting
+- **Experiment:** `exp-SFS-001`
+
+### 7.15 MeshGraphNets
+
+- **License:** Apache-2.0
+- **Usage:** External provider — adaptive LOD controller
+- **Cannot:** Requires GPU for training
+- **Integration:** Over chunk partitioner to learn where refinement is needed
+- **Experiment:** `exp-MGN-001`
+
+### 7.16 Neural Cellular Automata (NCA/GCA)
+
+- **License:** Apache-2.0
+- **Usage:** External provider — ultra-lightweight world generation
+- **Cannot:** Minimal model size (<100KB) enables CPU-only inference
+- **Integration:** Bottom-Tier hardware alternative (<100KB models)
+- **Experiment:** `exp-NCA-001`
+
+### 7.17 Graph-SLAM + Bag-of-Words Loop Closure
+
+- **License:** GPL-3 (OpenCV), BSD-3 (DBoW2)
+- **Usage:** External provider — lightweight drift correction
+- **Cannot:** Embed OpenCV SLAM code in SHADED web runtime
+- **Integration:** Multi-session video drift correction (10x faster than Bundle Adjustment)
+- **Experiment:** `exp-SLAM-001`
+
 - **License:** Apache-2.0 (T-3DGS), Apache-2.0 (SLS)
 - **Usage:** External pipeline wrapper, or study for integration patterns
 - **Cannot:** Embed training code in SHADED

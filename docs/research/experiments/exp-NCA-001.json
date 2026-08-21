@@ -1,0 +1,39 @@
+{
+  "experiment": "exp-NCA-001",
+  "name": "Neural Cellular Automata for ultra-lightweight 3D world generation",
+  "priority": "P2",
+  "status": "planning",
+  "donor": "Growing Neural Cellular Automata (Mordvintsev et al. 2020)",
+  "license": "Apache-2.0",
+  "provider": "external (NCA pipeline)",
+  "dependencies": {
+    "runtime": ["python3", "torch"],
+    "hardware": "CPU-compatible (model size < 100KB)"
+  },
+  "inputs": {
+    "seed": "test/fixtures/nca_test_seeds/child_drawing_01.png",
+    "description": "Child's simple drawing → grown into explorable 3D NCA world",
+    "grid_size": [32, 32, 32]
+  },
+  "operator": "NeuralCellularAutomatonProvider",
+  "config": {
+    "grid_size": [32, 32, 32],
+    "channel_dim": 32,
+    "step_count": 32,
+    "selfrepair": true
+  },
+  "expected": {
+    "model_size_kb": { "max": 100, "note": "vs SplatterImage ~50MB" },
+    "self_repair_after_damage": { "min": 90, "unit": "pct structure recovered after 25% voxel removal" },
+    "world_coherence": { "min": 0.75, "unit": "structural connectivity score" }
+  },
+  "thresholds": {
+    "inference_time_sec": { "max": 5.0, "device": "CPU (i7, no GPU)" },
+    "memory_footprint_mb": { "max": 50, "note": "including model + grid" },
+    "world_navigability": { "min": 0.8, "unit": "pct of navigable volume" }
+  },
+  "disposition_if_pass": "keep_conditional (bottom-Tier Hardware alternative)",
+  "disposition_if_fail": "research_only",
+  "rescue": "SplatterImage (exp-WORLDGEN-001) — heavier but proven",
+  "notes": "NCA is the radical lightweight alternative: models under 100KB that run on CPU. Perfect for hardware tiers where even SplatterImage fails. Self-repair property is ideal for damaged/partial input images."
+}

@@ -634,5 +634,98 @@
       }
     },
     "hardwareTier": "top"
+  },
+  "PhotometricStereoProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "MIT (code) / Apache-2.0 (DeepPS2)",
+    "donor": "Shape-from-Shading / Photometric Stereo (Woodham 1980, Horn 1989, DeepPS2)",
+    "mode": "research",
+    "experiment": "exp-SFS-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy", "torch_optional"],
+    "consumes": ["single_image", "multi_light_images"],
+    "produces": ["normals", "albedo", "lighting"],
+    "providerFile": "external (SfS/PS wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["sfS_single", "photometric_stereo", "deepPS2"], "default": "photometric_stereo" },
+        "num_lights": { "type": "integer", "default": 4, "note": "for multi-image PS" },
+        "regularization": { "type": "number", "default": 0.1 }
+      }
+    },
+    "hardwareTier": "bottom",
+    "synergy": "Geometrieergänzung für alte Fotos mit hartem Licht, wo Depth-Modelle versagen"
+  },
+  "MeshGraphNetLODController": {
+    "disposition": "research_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "MeshGraphNets (DeepMind/Stanford)",
+    "mode": "research",
+    "experiment": "exp-MGN-001",
+    "priority": "P2",
+    "dependencies": ["python3", "torch", "torch_geometric"],
+    "consumes": ["tsdf_chunks", "mesh_graph"],
+    "produces": ["adaptive_resolution_map", "refinement_regions"],
+    "providerFile": "external (MeshGraphNet wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "mesh_feature_dim": { "type": "integer", "default": 128 },
+        "edge_feature_dim": { "type": "integer", "default": 64 },
+        "predict_type": { "type": "string", "enum": ["refinement", "derefinement", "both"], "default": "both" }
+      }
+    },
+    "synergy": "Ersetzt feste Octree-Regel im ChunkPartitioner durch gelernte adaptive LOD",
+    "portability": "mesh-agnostisch — funktioniert auf feinen und groben Netzen ohne Retraining"
+  },
+  "NeuralCellularAutomatonProvider": {
+    "disposition": "research_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Growing Neural Cellular Automata (Mordvintsev et al.)",
+    "mode": "research",
+    "experiment": "exp-NCA-001",
+    "priority": "P2",
+    "dependencies": ["python3", "torch"],
+    "consumes": ["seed_noise", "class_constraints"],
+    "produces": ["voxel_structure", "gaussian_splats"],
+    "providerFile": "external (NCA pipeline)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "grid_size": { "type": "array", "items": { "type": "integer" }, "default": [32, 32, 32] },
+        "channel_dim": { "type": "integer", "default": 32 },
+        "step_count": { "type": "integer", "default": 32 },
+        "selfrepair": { "type": "boolean", "default": true }
+      }
+    },
+    "hardwareTier": "bottom_minimal",
+    "synergy": "Radikal kleines Modell (<100KB) für extreme Low-End-Hardware-Tiers"
+  },
+  "GraphSLAMLoopClosure": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "GPL-3 (OpenCV) / BSD-3 (DBoW2)",
+    "donor": "Graph-SLAM + Bag-of-Words Loop Closure",
+    "mode": "research",
+    "experiment": "exp-SLAM-001",
+    "priority": "P1",
+    "dependencies": ["python3", "opencv_contrib", "bow_descriptors"],
+    "consumes": ["video_frames", "initial_poses"],
+    "produces": ["corrected_trajectory", "pose_graph", "loop_closures"],
+    "providerFile": "external (GraphSLAM wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "vocabulary_file": { "type": "string", "description": "Pre-trained BoW vocabulary" },
+        "loopclosure_threshold": { "type": "number", "default": 0.75 },
+        "optimization_iterations": { "type": "integer", "default": 30 }
+      }
+    },
+    "synergy": "Billigere Drift-Korrektur gegenüber Bundle-Adjustment für multi-session Video",
+    "portability": "läuft auf CPU, kein GPU nötig"
   }
 }

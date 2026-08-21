@@ -263,8 +263,8 @@ For each experiment:
 | Phase 2 | 1 week | Complete | gold-metrics.json (4/5 class regression PASS), probe-cameras.mjs, 3 experiment cards |
 | Phase 3 | 4 weeks | **Complete** | 4/6 P0 experiments pass (exp-015, exp-050, exp-041); 3 dry-run validated; env lacks Torch for 3 |
 | Phase 3.5 | 2 weeks | **Complete** | PipelineInspector (123 assertions), Reconstruction Benchmark (63 assertions), HallPlannerRecipe (16 assertions). All 14 test suites pass. |
-| Phase 4 | 6 weeks | Pending | 12 P1 experiments |
-| Phase 5 | 4–24 weeks | Pending | P2+ long-shot research |
+| Phase 4 | 6 weeks | **In Progress** | Building reconstruction pipeline: TSDF Fusion, COLMAP, VGGT, ScaleAlignment, SemanticMask, HierarchicalChunking + distractor-robust 3DGS (T-3DGS/SLS) |
+| Phase 5 | 4-24 weeks | Active research | Single-image-to-world (NCA/GCA, DiffusionGS, WonderJourney), Graph-SLAM loop closure, physics-GNN LOD |
 | Phase 6 | 1 week | Pending | Retention decisions, documentation update |
 
 ---
