@@ -252,7 +252,9 @@ export class PatchRegistrar {
         
         if (transformation) {
           // Calculate fidelity based on number of matches and consistency
-          matchCount = matches.length;
+          const matchCount = matches.length;
+          const consistency = this.calculateMatchConsistency(matches);
+          const fidelity = Math.min(matchCount / 20, 1.0) * consistency;
           consistency = this.calculateMatchConsistency(matches);
           fidelity = Math.min(matchCount / 20, 1.0) * consistency; // Normalize by expected matches
           
