@@ -20,7 +20,7 @@
     "preview": "vite preview",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "verify": "node tools/verify.cjs",
-    "check": "node tools/verify.cjs",
+    "check": "node tools/check-syntax.cjs",
     "verify:actors": "node tools/verify-actors.cjs",
     "verify:intrinsic": "node tools/verify-intrinsic.cjs",
     "verify:editor": "node tools/verify-editor.cjs",

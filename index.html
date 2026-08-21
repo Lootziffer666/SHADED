@@ -296,6 +296,17 @@ body.cinema #exit-cinema{display:block}
   <div id="drop-hint"><b>SHADED</b><span>Bild hierher ziehen oder links laden,<br>dann „✨ Erstellen“ drücken.</span></div>
 </div>
 
+<script type="importmap">
+{
+  "imports": {
+    "@kernel/": "/src/runtime/spatial-kernel/",
+    "@recon/": "/src/runtime/reconstruction/",
+    "@sim/": "/src/runtime/simulation/",
+    "@runtime/": "/src/runtime/",
+    "@editor/": "/src/editor/"
+  }
+}
+</script>
 <script type="module" src="/src/main.js"></script>
 <script type="module" src="/runtime/install.js"></script>
 <script type="module" src="/runtime/spatial-viewer.js"></script>

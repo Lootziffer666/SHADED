@@ -23,12 +23,14 @@ jobs:
       run: |
         npm ci
 
+    - name: Syntax & contract check (no browser)
+      run: |
+        npm run check
+
     - name: Install Chromium for browser verification
       run: |
-        # ubuntu-latest already ships the system libraries Playwright Chromium needs.
-        # Avoid `--with-deps`: it performs a fresh apt transaction on every run and
-        # made browser verification depend on Ubuntu mirror availability.
         npx playwright install chromium
+        npx playwright install-deps chromium
 
     - name: Verify viewport-first mobile editor, closing, correction and room entry
       run: |
