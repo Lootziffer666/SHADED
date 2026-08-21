@@ -1,0 +1,40 @@
+{
+  "experiment": "exp-SCALE-001",
+  "name": "ScaleAlignmentCalibrator: RANSAC alignment of monocular depth to SfM sparse depth",
+  "priority": "P0",
+  "status": "planning",
+  "donor": "Murre et al. — SfM-guided Monocular Depth Estimation (CVPR 2025)",
+  "license": "Apache-2.0",
+  "provider": "tools/providers/shaded_scale_align.py",
+  "dependencies": {
+    "runtime": ["python3", "numpy", "scipy"],
+    "inputs": ["monocular_depth_result.json", "colmap_sparse_depth.bin"]
+  },
+  "inputs": {
+    "monocular_depth": "test/fixtures/hall_multi_view/da3-view-0/result.json",
+    "sfm_sparse": "test/fixtures/hall_multi_view/colmap-sparse/0/",
+    "description": "Align DA3/VGGT depth to COLMAP SfM scale before TSDF fusion"
+  },
+  "operator": "ScaleAlignmentCalibrator",
+  "config": {
+    "ransac_iterations": 1000,
+    "distance_threshold": 0.02,
+    "min_inliers_ratio": 0.6
+  },
+  "expected": {
+    "scale_factor_recovered": { "min": 0.95, "max": 1.05, "note": "vs known scene scale" },
+    "rmse_after_alignment_mm": { "max": 5.0 },
+    "inlier_ratio": { "min": 0.6 },
+    "shift_corrected": true,
+    "no_scale_drift": true
+  },
+  "thresholds": {
+    "alignment_rmse_pct": { "max": 2.0, "unit": "of depth range" },
+    "scale_factor_accuracy": { "min": 95, "unit": "pct vs reference" },
+    "runtime_sec": { "max": 0.5, "device": "4-core CPU" }
+  },
+  "disposition_if_pass": "keep_default (mandatory pre-TSDF step)",
+  "disposition_if_fail": "research_only",
+  "rescue": "COLMAP metrische Rekonstruktion direkt (ohne VGGT)",
+  "notes": "Without scale alignment, VGGT/DA3 depth drifts relative to COLMAP poses, corrupting TSDF voxels and RANSAC planes. This calibrator runs per-image before fusion."
+}

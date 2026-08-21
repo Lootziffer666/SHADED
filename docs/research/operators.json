@@ -459,5 +459,180 @@
     "produces": ["inner_surface", "outer_surface"],
     "providerFile": "external (paper study)",
     "configSchema": { "type": "object", "properties": {} }
+  },
+  "ScaleAlignmentCalibrator": {
+    "disposition": "keep_default",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Murre et al. — SfM-guided Monocular Depth Estimation (CVPR 2025)",
+    "mode": "gold",
+    "experiment": "exp-SCALE-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy", "scipy_optional"],
+    "consumes": ["monocular_depth", "sfm_sparse_depth"],
+    "produces": ["metric_depth", "scale_factor", "shift_offset"],
+    "providerFile": "tools/providers/shaded_scale_align.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "ransac_iterations": { "type": "integer", "default": 1000 },
+        "distance_threshold": { "type": "number", "default": 0.02 },
+        "min_inliers_ratio": { "type": "number", "default": 0.6 }
+      }
+    },
+    "pipelineStage": "post-depth-pre-tsdf"
+  },
+  "SemanticMaskFilter": {
+    "disposition": "keep_default",
+    "implType": "external_provider",
+    "license": "Apache-2.0 (SAM2) / MIT (SegFormer)",
+    "donor": "SAM2 + SegFormer hybrid masking",
+    "mode": "gold",
+    "experiment": "exp-MASK-001",
+    "priority": "P0",
+    "dependencies": ["python3", "torch", "transformers", "segment_anything_2"],
+    "consumes": ["image_sequence", "camera_poses"],
+    "produces": ["mask_sequence", "human_tracks", "filtered_point_cloud"],
+    "providerFile": "tools/providers/shaded_semantic_mask_filter.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "person_confidence": { "type": "number", "default": 0.8 },
+        "temporary_object_confidence": { "type": "number", "default": 0.7 },
+        "mask_propagation": { "type": "boolean", "default": true },
+        "min_track_length": { "type": "integer", "default": 3 }
+      }
+    },
+    "pipelineStage": "pre-tsdf"
+  },
+  "HierarchicalChunkPartitioner": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "MIT (Cesium-3D-Tiles inspired)",
+    "donor": "Out-of-core mesh chunking + Octree LOD (ISPRS 2022)",
+    "mode": "gold",
+    "experiment": "exp-CHUNK-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy"],
+    "consumes": ["point_cloud"],
+    "produces": ["chunked_observation", "octree_lod"],
+    "providerFile": "runtime/spatial-kernel/chunk-partitioner.js",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "chunk_size_meters": { "type": "number", "default": 5.0 },
+        "max_points_per_chunk": { "type": "integer", "default": 500000 },
+        "memory_budget_mb": { "type": "integer", "default": 500 },
+        "min_lod_level": { "type": "integer", "default": 0 },
+        "max_lod_level": { "type": "integer", "default": 3 }
+      }
+    },
+    "pipelineStage": "pre-tsdf"
+  },
+  "SequenceConsistencyAligner": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "MIT",
+    "donor": "Local scale-shift alignment across capture sessions",
+    "mode": "research",
+    "experiment": "exp-SEQ-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy"],
+    "consumes": ["per_session_depth", "overlapping_frames"],
+    "produces": ["global_scale_shift", "drift_corrected_chunks"],
+    "providerFile": "tools/providers/shaded_sequence_align.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "overlap_min_frames": { "type": "integer", "default": 10 },
+        "scale_tolerance": { "type": "number", "default": 0.01 },
+        "max_sessions": { "type": "integer", "default": 10 }
+      }
+    },
+    "pipelineStage": "post-segment-pre-fusion"
+  },
+  "WonderJourneyWorldGenerator": {
+    "disposition": "research_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "WonderJourney — Perpetual 3D scene generation",
+    "mode": "research",
+    "experiment": "exp-WORLDGEN-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "diffusion"],
+    "consumes": ["single_image_or_text"],
+    "produces": ["gaussian_splats", "point_cloud_sequence"],
+    "providerFile": "external (WonderJourney pipeline)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string", "enum": ["single", "perpetual"] },
+        "resolution": { "type": "integer", "default": 512 },
+        "steps": { "type": "integer", "default": 30 }
+      }
+    }
+  },
+  "SplatterImageProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "CC-BY-NC 4.0 (paper), implementation varies",
+    "donor": "Splatter Image — Direct pixel-to-gaussian",
+    "mode": "research",
+    "experiment": "exp-WORLDGEN-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch"],
+    "consumes": ["single_image"],
+    "produces": ["gaussian_splats"],
+    "providerFile": "external (Splatter Image)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "single_pass": { "type": "boolean", "default": true }
+      }
+    },
+    "hardwareTier": "bottom"
+  },
+  "DiffusionGSProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "DiffusionGS — Fast diffusion-based 3DGS",
+    "mode": "research",
+    "experiment": "exp-WORLDGEN-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "diffusers"],
+    "consumes": ["single_image"],
+    "produces": ["gaussian_splats"],
+    "providerFile": "external (DiffusionGS)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "denoising_steps": { "type": "integer", "default": 30 },
+        "output_type": { "type": "string", "default": "splat" }
+      }
+    },
+    "hardwareTier": "top"
+  },
+  "LyraVideoReconstructor": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Lyra — Video-to-3D generation via self-distillation",
+    "mode": "research",
+    "experiment": "exp-LYRA-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "cuda"],
+    "consumes": ["video"],
+    "produces": ["gaussian_splats_4d"],
+    "providerFile": "external (Lyra pipeline)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "video_fps": { "type": "integer", "default": 30 },
+        "gs_resolution": { "type": "integer", "default": 1024 },
+        "distillation_steps": { "type": "integer", "default": 20 }
+      }
+    },
+    "hardwareTier": "top"
   }
 }

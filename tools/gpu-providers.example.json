@@ -34,6 +34,11 @@
       "command": "python3",
       "args": ["tools/providers/shaded_ransac_planes.py", "--points", "{points}", "--output", "{output}", "--distance-threshold", "0.05", "--num-iterations", "1000", "--min-points", "10000"],
       "doctorArgs": ["tools/providers/shaded_ransac_planes.py", "--doctor"]
+    },
+    "scale-align": {
+      "command": "python3",
+      "args": ["tools/providers/shaded_scale_align.py", "--monocular", "{input}", "--sfm-dir", "{cameras}", "--output", "{output}", "--point-budget", "{point_budget}"],
+      "doctorArgs": ["tools/providers/shaded_scale_align.py", "--doctor"]
     }
   }
 }

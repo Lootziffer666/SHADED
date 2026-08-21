@@ -1,0 +1,42 @@
+{
+  "experiment": "exp-SEQ-001",
+  "name": "SequenceConsistencyAligner: Cross-session scale-shift alignment",
+  "priority": "P1",
+  "status": "planning",
+  "donor": "Local scale-shift alignment (JUSTC 2023)",
+  "license": "MIT",
+  "provider": "tools/providers/shaded_sequence_align.py",
+  "dependencies": {
+    "runtime": ["python3", "numpy"],
+    "input": ["multiple_capture_sessions"]
+  },
+  "inputs": {
+    "sessions": [
+      "test/fixtures/hall_multi_view/session-morning/",
+      "test/fixtures/hall_multi_view/session-afternoon/"
+    ],
+    "overlapping_frames": ["frame_042.png", "frame_087.png"],
+    "description": "Two capture sessions of same scene at different times with 5% frame overlap"
+  },
+  "operator": "SequenceConsistencyAligner",
+  "config": {
+    "overlap_min_frames": 10,
+    "scale_tolerance": 0.01,
+    "max_sessions": 10
+  },
+  "expected": {
+    "scale_drift_corrected": true,
+    "shift_aligned": true,
+    "inter_session_seam_invisibility": { "max": 0.5, "unit": "cm visible offset" },
+    "chunk_seam_quality": "seamless at overlap regions"
+  },
+  "thresholds": {
+    "scale_drift_correction": { "min": 95, "unit": "pct drift removed" },
+    "overlap_consistency": { "min": 0.98, "unit": "IoU in overlap region" },
+    "runtime_per_alignment_sec": { "max": 3.0 }
+  },
+  "disposition_if_pass": "keep_conditional (multi-session robustness)",
+  "disposition_if_fail": "research_only",
+  "rescue": "Single-session reconstruction (no inter-session alignment needed)",
+  "notes": "When multi-view site photos come from different capture sessions (morning, afternoon), depth predictions drift. This aligns scale/shift between sessions using overlapping frames before chunk-stitching. Only needed for multi-session scenarios."
+}
