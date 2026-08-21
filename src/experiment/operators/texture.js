@@ -114,7 +114,7 @@ export function paletteNormalizer(img, params = {}) {
       sums[c][0] += pts[i][0]; sums[c][1] += pts[i][1]; sums[c][2] += pts[i][2]; sums[c][3]++;
     }
     for (let c = 0; c < numColors; c++) {
-      if (sums[c][3] > 0) centroids[c] = [sums[c][0] / sums[c][3], sums[c][1] / sums[c][2] === 0 ? 0 : sums[c][1] / sums[c][3], sums[c][2] / sums[c][3]];
+      if (sums[c][3] > 0) centroids[c] = [sums[c][0] / sums[c][3], sums[c][1] / sums[c][3], sums[c][2] / sums[c][3]];
     }
   }
   const palette = centroids.map(c => [linearToSrgb(c[0]), linearToSrgb(c[1]), linearToSrgb(c[2])]);
