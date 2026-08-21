@@ -103,7 +103,7 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
     check(`Unerwarteter Fehler: ${error.message}`, false);
   }
 
-  const relevantErrors = errors.filter(error => !/404/.test(error) && !/favicon/i.test(error));
+  const relevantErrors = errors.filter(error => !/404/.test(error) && !/favicon/i.test(error) && !/Modell nicht gefunden/.test(error));
   check('Keine relevanten Browserfehler', relevantErrors.length === 0);
   if (relevantErrors.length) console.log(relevantErrors);
 

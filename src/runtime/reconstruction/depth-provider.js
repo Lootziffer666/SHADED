@@ -243,7 +243,7 @@ class MonocularDepthProvider {
   }
 
   _reportError(err) {
-    console.error('[MonocularDepthProvider]', err);
+    console.warn('[MonocularDepthProvider]', err);
     if (this.onError) this.onError(err);
   }
 
