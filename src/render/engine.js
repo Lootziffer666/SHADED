@@ -1147,7 +1147,7 @@ export class SHADEDEngine {
   updateSpatialKernel(dt) {
     // Step world law solver
     if (this.worldLawSolver) {
-      this.worldLawSolver.step(dt, this.params, this.worldFields);
+      this.worldLawSolver.step(this.worldFields, this.params, dt);
     }
 
     // Step sparse field diffusion
