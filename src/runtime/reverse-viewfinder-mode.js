@@ -165,7 +165,8 @@ export class ReverseViewfinderMode {
       width: 80%;
       max-width: 600px;
       height: 400px;
-      background: //333;
+      background: #333;
+      border: 2px solid #777;
       border: 2px solid //777;
       border-radius: 8px;
       overflow: hidden;
