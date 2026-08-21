@@ -343,8 +343,121 @@
       "type": "object",
       "properties": {
         "dynamic_object_thresholds": { "type": "object" },
-        "track_vis": { "type": "boolean", "default": true }
+         "track_vis": { "type": "boolean", "default": true }
       }
     }
+  },
+  "TSDFFusion": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "MIT (Open3D)",
+    "donor": "Open3D TSDF Integration + Marching Cubes",
+    "mode": "gold",
+    "experiment": "exp-TSDF-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy", "open3d_optional"],
+    "consumes": ["depth_maps", "camera_poses"],
+    "produces": ["depth", "points", "normals", "confidence", "mesh_opt"],
+    "providerFile": "tools/providers/shaded_tsdf_fusion.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "voxel_size": { "type": "number", "default": 0.01 },
+        "truncation": { "type": "number", "default": 0.05 },
+        "max_depth": { "type": "number", "default": 5.0 },
+        "export_mesh": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "PlanarSpaceSegmenter": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "MIT (Open3D) / BSD (PROSAC)",
+    "donor": "RANSAC plane fitting + PROSAC sampling",
+    "mode": "gold",
+    "experiment": "exp-RANSAC-001",
+    "priority": "P0",
+    "dependencies": ["python3", "numpy", "scipy_optional"],
+    "consumes": ["point_cloud"],
+    "produces": ["depth", "points", "normals", "confidence", "plane_labels"],
+    "providerFile": "tools/providers/shaded_ransac_planes.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "distance_threshold": { "type": "number", "default": 0.05 },
+        "num_iterations": { "type": "integer", "default": 1000 },
+        "min_points": { "type": "integer", "default": 10000 },
+        "vertical_tolerance_deg": { "type": "number", "default": 20.0 }
+      }
+    }
+  },
+  "RoomEnvelopesLayoutEstimator": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Room Envelopes (CVPR 2025)",
+    "mode": "research",
+    "experiment": "exp-ROOm-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "transformers"],
+    "consumes": ["single_image"],
+    "produces": ["depth", "points", "layout_polygons"],
+    "providerFile": "external (feed-forward model wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "num_iterations": { "type": "integer", "default": 5 },
+        "confidence_threshold": { "type": "number", "default": 0.5 }
+      }
+    }
+  },
+  "ScreenedPoissonReconstructor": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "MPL-2.0 (Poisson)",
+    "donor": "Screened Poisson Surface Reconstruction",
+    "mode": "research",
+    "experiment": "exp-POISSON-001",
+    "priority": "P1",
+    "dependencies": ["python3", "open3d"],
+    "consumes": ["oriented_point_cloud"],
+    "produces": ["mesh", "vertices", "triangles"],
+    "providerFile": "external (Open3D.poisson_reconstruction)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "depth": { "type": "integer", "default": 9 },
+        "scale": { "type": "number", "default": 1.1 },
+        "linear_fit": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "DirectionalTSDFExtension": {
+    "disposition": "research_only",
+    "implType": "study_reference",
+    "license": "Apache-2.0 (Splietker et al.)",
+    "donor": "Directional TSDF",
+    "mode": "research",
+    "experiment": "exp-DTSDF-001",
+    "priority": "P2",
+    "dependencies": ["python3", "open3d"],
+    "consumes": ["multiview_depth_maps"],
+    "produces": ["mesh", "surface_orientation_field"],
+    "providerFile": "study reference (IROS 2019)",
+    "configSchema": { "type": "object", "properties": {} }
+  },
+  "SurfaceSeparator": {
+    "disposition": "research_only",
+    "implType": "research_concept",
+    "license": "Apache-2.0",
+    "donor": "Diffusion-Driven Inter-Outer Surface Separation",
+    "mode": "research",
+    "experiment": "exp-SEPARATOR-001",
+    "priority": "P2",
+    "dependencies": ["python3", "torch"],
+    "consumes": ["point_cloud"],
+    "produces": ["inner_surface", "outer_surface"],
+    "providerFile": "external (paper study)",
+    "configSchema": { "type": "object", "properties": {} }
   }
 }

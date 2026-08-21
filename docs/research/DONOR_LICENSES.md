@@ -255,7 +255,49 @@ Checks:
 - **Integration:** Reads GeoJSON + calls REST API; offline fixture mode for testing
 - **Experiment:** `exp-001-mapanything` — validate route rasterisation
 
-### 7.8 T-3DGS / SpotLessSplats / Robust3DGaussians (Distractor-Robust 3DGS)
+### 7.9 TSDF Fusion + Marching Cubes (Open3D)
+
+- **License:** MIT
+- **Usage:** External provider wrapper (`tools/providers/shaded_tsdf_fusion.py`) — no code embedding
+- **Cannot:** Bundle Open3D binary in web runtime
+- **Integration:** Runs as external subprocess; output consumed as v1 schema
+- **Purpose:** Volumetric reconstruction from multi-view depth maps — replaces point-cloud intersection
+- **Experiment:** `exp-TSDF-001`
+
+### 7.10 RANSAC Plane Segmentation
+
+- **License:** MIT (Open3D) / BSD (PROSAC paper)
+- **Usage:** External provider wrapper (`tools/providers/shaded_ransac_planes.py`) — no code embedding
+- **Cannot:** Embed RANSAC implementation in SHADED HTML runtime
+- **Integration:** Runs as external subprocess; output consumed as v1 schema
+- **Purpose:** Robust wall/floor/ceiling segmentation from TSDF-filtered point cloud — replaces manual intersection
+- **Experiment:** `exp-RANSAC-001`
+
+### 7.11 Screened Poisson Reconstruction
+
+- **License:** MPL-2.0
+- **Usage:** External provider (Open3D wrapper)
+- **Cannot:** Bundle Poisson solver in web runtime
+- **Integration:** Alternative to Marching-Cubes for oriented point clouds
+- **Purpose:** Smooth, watertight mesh from oriented points
+- **Experiment:** `exp-POISSON-001`
+
+### 7.12 Room Envelopes / WallNet / PlaneNet
+
+- **License:** Apache-2.0 (Room Envelopes), MIT (WallNet, PlaneNet)
+- **Usage:** External provider (feed-forward model wrapper)
+- **Cannot:** Embed model weights in SHADED
+- **Integration:** Feed-forward alternative to TSDF+RANSAC pipeline
+- **Purpose:** Direct layout prediction bypassing volumetric reconstruction
+- **Experiment:** `exp-ROOm-001`
+
+### 7.13 Directional TSDF / Diffusion-Driven Surface Separation
+
+- **License:** Apache-2.0
+- **Usage:** Research study reference only
+- **Cannot:** No direct integration planned
+- **Integration:** Study for TSDF-extensions research
+- **Experiment:** `exp-DTSDF-001`, `exp-SEPARATOR-001`
 
 - **License:** Apache-2.0 (T-3DGS), Apache-2.0 (SLS)
 - **Usage:** External pipeline wrapper, or study for integration patterns

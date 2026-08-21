@@ -1,0 +1,49 @@
+{
+  "experiment": "exp-TSDF-001",
+  "name": "TSDF Fusion replacing point-cloud intersection for multi-view reconstruction",
+  "priority": "P0",
+  "status": "planning",
+  "donor": "Open3D TSDF Integration + Marching Cubes; COLMAP for poses",
+  "license": "MIT (Open3D)",
+  "provider": "tools/providers/shaded_tsdf_fusion.py",
+  "dependencies": {
+    "runtime": ["python3", "numpy", "Pillow"],
+    "optional": ["open3d (accelerated MC)"],
+    "recommended_input": ["tools/providers/shaded_colmap.py", "tools/providers/shaded_vggt.py", "tools/providers/shaded_depth_anything_3.py"]
+  },
+  "inputs": {
+    "depth_results": [
+      "test/fixtures/hall_multi_view/da3-view-0/result.json",
+      "test/fixtures/hall_multi_view/da3-view-1/result.json",
+      "test/fixtures/hall_multi_view/da3-view-2/result.json",
+      "test/fixtures/hall_multi_view/da3-view-3/result.json"
+    ],
+    "cameras": "test/fixtures/hall_multi_view/colmap-sparse/",
+    "description": "4 multi-view depth maps + COLMAP poses of static hall scene"
+  },
+  "operator": "TSDFFusion",
+  "config": {
+    "voxel_size": 0.01,
+    "truncation": 0.05,
+    "max_depth": 5.0,
+    "export_mesh": true,
+    "point_budget": 250000
+  },
+  "expected": {
+    "mesh_watertight": true,
+    "point_count": { "min": 100000 },
+    "noise_reduction_vs_pointcloud": { "min": 40, "unit": "pct std reduction in point spacing" },
+    "schema_valid": true,
+    "depth_channels": ["depth", "confidence", "points", "normals"]
+  },
+  "thresholds": {
+    "chamfer_l2_mm_vs_ground_truth": { "max": 3.0, "note": "vs laser scan ground truth" },
+    "completeness_vs_ground_truth": { "min": 90, "unit": "pct" },
+    "mesh_watertight": true,
+    "integration_time_per_view_sec": { "max": 2.0, "device": "4-core CPU" }
+  },
+  "disposition_if_pass": "keep_default (replaces point-cloud intersection approach)",
+  "disposition_if_fail": "research_only (external tool)",
+  "rescue": "COLMAP Dense + Poisson reconstruction (exp-COLMAP-001)",
+  "notes": "TSDF Fusion is the replacement for the risky point-cloud-intersection approach. It integrates depth maps from multiple views (DA3/VGGT/COLMAP) into a volumetric TSDF grid, then extracts a watertight mesh via Marching Cubes. Noise from visitors/temporary structures is naturally suppressed by multi-view averaging."
+}

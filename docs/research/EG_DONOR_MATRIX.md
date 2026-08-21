@@ -55,7 +55,15 @@ RESEARCH ONLY | TEACHER ONLY | REPLACE | REDUNDANT | SUBSTITUTABLE | NEGATIVE CO
 | **Piecewise planar** | Planar indoor reconstruction | SHAFED | `fitGeometricPrimitivesExtended` | `PiecewisePlanarFitter` | Wall/floor/ceiling decomposition | Plane merging overhead | PrimitiveFitter | Wall anchors (Runde 5) | Single-plane fit | Research concept | MIT | Plane coverage vs wall area | P1 |
 | **RoomRunner / LayoutNet** | Room layout estimation | BEUTELTIER | — | `HallPlanner` | Hall structure from plan/photo | Layout parser | `hall-plan/` modules | DepthProvider, SceneGraph | 2.5D parallax | Integrate existing | MIT | Hall volume accuracy | P0 |
 | **HoloNet** | Panorama → room connectivity | SHADED | — | `PanoramaToConnectivity` | Connect adjacent rooms | Panorama input only | HallPlanner | DepthProvider | Floor plan | Research concept | Unknown | Connectivity accuracy | P2 |
-| **Holistic 3D / VectorCAD** | Hierarchical indoor scene graph | MANIFOLD | — | `LayoutGraphBuilder` | Building→Hall→Level→Region hierarchy | Graph complexity | SceneGraph (flat) | SceneGraph | RoomRunner | Bridge concept | MIT | Graph navigation depth | P2 |
+| **TSDF Fusion** | Volumetrische Rekonstruktion aus mehreren Depth-Maps | SHADED | `SparseField` (einzelne Frames) | `TSDFFusion` | Wasserdichtes Mesh, rauschrobust durch Multi-View-Aggregation | Voxel-Gedächtnis + Marching-Cubes-Kosten | DepthProvider (einzeln) | SparseField (punktweise) | 2.5D Parallaxen | Independent impl (Open3D bridge) | MIT | Compare TSDF vs PointCloud-Fusion on 3 multi-view hall scenes | P0 |
+| **Marching Cubes** | implizite Oberflächenextraktion aus Voxelgrid | SHADED | — | (integrated in TSDFFusion) | Glattes, wasserdichtes Mesh von TSDF | Topologie-Artefakte (Säbelzähne) | TSDFFusion | SparseField | Rohe Punktwolke | Library (Open3D) | MIT | Mesh-Qualität vs Rekonstruktions-Parameter | P1 |
+| **RANSAC Plane-Fitting** | Segmentierung in Wände/Boden/Decke aus Punktwolke | SHADED | `fitGeometricPrimitivesExtended` (plane/box) | `PlanarSpaceSegmenter` | Robuste Raumgeometrie, rauschunempfindlich | Parameterempfindlich (distanz, winsize) | TSDFFusion | HallPlanner | Rohe Schnittpunkte | Library (Open3D/PROSAC) | MIT | Wand/Boden-Klassifikation vs Klassenzählung | P0 |
+| **Screened Poisson** | Rekonstruktion aus orientierter Punktwolke | SHADED | — | `PoissonSurfaceReconstructor` | Glattes, wasserdichtes Mesh (breiter als MC) | Übergeneralisierung in dünnen Wänden | TSDFFusion | HallPlanner | Rohe Punktwolke | Library (Open3D) | MPL-2.0 | Mesh-Dichte vs Übergeneralisierung | P1 |
+| **Room Envelopes** | Feed-forward Layout-Pointmaps (entfernt Möbel/Aufbauten) | SHADED | — | `FeedForwardLayoutEstimator` | Direkte Raumgrenzen ohne Ebenen-Pipeline | Trainingsdaten-Abstimmung | PlanarSpaceSegmenter | TSDFFusion | 2.5D Parallaxen | External provider (wrapper) | Apache-2.0 | Layout-IoU vs RANSAC-Pipeline auf 5 Szenen | P1 |
+| **WallNet / PlaneNet** | Feed-forward Wandsegmentierung aus RGB-D | SHADED | — | (variante von FeedForwardLayoutEstimator) | Single-shot Layout-Prediction | Einschränkung auf bekannte Layouts (3/5-Freiheitsgrade) | Room Envelopes | PlanarSpaceSegmenter | COLMAP | External provider (wrapper) | MIT | Layout-Accuracy vs Ground-Truth-Höhen | P1 |
+| **Directional TSDF** | TSDF mit Normaleninformation für kohärente Meshes | SHADED | — | (extension of TSDFFusion) | Reduziert Säbelzähne in Marching-Cubes | Erweiterte Voxelrepräsentation | TSDFFusion | SparseField | Rohe Punktwolke | Independent impl (study) | Apache-2.0 (original) | Mesh-Artefaktfrequenz | P2 |
+| **Diffusion-Driven Surface Separation** | Trennung von Innen-/Außensurface aus Punktwolke | SHADED | — | `SurfaceSeparator` | Trennt Wandinnen- von Außenflächen | Iterative Optimierung | TSDFFusion | SparseField | Single-surface TSDF | Research concept | Apache-2.0 | Trennungsgenauigkeit auf 3 Szenen | P2 |
+| **Point Cloud Fusion** | Aggregierte Punktwolke aus mehreren Views | SHADED | `SparseField` (einzelne Frames) | `SparseVoxelFusion` (enhanced) | Einfacher als TSDF, direkte Punktwolke | Weniger rauschrobust (keine Implizitheität) | TSDFFusion | DepthProvider | Rohe Punktwolke | Independent impl | MIT | Vergleich Qualität TSDF-vs-PointFusion | P1 |
 
 ## E. Materials & Lighting
 
@@ -190,8 +198,10 @@ Diese Sektion gruppiert alle Verfahren, die explizit für Gebäudeanlagen-Rekons
 4. **PrimitiveFitter** — Extend `fitGeometricPrimitivesExtended` with sphere/capsule.
 5. **HallPlanner integration** — Wire `hall-plan/` modules into the kernel SceneGraph.
 6. **T-3DGS distractor-robust reconstruction** — Essential for visitor-heavy scenes.
-7. **RepresentationBudget** — Already implemented; needs GOLD/DESKTOP/WEB/MOBILE validation.
-8. **Intrinsic decomposition** — Neural provider as teacher; analytical remains default.
+7. **TSDF Fusion** — Replace risky point-cloud-intersection with volumetric reconstruction.
+8. **RASAC Plane-Fitting** — Robust room segmentation (walls/floor/ceiling) from TSDF-filtered cloud.
+9. **RepresentationBudget** — Already implemented; needs GOLD/DESKTOP/WEB/MOBILE validation.
+10. **Intrinsic decomposition** — Neural provider as teacher; analytical remains default.
 
 ### P1 (Next after P0)
 

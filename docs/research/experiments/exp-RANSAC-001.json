@@ -1,0 +1,43 @@
+{
+  "experiment": "exp-RANSAC-001",
+  "name": "RANSAC plane segmentation for architectural space extraction from TSDF-filtered point cloud",
+  "priority": "P0",
+  "status": "planning",
+  "donor": "Open3D RANSAC + PROSAC (Schil et al. 2006), PlanarSpaceSegmenter concept",
+  "license": "MIT (Open3D) / BSD (PROSAC)",
+  "provider": "tools/providers/shaded_ransac_planes.py",
+  "dependencies": {
+    "runtime": ["python3", "numpy"],
+    "optional": ["open3d (native RANSAC)"]
+  },
+  "inputs": {
+    "point_cloud": "test/fixtures/hall_multi_view/tsdf-points.f32",
+    "description": "TSDF-fused point cloud (output of exp-TSDF-001) of static hall scene",
+    "min_point": 2000000
+  },
+  "operator": "PlanarSpaceSegmenter",
+  "config": {
+    "distance_threshold": 0.05,
+    "num_iterations": 1000,
+    "min_points": 10000,
+    "angle_tolerance_deg": 5.0,
+    "vertical_tolerance_deg": 20.0,
+    "wall_normal_min_vertical": 0.9
+  },
+  "expected": {
+    "wall_floor_ceiling_labeled": true,
+    "plane_coverage_pct": { "min": 85 },
+    "outlier_reduction_vs_raw": { "min": 30, "unit": "pct of visitor/temporaries removed" },
+    "schema_valid": true
+  },
+  "thresholds": {
+    "plane_label_accuracy": { "min": 95, "unit": "pct vs manual annotation" },
+    "wall_verticality_deg": { "max": 3.0, "unit": "deviation from vertical" },
+    "floor_horizontality_deg": { "max": 2.0, "unit": "deviation from horizontal" },
+    "runtimes_sec": { "max": 5.0, "device": "4-core CPU" }
+  },
+  "disposition_if_pass": "keep_default (replaces point-cloud-intersection geometry extraction)",
+  "disposition_if_fail": "research_only",
+  "rescue": "HallPlanner (exp-041) — floor plan + structural anchors",
+  "notes": "RANSAC plane-fitting operates on the noise-filtered TSDF point cloud, not raw COLMAP output. It segments walls/floor/ceiling robustly because visitor/temporary points fail the distance-threshold test and are rejected as inliers. Angle and verticality constraints classify planes. This is the recommended replacement for manual point-cloud intersection logic."
+}
