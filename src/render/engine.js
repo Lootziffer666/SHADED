@@ -1151,7 +1151,7 @@ export class SHADEDEngine {
     }
 
     // Step sparse field diffusion
-    if (this.sparseField) {
+    if (this.sparseField && typeof this.sparseField.step === 'function') {
       this.sparseField.step(dt);
     }
   }
