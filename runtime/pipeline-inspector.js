@@ -178,6 +178,13 @@ export class StageTracker {
     return s;
   }
 
+  // Clear all accumulated masks (call per-frame to prevent memory growth)
+  clearMasks() {
+    for (const st of this.state.values()) {
+      st.masks = [];
+    }
+  }
+
   // Get status of a stage
   status(id) {
     return this.state.get(id) || null;
@@ -325,16 +332,10 @@ export class DebugOverlay {
 export class PipelineWrapper {
   constructor(inspector) {
     this.inspector = inspector;
-    this._originals = new Map();
+    this._originals = new WeakMap();  // obj -> Map(methodName -> original)
   }
 
   // Wrap a function on an object with stage instrumentation.
-  // The wrapper:
-  //   1. Marks the stage as requested
-  //   2. Captures before-state (if canvas provided)
-  //   3. Calls the original function
-  //   4. Captures after-state, computes delta, marks executed
-  //   5. If the function threw, marks as skipped with error reason
   wrap(obj, methodName, stageId, opts = {}) {
     const original = obj[methodName];
     if (typeof original !== 'function') {
@@ -342,12 +343,11 @@ export class PipelineWrapper {
     }
 
     const inspector = this.inspector;
-    const self = this;
+    if (!this._originals.has(obj)) this._originals.set(obj, new Map());
+    this._originals.get(obj).set(methodName, original);
 
     obj[methodName] = function (...args) {
-      const registry = inspector.registry;
       const tracker = inspector.tracker;
-
       inspector.beginStage(stageId);
       tracker.requested(stageId);
 
@@ -372,7 +372,6 @@ export class PipelineWrapper {
         throw err;
       }
 
-      // Compute delta if before/after are available
       if (before && typeof opts.captureAfter === 'function') {
         const after = opts.captureAfter();
         const mask = PixelDelta.diff(
@@ -380,11 +379,7 @@ export class PipelineWrapper {
           after instanceof Uint8ClampedArray ? after : after.data,
           opts.threshold
         );
-        if (mask) {
-          tracker.executed(stageId, mask);
-        } else {
-          tracker.executed(stageId, null);
-        }
+        tracker.executed(stageId, mask);
       } else {
         tracker.executed(stageId, null);
       }
@@ -393,7 +388,6 @@ export class PipelineWrapper {
       return result;
     };
 
-    this._originals.set({ obj, methodName }, original);
     return obj;
   }
 
@@ -405,6 +399,9 @@ export class PipelineWrapper {
     }
 
     const inspector = this.inspector;
+    if (!this._originals.has(obj)) this._originals.set(obj, new Map());
+    this._originals.get(obj).set(methodName, original);
+
     obj[methodName] = async function (...args) {
       const tracker = inspector.tracker;
       inspector.beginStage(stageId);
@@ -438,8 +435,7 @@ export class PipelineWrapper {
           after instanceof Uint8ClampedArray ? after : after.data,
           opts.threshold
         );
-        if (mask) tracker.executed(stageId, mask);
-        else tracker.executed(stageId, null);
+        tracker.executed(stageId, mask);
       } else {
         tracker.executed(stageId, null);
       }
@@ -448,19 +444,16 @@ export class PipelineWrapper {
       return result;
     };
 
-    this._originals.set({ obj, methodName }, original);
     return obj;
   }
 
   restore(obj, methodName) {
-    for (const [key, orig] of this._originals.entries()) {
-      if (key.obj === obj && key.methodName === methodName) {
-        obj[methodName] = orig;
-        this._originals.delete(key);
-        return true;
-      }
-    }
-    return false;
+    const methodMap = this._originals.get(obj);
+    if (!methodMap || !methodMap.has(methodName)) return false;
+    const original = methodMap.get(methodName);
+    obj[methodName] = original;
+    methodMap.delete(methodName);
+    return true;
   }
 }
 
@@ -548,6 +541,7 @@ export class PipelineInspector {
   renderDebug() {
     if (!this.enabled) return;
     this.debug.renderDelta(this.registry, this.tracker);
+    this.tracker.clearMasks();  // prevent memory growth in render loop
     this._frameCount++;
   }
 

@@ -134,19 +134,22 @@ export class HallPlannerRecipe {
       }
     }
 
-    // 5) Generate surface voxels from structural colliders.
+    // 5) Generate surface voxels from structural colliders (shell only, not solid fill).
     const surfaceVoxels = [];
     if (payload && payload.colliders) {
       for (const c of payload.colliders) {
         const min = c.min, max = c.max;
         const step = 0.5;
-        for (let x = min[0]; x <= max[0]; x += step)
-          for (let y = min[1]; y <= max[1]; y += step)
-            for (let z = min[2]; z <= max[2]; z += step)
-              surfaceVoxels.push({
-                x: Math.round(x / step), y: Math.round(y / step), z: Math.round(z / step),
-                material: 'rock',
-              });
+        const ix0 = Math.round(min[0] / step), ix1 = Math.round(max[0] / step);
+        const iy0 = Math.round(min[1] / step), iy1 = Math.round(max[1] / step);
+        const iz0 = Math.round(min[2] / step), iz1 = Math.round(max[2] / step);
+        for (let x = ix0; x <= ix1; x++)
+          for (let y = iy0; y <= iy1; y++)
+            for (let z = iz0; z <= iz1; z++) {
+              // Shell: only surfaces (at least one face on the boundary)
+              if (x !== ix0 && x !== ix1 && y !== iy0 && y !== iy1 && z !== iz0 && z !== iz1) continue;
+              surfaceVoxels.push({ x, y, z, material: 'rock' });
+            }
       }
     }
 

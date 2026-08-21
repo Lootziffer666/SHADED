@@ -73,7 +73,7 @@ export class StubDepthProvider extends BenchmarkProvider {
       output: { depth, confidence, w, h },
       metrics: {
         runtime_ms: Date.now() - t0,
-        memory_mb: (depth.byteSize || depth.length * 4) / 1024 / 1024,
+        memory_mb: (depth.byteLength || depth.length * 4) / 1024 / 1024,
         quality: this.params.quality || 0.85,
       },
     };
@@ -250,6 +250,7 @@ export class BenchmarkRun {
     this.error = result.error || null;
     this.metrics = result.metrics || {};
     this.outputRef = result.output ? hashOutput(result.output) : null;
+    this.output = result.output || null;  // Actual output data for chaining
     this.params = provider.params;
     this.timestamp = Date.now();
   }
@@ -324,7 +325,7 @@ export class Tournament {
       }
     });
 
-    return survivors.map(s => this.benchmark.providers.find(p => p.name === s.provider));
+    return survivors.map(s => this.benchmark.providers.find(p => p.name === s.provider)).filter(Boolean);
   }
 
   // Full tournament: run each stage, eliminate, combine winners.
@@ -345,7 +346,7 @@ export class Tournament {
 
       let survivors = providers;
       let roundNum = 0;
-      while (survivors.length > 1 && survivors.length > 1) {
+      while (survivors.length > 1) {
         roundNum++;
         survivors = this.eliminateBottom(round, 0.5);
         if (survivors.length === 0) break;
@@ -359,11 +360,11 @@ export class Tournament {
       winners[stage] = survivors;
     }
 
-    return { rounds: this.rounds, winners };
+    return { rounds: this.rounds, winners, stack: await this.runStack(cases, winners) };
   }
 
   // Run a stack: combine winners from all stages and test end-to-end.
-  async runStack(cases) {
+  async runStack(cases, winners) {
     const stackResults = [];
     for (const c of cases) {
       const input = c.input;
@@ -377,8 +378,8 @@ export class Tournament {
 
         const run = await this.benchmark.runProvider(winner, stage, c, currentInput);
         stageOutputs[stage] = run;
-        if (run.ok) {
-          currentInput = { input: currentInput, output: run.metrics?.output || run.outputRef, stage: stage };
+        if (run.ok && run.output) {
+          currentInput = { ...currentInput, output: run.output, stage: stage };
         }
       }
       stackResults.push({ caseId: c.id, stageOutputs });
@@ -465,11 +466,9 @@ export class ReconstructionBenchmark {
       this.cases
     );
 
-    const stackResults = await this.tournament.runStack(this.cases);
-
     return {
       tournament: tournamentResult,
-      stack: stackResults,
+      stack: tournamentResult.stack,
       allRuns: this.runs,
     };
   }
