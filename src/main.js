@@ -223,7 +223,7 @@ if (typeof window !== 'undefined') {
 
     // --- Demo button (no bundled asset in modular build) ---
     const demoBtn = document.getElementById('btn-demo');
-    if (demoBtn) demoBtn.addEventListener('click', () => engine && engine.loadDemo());
+    if (demoBtn) demoBtn.addEventListener('click', () => { if (engine) { engine.loadDemo(); const s = statusEl(); if (s) s.textContent = 'Szene geladen'; } });
 
     // --- Keyboard: player movement (WASD / arrows), space = sprint ---
     // Held keys drive continuous movement via a tick (Playwright does not

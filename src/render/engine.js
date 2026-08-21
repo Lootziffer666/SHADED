@@ -1429,9 +1429,53 @@ export class SHADEDEngine {
     return this.structDiag || (this.structDiag = {});
   }
 
+  buildPointCloud(options = {}) {
+    const step = options.step || 4;
+    const points = [];
+    const colors = [];
+    if (!this.scenePixels) return { points, colors };
+    const aw = this.options.analysisResolution;
+    const ah = Math.round(aw * this.sceneHeight / this.sceneWidth);
+    const stride = Math.max(1, step);
+    for (let y = 0; y < ah; y += stride) {
+      for (let x = 0; x < aw; x += stride) {
+        const idx = (y * aw + x) * 4;
+        const r = this.scenePixels[idx], g = this.scenePixels[idx + 1], b = this.scenePixels[idx + 2], a = this.scenePixels[idx + 3];
+        if (a === 0) continue;
+        const u = x / (aw - 1), v = y / (ah - 1);
+        const px = (u - 0.5) * 2, py = (0.5 - v) * (2 * ah / aw);
+        points.push({ x: px, y: py, z: 0, r, g, b });
+        colors.push([r, g, b]);
+      }
+    }
+    return { points, colors };
+  }
+
+  downloadPointCloud() {
+    const pc = this.buildPointCloud();
+    const data = pc.points.map((p, i) => [...p, ...pc.colors[i]]);
+    const blob = new Blob([JSON.stringify({ points: pc.points, colors: pc.colors })], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'shaded-pointcloud.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   loadDemo() {
-    console.warn('[SHADED] loadDemo: use file inputs or addActor in modular build');
-    return false;
+    const img = new Image();
+    img.onload = () => {
+      this.sceneImage = img;
+      this.sceneWidth = img.width;
+      this.sceneHeight = img.height;
+      this.resizeCanvases();
+      this.uploadSceneTexture();
+      this._resetIntrinsicToBaseline();
+      this.analyzeScene();
+      console.log('[SHADED] Demo scene loaded');
+    };
+    img.src = 'file_00000000974871f49fe71f6b456f9579.png';
+    return true;
   }
 
   getIntrinsicState() {
