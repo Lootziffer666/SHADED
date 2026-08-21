@@ -222,5 +222,129 @@
         "use_fixture": { "type": "string", "description": "Local JSON fixture path (skip API call)" }
       }
     }
+  },
+  "COLMAPPhotogrammetryProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "GPL-3 (study only)",
+    "donor": "COLMAP",
+    "mode": "research",
+    "experiment": "exp-COLMAP-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy", "colmap_binary"],
+    "consumes": ["image_directory"],
+    "produces": ["depth", "confidence", "points", "normals"],
+    "providerFile": "tools/providers/shaded_colmap.py",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "max_edge": { "type": "integer", "default": 1024 },
+        "point_budget": { "type": "integer", "default": 250000 },
+        "dense_depth": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "T3DGSReconstructionProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "T-3DGS (CVPR 2024)",
+    "mode": "research",
+    "experiment": "exp-T3DGS-001",
+    "priority": "P0",
+    "dependencies": ["python3", "torch", "cuda"],
+    "consumes": ["video", "multi_view_images"],
+    "produces": ["depth", "points", "normals", "confidence"],
+    "providerFile": "external (T-3DGS pipeline wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "uncertainty_predictor": { "type": "boolean", "default": true },
+        "transient_mask_refiner": { "type": "boolean", "default": true },
+        "max_gaussians": { "type": "integer", "default": 2000000 },
+        "denoise_iters": { "type": "integer", "default": 3 }
+      }
+    }
+  },
+  "SpotLessSplatsProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "SpotLessSplats (CVPR 2024)",
+    "mode": "research",
+    "experiment": "exp-SLS-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "cuda", "dinov2_features"],
+    "consumes": ["video", "multi_view_images"],
+    "produces": ["depth", "points", "normals", "confidence"],
+    "providerFile": "external (SLS pipeline wrapper)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "feature_extractor": { "type": "string", "default": "DINOv2" },
+        "optimization": { "type": "string", "default": "robust_m_step" },
+        "mask_propagation": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "SeeingThroughClutterRemover": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "custom (research)",
+    "donor": "SeeingThroughClutter (CVPR 2025)",
+    "mode": "research",
+    "experiment": "exp-STC-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "vlm"],
+    "consumes": ["single_image"],
+    "produces": ["image_no_clutter"],
+    "providerFile": "external (VLM iterative removal)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "iterations": { "type": "integer", "default": 5 },
+        "vlm_model": { "type": "string", "default": "gpt-4o" }
+      }
+    }
+  },
+  "BIMGeometryExtractor": {
+    "disposition": "keep_conditional",
+    "implType": "bridge_concept",
+    "license": "MIT",
+    "donor": "Scan-to-BIM roof reconstruction",
+    "mode": "research",
+    "experiment": "exp-BIM-001",
+    "priority": "P1",
+    "dependencies": ["python3", "numpy", "geospatial_footprints"],
+    "consumes": ["uav_photogrammetry", "geospatial_footprints"],
+    "produces": ["ifc_mesh", "semantic_faces"],
+    "providerFile": "external (UAV photogrammetry + footprint constraints)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "smoothing_method": { "type": "string", "default": "taubin" },
+        "min_planar_area": { "type": "number", "default": 2.0 }
+      }
+    }
+  },
+  "DGSLAMDynamicBackend": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "DG-SLAM",
+    "mode": "research",
+    "experiment": "exp-DGSLAM-001",
+    "priority": "P1",
+    "dependencies": ["python3", "torch", "cuda"],
+    "consumes": ["video_walkthrough"],
+    "produces": ["camera_trajectory", "depth", "points"],
+    "providerFile": "external (DG-SLAM SLAM)",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "dynamic_object_thresholds": { "type": "object" },
+        "track_vis": { "type": "boolean", "default": true }
+      }
+    }
   }
 }

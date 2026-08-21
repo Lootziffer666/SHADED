@@ -28,10 +28,6 @@ RESEARCH ONLY | TEACHER ONLY | REPLACE | REDUNDANT | SUBSTITUTABLE | NEGATIVE CO
 | **MapAnything Distance Matrix** | Geospatial routing optimization (7,500×7,500, 9 traffic windows) | SHADED | — | `MapAnythingGeospatialProvider` | Travel-time/depth raster + waypoint anchors + route headings as normals | REST API (commercial), no ML | HallPlanner (floor plans) | DepthProvider, SpatialMemory | GeoJSON-only fallback | External provider (REST) | Commercial | Validate route rasterisation on Charlotte test fixture | P1 |
 
 ## B. Point Cloud / Gaussians
-
-| Paper | Problem | Project | Current equivalent | Operator | Benefit | Cost | Redundancy | Synergy | Rescue | Impl type | License | Experiment | Priority |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **3D Gaussian Splatting** | High-quality novel view rendering | SHADED | — | `GaussianRepresentation` | Photo-real point cloud rendering | GPU memory for N gaussians | SDF mesh | Shares points with SparseField | SDF mesh rescues low-Gaussian budget | Independent impl (GS framework) | MIT (code: GPL-3 study) | Render time vs triangle budget | P1 |
 | **GS-2M** | Material-aware geometry from multi-view disagreement | SHADED | — | `MaterialDisagreementSignal` | Glass/glossy/metal detection from cross-view | Cross-view inference needed | Gaussian repr | GaussianRepresentation (same point source) | Smooth-shading fallback | Research concept (no code) | Unknown | Synthetic glass/metal/multi-view | P1 |
 | **GSNSR** | Super-resolution for 3D Gaussians | SHADED | — | `GaussianUpsampler` | Reduce Gaussian count at distance | 2× GS render resolution | GaussianRepresentation | Same point source | Downsampled GS rescues compute | Research concept | Unknown | GS count vs visual quality | P2 |
 | **Spherical Fusion** | Point fusion from multiple depth maps | SHADED | `SpatialMemory` (stub registrar) | `SparseVoxelFusion` | Deduplicate, resolve conflicts | Registration overhead | SpatialMemory + SparseField | Same observation ingestion | Single-depth DA V3 | Independent impl | MIT | 3-view fusion accuracy | P1 |
@@ -140,6 +136,35 @@ RESEARCH ONLY | TEACHER ONLY | REPLACE | REDUNDANT | SUBSTITUTABLE | NEGATIVE CO
 
 ---
 
+## H. Distraktor-Robuste Rekonstruktion (Besucher-, Aufbauten-Rauschen)
+
+Diese Sektion gruppiert alle Verfahren, die explizit für Gebäudeanlagen-Rekonstruktion unter starkem temporärem Rauschen (laufende Besucher, temporäre Aufbauten, Fahrzeuge) entwickelt wurden. Sie gliedern sich nach Input-Typ und Reife.
+
+| Paper / Tool | Problem | Project | Current equivalent | Operator | Benefit | Cost | Redundancy | Synergy | Rescue | Impl type | License | Experiment | Priority |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **T-3DGS** | 3D Scene reconstruction removing transient distractors via uncertainty predictor + transient mask refiner | SHADED | — | `DistractorRobustGaussianRep` | Explicit transient-object filtering in dense indoor scenes | GPU memory + mask refinement overhead | GaussianRepresentation | DepthProvider, SparseField | SDG (flat) | Independent impl / paper reimpl | Apache-2.0 | Compare reconstruction quality with vs without visitors on DORF test scene | P0 |
+| **SpotLessSplats (SLS)** | Robust Gaussian Splatting ignoring distractors via pretrained features + robust optimisation | SHADED | — | `DistractorRobustGaussianRep` (alt) | Unsupervised distractor rejection, no manual masks | Feature extraction cost, slower training | GaussianRepresentation | DepthProvider | Flat GaussianRep | Wrap SLS pipeline | Apache-2.0 | Benchmark SLS vs T-3DGS on visitor-heavy hall scenes | P0 |
+| **RobustSplat** | Decouples densification from dynamics to reduce moving-object artefacts | SHADED | — | (config variant of DistractorRobustGaussianRep) | Artefact-free densification | Reduced density without dynamics | DistractorRobustGaussianRep | GaussianRepresentation | Flat GaussianRep | Config flag | Apache-2.0 | Ablation: densification-order impact | P1 |
+| **Robust3DGaussians** | Adapts 3DGS against scene-distracting objects | SHADED | — | (config variant) | GitHub reference impl | Repo maturity | DistractorRobustGaussianRep | GaussianRepresentation | Flat GaussianRep | Wrap / study | Apache-2.0 | Study code patterns for integration | P1 |
+| **GaussianMove** | Adaptive transparency via SAM masks for dynamic objects; replaces with static background | SHADED | — | `DynamicMaskInpainter` | Zero-transparency moving objects, background inpainting | SAM inference cost, needs mask propagation | GaussianRepresentation | DepthProvider | Inpainting fallback | Independent impl | Apache-2.0 | Validate on street-facing building facade with foot traffic | P1 |
+| **DynamicFilter** | Online map+visibility-based dynamic object detection | SHADED | — | `DynamicMaskInpainter` (alt) | Map-consistent dynamic filtering | Stereo/SfM dependency | GaussianMove | DepthProvider | Manual mask | Wrap | Apache-2.0 (original CVPR 2022) | Compare filter recall on video walking-tour | P1 |
+| **Generalized Dynamic Object Removal (stereo)** | Stereo-flow inconsistency detection for depth/intensity outlier isolation | SHADED | — | `DynamicMaskInpainter` (stereo) | Independent of reconstruction backend | Requires stereo input | DynamicFilter | DepthProvider | Manual mask | Reference impl | BSD-3 (original) | Test on synthetic stereo corridor with people | P2 |
+| **dynamic-3d-object-removal** | Pure-numpy 3D bbox cropping + temporal voxel filtering for LiDAR point clouds | SHADED | — | (preprocessor for SparseField) | No GPU/Deep Learning, lightweight | LiDAR-only, not pure vision | SparseField | DepthProvider | None | Reference impl (numpy) | MIT | Validate on LiDAR+image fused scenes | P2 |
+| **SeeingThroughClutter** | VLM-orchestrated iterative foreground removal from single images | SHADED | — | `SingleViewClutterRemover` | Single-image (no video needed) clutter removal | LLM/VLM inference cost | All depth pipelines | DepthProvider | Manual cleanup | Independent impl | Custom (research) | Test iterative removal quality on single photos of visitor scenes | P1 |
+| **DG-SLAM** | Gaussian-Splatting visual-SLAM for dynamic indoor tracking + reconstruction | SHADED | — | `DynamicSLAMBackend` | Joint tracking + reconstruction under dynamics | SLAM pipeline complexity | GaussianRepresentation | DepthProvider | COLMAP (static) | Wrap / integrate | Apache-2.0 | Validate camera trajectory + reconstruction quality | P1 |
+| **Scan-to-BIM roof reconstruction** | UAV photogrammetry → geospatially-constrained planarity → IFC | BEUTELTIER | `HallPlanner` | `BIMGeometryExtractor` | Structured Dach/Wand output (semantisch statt nur Mesh) | Requires geospatiale Footprints + Taubin-Glättung | HallPlanner | DepthProvider | 2.5D mesh | Bridge concept (reuse) | MIT | Extract roof faces from 5 UAV datasets | P1 |
+
+## I. Klassische Photogrammetrie-Suiten
+
+| Tool | Problem | Project | Current equivalent | Operator | Benefit | Cost | Redundancy | Synergy | Rescue | Impl type | License | Experiment | Priority |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **RealityCapture** | End-to-end Mesh + Orthomosaic | SHADED | COLMAP | `PhotogrammetryPipeline` | Industry-grade accuracy, large scale | Commercial license | COLMAP | DepthProvider | 2.5D depth | Pipeline integration (external) | Commercial | Reference 500-image building survey | P2 |
+| **COLMAP** | SfM + MVS toolchain | SHADED | — | `StructureFromMotion` (P2 matrix) | Open-source standard, well-documented | Single-threaded bottleneck | RealityCapture | DepthProvider | 2.5D depth | Pipeline integration (external) | GPL-3 (study only) | Compare COLMAP vs VGGT pose accuracy | P1 |
+| **ContextCapture** | Automated dense matching + texture | SHADED | — | (alternative PhotogrammetryPipeline) | City-scale, auto-texture | Heavy compute | RealityCapture | DepthProvider | N/A | External pipeline | Commercial | Test on mega-city building block | P2 |
+| **3DF Zephyr / OpenDroneMap** | Automated photogrammetry | SHADED | — | (alternative) | Drone imagery to 3D | Limited automation | COLMAP | DepthProvider | None | External pipeline | GPL (Zephyr) / MIT (ODM) | ODM vs COLMAP comparison | P2 |
+
+---
+
 ## Disposition Summary
 
 | Disposition | Count | Key items |
@@ -147,11 +172,11 @@ RESEARCH ONLY | TEACHER ONLY | REPLACE | REDUNDANT | SUBSTITUTABLE | NEGATIVE CO
 | KEEP DEFAULT | 8 | Current PALETTE, current shader, current analyze(), current actor system, current material layer, current world laws, SpatialKernel, SparseField, SceneGraph |
 | KEEP CONDITIONAL | 5 | DepthAnything V2/V3, Gaussian Splatting, TRELLIS/Zero123+, meshoptimizer, multi-view |
 | OFF BY DEFAULT | 4 | NeRF, Neuralangelo, Phoenix FD, Recast/Detour |
-| RESEARCH ONLY | 12 | GSNSR, GS-2M, Pixel2Mesh, Open3D octree, Li-GS, DA-Flow, MiDaS-DPT, BM-Decolma, Holistic 3D, Hatching, Graph drawing, Bayesian opt, Active learning |
+| RESEARCH ONLY | 15 | GSNSR, GS-2M, Pixel2Mesh, Open3D octree, Li-GS, DA-Flow, MiDaS-DPT, BM-Decolma, Holistic 3D, Hatching, Graph drawing, Bayesian opt, Active learning, RobustSplat, dynamic-3d-object-removal |
 | TEACHER ONLY | 2 | NeRF (novel views), Neuralangelo (surface target) |
 | REPLACE | 3 | Analytical intrinsic → neural intrinsic; Dijkstra → A* (kernel already done); legacy recon → MoGe-3 neighbourhood |
 | REDUNDANT | 3 | Neural Texture Transfer, Occupancy Networks (vs SDF), GraphCut (vs HallPlanner) |
-| SUBSTITUTABLE | 6 | DA-V2 ↔ DA-V3; SDF ↔ Occupancy; A* ↔ Dijkstra; Single-view ↔ Multi-view; Flat ↔ Hatching; Grid ↔ Navmesh |
+| SUBSTITUTABLE | 8 | DA-V2 ↔ DA-V3; SDF ↔ Occupancy; A* ↔ Dijkstra; Single-view ↔ Multi-view; Flat ↔ Hatching; Grid ↔ Navmesh; T-3DGS ↔ SLS (distraktor-robust); COLMAP ↔ RealityCapture |
 | NEGATIVE CONTRIBUTION | 1 | Neural texture transfer (adds cost, no new benefit beyond existing pipeline) |
 | REMOVE | 0 | (none yet — all candidates have some value) |
 
@@ -160,23 +185,33 @@ RESEARCH ONLY | TEACHER ONLY | REPLACE | REDUNDANT | SUBSTITUTABLE | NEGATIVE CO
 ### P0 (High value, implement first)
 
 1. **DepthAnything V2 vs V3** — Same provider contract, directly comparable. Determines baseline depth quality.
-2. **MoGe-3 neighbourhood upgrade** — Fixes known `spatial-reconstruction.mjs` O(n²) / image-adjacency bug.
-3. **PrimitiveFitter** — Extend `fitGeometricPrimitivesExtended` with sphere/capsule.
-4. **HallPlanner integration** — Wire `hall-plan/` modules into the kernel SceneGraph.
-5. **RepresentationBudget** — Already implemented; needs GOLD/DESKTOP/WEB/MOBILE validation.
-6. **Intrinsic decomposition** — Neural provider as teacher; analytical remains default.
+2. **VGGT (CVPR 2025)** — Single-pass depth + camera + points. Compare against DA-V3 baseline.
+3. **MoGe-3 neighbourhood upgrade** — Fixes known `spatial-reconstruction.mjs` O(n²) / image-adjacency bug.
+4. **PrimitiveFitter** — Extend `fitGeometricPrimitivesExtended` with sphere/capsule.
+5. **HallPlanner integration** — Wire `hall-plan/` modules into the kernel SceneGraph.
+6. **T-3DGS distractor-robust reconstruction** — Essential for visitor-heavy scenes.
+7. **RepresentationBudget** — Already implemented; needs GOLD/DESKTOP/WEB/MOBILE validation.
+8. **Intrinsic decomposition** — Neural provider as teacher; analytical remains default.
 
 ### P1 (Next after P0)
 
-1. **3D Gaussian Splatting** — Full GS representation, optional rendering backend.
-2. **TRELLIS/Zero-123+** — Completion provider (optional, not canonical truth).
-3. **TextureStationarizer** — Tileable hall textures from photos.
-4. **MultiViewTextureFuser** — Seam-free multi-photo blending.
-5. **PaletteNormalizer** — Canonical material palette across views.
-6. **Appearance-Driven Simplification** — Visual-lossless geometry reduction.
-7. **HybridLineRenderer** — Borderlands-style selective line rendering.
-8. **ContactVision** — SWIFT foot contact detection.
-9. **A* vs Dijkstra** — Already implemented in kernel; compare on real scenes.
+1. **MapAnything geospatial provider** — Route rasterisation as geometric constraint.
+2. **SpotLessSplats (SLS)** — Alternative distractor-robust Gaussian representation.
+3. **DG-SLAM** — Dynamic visual-SLAM for video walking-tours with people.
+4. **GaussianMove (SAM masks)** — Dynamic object transparency + inpainting.
+5. **SeeingThroughClutter** — VLM iterative single-image clutter removal.
+6. **BIMGeometryExtractor** — Scan-to-BIM structured roof/wall extraction.
+7. **COLMAP** — Reference SfM/MVS for pose comparison.
+8. **3D Gaussian Splatting** — Full GS representation, optional rendering backend.
+9. **TRELLIS/Zero-123+** — Completion provider (optional, not canonical truth).
+10. **TextureStationarizer** — Tileable hall textures from photos.
+11. **MultiViewTextureFuser** — Seam-free multi-photo blending.
+12. **PaletteNormalizer** — Canonical material palette across views.
+13. **Appearance-Driven Simplification** — Visual-lossless geometry reduction.
+14. **HybridLineRenderer** — Borderlands-style selective line rendering.
+15. **ContactVision** — SWIFT foot contact detection.
+16. **DynamicFilter** — Online map+visibility-based dynamic detection.
+17. **A* vs Dijkstra** — Already implemented in kernel; compare on real scenes.
 
 ### P2 / Experimental
 

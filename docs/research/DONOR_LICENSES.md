@@ -238,6 +238,31 @@ Checks:
 - **Cannot:** Copy shader code from Borderlands games
 - **Recommendation:** Paper-based implementation using generic cel-shading techniques
 
+### 7.6 VGGT (Visual Geometry Grounded Transformer)
+
+- **License:** Apache-2.0 (code + model)
+- **Repo:** https://github.com/facebookresearch/vggt
+- **Usage:** External provider via subprocess wrapper (`tools/providers/shaded_vggt.py`)
+- **Cannot:** Embed VGGT code in SHADED HTML runtime
+- **Integration:** Runs as external Python provider; result ingested via `GeometryObservation.fromProviderResult()`
+- **Experiment:** `exp-001-vggt` — compare against DepthAnything V3 on canonical hall scenes
+
+### 7.7 MapAnything (Salesforce Maps)
+
+- **License:** Commercial API (proprietary)
+- **Usage:** REST client provider (`tools/providers/shaded_mapanything.py`) — no code embedding
+- **Cannot:** Bundle API keys; no redistribution of MapAnything data
+- **Integration:** Reads GeoJSON + calls REST API; offline fixture mode for testing
+- **Experiment:** `exp-001-mapanything` — validate route rasterisation
+
+### 7.8 T-3DGS / SpotLessSplats / Robust3DGaussians (Distractor-Robust 3DGS)
+
+- **License:** Apache-2.0 (T-3DGS), Apache-2.0 (SLS)
+- **Usage:** External pipeline wrapper, or study for integration patterns
+- **Cannot:** Embed training code in SHADED
+- **Integration:** Run as external provider; import point cloud / depth via v1 schema
+- **Experiment:** `exp-T3DGS-001` — visitor-heavy scene reconstruction quality
+
 ---
 
 ## 8. Internal Attribution

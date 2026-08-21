@@ -15,9 +15,14 @@
       "args": ["tools/providers/shaded_vggt.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
       "doctorArgs": ["tools/providers/shaded_vggt.py", "--doctor"]
     },
+    "colmap": {
+      "command": "python3",
+      "args": ["tools/providers/shaded_colmap.py", "--input", "{input}", "--output", "{output}", "--colmap", "{colmap}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}", "--dense-depth"],
+      "doctorArgs": ["tools/providers/shaded_colmap.py", "--doctor"]
+    },
     "mapanything": {
       "command": "python3",
-      "args": ["tools/providers/shaded_mapanything.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
+      "args": ["tools/providers/shaded_mapanything.py", "--input", "{input}", "--output", "{output}", "--api-key", "{api_key}", "--api-url", "{api_url}", "--traffic-window-index", "{traffic_window_index}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
       "doctorArgs": ["tools/providers/shaded_mapanything.py", "--doctor"]
     }
   }
