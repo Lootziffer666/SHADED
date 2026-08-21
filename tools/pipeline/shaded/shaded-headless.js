@@ -228,7 +228,7 @@ export class SHADEDHeadless {
     if (depthRef.ref.file) {
       // Load from file
       const buffer = await fs.readFile(depthRef.ref.file);
-      return new Float32Array(buffer.buffer);
+      return new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4);
     }
     
     if (depthRef.ref.data) {
