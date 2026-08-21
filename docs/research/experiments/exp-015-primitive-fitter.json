@@ -1,0 +1,22 @@
+{
+  "experimentId": "exp-015",
+  "title": "PrimitiveFitter sphere/capsule extension",
+  "operator": "PrimitiveFitter",
+  "donor": "Primitive-driven reconstruction",
+  "mode": "gold",
+  "parameters": { "primitive_types": ["plane", "box", "cylinder", "sphere", "capsule"], "distance_threshold": 0.02 },
+  "inputs": [{ "type": "point_cloud", "path": "file_00000000974871f49fe71f6b456f9579.png" }],
+  "metrics": [
+    { "name": "sphere_detection_accuracy", "threshold": 0.95, "operator": "gte" },
+    { "name": "capsule_detection_f1", "threshold": 0.85, "operator": "gte" },
+    { "name": "plane_rmse", "threshold": 0.1, "operator": "lte" }
+  ],
+  "expectedClassCounts": {
+    "dorf-kanon": {"foliage": 7246, "grass": 5575, "path": 1813, "wood": 2356, "rock": 1099, "roof": 2626, "window": 20, "water": 1}
+  },
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "b341f7f46390216e81c97e01259a573fd2e9896c",
+    "tree": "ff1d67176d0a99c715416e29cc31098aad1a0147"
+  }
+}

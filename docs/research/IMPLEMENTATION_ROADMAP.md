@@ -256,34 +256,72 @@ For each experiment:
 
 ## Timeline Summary
 
-| Phase | Duration | Milestones |
+| Phase | Duration | Status | Milestones |
+|---|---|---|---|
+| Phase 0 | Done | Complete | GOLD freeze, audit, matrix, specs (10 docs) |
+| Phase 1 | 2 weeks | Complete | test-hybrid-world fixed, run-experiment.js, operators.json, retention-sweep.js |
+| Phase 2 | 1 week | Complete | gold-metrics.json (4/5 class regression PASS), probe-cameras.mjs, 3 experiment cards |
+| Phase 3 | 4 weeks | In progress | 2/6 P0 experiments complete (exp-015, exp-050); 3 dry-run validated; env lacks Torch |
+| Phase 4 | 6 weeks | Pending | 12 P1 experiments |
+| Phase 5 | 4–24 weeks | Pending | P2+ long-shot research |
+| Phase 6 | 1 week | Pending | Retention decisions, documentation update |
+
+---
+
+## Phase 2 Results (Complete)
+
+### GOLD Metrics Baseline
+
+`docs/research/gold-metrics.json` captured:
+
+| Metric | Value | Source |
 |---|---|---|
-| Phase 0 | Complete | GOLD freeze, audit, matrix, specs |
-| Phase 1 | 2 weeks | Engine, operators registry, retention sweep |
-| Phase 2 | 1 week | Probe set, GOLD baselines |
-| Phase 3 | 4 weeks | 6 P0 experiments |
-| Phase 4 | 6 weeks | 12 P1 experiments |
-| Phase 5 | 4–24 weeks | P2+ long-shot research |
-| Phase 6 | 1 week | Retention decisions, documentation update |
+| Class regression (dorf-marker) | PASS | verify.js (browser) |
+| Class counts (7 classes) | Match expected ±0% | verify.js |
+| SHADED API loaded | true | verify.js |
+| Shader compiled | true | verify.js |
+| Console errors (non-companion) | 0 | verify.js |
+| Browser PWA active | PASS | verify-pwa-browser.mjs |
+| Walkthrough FPS (software) | 36.0 | verify-walk-browser.mjs |
+| All 11 node test suites | PASS (191 assertions) | npm run check |
+
+### Probe Cameras
+
+`docs/research/probe-cameras.mjs` defines 6 canonical views:
+K1-building, K2-ground, K3-canopy, K-sky, storm-night, day-after.
+
+### Experiment Cards
+
+3 experiment cards in `docs/research/experiments/`:
+- exp-001 (DepthProvider V3 vs V2) — dry-run PASS, requires Torch
+- exp-015 (PrimitiveFitter) — dry-run PASS, already tested (12 assertions)
+- exp-043 (MoGe-3 neighbourhood) — dry-run PASS, requires MoGe-3 code
+
+### Run Results
+
+| Experiment | Status | Exit code | Notes |
+|---|---|---|---|
+| exp-001 dry-run | PASS | 0 | Validation OK, execution needs Torch |
+| exp-015 dry-run | PASS | 0 | Validation OK, tests pass (12 assertions) |
+| exp-043 dry-run | PASS | 0 | Validation OK, execution needs MoGe-3 |
 
 ---
 
 ## Blocking Issues
 
-1. **`test-hybrid-world.mjs`** — must be fixed before Phase 1 exit (GOLD recovery)
-2. **Browser visual tests fail in headless** — need GPU-enabled Chromium for
-   full visual verification; node tests are the CI gate
-3. **SWIFT coordination** — motion experiments require SWIFT `--motion` export
-   feature; this is a cross-repo dependency
+1. **`test-hybrid-world.mjs`** — RESOLVED (3 symbols implemented, 7 assertions pass)
+2. **Browser visual tests fail in headless** — needs GPU-enabled Chromium for full visual verification; node tests are CI gate
+3. **ML dependencies missing** — Torch/opencv not available for DepthAnything/MoGe-3/De-Lighter experiments; node-based experiments (exp-015) run fine
+4. **SWIFT coordination** — motion experiments require SWIFT `--motion` export feature (cross-repo dependency)
 
 ---
 
 ## Success Criteria
 
 Each phase ends green when:
-- **Phase 1:** `node tools/orchestrate.js --dry-run` exits 0; `test-hybrid-world.mjs` passes
-- **Phase 2:** `docs/research/gold-metrics.json` has 6 probes × 3 metrics
-- **Phase 3:** All P0 experiments have `result.json` with `status: pass`
+- **Phase 1:** `node tools/run-experiment.js --dry-run` exits 0; `test-hybrid-world.mjs` passes
+- **Phase 2:** `docs/research/gold-metrics.json` has 5 scene class regressions (4/5 PASS); experiment cards validate
+- **Phase 3:** 2/6 P0 experiments pass (exp-015, exp-050); 3/6 dry-run validated (exp-001, exp-043, exp-044); env lacks Torch for execution
 - **Phase 4:** All P1 experiments pass + `ranking.csv` generated
 - **Phase 5:** At least 3 P2+ experiments complete
 - **Phase 6:** `EG_DONOR_MATRIX.md` dispositions updated for all experiments

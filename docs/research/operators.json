@@ -1,0 +1,182 @@
+{
+  "$schema": "docs/research/operators.schema.json",
+  "description": "Registry of all experimental operators from EG_DONOR_MATRIX.md",
+  "_meta": {
+    "generated": "2026-08-21",
+    "basedOn": "docs/research/EG_DONOR_MATRIX.md",
+    "schema": "docs/research/operators.schema.json"
+  },
+  "DepthProvider": {
+    "disposition": "keep_default",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "Depth Anything V3",
+    "mode": "research",
+    "experiment": "exp-001",
+    "priority": "P0",
+    "dependencies": ["node:v22", "torch:2.3"],
+    "consumes": ["image", "camera"],
+    "produces": ["depth", "confidence"],
+    "configSchema": {
+      "type": "object",
+      "required": ["depth_model"],
+      "properties": {
+        "depth_model": { "type": "string", "enum": ["depth_anything_v2", "depth_anything_v3"] },
+        "input_resolution": { "type": "integer", "minimum": 256, "maximum": 1024 }
+      }
+    }
+  },
+  "GaussianRepresentation": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT (GPL-3 study)",
+    "donor": "3D Gaussian Splatting",
+    "mode": "research",
+    "experiment": "exp-040",
+    "priority": "P1"
+  },
+  "ImageTo3DCompletion": {
+    "disposition": "off_by_default",
+    "implType": "external_provider",
+    "license": "MIT",
+    "donor": "TRELLIS",
+    "mode": "research",
+    "experiment": "exp-042",
+    "priority": "P0"
+  },
+  "GeometryNeighbourhood": {
+    "disposition": "replace",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "MoGe-3",
+    "mode": "research",
+    "experiment": "exp-043",
+    "priority": "P0"
+  },
+  "IntrinsicDecomposer": {
+    "disposition": "teacher_only",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "IntrinsicNet/De-Lighter",
+    "mode": "teacher",
+    "experiment": "exp-044",
+    "priority": "P0"
+  },
+  "HybridLineRenderer": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Enhanced Cartoon Rendering",
+    "mode": "research",
+    "experiment": "exp-021",
+    "priority": "P1"
+  },
+  "TextureStationarizer": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Texture Stationarization",
+    "mode": "research",
+    "experiment": "exp-010",
+    "priority": "P0"
+  },
+  "MultiViewTextureFuser": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Seamless Multi-Texturing",
+    "mode": "research",
+    "experiment": "exp-011",
+    "priority": "P0"
+  },
+  "PaletteNormalizer": {
+    "disposition": "keep_default",
+    "implType": "replace_enhance",
+    "license": "internal",
+    "donor": "Recolorable Posterization",
+    "mode": "gold",
+    "experiment": "exp-012",
+    "priority": "P0"
+  },
+  "NavigationBuilder": {
+    "disposition": "already_impl",
+    "implType": "already_impl",
+    "license": "internal",
+    "donor": "A*",
+    "mode": "gold",
+    "experiment": "exp-050",
+    "priority": "P0"
+  },
+  "MotionSmoother": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Adaptive velocity smoothing",
+    "mode": "research",
+    "experiment": "exp-031",
+    "priority": "P0"
+  },
+  "ContactDetector": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "ContactVision",
+    "mode": "research",
+    "experiment": "exp-033",
+    "priority": "P1"
+  },
+  "PositionToRotation": {
+    "disposition": "research_only",
+    "implType": "research_concept",
+    "license": "unknown",
+    "donor": "IK-GAT",
+    "mode": "research",
+    "experiment": "exp-032",
+    "priority": "P2"
+  },
+  "AppearanceDrivenSimplifier": {
+    "disposition": "keep_conditional",
+    "implType": "independent_impl",
+    "license": "MIT",
+    "donor": "Appearance-Driven Simplification",
+    "mode": "research",
+    "experiment": "exp-055",
+    "priority": "P0"
+  },
+  "StylizedSurfaceShader": {
+    "disposition": "keep_conditional",
+    "implType": "shader_integration",
+    "license": "internal",
+    "donor": "Borderlands-style cel shading",
+    "mode": "research",
+    "experiment": "exp-020",
+    "priority": "P1"
+  },
+  "PrimitiveFitter": {
+    "disposition": "keep_default",
+    "implType": "upgrade",
+    "license": "internal",
+    "donor": "Primitive-driven reconstruction",
+    "mode": "gold",
+    "experiment": "exp-015",
+    "priority": "P0"
+  },
+  "HallPlanner": {
+    "disposition": "keep_conditional",
+    "implType": "integration",
+    "license": "MIT",
+    "donor": "RoomRunner / LayoutNet",
+    "mode": "research",
+    "experiment": "exp-041",
+    "priority": "P0"
+  },
+  "ProvenanceTracker": {
+    "disposition": "keep_default",
+    "implType": "independent_impl",
+    "license": "internal",
+    "donor": "Provenance DAG",
+    "mode": "gold",
+    "experiment": "exp-001",
+    "priority": "P0"
+  }
+}
