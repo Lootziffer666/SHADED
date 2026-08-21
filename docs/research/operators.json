@@ -178,5 +178,49 @@
     "mode": "gold",
     "experiment": "exp-001",
     "priority": "P0"
+  },
+  "VGGTDepthProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "Apache-2.0",
+    "donor": "VGGT (CVPR 2025)",
+    "mode": "research",
+    "experiment": "exp-001-vggt",
+    "priority": "P0",
+    "dependencies": ["node:v22", "torch:2.3", "vggt"],
+    "consumes": ["image"],
+    "produces": ["depth", "confidence", "points", "normals"],
+    "providerFile": "tools/providers/shaded_vggt.py",
+    "configSchema": {
+      "type": "object",
+      "required": ["model"],
+      "properties": {
+        "model": { "type": "string", "default": "facebook/vggt" },
+        "use_points": { "type": "boolean", "default": false },
+        "denoise_depth": { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "MapAnythingGeospatialProvider": {
+    "disposition": "keep_conditional",
+    "implType": "external_provider",
+    "license": "commercial-api",
+    "donor": "MapAnything (Salesforce Maps)",
+    "mode": "research",
+    "experiment": "exp-001-mapanything",
+    "priority": "P1",
+    "dependencies": ["node:v22"],
+    "consumes": ["geojson", "api_key"],
+    "produces": ["depth", "confidence", "points", "normals"],
+    "providerFile": "tools/providers/shaded_mapanything.py",
+    "configSchema": {
+      "type": "object",
+      "required": ["api_url"],
+      "properties": {
+        "api_url": { "type": "string", "default": "https://api.mapanything.com" },
+        "traffic_window_index": { "type": "integer", "minimum": 0, "maximum": 8, "default": 0 },
+        "use_fixture": { "type": "string", "description": "Local JSON fixture path (skip API call)" }
+      }
+    }
   }
 }

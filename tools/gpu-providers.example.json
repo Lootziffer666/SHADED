@@ -9,6 +9,16 @@
       "command": "python3",
       "args": ["tools/providers/depth_anything_v2.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
       "doctorArgs": ["tools/providers/depth_anything_v2.py", "--doctor"]
+    },
+    "vggt": {
+      "command": "python3",
+      "args": ["tools/providers/shaded_vggt.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
+      "doctorArgs": ["tools/providers/shaded_vggt.py", "--doctor"]
+    },
+    "mapanything": {
+      "command": "python3",
+      "args": ["tools/providers/shaded_mapanything.py", "--input", "{input}", "--output", "{output}", "--device", "{device}", "--precision", "{precision}", "--max-edge", "{max_edge}", "--point-budget", "{point_budget}"],
+      "doctorArgs": ["tools/providers/shaded_mapanything.py", "--doctor"]
     }
   }
 }
