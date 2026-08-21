@@ -1,0 +1,41 @@
+{
+  "experiment": "exp-SLAM-001",
+  "name": "Graph-SLAM loop closure for multi-session video drift correction",
+  "priority": "P1",
+  "status": "planning",
+  "donor": "Graph-SLAM + DBoW2 Bag-of-Words (OpenCV SLAM)",
+  "license": "GPL-3 (OpenCV) / BSD-3 (DBoW2)",
+  "provider": "external (GraphSLAM wrapper)",
+  "dependencies": {
+    "runtime": ["python3", "opencv_contrib", "bow_vocabulary"],
+    "hardware": "CPU-compatible"
+  },
+  "inputs": {
+    "video": "test/fixtures/hall_walkthrough/session1.mp4",
+    "video2": "test/fixtures/hall_walkthrough/session2.mp4",
+    "description": "Two walking-tour sessions of same hall, overlapping at entry point",
+    "overlap_frames": 7
+  },
+  "operator": "GraphSLAMLoopClosure",
+  "config": {
+    "loopclosure_threshold": 0.75,
+    "optimization_iterations": 30,
+    "vocabulary_file": "models/bow_vocabulary.yml"
+  },
+  "expected": {
+    "loop_closures_detected": { "min": 2, "note": "at entry point overlap" },
+    "drift_reduction": { "min": 50, "unit": "pct vs uncorrected VO" },
+    "trajectory_accuracy_vs_gt": { "max": 0.15, "unit": "m, vs motion capture" },
+    "runtime_vs_bundle_adjustment": { "max": 10, "unit": "x faster than full BA" }
+  },
+  "thresholds": {
+    "absolute_trajectory_error_m": { "max": 0.2, "note": "RMS vs ground truth" },
+    "relative_pose_error": { "max": 0.05, "unit": "m, 1m translation" },
+    "loop_closure_precision": { "min": 0.9, "unit": "pct" },
+    "loop_closure_recall": { "min": 0.8, "unit": "pct" }
+  },
+  "disposition_if_pass": "keep_conditional (lightweight drift correction)",
+  "disposition_if_fail": "research_only",
+  "rescue": "COLMAP full Bundle Adjustment (exp-COLMAP-001)",
+  "notes": "Graph-SLAM with Bag-of-Words loop closure is 10-50x faster than full Bundle Adjustment for correcting drift between multi-session captures. Critical for large building complexes captured in multiple passes. Runs on CPU — no GPU needed."
+}

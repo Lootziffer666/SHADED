@@ -1,0 +1,41 @@
+{
+  "experiment": "exp-SLS-001",
+  "name": "SpotLessSplats vs T-3DGS distractor robustness on visitor-heavy scenes",
+  "priority": "P1",
+  "status": "planning",
+  "donor": "SpotLessSplats (SLS) — CVPR 2024",
+  "license": "Apache-2.0",
+  "provider": "external (SLS pipeline wrapper)",
+  "dependencies": {
+    "runtime": ["python3", "torch", "numpy"],
+    "gpu": "required",
+    "repo": "https://github.com/nerf-hq/spotlessSplats"
+  },
+  "inputs": {
+    "scene_visitor_video": "test/fixtures/hall_visitor_heavy.mp4",
+    "description": "Same scene as exp-T3DGS-001, for direct comparison",
+    "frames": 64
+  },
+  "operator": "DistractorRobustGaussianRep",
+  "config": {
+    "method": "sls",
+    "feature_extractor": "DINOv2",
+    "optimization": "robust_m_step",
+    "mask_propagation": true,
+    "max_gaussians": 2000000
+  },
+  "expected": {
+    "visitor_artifact_reduction": { "min": 70, "unit": "pct vs flat GaussianRep" },
+    "runtime_sec": { "max": 120, "device": "cuda:A6000" },
+    "vs_t3dgs_quality": "comparable within 5% chamfer"
+  },
+  "thresholds": {
+    "chamfer_l2_mm": { "max": 3.0, "vs_laser_ground_truth": true },
+    "training_time_sec": { "max": 3600, "note": "full optimization budget" },
+    "memory_gb": { "max": 24, "device": "cuda:A6000" }
+  },
+  "disposition_if_pass": "keep_conditional (alternative to T-3DGS, may be lighter)",
+  "disposition_if_fail": "research_only",
+  "rescue": "T-3DGS (exp-T3DGS-001) — primary distractor-robust baseline",
+  "notes": "SLS uses pretrained generic features (DINOv2) + robust M-step optimisation to ignore distractors without manual masks. Comparison with T-3DGS determines which distractor-robust method to standardise on. Both are external providers."
+}

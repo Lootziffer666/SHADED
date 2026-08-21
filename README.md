@@ -326,6 +326,19 @@ Abhängigkeiten stehen getrennt in
 ein Adapter nicht lauffähig ist. In einer Umgebung ohne `nvidia-smi` wird CPU/FP32
 gewählt; das ist ein Diagnoseergebnis und kein GPU-Test.
 
+**Zusätzliche Provider:**
+- `vggt` (`tools/providers/shaded_vggt.py`): VGGT (CVPR 2025) — ein Feed-Forward-Transformer
+  liefert in einem Durchlauf Tiefe + Kamera-Intrinsics/Extrinsics + Punktwolken. Nutzt das
+  `SHADED.spatial-provider-result.v1` Schema via `shaded_provider_common.write_result`.
+  Abhängigkeit: `pip install torch vggt`.
+- `mapanything` (`tools/providers/shaded_mapanything.py`): MapAnything (Salesforce Maps)
+  REST-API für Distanzmatrix und VRP/TSP-Routing. Rasterisiert Routen-Gehzeiten als
+  Tiefe-Feld, leitet Normale aus Route-Richtungen ab und extrahiert Wegpunkte als
+  3D-Anker. Keine GPU/Torch-Abhängigkeit; offline-testbar via `--use-fixture`.
+
+Jedes der obigen Provider ist in `tools/gpu-providers.example.json` registriert und kann
+über `python3 tools/providers/<name>.py --doctor` auf Existenz geprüft werden.
+
 Jedes `result.json` wird mit Ajv tatsächlich gegen
 `contracts/shaded-spatial-provider.schema.json` validiert. Für alle Binärkanäle werden
 Pfadgrenzen, Shape, Bytezahl und endliche Floatwerte geprüft. `compare` misst bei

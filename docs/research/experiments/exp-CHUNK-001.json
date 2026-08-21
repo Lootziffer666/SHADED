@@ -1,0 +1,43 @@
+{
+  "experiment": "exp-CHUNK-001",
+  "name": "HierarchicalChunkPartitioner: Out-of-Core reconstruction for 48GB RAM limit",
+  "priority": "P0",
+  "status": "planning",
+  "donor": "Cesium 3D Tiles LOD + Octree chunking (ISPRS 2022)",
+  "license": "MIT",
+  "provider": "internal (runtime/spatial-kernel/chunk-partitioner.js)",
+  "dependencies": {
+    "runtime": ["node:v22", "numpy_optional"],
+    "memory_limit_gb": 48
+  },
+  "inputs": {
+    "point_cloud": "test/fixtures/hall_multi_view/tsdf-points.f32",
+    "bounds": [-20, 20, -20, 20, 0, 10],
+    "description": "Large point cloud exceeding single-frame memory budget"
+  },
+  "operator": "HierarchicalChunkPartitioner",
+  "config": {
+    "chunk_size_meters": 5.0,
+    "max_points_per_chunk": 500000,
+    "memory_budget_mb": 500,
+    "min_lod_level": 0,
+    "max_lod_level": 3
+  },
+  "expected": {
+    "chunk_count": { "min": 9, "note": "for 20x20x10m scene at 5m chunks" },
+    "max_memory_per_chunk_mb": { "max": 500, "note": "stays under budget" },
+    "lod_hierarchy_built": true,
+    "chunk_boundary_stitching": true,
+    "no_data_loss": true
+  },
+  "thresholds": {
+    "memory_per_chunk_mb": { "max": 500, "device": "48GB RAM system" },
+    "load_time_per_chunk_ms": { "max": 50, "note": "disk cache hit" },
+    "lod_transition_seamlessness": { "min": 0.95, "unit": "IoU at LOD boundary" },
+    "total_scene_coverage": { "min": 99.9, "unit": "pct" }
+  },
+  "disposition_if_pass": "keep_default (mandatory for building-scale scenes)",
+  "disposition_if_fail": "research_only (single-chunk fallback)",
+  "rescue": "SpatialKernel with full-scene in-memory (smaller scenes only)",
+  "notes": "Without chunking, TSDF voxels grow cubically with scene size, exceeding 48GB for full building complexes. This partitioner splits the scene into spatial chunks, processes each independently, and builds a Cesium-3D-Tiles-style octree LOD. PlanarSpaceSegmenter then runs per-chunk with boundary merging."
+}

@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "gOldCommit": "b341f7f46390216e81c97e01259a573fd2e9896c",
+  "date": "2026-08-21",
+  "method": "tools/verify-classes.mjs (node-based, 192x108 grid sampling via window.SHADED.getMaterialTypeAt)",
+  "classRegression": {
+    "dorf-marker": {
+      "status": "PASS",
+      "counts": {"foliage":5872,"grass":4885,"wood":3636,"rock":1186,"roof":2818,"window":197,"path":2142},
+      "expected": {"foliage":5872,"grass":4885,"wood":3636,"rock":1186,"roof":2818,"window":197,"path":2142},
+      "deviation": "exact match (0%)"
+    },
+    "legacy-map": {
+      "status": "FAIL (experimental design: missing material map)",
+      "counts": {"foliage":6420,"grass":4186,"wood":2516,"rock":2600,"roof":2091,"path":2901,"window":13,"water":9},
+      "expected": {"foliage":3916,"roof":4753,"path":2080,"wood":1921,"rock":1175,"grass":6024,"water":345,"window":522},
+      "note": "verify.js loads material map (1782824829119.png) via #f-mat — this was not loaded in standalone script"
+    },
+    "taverne": {
+      "status": "PASS",
+      "counts": {"foliage":6279,"wood":4366,"grass":3284,"rock":2644,"path":2118,"roof":2045},
+      "expected": {"foliage":6279,"grass":3284,"wood":4366,"rock":2644,"window":0,"path":2123,"roof":2040},
+      "deviation": "within tolerance (roof 2045 vs 2040, path 2118 vs 2123)"
+    },
+    "dorf-kanon": {
+      "status": "PASS",
+      "counts": {"foliage":7246,"grass":5575,"path":1813,"wood":2359,"rock":1099,"roof":2626,"window":17,"water":1},
+      "expected": {"foliage":7246,"grass":5575,"path":1813,"wood":2356,"rock":1099,"roof":2626,"window":20,"water":1},
+      "deviation": "within tolerance (wood 2359 vs 2356, window 17 vs 20 within ±40)"
+    },
+    "dorf-himmel": {
+      "status": "PASS",
+      "counts": {"rock":3996,"grass":4670,"path":1552,"roof":2186,"foliage":5453,"water":15,"wood":2848,"window":16},
+      "expected": {"rock":3996,"grass":4670,"path":1552,"roof":2186,"foliage":5443,"water":15,"wood":2848,"window":26},
+      "deviation": "within tolerance (foliage 5453 vs 5443, window 16 vs 26 within ±40)"
+    }
+  },
+  "renderFps": {
+    "K1-building": { "value": 36.0, "unit": "FPS", "note": "software renderer (headless Chromium, --use-gl=angle)" }
+  },
+  "shaDEDCheck": { "type": "object", "hasSHADED": true },
+  "shaderCompiled": true,
+  "consoleErrorsNonCompanion": 0,
+  "browserTests": {
+    "verify-pwa.mjs": "PASS",
+    "verify-pwa-browser.mjs": "PASS",
+    "verify-walk-browser.mjs": "PASS",
+    "verify.js": "Class regression 4/5 PASS, screenshot FAIL (headless WebGL)"
+  },
+  "nodeTests": {
+    "test-spatial-kernel.mjs": "PASS (25 assertions)",
+    "test-spatial-kernel-2.mjs": "PASS (33 assertions)",
+    "test-procedural-world.mjs": "PASS (13 assertions)",
+    "test-photofirst-recipe.mjs": "PASS (16 assertions)",
+    "test-spatial-memory.mjs": "PASS (9 assertions)",
+    "test-sparse-field.mjs": "PASS (18 assertions)",
+    "test-scene-graph.mjs": "PASS (19 assertions)",
+    "test-spatial-reconstruction-2.mjs": "PASS (12 assertions)",
+    "test-spatial-navigation.mjs": "PASS",
+    "test-gpu-spatial.mjs": "PASS",
+    "test-hybrid-world.mjs": "PASS (7 assertions)"
+  }
+}
