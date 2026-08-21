@@ -323,7 +323,8 @@ export class ReverseViewfinderCalibrator {
       
       this.setFOV(fovY);
       this.camera.provenance = 'EXIF';
-      this.calibrationMethod = 'exif';
+      this.calibrationMethod_ = 'exif';
+      this.calibrationConfidence_ = 0.6; // EXIF is moderately reliable
       this.calibrationConfidence = 0.6; // EXIF is moderately reliable
       return true;
     }
