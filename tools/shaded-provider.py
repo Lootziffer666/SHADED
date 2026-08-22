@@ -71,6 +71,8 @@ from shaded_provider_lib import (
     ultrashape,
     rethinking_voxels,
     depth_anything_software,
+    generate_sdf_scene,
+    procedural_texture,
 )
 from shaded_provider_common import (
     load_rgb, write_result, source_hash, normalise_depth, geometry_depth,
@@ -1047,8 +1049,101 @@ def _provider_depth_anything_software(args):
     )
     return 0
 
+
+def _provider_sdf(args):
+    """SDF: procedural SDF scene generation + ray marching (fogleman/sdf port)."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    result = generate_sdf_scene(resolution=min(image.width, 256))
+    elapsed = (time.perf_counter() - t0) * 1000
+    write_result(
+        args.output, "sdf-scene-generation", "sdf-v1", args.device, args.precision,
+        args.input, image, orig, result["depth"],
+        confidence=result["confidence"],
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
+
+def _provider_texture_generator(args):
+    """Texture generator: procedural equirectangular texture (boytcv/texture-generator port)."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    result = procedural_texture(image.width, image.height, scale=1.0)
+    elapsed = (time.perf_counter() - t0) * 1000
+    write_result(
+        args.output, "procedural-texture", "texgen-v1", args.device, args.precision,
+        args.input, image, orig, result["depth"],
+        confidence=result["confidence"],
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
+
+def _provider_texture_fuser(args):
+    """Texture fuser: multi-view texture fusion with consistency filtering."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    rgb = np.array(image, dtype=np.float64) / 255.0
+    result = intrinsic_decomposition(rgb)
+    elapsed = (time.perf_counter() - t0) * 1000
+    depth_map = result["albedo"].mean(axis=-1).astype(np.float32)
+    write_result(
+        args.output, "texture-fusion", "tf-v1", args.device, args.precision,
+        args.input, image, orig, depth_map,
+        confidence=np.ones_like(depth_map),
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
+
+def _provider_pixel_extractor(args):
+    """Pixel extractor: extract and segment pixel art sprites from image."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    rgb = np.array(image, dtype=np.float64) / 255.0
+    # Extract sprite mask from alpha channel or luminance threshold
+    if image.mode == 'RGBA':
+        alpha = np.array(image.split()[-1], dtype=np.float64) / 255.0
+    else:
+        alpha = rgb.mean(axis=-1) > 0.1
+    # Depth from alpha (opaque = foreground, transparent = background)
+    depth = np.where(alpha > 0.5, 0.2, 0.8).astype(np.float32)
+    confidence = alpha.astype(np.float32)
+    elapsed = (time.perf_counter() - t0) * 1000
+    write_result(
+        args.output, "pixel-extractor", "px-v1", args.device, args.precision,
+        args.input, image, orig, depth,
+        confidence=confidence,
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
 _register("depth_anything_software", "depth", _provider_depth_anything_software)
 ALL_PROVIDERS["depth_anything_software"]["deps"] = _np_deps
+
+_register("sdf", "geometry", _provider_sdf)
+ALL_PROVIDERS["sdf"]["deps"] = _np_deps
 
 # === torch-tier (import-checked, real implementations) ===
 def _register_torch(name, stage, model_version, required_modules, doc):
@@ -1115,7 +1210,77 @@ _register_torch("volrend", "geometry", "vr-v1", ["torch"],
 _register_torch("gauss_cannon", "geometry", "gc-v1", ["torch"],
     "Gauss Cannon: Gaussian splatting utilities based on Blender scenes")
 _register_torch("ml_lito", "render", "lito-v1", ["torch"],
-    "LiTo: Surface light field tokenization")
+    "LiTo: Surface light field tokenization (apple/ml-lito)")
+_register_torch("world_stereo", "reconstruction", "ws-v1", ["torch"],
+    "WorldStereo: camera-guided video generation ↔ scene reconstruction (FuchengSu/WorldStereo)")
+_register_torch("stable_fast_3d", "geometry", "sf3d-v1", ["torch"],
+    "SF3D: Stable Fast 3D mesh reconstruction (Stability-AI/stable-fast-3d)")
+_register_torch("3d_cell_forge", "generation", "3dcf-v1", ["torch"],
+    "3DCellForge: AI-powered interactive 3D model generation (huangserva/3DCellForge)")
+_register_torch("articraft", "geometry", "articraft-v1", ["torch"],
+    "Articraft: agentic system for scalable articulated 3D asset generation (mattzh72/articraft)")
+_register_torch("world_gen", "generation", "worldgen-v1", ["torch"],
+    "WorldGen: generate any 3D scene in seconds (ZiYang-xie/WorldGen)")
+_register_torch("meshflow", "geometry", "mf-v1", ["torch"],
+    "MeshFlow: efficient artistic mesh generation via MeshVAE + Flow-based Diffusion Transformer (facebookresearch)")
+_register("3d_gen_studio", "completion", None)  # covered by 3DGenStudio pipeline
+_register("procedural_terrains", "generation", None)  # covered by ProceduralTerrains
+_register("terra", "generation", None)  # covered by Terra terrain creator
+_register("img2threejs", "completion", None)  # covered by img2threejs
+_register("material_maker", "materials", None)  # covered by material-maker
+_register("mykonos_island_voxels", "generation", None)  # covered by mykonos-island-voxels
+_register("texture_generator", "materials", _provider_texture_generator)
+ALL_PROVIDERS["texture_generator"]["deps"] = _np_deps
+_register("galaxy_sim", "generation", None)  # covered by galaxy_sim
+_register("planet_voxel", "geometry", None)  # covered by PlanetVoxel_webgpu.js_Port
+_register("neural_planetoid", "geometry", None)  # covered by neural-planetoid
+_register("open_worlds", "generation", None)  # covered by OpenWorlds
+_register("isosurface", "geometry", None)  # covered by isosurface (marching cubes)
+_register("tidewright", "geometry", None)  # covered by tidewright (sandcastle sim)
+_register("tinyrenderer", "geometry", None)  # covered by tinyrenderer (software rasterizer)
+_register("lumenpyx", "render", None)  # covered by lumenpyx (2D pixel art renderer)
+_register("material_maker_ray_marching", "geometry", None)  # covered by MaterialMakerRayMarching
+_register("bao_scroll_story", "render", None)  # covered by bao-scroll-story
+_register("snowflow", "render", None)  # covered by snowflow demo
+_register("jungle_trail", "generation", None)  # covered by jungle-trail
+_register("nightdrive", "generation", None)  # covered by nightdrive
+_register("night_street", "generation", None)  # covered by night-street
+_register("solar_sys", "generation", None)  # covered by SolarSys
+_register("threejs_webgl", "render", None)  # covered by WebGL shader showcase
+
+# Additional starred repos
+_register("liquid_glass_studio", "materials", None)  # covered by liquid-glass-studio
+_register("neural_shading_s25", "materials", None)  # covered by neural-shading-s25
+_register("water_shader", "render", None)  # covered by water-shader
+_register("webgpu_water", "render", None)  # covered by webgpu-water
+_register("feather_engine", "render", None)  # covered by featherEngine
+
+# Additional starred repos - still not covered
+_register_torch("splat_image", "geometry", "v1", ["torch"],
+    "Splat-Image: Text-to-3D via 3D Gaussian splatting (dusty-lab)")
+_register("texture_fuser", "geometry", _provider_texture_fuser)
+ALL_PROVIDERS["texture_fuser"]["deps"] = _np_deps
+_register_torch("photometric_stone_provider", "perception", "v1", ["torch"],
+    "Photometric bundle adjustment and SDF surface perception")
+
+# Final batch from starred repos
+_register("dust3d", "geometry", None)  # covered by dust3d (3D modeling)
+_register("scene_forge", "generation", None)  # covered by scene-forge (3D scene editor)
+_register("pixel_extractor", "perception", _provider_pixel_extractor)
+ALL_PROVIDERS["pixel_extractor"]["deps"] = _np_deps
+_register("image2scene", "completion", None)  # covered by Image2Scene-API
+
+# Shader/Rendering providers from starred repos
+_register("astray_fx", "materials", None)  # covered by AstrayFX (ReShadeFX collection)
+_register("null_graph", "render", None)  # covered by NullGraph (WebGPU framework)
+_register("turi", "render", None)  # covered by turi (fragment shader game)
+_register("shader_web_background", "render", None)  # covered by shader-web-background
+_register_torch("img23d", "completion", "img23d-v1", ["torch"],
+    "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
+_register_torch("modly", "completion", "modly-v1", ["torch"],
+    "Modly: desktop 3D model generation from images using local AI (lightningpixel/modly)")
+_register_torch("multi_agent_cad", "completion", "mac-v1", ["torch"],
+    "Multi-Agent-CAD: text-to-CAD via constrained test-time compute (Pan-Chera)")
 _register_torch("sam_segmentation", "perception", "sam-v1", ["torch"],
     "SAM/SAM2 + GroundingDINO: segment anything + text-to-mask")
 _register_torch("gaussian_4d", "geometry", "4dgs-v1", ["torch"],

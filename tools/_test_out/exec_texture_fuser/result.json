@@ -1,7 +1,7 @@
 {
   "format": "SHADED.spatial-provider-result.v1",
-  "provider": "multi-view-texture-fuser",
-  "modelVersion": "poisson-blend-v1",
+  "provider": "texture-fusion",
+  "modelVersion": "tf-v1",
   "device": "cpu",
   "precision": "fp32",
   "channels": {
@@ -28,6 +28,14 @@
       "shape": [
         147456,
         6
+      ]
+    },
+    "confidence": {
+      "file": "confidence.f32",
+      "dtype": "float32-le",
+      "shape": [
+        576,
+        1024
       ]
     }
   },
@@ -59,8 +67,8 @@
   "depthConvention": "relative-depth-higher-far",
   "metric": false,
   "timingsMs": {
-    "inference": 150.8727109994652,
-    "write": 654.9099310004749
+    "inference": 245.15891500050202,
+    "write": 668.3779300001333
   },
   "provenance": {
     "class": "INFERRED",
@@ -74,8 +82,8 @@
       "width": 1024,
       "height": 576
     },
-    "provider": "multi-view-texture-fuser",
-    "modelVersion": "poisson-blend-v1",
+    "provider": "texture-fusion",
+    "modelVersion": "tf-v1",
     "parameters": {
       "precision": "fp32",
       "pointBudget": 250000,

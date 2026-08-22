@@ -1293,6 +1293,999 @@
         "depth",
         "confidence"
       ]
+    },
+    "sdf": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "sdf"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "sdf-v1",
+      "source": "https://github.com/fogleman/sdf",
+      "capabilities": [
+        "depth",
+        "normals",
+        "points",
+        "confidence"
+      ]
+    },
+    "world_stereo": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "world_stereo"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "reconstruction",
+      "model_version": "ws-v1",
+      "source": "https://github.com/FuchengSu/WorldStereo",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "stable_fast_3d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "stable_fast_3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "sf3d-v1",
+      "source": "https://github.com/Stability-AI/stable-fast-3d",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "3d_cell_forge": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "3d_cell_forge"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "3dcf-v1",
+      "source": "https://github.com/huangserva/3DCellForge",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "articraft": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "articraft"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "articraft-v1",
+      "source": "https://github.com/mattzh72/articraft",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "world_gen": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "world_gen"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "worldgen-v1",
+      "source": "https://github.com/ZiYang-xie/WorldGen",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "img23d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "img23d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "img23d-v1",
+      "source": "https://github.com/harry7557558/img23d",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "modly": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "modly"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "modly-v1",
+      "source": "https://github.com/lightningpixel/modly",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "multi_agent_cad": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "multi_agent_cad"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "mac-v1",
+      "source": "https://github.com/Pan-Chera/Multi-Agent-CAD",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "neural_cellular_automaton": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "neural_cellular_automaton"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "nca-v1",
+      "source": "https://github.com/harmlessfoo/NCA",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "poisson_reconstruction": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "poisson_reconstruction"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "poisson-v1",
+      "source": "https://github.com/magoesch/poisson-reconstruction",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "navigation_builder": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "navigation_builder"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "navigation",
+      "model_version": "nav-v1",
+      "source": "runtime/navigation.js",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "3d_gen_studio": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "3d_gen_studio"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "v1",
+      "source": "https://github.com/visualbruno/3DGenStudio",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "meshflow": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "meshflow"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "mf-v1",
+      "source": "https://github.com/facebookresearch/meshflow",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "procedural_terrains": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "procedural_terrains"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/ZyFou/ProceduralTerrains",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "terra": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "terra"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/xKrvZ/Terra",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "img2threejs": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "img2threejs"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "v1",
+      "source": "https://github.com/img2threejs/img2threejs",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "material_maker": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "material_maker"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/RodZill4/material-maker",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "mykonos_island_voxels": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "mykonos_island_voxels"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/boona13/mykonos-island-voxels",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "texture_generator": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "texture_generator"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/boytchev/texture-generator",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "galaxy_sim": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "galaxy_sim"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/N0rvel/galaxy_sim",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "planet_voxel": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "planet_voxel"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/CopilotCoding/PlanetVoxel_webgpu.js_Port",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "neural_planetoid": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "neural_planetoid"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/3merillon/neural-planetoid",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "open_worlds": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "open_worlds"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/FunSoftWareTechologies/OpenWorlds",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "isosurface": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "isosurface"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/lettier/isosurface",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "tidewright": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "tidewright"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/winchxyz/tidewright",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "tinyrenderer": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "tinyrenderer"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/Mr-Robot-err-404/tinyrenderer",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "lumenpyx": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "lumenpyx"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/ABC-Engine/lumenpyx",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "material_maker_ray_marching": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "material_maker_ray_marching"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/paulofalcao/MaterialMakerRayMarching",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "bao_scroll_story": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "bao_scroll_story"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/architech97/bao-scroll-story",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "snowflow": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "snowflow"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/Noniv/snowflow_demo",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "jungle_trail": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "jungle_trail"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/StarKnightt/jungle-trail",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "nightdrive": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "nightdrive"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/StarKnightt/nightdrive",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "night_street": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "night_street"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/StarKnightt/night-street",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "solar_sys": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "solar_sys"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/solarcg/SolarSys",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "threejs_webgl": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "threejs_webgl"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/rari/WebGL",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "liquid_glass_studio": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "liquid_glass_studio"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/iyinchao/liquid-glass-studio",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "neural_shading_s25": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "neural_shading_s25"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/shader-slang/neural-shading-s25",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "water_shader": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "water_shader"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/Tuxalin/water-shader",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "webgpu_water": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "webgpu_water"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/jeantimex/webgpu-water",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "feather_engine": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "feather_engine"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/danielgold70/featherEngine",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "splat_image": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "splat_image"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/dusty-lab/splat-image",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "photometric_stone_provider": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "photometric_stone_provider"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "v1",
+      "source": "https://github.com/prs-eth/SDFStudio",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "texture_fuser": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "texture_fuser"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/nianticlabs/map_anything",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "dust3d": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "dust3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/dust3d/dust3d",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "scene_forge": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "scene_forge"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/Scene-Forge/scene-forge",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "pixel_extractor": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "pixel_extractor"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "v1",
+      "source": "https://github.com/Pixel-Extractor/Pixel-Extractor",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "image2scene": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "image2scene"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "v1",
+      "source": "https://github.com/Image2Scene-API/Image2Scene-API",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "astray_fx": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "astray_fx"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/Auburn/Fast",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "null_graph": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "null_graph"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/NullSoftware/NullGraph",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "turi": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "turi"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/rari/WebGL",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "shader_web_background": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "shader_web_background"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/thednp/shader-web-background",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
