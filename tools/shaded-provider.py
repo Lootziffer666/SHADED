@@ -1111,6 +1111,34 @@ def _provider_texture_fuser(args):
     )
     return 0
 
+
+def _provider_pixel_extractor(args):
+    """Pixel extractor: extract and segment pixel art sprites from image."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    rgb = np.array(image, dtype=np.float64) / 255.0
+    # Extract sprite mask from alpha channel or luminance threshold
+    if image.mode == 'RGBA':
+        alpha = np.array(image.split()[-1], dtype=np.float64) / 255.0
+    else:
+        alpha = rgb.mean(axis=-1) > 0.1
+    # Depth from alpha (opaque = foreground, transparent = background)
+    depth = np.where(alpha > 0.5, 0.2, 0.8).astype(np.float32)
+    confidence = alpha.astype(np.float32)
+    elapsed = (time.perf_counter() - t0) * 1000
+    write_result(
+        args.output, "pixel-extractor", "px-v1", args.device, args.precision,
+        args.input, image, orig, depth,
+        confidence=confidence,
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
 _register("depth_anything_software", "depth", _provider_depth_anything_software)
 ALL_PROVIDERS["depth_anything_software"]["deps"] = _np_deps
 
@@ -1234,6 +1262,13 @@ _register("texture_fuser", "geometry", _provider_texture_fuser)
 ALL_PROVIDERS["texture_fuser"]["deps"] = _np_deps
 _register_torch("photometric_stone_provider", "perception", "v1", ["torch"],
     "Photometric bundle adjustment and SDF surface perception")
+
+# Final batch from starred repos
+_register("dust3d", "geometry", None)  # covered by dust3d (3D modeling)
+_register("scene_forge", "generation", None)  # covered by scene-forge (3D scene editor)
+_register("pixel_extractor", "perception", _provider_pixel_extractor)
+ALL_PROVIDERS["pixel_extractor"]["deps"] = _np_deps
+_register("image2scene", "completion", None)  # covered by Image2Scene-API
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

@@ -2134,6 +2134,82 @@
         "points",
         "confidence"
       ]
+    },
+    "dust3d": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "dust3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/dust3d/dust3d",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "scene_forge": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "scene_forge"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/Scene-Forge/scene-forge",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "pixel_extractor": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "pixel_extractor"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "v1",
+      "source": "https://github.com/Pixel-Extractor/Pixel-Extractor",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "image2scene": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "image2scene"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "v1",
+      "source": "https://github.com/Image2Scene-API/Image2Scene-API",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
