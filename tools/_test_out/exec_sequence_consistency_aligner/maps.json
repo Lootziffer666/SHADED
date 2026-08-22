@@ -1,0 +1,15 @@
+{
+  "format": "SHADED.spatial-preview-maps.v1",
+  "files": {
+    "depthPreview": "depth-preview.png",
+    "height": "height-map.png",
+    "bump": "bump-map.png",
+    "normal": "normal-map.png"
+  },
+  "conventions": {
+    "depthPreview": "white-near-black-far",
+    "height": "white-near/raised-black-far/recessed",
+    "bump": "gradient-magnitude",
+    "normal": "rgb-xyz-remapped-minus1-plus1-to-0-255"
+  }
+}

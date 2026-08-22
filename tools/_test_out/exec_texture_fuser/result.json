@@ -1,0 +1,85 @@
+{
+  "format": "SHADED.spatial-provider-result.v1",
+  "provider": "multi-view-texture-fuser",
+  "modelVersion": "poisson-blend-v1",
+  "device": "cpu",
+  "precision": "fp32",
+  "channels": {
+    "depth": {
+      "file": "depth.f32",
+      "dtype": "float32-le",
+      "shape": [
+        576,
+        1024
+      ]
+    },
+    "normals": {
+      "file": "normals.f32",
+      "dtype": "float32-le",
+      "shape": [
+        576,
+        1024,
+        3
+      ]
+    },
+    "points": {
+      "file": "points.f32",
+      "dtype": "float32-le",
+      "shape": [
+        147456,
+        6
+      ]
+    }
+  },
+  "camera": {
+    "intrinsics": [
+      [
+        886.8099975585938,
+        0.0,
+        512.0
+      ],
+      [
+        0.0,
+        886.8099975585938,
+        288.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "width": 1024,
+    "height": 576,
+    "fx": 886.8099975585938,
+    "fy": 886.8099975585938,
+    "cx": 512.0,
+    "cy": 288.0
+  },
+  "depthConvention": "relative-depth-higher-far",
+  "metric": false,
+  "timingsMs": {
+    "inference": 150.8727109994652,
+    "write": 654.9099310004749
+  },
+  "provenance": {
+    "class": "INFERRED",
+    "sourceSha256": "1252f15fcaa207ddb0f67b304bd04059c15719e639d84dd3c990751529026424",
+    "sourceFile": "file_00000000974871f49fe71f6b456f9579.png",
+    "sourceSize": {
+      "width": 1672,
+      "height": 941
+    },
+    "processedSize": {
+      "width": 1024,
+      "height": 576
+    },
+    "provider": "multi-view-texture-fuser",
+    "modelVersion": "poisson-blend-v1",
+    "parameters": {
+      "precision": "fp32",
+      "pointBudget": 250000,
+      "pointDepthMapping": "percentile-1-99-to-camera-z-0.2-1.0"
+    }
+  }
+}
