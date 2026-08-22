@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaded.dev/schemas/benchmark-artifact",
+  "title": "SHADED Benchmark Artifact Packet (§18)",
+  "description": "Reproducible, content-addressed telemetry packet emitted by every benchmark run. Conforms to MASTER-TASK §18–§23. Run IDs are collision-resistant (§19B), hashes are real SHA-256 (§19A), VRAM degrades to null/unavailable (§19C), and the scalar tie-break (§22) never replaces the quality vector (§23).",
+  "type": "object",
+  "required": [
+    "telemetry_version",
+    "runId",
+    "experimentId",
+    "gitRef",
+    "scene",
+    "operator",
+    "parameters",
+    "provider",
+    "versions",
+    "hardware",
+    "telemetry",
+    "timing",
+    "output_hashes",
+    "cost",
+    "quality_vector",
+    "scalarTieBreak",
+    "errors"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "telemetry_version": { "type": "string", "const": "1.0" },
+    "runId": { "type": "string", "pattern": "^run-\\d{8}-\\d{6}Z-[0-9a-f]{6}$" },
+    "experimentId": { "type": "string" },
+    "parentExperiment": { "type": ["string", "null"] },
+    "goal": { "type": "string", "enum": ["SHOWCASE", "PLAY", "EDIT", "MOBILE", "RECONSTRUCTION", "HALL", "FORENSIC"] },
+    "baselineCommit": { "type": "string", "const": "1cb06c432d90c49628786a1c80bcdb9ad8145722" },
+    "gitRef": {
+      "type": "object",
+      "required": ["repo", "commit"],
+      "properties": {
+        "repo": { "type": "string" },
+        "commit": { "type": "string" },
+        "tree": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "scene": {
+      "type": ["object", "string"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": { "type": "string" },
+          "path": { "type": ["string", "null"] },
+          "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+          "size": { "type": ["integer", "null"], "minimum": 0 }
+        }
+      }
+    },
+    "inputsAggregateSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "operator": { "type": "string" },
+    "donor": { "type": "string" },
+    "mode": { "type": "string", "enum": ["gold", "research", "teacher"] },
+    "parameters": { "type": "object" },
+    "provider": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "impl_type": { "type": "string" },
+        "tier": { "type": "string" }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "required": ["node", "provider_model"],
+      "properties": {
+        "node": { "type": "string" },
+        "provider_model": { "type": "string" },
+        "weight_sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "operator_impl": { "type": ["string", "null"] }
+      }
+    },
+    "seeds": { "type": ["object", "null"] },
+    "hardware": {
+      "type": "object",
+      "required": ["node", "cores"],
+      "properties": {
+        "os": { "type": "string" },
+        "node": { "type": "string" },
+        "arch": { "type": "string" },
+        "cpu_model": { "type": "string" },
+        "cores": { "type": "integer", "minimum": 0 },
+        "mem_total_mb": { "type": "integer", "minimum": 0 },
+        "gpu": { "type": "object" },
+        "cuda": { "type": "object" }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "required": ["peak_rss_mb", "vram_mb"],
+      "properties": {
+        "peak_rss_mb": { "type": ["number", "null"], "minimum": 0 },
+        "heap_used_mb": { "type": ["number", "null"], "minimum": 0 },
+        "heap_total_mb": { "type": ["number", "null"], "minimum": 0 },
+        "external_mb": { "type": ["number", "null"], "minimum": 0 },
+        "vram_mb": { "type": ["number", "null"], "description": "null when GPU unavailable — never '0' (§19C)." },
+        "vram_source": { "type": "string" }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": ["wall_ms", "inference_ms"],
+      "properties": {
+        "wall_ms": { "type": "number", "minimum": 0 },
+        "inference_ms": { "type": "number", "minimum": 0 },
+        "per_stage": { "type": "object" },
+        "stage_ms": { "type": "array" }
+      }
+    },
+    "output_hashes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sha256"],
+        "properties": {
+          "kind": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "size": { "type": ["integer", "null"], "minimum": 0 }
+        }
+      }
+    },
+    "provider_session": { "type": ["object", "null"] },
+    "cost": {
+      "type": "object",
+      "required": ["currency"],
+      "properties": {
+        "currency": { "type": "string" },
+        "amount": { "type": ["number", "null"] },
+        "source": { "type": "string" }
+      }
+    },
+    "retention_class": { "type": "string" },
+    "canonical_probes": { "type": "array" },
+    "quality_vector": { "$ref": "docs/research/benchmark/quality-vector.schema.json" },
+    "scalarTieBreak": {
+      "type": ["number", "null"],
+      "description": "Optional convenience tie-break (§22). A scalar that ranks providers but must NEVER erase quality_vector."
+    },
+    "errors": { "type": "array", "items": { "type": "object" } }
+  }
+}

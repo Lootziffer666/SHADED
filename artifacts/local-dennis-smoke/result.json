@@ -1,0 +1,165 @@
+{
+  "status": "pass",
+  "exitCode": 0,
+  "runId": "dennis-2026-08-22T16-58-52-329Z",
+  "benchmark": "MAXIMUM DENNIS (local/stub floor)",
+  "baselineCommit": "1cb06c432d90c49628786a1c80bcdb9ad8145722",
+  "stages": [
+    "depth",
+    "geometry",
+    "cleanup",
+    "completion"
+  ],
+  "cases": [
+    "dorf-marker",
+    "legacy-map",
+    "taverne",
+    "dorf-kanon",
+    "dorf-himmel"
+  ],
+  "providers": [
+    {
+      "name": "depth-accurate",
+      "stage": "depth"
+    },
+    {
+      "name": "depth-fast",
+      "stage": "depth"
+    },
+    {
+      "name": "geo-full",
+      "stage": "geometry"
+    },
+    {
+      "name": "geo-fast",
+      "stage": "geometry"
+    },
+    {
+      "name": "cleanup-strict",
+      "stage": "cleanup"
+    },
+    {
+      "name": "cleanup-loose",
+      "stage": "cleanup"
+    },
+    {
+      "name": "completion-full",
+      "stage": "completion"
+    },
+    {
+      "name": "completion-minimal",
+      "stage": "completion"
+    }
+  ],
+  "stageWinners": {
+    "depth": [
+      {
+        "name": "depth-accurate"
+      }
+    ],
+    "geometry": [],
+    "cleanup": [
+      {
+        "name": "cleanup-strict"
+      }
+    ],
+    "completion": [
+      {
+        "name": "completion-full"
+      }
+    ]
+  },
+  "report": {
+    "totalRuns": 60,
+    "byStage": {
+      "depth": {
+        "total": 15,
+        "ok": 15,
+        "failed": 0,
+        "avgRuntimeMs": 0.13333333333333333,
+        "avgMemoryMb": 0.018310546875,
+        "avgQuality": 0.8333333333333335
+      },
+      "geometry": {
+        "total": 15,
+        "ok": 5,
+        "failed": 10,
+        "avgRuntimeMs": 0.2,
+        "avgMemoryMb": 0.01373291015625,
+        "avgQuality": 0.85
+      },
+      "cleanup": {
+        "total": 15,
+        "ok": 15,
+        "failed": 0,
+        "avgRuntimeMs": 0,
+        "avgMemoryMb": 0.0018793741861979167,
+        "avgQuality": 0.9333333333333333
+      },
+      "completion": {
+        "total": 15,
+        "ok": 15,
+        "failed": 0,
+        "avgRuntimeMs": 0.13333333333333333,
+        "avgMemoryMb": 0.003147125244140625,
+        "avgQuality": 0.7333333333333332
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "5 scene cases registered",
+      "passed": true,
+      "n": 5
+    },
+    {
+      "name": "8 stub providers registered",
+      "passed": true,
+      "n": 8
+    },
+    {
+      "name": "4 stages executed",
+      "passed": true,
+      "total": 60
+    },
+    {
+      "name": "primary stack produced all 5 cases",
+      "passed": true,
+      "cases": 5
+    },
+    {
+      "name": "each stack case has all 4 stage outputs ok:true",
+      "passed": true,
+      "note": "stack chains Depth->Geometry->Cleanup->Completion; depth-consuming providers (geometry) succeed via the stack even when they fail standalone"
+    },
+    {
+      "name": "no provider eliminated as all_runs_failed",
+      "passed": true,
+      "failed": 10
+    },
+    {
+      "name": "tournament ranking deterministic (order stable across 2 runs)",
+      "passed": true,
+      "first": [
+        [
+          "depth-accurate"
+        ],
+        [],
+        [
+          "cleanup-strict"
+        ],
+        [
+          "completion-full"
+        ]
+      ]
+    },
+    {
+      "name": "class regression gate defined for dorf-marker",
+      "passed": true
+    }
+  ],
+  "reproducibility": {
+    "env": "linux-container, node22, headless chromium+swiftshader (stub providers only, no torch/GPU)",
+    "classRegressionGate": "tools/verify-classes.mjs (dorf-marker exact; see CURRENT_STATE_AUDIT.md §3.3)"
+  }
+}

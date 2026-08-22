@@ -1,0 +1,53 @@
+{
+  "experimentId": "koelnmesse-verify-3060-b",
+  "version": "1.0",
+  "title": "Koelnmesse Reconstruction — Verify 3060-B",
+  "description": "Verify Koelnmesse Hall 3060-A reconstruction against Zielbildern. Vergleicht shot_sturmnacht.png, shot_danach.png, shot_kanon_sturmnacht.png, shot_himmel_sturmnacht.png gegen Referenz-Bilder. Prüft Klassenzählung gegen expected-classes.json (±10%), keine GL/Konsolenfehler, Nässe-Absenkung, Pfützen-Warmlicht, Nebel-Diffusion.",
+  "runId": "run-20260822-165910Z",
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "a5eabd73cad745fdc5fe231be456d76ff83e3aa0",
+    "tree": "265f33565a867bf0121fdadff71c62a4c0294c9e"
+  },
+  "operator": "VerifyPipeline",
+  "donor": "verify-chromium",
+  "mode": "research",
+  "parameters": {
+    "verify_script": "tools/verify.js",
+    "shots": [
+      "shot_sturmnacht",
+      "shot_danach",
+      "shot_kanon_sturmnacht",
+      "shot_himmel_sturmnacht"
+    ],
+    "reference_images": {
+      "shot_sturmnacht": "file_00000000b27471f4a8aeb27484b46720.png",
+      "shot_danach": "file_00000000fbc472438dcc92aff24bed6e.png"
+    }
+  },
+  "inputs": [
+    {"type": "image", "path": "artifacts/run-20260822-165900Z/koelnmesse-geometry-3060-a/render_3060-A_tag.png"},
+    {"type": "image", "path": "artifacts/run-20260822-165900Z/koelnmesse-geometry-3060-a/render_3060-A_nacht.png"},
+    {"type": "image", "path": "tools/expected-classes.json"}
+  ],
+  "outputs": [
+    {"kind": "screenshot", "path": "tools/verify-out/shot_sturmnacht.png"},
+    {"kind": "screenshot", "path": "tools/verify-out/shot_danach.png"},
+    {"kind": "screenshot", "path": "tools/verify-out/shot_kanon_sturmnacht.png"},
+    {"kind": "screenshot", "path": "tools/verify-out/shot_himmel_sturmnacht.png"}
+  ],
+  "metrics": [
+    {"name": "class_count_match", "threshold": 0.90, "tolerance": 0.10},
+    {"name": "visual_similarity", "threshold": 0.95},
+    {"name": "console_errors", "threshold": 0, "comparator": "eq"},
+    {"name": "gl_errors", "threshold": 0, "comparator": "eq"}
+  ],
+  "expectedClassCounts": {
+    "dorf-marker": {"foliage": 5872, "grass": 4885, "wood": 3636, "rock": 1186, "roof": 2818, "window": 197, "path": 2142}
+  },
+  "timeoutSeconds": 600,
+  "retries": 0,
+  "hardwareConstraint": "headless_chromium_swiftshader",
+  "blockedOn": "npm_playwright_install",
+  "notes": "§10 Verifikations-Workflow: Erfordert 'npm i playwright' + headless Chromium. Verify-Screenshots manuell gegen Zielbilder im Repo vergleichen. isCompanionProbe: 404 für fehlende Companion-Dateien ist kein Fehler (tools/verify.js)."
+}

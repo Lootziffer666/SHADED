@@ -1,0 +1,37 @@
+{
+  "experimentId": "koelnmesse-pipeline-orchestration",
+  "version": "1.0",
+  "title": "Koelnmesse Reconstruction — Full Pipeline Orchestration",
+  "description": "Orchestriert die drei Teil-Experimente (Geometry 3060-A → Material MAX-2 → Verify 3060-B) als End-to-End-Pipeline. Nutzt tools/orchestrate.js CLI-Vertrag und window.SHADED_ORCHESTRATOR für Headless-Steuerung. Content-adressiert via §18 Telemetry Packet.",
+  "runId": "run-20260822-165915Z",
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "a5eabd73cad745fdc5fe231be456d76ff83e3aa0",
+    "tree": "265f33565a867bf0121fdadff71c62a4c0294c9e"
+  },
+  "operator": "Orchestrator",
+  "donor": "node-pure",
+  "mode": "research",
+  "parameters": {
+    "pipeline": "koelnmesse",
+    "stages": ["geometry", "material", "verify"],
+    "stitching": true
+  },
+  "inputs": [],
+  "outputs": [],
+  "metrics": [
+    {"name": "pipeline_completion", "threshold": 1.0},
+    {"name": "stage_pass_rate", "threshold": 0.9}
+  ],
+  "expectedClassCounts": {},
+  "timeoutSeconds": 2400,
+  "retries": 0,
+  "hardwareConstraint": "mixed",
+  "blockedOn": ["torch/GPU", "playwright_install"],
+  "childExperiments": [
+    "koelnmesse-geometry-3060-a",
+    "koelnmesse-material-max-2",
+    "koelnmesse-verify-3060-b"
+  ],
+  "notes": "§2: Drei Teil-Experimente koordiniert. Geometry 3060-A environment-blocked (kein torch/GPU). Material MAX-2 läuft im Browser ohne GPU (runsInSandbox=true). Verify 3060-B blocked auf npm i playwright + Chromium."
+}

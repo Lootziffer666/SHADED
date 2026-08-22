@@ -1,0 +1,42 @@
+{
+  "experimentId": "koelnmesse-material-max-2",
+  "version": "1.0",
+  "title": "Koelnmesse Reconstruction — Material MAX-2",
+  "description": "Run built-in log-luminanz Material Provider (Materialschicht) on Koelnmesse Hall 3060-A. Läuft im Browser ohne GPU — Log-Luminanz-Albedo-Trennung via window.SHADED.intrinsic. Companion-File: bild_shading.png (8-bit, 128=neutral).",
+  "runId": "run-20260822-165905Z",
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "a5eabd73cad745fdc5fe231be456d76ff83e3aa0",
+    "tree": "265f33565a867bf0121fdadff71c62a4c0294c9e"
+  },
+  "operator": "MaterialProvider",
+  "donor": "builtin-log-luminance",
+  "mode": "research",
+  "parameters": {
+    "material_provider": "log_luminance_split",
+    "albedo_decomposition": true,
+    "shading_companion": true
+  },
+  "inputs": [
+    {"type": "image", "path": "user://koelnmesse/photos/3060-A-hero.png"},
+    {"type": "companion", "path": "user://koelnmesse/photos/3060-A_shading.png"}
+  ],
+  "outputs": [
+    {"kind": "albedo", "path": "artifacts/run-20260822-165905Z/koelnmesse-material-max-2/albedo.png"},
+    {"kind": "shading", "path": "artifacts/run-20260822-165905Z/koelnmesse-material-max-2/shading.png"},
+    {"kind": "svbrdf", "path": "artifacts/run-20260822-165905Z/koelnmesse-material-max-2/svbrdf.json"}
+  ],
+  "metrics": [
+    {"name": "albedo_reconstruction_error", "threshold": 0.05},
+    {"name": "shading_consistency", "threshold": 0.85},
+    {"name": "material_class_preservation", "threshold": 0.99}
+  ],
+  "expectedClassCounts": {
+    "dorf-marker": {"foliage": 5872, "grass": 4885, "wood": 3636, "rock": 1186, "roof": 2818, "window": 197, "path": 2142}
+  },
+  "timeoutSeconds": 600,
+  "retries": 1,
+  "hardwareConstraint": "any_browser_no_gpu",
+  "runsInSandbox": true,
+  "notes": "§1.6: window.SHADED.intrinsic state/setStrength/getStrength trennt Licht und Material. setStrength(0) = identity-albedo Fallback (Default nach Providerausfall). Invariante 2 (Eine Material-Wahrheit) bleibt unberührt."
+}
