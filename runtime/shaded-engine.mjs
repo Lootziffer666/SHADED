@@ -2120,7 +2120,7 @@ function dramaStoryboard(){
   storyboard = [
     {name:'🌤️ Klarer Moment',         dur:1.5, p:{...ACTS.tag.p}},
     {name:'💨 Wind erhebt sich',       dur:2,   p:{dayNight:0.2, storm:0.3, rain:0.05, wet:0.1, puddle:0.05, fog:0.08, wind:0.85, glow:0.15, decay:0.15, temperature:0.65, autumn:0.4}},
-    {name:'⛈️ Extreme Turbulenzen',    dur:2.5, p:{dayNight:0.75, storm:1, rain:0.9, wet:0.9, puddle:0.85, fog:0.35, wind:1, glow:0.8, decay:0.3, temperature:0.4, bleeding:1}},
+    {name:'⛈️ Extreme Turbulenzen',    dur:2.5, p:{dayNight:0.75, storm:1, rain:0.9, wet:0.9, puddle:0.85, fog:0.35, wind:1, glow:0.8, decay:0.3, temperature:0.4, bleach:1}},
     {name:'⚡ Blitz-Angriff',          dur:1.5, p:{dayNight:1, storm:1, rain:1, wet:1, puddle:0.95, fog:0.25, wind:1, glow:1, decay:0.25, temperature:0.35, flash:1}},
     {name:'🔥 Feuer entfacht',         dur:1.5, p:{dayNight:0.9, storm:0.7, rain:0.5, wet:0.6, puddle:0.7, fog:0.2, wind:0.8, glow:1, decay:0.4, temperature:0.9}},
     {name:'💧 Regen schlägt zurück',   dur:2,   p:{dayNight:1, storm:1, rain:1, wet:1, puddle:0.9, fog:0.45, wind:0.9, glow:0.6, decay:0.35, temperature:0.45}},
