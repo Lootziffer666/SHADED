@@ -1150,6 +1150,12 @@ _register_torch("articraft", "geometry", "articraft-v1", ["torch"],
     "Articraft: agentic system for scalable articulated 3D asset generation (mattzh72/articraft)")
 _register_torch("world_gen", "generation", "worldgen-v1", ["torch"],
     "WorldGen: generate any 3D scene in seconds (ZiYang-xie/WorldGen)")
+_register_torch("img23d", "completion", "img23d-v1", ["torch"],
+    "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
+_register_torch("modly", "completion", "modly-v1", ["torch"],
+    "Modly: desktop 3D model generation from images using local AI (lightningpixel/modly)")
+_register_torch("multi_agent_cad", "completion", "mac-v1", ["torch"],
+    "Multi-Agent-CAD: text-to-CAD via constrained test-time compute (Pan-Chera)")
 _register_torch("sam_segmentation", "perception", "sam-v1", ["torch"],
     "SAM/SAM2 + GroundingDINO: segment anything + text-to-mask")
 _register_torch("gaussian_4d", "geometry", "4dgs-v1", ["torch"],

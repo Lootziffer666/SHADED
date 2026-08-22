@@ -1409,6 +1409,121 @@
         "depth",
         "confidence"
       ]
+    },
+    "img23d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "img23d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "img23d-v1",
+      "source": "https://github.com/harry7557558/img23d",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "modly": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "modly"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "modly-v1",
+      "source": "https://github.com/lightningpixel/modly",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "multi_agent_cad": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "multi_agent_cad"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "mac-v1",
+      "source": "https://github.com/Pan-Chera/Multi-Agent-CAD",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "neural_cellular_automaton": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "neural_cellular_automaton"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "nca-v1",
+      "source": "https://github.com/harmlessfoo/NCA",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "poisson_reconstruction": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "poisson_reconstruction"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "poisson-v1",
+      "source": "https://github.com/magoesch/poisson-reconstruction",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "navigation_builder": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "navigation_builder"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "navigation",
+      "model_version": "nav-v1",
+      "source": "runtime/navigation.js",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
