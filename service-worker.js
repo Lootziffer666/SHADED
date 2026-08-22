@@ -5,7 +5,6 @@ const SHELL = [
   './manifest.webmanifest',
   './runtime/install.js',
   './runtime/install.js?v=8',
-  './runtime/spatial-viewer.js',
   './runtime/spatial-navigation.mjs',
   './runtime/spatial-reconstruction.mjs',
   './runtime/sparse-voxel-world.mjs',
