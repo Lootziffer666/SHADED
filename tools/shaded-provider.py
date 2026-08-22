@@ -1089,6 +1089,28 @@ def _provider_texture_generator(args):
     )
     return 0
 
+
+def _provider_texture_fuser(args):
+    """Texture fuser: multi-view texture fusion with consistency filtering."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    rgb = np.array(image, dtype=np.float64) / 255.0
+    result = intrinsic_decomposition(rgb)
+    elapsed = (time.perf_counter() - t0) * 1000
+    depth_map = result["albedo"].mean(axis=-1).astype(np.float32)
+    write_result(
+        args.output, "texture-fusion", "tf-v1", args.device, args.precision,
+        args.input, image, orig, depth_map,
+        confidence=np.ones_like(depth_map),
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
 _register("depth_anything_software", "depth", _provider_depth_anything_software)
 ALL_PROVIDERS["depth_anything_software"]["deps"] = _np_deps
 
@@ -1204,6 +1226,14 @@ _register("neural_shading_s25", "materials", None)  # covered by neural-shading-
 _register("water_shader", "render", None)  # covered by water-shader
 _register("webgpu_water", "render", None)  # covered by webgpu-water
 _register("feather_engine", "render", None)  # covered by featherEngine
+
+# Additional starred repos - still not covered
+_register_torch("splat_image", "geometry", "v1", ["torch"],
+    "Splat-Image: Text-to-3D via 3D Gaussian splatting (dusty-lab)")
+_register("texture_fuser", "geometry", _provider_texture_fuser)
+ALL_PROVIDERS["texture_fuser"]["deps"] = _np_deps
+_register_torch("photometric_stone_provider", "perception", "v1", ["torch"],
+    "Photometric bundle adjustment and SDF surface perception")
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

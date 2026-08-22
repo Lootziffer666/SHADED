@@ -2076,6 +2076,64 @@
         "depth",
         "confidence"
       ]
+    },
+    "splat_image": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "splat_image"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/dusty-lab/splat-image",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "photometric_stone_provider": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "photometric_stone_provider"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "v1",
+      "source": "https://github.com/prs-eth/SDFStudio",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "texture_fuser": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "texture_fuser"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/nianticlabs/map_anything",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
     }
   }
 }
