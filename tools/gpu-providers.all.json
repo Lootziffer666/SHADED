@@ -1638,6 +1638,120 @@
         "depth",
         "confidence"
       ]
+    },
+    "mykonos_island_voxels": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "mykonos_island_voxels"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/boona13/mykonos-island-voxels",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "texture_generator": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "texture_generator"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/boytchev/texture-generator",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "galaxy_sim": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "galaxy_sim"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/N0rvel/galaxy_sim",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "planet_voxel": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "planet_voxel"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/CopilotCoding/PlanetVoxel_webgpu.js_Port",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "neural_planetoid": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "neural_planetoid"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/3merillon/neural-planetoid",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "open_worlds": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "open_worlds"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/FunSoftWareTechologies/OpenWorlds",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }

@@ -72,6 +72,7 @@ from shaded_provider_lib import (
     rethinking_voxels,
     depth_anything_software,
     generate_sdf_scene,
+    procedural_texture,
 )
 from shaded_provider_common import (
     load_rgb, write_result, source_hash, normalise_depth, geometry_depth,
@@ -1068,6 +1069,26 @@ def _provider_sdf(args):
     )
     return 0
 
+
+def _provider_texture_generator(args):
+    """Texture generator: procedural equirectangular texture (boytcv/texture-generator port)."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    result = procedural_texture(image.width, image.height, scale=1.0)
+    elapsed = (time.perf_counter() - t0) * 1000
+    write_result(
+        args.output, "procedural-texture", "texgen-v1", args.device, args.precision,
+        args.input, image, orig, result["depth"],
+        confidence=result["confidence"],
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
 _register("depth_anything_software", "depth", _provider_depth_anything_software)
 ALL_PROVIDERS["depth_anything_software"]["deps"] = _np_deps
 
@@ -1157,6 +1178,13 @@ _register("procedural_terrains", "generation", None)  # covered by ProceduralTer
 _register("terra", "generation", None)  # covered by Terra terrain creator
 _register("img2threejs", "completion", None)  # covered by img2threejs
 _register("material_maker", "materials", None)  # covered by material-maker
+_register("mykonos_island_voxels", "generation", None)  # covered by mykonos-island-voxels
+_register("texture_generator", "materials", _provider_texture_generator)
+ALL_PROVIDERS["texture_generator"]["deps"] = _np_deps
+_register("galaxy_sim", "generation", None)  # covered by galaxy_sim
+_register("planet_voxel", "geometry", None)  # covered by PlanetVoxel_webgpu.js_Port
+_register("neural_planetoid", "geometry", None)  # covered by neural-planetoid
+_register("open_worlds", "generation", None)  # covered by OpenWorlds
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

@@ -1765,3 +1765,52 @@ def generate_sdf_scene(resolution: int = 64, bounds: tuple = (-1.5, 1.5)) -> dic
 # =========================================================================
 
 import time
+
+# =========================================================================
+# 29. Procedural Texture Generator — boytcv/texture-generator port
+# =========================================================================
+
+def procedural_texture(width: int, height: int, scale: float = 1.0) -> dict:
+    """Generate procedural equirectangular texture and derive depth map from it."""
+    h, w = height, width
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float64)
+    x = xx / w * 4.0 * scale
+    y = yy / h * 2.0 * scale
+
+    def noise(x, y, seed=42):
+        rng = np.random.RandomState(seed)
+        grid_size = int(max(x.max(), y.max()) * 10) + 2
+        values = rng.rand(grid_size, grid_size).astype(np.float64)
+        xi = np.clip((x * grid_size / 4.0).astype(int), 0, grid_size - 1)
+        yi = np.clip((y * grid_size / 2.0).astype(int), 0, grid_size - 1)
+        xf = x * grid_size / 4.0 - xi
+        yf = y * grid_size / 2.0 - yi
+        xip = np.clip(xi + 1, 0, grid_size - 1)
+        yip = np.clip(yi + 1, 0, grid_size - 1)
+        return (values[yi, xi] * (1 - xf) * (1 - yf) +
+                values[yip, xi] * (1 - xf) * yf +
+                values[yi, xip] * xf * (1 - yf) +
+                values[yip, xip] * xf * yf)
+
+    tex = np.zeros((h, w), dtype=np.float64)
+    amp = 1.0
+    freq = 1.0
+    for _ in range(5):
+        n = noise(x * freq, y * freq, seed=int(freq * 100))
+        tex += n * amp
+        amp *= 0.5
+        freq *= 2.0
+    tex /= 1.0 + 0.5 + 0.25 + 0.125 + 0.0625
+    tex = np.clip(tex, 0, 1)
+
+    color = np.zeros((h, w, 3), dtype=np.float32)
+    sky_t = np.clip(yy / h - 0.3, 0, 0.7) / 0.7
+    color[:, :, 0] = tex * 0.8 + sky_t * 0.2
+    color[:, :, 1] = tex * 0.7 + sky_t * 0.3
+    color[:, :, 2] = tex * 0.6 + sky_t * 0.5
+
+    depth = 0.2 + tex * 0.6
+    confidence = np.ones_like(depth, dtype=np.float32) * 0.7
+
+    return {"depth": depth.astype(np.float32), "color": color,
+            "confidence": confidence, "texture": tex.astype(np.float32)}
