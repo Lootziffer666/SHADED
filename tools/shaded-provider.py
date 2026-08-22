@@ -1153,6 +1153,10 @@ _register_torch("world_gen", "generation", "worldgen-v1", ["torch"],
 _register_torch("meshflow", "geometry", "mf-v1", ["torch"],
     "MeshFlow: efficient artistic mesh generation via MeshVAE + Flow-based Diffusion Transformer (facebookresearch)")
 _register("3d_gen_studio", "completion", None)  # covered by 3DGenStudio pipeline
+_register("procedural_terrains", "generation", None)  # covered by ProceduralTerrains
+_register("terra", "generation", None)  # covered by Terra terrain creator
+_register("img2threejs", "completion", None)  # covered by img2threejs
+_register("material_maker", "materials", None)  # covered by material-maker
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

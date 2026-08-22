@@ -1562,6 +1562,82 @@
         "depth",
         "confidence"
       ]
+    },
+    "procedural_terrains": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "procedural_terrains"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/ZyFou/ProceduralTerrains",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "terra": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "terra"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/xKrvZ/Terra",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "img2threejs": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "img2threejs"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "v1",
+      "source": "https://github.com/img2threejs/img2threejs",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "material_maker": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "material_maker"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/RodZill4/material-maker",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
