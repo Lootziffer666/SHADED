@@ -1150,6 +1150,9 @@ _register_torch("articraft", "geometry", "articraft-v1", ["torch"],
     "Articraft: agentic system for scalable articulated 3D asset generation (mattzh72/articraft)")
 _register_torch("world_gen", "generation", "worldgen-v1", ["torch"],
     "WorldGen: generate any 3D scene in seconds (ZiYang-xie/WorldGen)")
+_register_torch("meshflow", "geometry", "mf-v1", ["torch"],
+    "MeshFlow: efficient artistic mesh generation via MeshVAE + Flow-based Diffusion Transformer (facebookresearch)")
+_register("3d_gen_studio", "completion", None)  # covered by 3DGenStudio pipeline
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

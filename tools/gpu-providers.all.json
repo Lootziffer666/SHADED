@@ -1524,6 +1524,44 @@
         "depth",
         "confidence"
       ]
+    },
+    "3d_gen_studio": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "3d_gen_studio"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "v1",
+      "source": "https://github.com/visualbruno/3DGenStudio",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "meshflow": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "meshflow"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "mf-v1",
+      "source": "https://github.com/facebookresearch/meshflow",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
