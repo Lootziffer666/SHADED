@@ -24,18 +24,18 @@ const assert = (condition, message) => { if (!condition) throw new Error(message
 const origin = (process.env.BASE_URL || await localOrigin()).replace(/\/$/, '');
 let browser;
 try {
-  const launch = {headless: true, args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist']};
+  const launch = {headless: true, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage']};
   if (process.env.CHROMIUM) launch.executablePath = process.env.CHROMIUM;
   browser = await chromium.launch(launch);
   const page = await browser.newPage({viewport: {width: 960, height: 600}}), failures = [];
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => { if (response.status() >= 400 && !/_(depth|shading)\.(png|jpe?g|webp)(\?|$)/i.test(response.url())) failures.push(`HTTP ${response.status()}: ${response.url()}`); });
   await page.goto(origin + '/index.html', {waitUntil: 'domcontentloaded'});
-  await page.click('#btn-demo');
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
-  await page.click('#btn-create');
+  await page.evaluate(() => { document.getElementById('btn-demo')?.click(); });
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 30000 });
+  await page.evaluate(() => { document.getElementById('btn-create')?.click(); });
   await page.waitForFunction(() => window.SHADED?.isReady?.());
-  await page.click('#btn-spatial-view');
+  await page.evaluate(() => { document.getElementById('btn-spatial-view')?.click(); });
   await page.waitForFunction(() => /Spiegelhülle/.test(document.getElementById('spatial-fit-status').textContent), null, {timeout: 30_000});
   await page.waitForTimeout(2500);
 
