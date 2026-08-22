@@ -23,7 +23,7 @@ let browser;
 try {
   await listen();
   const address = server.address(), origin = `http://127.0.0.1:${address.port}`;
-  const launch = {headless: true, args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist']};
+  const launch = {headless: true, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage']};
   if (process.env.CHROMIUM) launch.executablePath = process.env.CHROMIUM;
   browser = await chromium.launch(launch);
   const context = await browser.newContext({serviceWorkers: 'allow'}), page = await context.newPage(), failures = [];

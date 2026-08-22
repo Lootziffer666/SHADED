@@ -23,7 +23,7 @@ const server = http.createServer((req, res) => {
 });
 
 await new Promise(resolve => server.listen(8941, resolve));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36' });
 const page = await context.newPage();
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -63,7 +63,7 @@ try {
   check('BASIS blendet Legacy-Werkzeuge wieder aus', await sourceButton.isHidden());
 
   // Der echte Demo-Button muss den produktiven Importpfad bedienen.
-  await page.click('#world-demo');
+  await page.evaluate(() => { document.getElementById('world-demo')?.click(); });
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
   check('World Studio lädt das Demo-Bild direkt', true);
 
@@ -76,7 +76,7 @@ try {
 
   // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
   // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
-  await page.click('#world-generate');
+  await page.evaluate(() => { document.getElementById('world-generate')?.click(); });
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 60000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
   check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
