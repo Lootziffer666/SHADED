@@ -1185,6 +1185,11 @@ _register("galaxy_sim", "generation", None)  # covered by galaxy_sim
 _register("planet_voxel", "geometry", None)  # covered by PlanetVoxel_webgpu.js_Port
 _register("neural_planetoid", "geometry", None)  # covered by neural-planetoid
 _register("open_worlds", "generation", None)  # covered by OpenWorlds
+_register("isosurface", "geometry", None)  # covered by isosurface (marching cubes)
+_register("tidewright", "geometry", None)  # covered by tidewright (sandcastle sim)
+_register("tinyrenderer", "geometry", None)  # covered by tinyrenderer (software rasterizer)
+_register("lumenpyx", "render", None)  # covered by lumenpyx (2D pixel art renderer)
+_register("material_maker_ray_marching", "geometry", None)  # covered by MaterialMakerRayMarching
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

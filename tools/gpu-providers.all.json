@@ -1752,6 +1752,102 @@
         "depth",
         "confidence"
       ]
+    },
+    "isosurface": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "isosurface"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/lettier/isosurface",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "tidewright": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "tidewright"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/winchxyz/tidewright",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "tinyrenderer": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "tinyrenderer"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/Mr-Robot-err-404/tinyrenderer",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "lumenpyx": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "lumenpyx"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/ABC-Engine/lumenpyx",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "material_maker_ray_marching": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "material_maker_ray_marching"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v1",
+      "source": "https://github.com/paulofalcao/MaterialMakerRayMarching",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
