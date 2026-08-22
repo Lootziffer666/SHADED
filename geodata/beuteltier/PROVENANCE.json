@@ -1,0 +1,18 @@
+{
+  "source_repository": "Lootziffer666/BEUTELTIER",
+  "geodata_source_ref": "geo-only",
+  "reference_source_ref": "main",
+  "target": "Lootziffer666/SHADED/geodata/beuteltier",
+  "imported_at": "2026-08-22",
+  "includes": [
+    "LoD2 building shells",
+    "OSM buildings and surfaces",
+    "hall-plan vectors",
+    "terrain and registered spatial derivatives",
+    "hall metadata and vertical access",
+    "reference hall images and plans",
+    "PDF hall/accessibility/technical plans",
+    "facade reference photos",
+    "source metadata for ALKIS/DOP/DZNRW/SLPK"
+  ]
+}
