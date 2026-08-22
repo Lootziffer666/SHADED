@@ -15,8 +15,8 @@ const checks = [
   ["legacy renderer manifest linked", /rel="manifest" href="manifest\.webmanifest"/.test(html)],
   ["legacy renderer install module linked", /type="module" src="runtime\/install\.js"/.test(html)],
   ["spatial viewer linked", /type="module" src="runtime\/spatial-viewer\.js"/.test(html)],
-  ["runtime modules cached offline", ["./runtime/spatial-viewer.js","./runtime/install.js","./runtime/spatial-navigation.mjs","./runtime/spatial-reconstruction.mjs","./runtime/sparse-voxel-world.mjs","./runtime/surface-world-simulation.mjs"].every(file => worker.includes(String.fromCharCode(39)+file+String.fromCharCode(39)))],
-  ["editor cached offline", ["./editor/index.html","./editor/app.js"].every(file => worker.includes(String.fromCharCode(39)+file+String.fromCharCode(39)))],
+  ["runtime modules cached offline", ["./runtime/spatial-viewer.js","./runtime/install.js","./runtime/spatial-navigation.mjs","./runtime/spatial-reconstruction.mjs","./runtime/sparse-voxel-world.mjs","./runtime/surface-world-simulation.mjs"].every(file => worker.includes(`'${file}'`))],
+  ["editor cached offline", ["./editor/index.html","./editor/app.js"].every(file => worker.includes(`'${file}'`))],
 ];
 let failed = false;
 for (const [label, ok] of checks) {
