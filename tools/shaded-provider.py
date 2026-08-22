@@ -1190,6 +1190,20 @@ _register("tidewright", "geometry", None)  # covered by tidewright (sandcastle s
 _register("tinyrenderer", "geometry", None)  # covered by tinyrenderer (software rasterizer)
 _register("lumenpyx", "render", None)  # covered by lumenpyx (2D pixel art renderer)
 _register("material_maker_ray_marching", "geometry", None)  # covered by MaterialMakerRayMarching
+_register("bao_scroll_story", "render", None)  # covered by bao-scroll-story
+_register("snowflow", "render", None)  # covered by snowflow demo
+_register("jungle_trail", "generation", None)  # covered by jungle-trail
+_register("nightdrive", "generation", None)  # covered by nightdrive
+_register("night_street", "generation", None)  # covered by night-street
+_register("solar_sys", "generation", None)  # covered by SolarSys
+_register("threejs_webgl", "render", None)  # covered by WebGL shader showcase
+
+# Additional starred repos
+_register("liquid_glass_studio", "materials", None)  # covered by liquid-glass-studio
+_register("neural_shading_s25", "materials", None)  # covered by neural-shading-s25
+_register("water_shader", "render", None)  # covered by water-shader
+_register("webgpu_water", "render", None)  # covered by webgpu-water
+_register("feather_engine", "render", None)  # covered by featherEngine
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],

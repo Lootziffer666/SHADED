@@ -1848,6 +1848,234 @@
         "depth",
         "confidence"
       ]
+    },
+    "bao_scroll_story": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "bao_scroll_story"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/architech97/bao-scroll-story",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "snowflow": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "snowflow"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/Noniv/snowflow_demo",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "jungle_trail": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "jungle_trail"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/StarKnightt/jungle-trail",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "nightdrive": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "nightdrive"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/StarKnightt/nightdrive",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "night_street": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "night_street"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/StarKnightt/night-street",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "solar_sys": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "solar_sys"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "v1",
+      "source": "https://github.com/solarcg/SolarSys",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "threejs_webgl": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "threejs_webgl"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/rari/WebGL",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "liquid_glass_studio": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "liquid_glass_studio"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/iyinchao/liquid-glass-studio",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "neural_shading_s25": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "neural_shading_s25"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/shader-slang/neural-shading-s25",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "water_shader": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "water_shader"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/Tuxalin/water-shader",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "webgpu_water": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "webgpu_water"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/jeantimex/webgpu-water",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "feather_engine": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "feather_engine"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/danielgold70/featherEngine",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
