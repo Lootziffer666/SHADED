@@ -1092,6 +1092,30 @@ _register_torch("trellis_2", "completion", "trellis2-v1", ["torch"],
     "TRELLIS.2: multi-view diffusion 3D generation")
 _register_torch("trellis", "completion", "trellis-v1", ["torch"],
     "TRELLIS: image-to-3D via multi-view diffusion")
+_register_torch("triposr", "completion", "triposr-v1", ["torch"],
+    "TripoSR: Fast single-view 3D object reconstruction (VAST-AI-Research)")
+_register_torch("zero123plus", "completion", "zero123plus-v1", ["torch"],
+    "Zero123++: Single image to consistent multi-view diffusion base model")
+_register_torch("lato2", "completion", "lato2-v1", ["torch"],
+    "LATO.2: Factorized 3D mesh generation with vertex and topology flow")
+_register_torch("wonder3d", "completion", "wonder3d-v1", ["torch"],
+    "Wonder3D: Single image to 3D using cross-domain diffusion")
+_register_torch("ultra_shape", "generation", "ultrashape-v1", ["torch"],
+    "UltraShape-1.0: High-fidelity 3D shape generation via scalable geometric refinement")
+_register_torch("make_it_3d", "completion", "mi3d-v1", ["torch"],
+    "Make-It-3D: High-fidelity 3D creation from a single image with diffusion prior")
+_register_torch("querysplat", "geometry", "qs-v1", ["torch"],
+    "QuerySplat: Neural radiance surface reconstruction")
+_register_torch("spirulae_splat", "geometry", "ss-v1", ["torch"],
+    "Spirulae-Splat: 3D Gaussian Splatting variant")
+_register_torch("supersplat", "geometry", "spsv-v1", ["torch"],
+    "SuperSplat: 3D Gaussian Splat Editor")
+_register_torch("volrend", "geometry", "vr-v1", ["torch"],
+    "Volrend: PlenOctree volume rendering")
+_register_torch("gauss_cannon", "geometry", "gc-v1", ["torch"],
+    "Gauss Cannon: Gaussian splatting utilities based on Blender scenes")
+_register_torch("ml_lito", "render", "lito-v1", ["torch"],
+    "LiTo: Surface light field tokenization")
 _register_torch("sam_segmentation", "perception", "sam-v1", ["torch"],
     "SAM/SAM2 + GroundingDINO: segment anything + text-to-mask")
 _register_torch("gaussian_4d", "geometry", "4dgs-v1", ["torch"],
@@ -1106,6 +1130,8 @@ _register_torch("gaussian_splatting", "geometry", "3dgs-v1", ["torch"],
 # === Already existing providers (referenced for completeness) ===
 _register("depth_anything_v2", "depth", None)  # covered by depth_anything_v2.py
 _register("depth_anything_v3", "depth", None)  # covered by shaded_depth_anything_3.py
+_register("depth_anything_cpp", "depth", None)  # covered by depth_anything.cpp (C++ ggml)
+_register("trellis_cpp", "completion", None)  # covered by trellis.cpp (C++/GGML)
 _register("colmap", "geometry", None)  # covered by shaded_colmap.py
 _register("tsdf_fusion", "geometry", None)  # covered by shaded_tsdf_fusion.py
 _register("ransac_planes", "geometry", None)  # covered by shaded_ransac_planes.py

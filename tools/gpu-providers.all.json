@@ -1027,6 +1027,272 @@
         "depth",
         "confidence"
       ]
+    },
+    "triposr": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "triposr"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "triposr-v1",
+      "source": "https://github.com/VAST-AI-Research/TripoSR",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "zero123plus": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "zero123plus"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "zero123plus-v1",
+      "source": "https://github.com/SUDO-AI-3D/zero123plus",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "lato2": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "lato2"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "lato2-v1",
+      "source": "https://github.com/LoHhhha/LATO.2",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "wonder3d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "wonder3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "wonder3d-v1",
+      "source": "https://github.com/xxlong0/Wonder3D",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "ultra_shape": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "ultra_shape"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "ultrashape-v1",
+      "source": "https://github.com/PKU-YuanGroup/UltraShape-1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "make_it_3d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "make_it_3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "mi3d-v1",
+      "source": "https://github.com/junshutang/Make-It-3D",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "querysplat": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "querysplat"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "qs-v1",
+      "source": "https://github.com/inspatio/querysplat",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "spirulae_splat": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "spirulae_splat"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "ss-v1",
+      "source": "https://github.com/harry7557558/spirulae-splat",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "supersplat": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "supersplat"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "spsv-v1",
+      "source": "https://github.com/playcanvas/supersplat",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "volrend": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "volrend"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "vr-v1",
+      "source": "https://github.com/sxyu/volrend",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "gauss_cannon": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "gauss_cannon"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "gc-v1",
+      "source": "https://github.com/warpgatelabs/gauss-cannon",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "ml_lito": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "ml_lito"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "lito-v1",
+      "source": "https://github.com/apple/ml-lito",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "depth_anything_cpp": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "depth_anything_cpp"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "depth",
+      "model_version": "cpp-v1",
+      "source": "https://github.com/localai-org/depth-anything.cpp",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "trellis_cpp": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "trellis_cpp"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "cpp-v1",
+      "source": "https://github.com/pwilkin/trellis.cpp",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }
