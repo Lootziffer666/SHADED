@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaded.dev/schemas/shaded-quality-vector",
+  "title": "SHADED Post-GOLD Quality Vector (§23)",
+  "description": "Multi-dimensional quality kept as raw vectors per MASTER-TASK §23. A scalar tie-break (§22) is allowed only as an explicitly-configured convenience and must NEVER replace this vector.",
+  "type": "object",
+  "required": ["geometry", "consistency", "function", "world_truth", "visual", "stability", "performance"],
+  "additionalProperties": false,
+  "properties": {
+    "geometry": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "consistency": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "function": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "world_truth": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "visual": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "stability": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "performance": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "provenance": { "type": "string", "description": "How each dimension was derived (e.g. stub-derivation, surface_error->geometry)." },
+    "note": { "type": "string" }
+  }
+}
