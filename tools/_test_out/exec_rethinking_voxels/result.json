@@ -67,9 +67,9 @@
   "depthConvention": "relative-depth-higher-far",
   "metric": false,
   "timingsMs": {
-    "inference": 80.3741749996334,
+    "inference": 89.69426399926306,
     "voxel_count": 2644,
-    "write": 8.96296000064467
+    "write": 10.40809900041495
   },
   "provenance": {
     "class": "INFERRED",

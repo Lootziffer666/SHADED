@@ -67,8 +67,8 @@
   "depthConvention": "relative-depth-higher-far",
   "metric": false,
   "timingsMs": {
-    "inference": 57.1007369999279,
-    "write": 532.3907579995648
+    "inference": 61.524077000285615,
+    "write": 562.01876599971
   },
   "provenance": {
     "class": "INFERRED",
