@@ -45,7 +45,7 @@ function logClassesPage(page, label) {
 const port = 8942;
 await new Promise(r => server.listen(port, r));
 
-const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 860 } });
 
 const SCENES = [

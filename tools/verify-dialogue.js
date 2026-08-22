@@ -24,7 +24,7 @@ const server = http.createServer((req, res) => {
 
 (async () => {
   await new Promise((r) => server.listen(8936, r));
-  const launchOpts = { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage'] };
+  const launchOpts = { args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] };
   if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
   else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOpts);

@@ -62,7 +62,7 @@ async function samplePatch(page, u, v) {
 
 (async () => {
   await new Promise(r => server.listen(8933, r));
-  const launchOpts = { args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage'] };
+  const launchOpts = { args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] };
   if (process.env.CHROMIUM) launchOpts.executablePath = process.env.CHROMIUM;
   else if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOpts);
@@ -88,13 +88,6 @@ async function samplePatch(page, u, v) {
     console.log(`  ${ok ? '✓ PASS' : '✗ FAIL'}: ${name}${detail ? ' — ' + detail : ''}`);
     if (!ok) failed = true;
   }
-  // Screenshot über Clip-Rahmen (kein "element stability"-Wait am animierten
-  // WebGL-Canvas), identisch zum robusten Pattern in tools/verify.js (shotSel).
-  async function shotWrap(file) {
-    const el = await page.$('#canvas-wrap');
-    const box = await el.boundingBox();
-    await page.screenshot({ path: file, clip: box });
-  }
 
   // Test 1: API-Oberfläche
   console.log('Test 1: SHADED.lens / SHADED.sound API');
@@ -113,13 +106,13 @@ async function samplePatch(page, u, v) {
   await page.evaluate(() => window.SHADED.lens.set(0));
   await page.waitForTimeout(120);
   const baseline = await sampleGrid(page);
-  await shotWrap(path.join(OUT, 'shot_lens_0_normal.png'));
+  await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_lens_0_normal.png') });
 
   for (const n of [1, 2, 3, 4, 5]) {
     await page.evaluate((lens) => window.SHADED.lens.set(lens), n);
     await page.waitForTimeout(120);
     const sample = await sampleGrid(page);
-    await shotWrap(path.join(OUT, `shot_lens_${n}.png`));
+    await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, `shot_lens_${n}.png`) });
     const diff = meanAbsDiff(baseline, sample);
     if (n === 4) check(`Linse 4 ≈ Normalbild`, diff < 2.0, `meanAbsDiff=${diff.toFixed(2)}`);
     else check(`Linse ${n} unterscheidet sich sichtbar`, diff > 5.0, `meanAbsDiff=${diff.toFixed(2)}`);
@@ -134,7 +127,7 @@ async function samplePatch(page, u, v) {
   await page.evaluate(() => { for (let i = 0; i < 8; i++) window.SHADED.sound.emit(0.5, 0.5, 1.0); });
   await page.waitForTimeout(120);
   const loud = await samplePatch(page, 0.5, 0.5);
-  await shotWrap(path.join(OUT, 'shot_lens_3_emit.png'));
+  await (await page.$('#canvas-wrap')).screenshot({ path: path.join(OUT, 'shot_lens_3_emit.png') });
   check('Klangwelle sichtbar nach emit()', meanAbsDiff(quiet, loud) > 3.0, `meanAbsDiff=${meanAbsDiff(quiet, loud).toFixed(2)}`);
 
   // Test 4: Klang klingt ab (transient, ~0.35s Halbwertszeit)
