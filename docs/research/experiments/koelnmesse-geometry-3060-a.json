@@ -1,0 +1,47 @@
+{
+  "experimentId": "koelnmesse-geometry-3060-a",
+  "version": "1.0",
+  "title": "Koelnmesse Reconstruction — Geometry 3060-A",
+  "description": "Run MoGe-2-ViT-S-35M geometry provider on Koelnmesse Hall 3060-A reconstruction. 3060-taugig: MoGe-2-ViT-S-35M ist der einzige Geometry-Provider mit <8GB VRAM für RTX 3060. Nutzt Companion-File-Pattern (_depth.png/_shading.png).",
+  "runId": "run-20260822-165900Z",
+  "gitRef": {
+    "repo": "SHADED",
+    "commit": "a5eabd73cad745fdc5fe231be456d76ff83e3aa0",
+    "tree": "265f33565a867bf0121fdadff71c62a4c0294c9e"
+  },
+  "operator": "GeometryProvider",
+  "donor": "MoGe-2-ViT-S-35M",
+  "mode": "research",
+  "parameters": {
+    "geometry_provider": "moge_vits",
+    "input_resolution": 512,
+    "batch_size": 1,
+    "confidence_threshold": 0.5
+  },
+  "inputs": [
+    {"type": "image", "path": "user://koelnmesse/photos/*.png"},
+    {"type": "asset", "path": "user://koelnmesse/Gebaeude-glB/*.glb"},
+    {"type": "osm", "path": "user://koelnmesse/osm/rohstoff.osm"},
+    {"type": "geodaten", "path": "user://koelnmesse/geodaten/3060-A.geodaten"},
+    {"type": "hallenplan", "path": "user://koelnmesse/hallenplaene/3060-A.pdf"},
+    {"type": "messewalk", "path": "user://koelnmesse/messewalks/3060-A/*.gpx"}
+  ],
+  "outputs": [
+    {"kind": "mesh", "path": "artifacts/run-20260822-165900Z/koelnmesse-geometry-3060-a/mesh.obj"},
+    {"kind": "pointcloud", "path": "artifacts/run-20260822-165900Z/koelnmesse-geometry-3060-a/pointcloud.ply"},
+    {"kind": "normal", "path": "artifacts/run-20260822-165900Z/koelnmesse-geometry-3060-a/normals.npy"}
+  ],
+  "metrics": [
+    {"name": "completion_ratio", "threshold": 0.90},
+    {"name": "geometric_error_mm", "threshold": 15.0},
+    {"name": "normal_consistency", "threshold": 0.75}
+  ],
+  "expectedClassCounts": {
+    "dorf-marker": {"foliage": 5872, "grass": 4885, "wood": 3636, "rock": 1186, "roof": 2818, "window": 197, "path": 2142}
+  },
+  "timeoutSeconds": 1200,
+  "retries": 1,
+  "hardwareConstraint": "rtX_3060_12gb",
+  "environmentBlocked": true,
+  "notes": "§5.1: No torch/GPU in sandbox — provider subprocesses cannot execute. Pipeline scaffolding only."
+}

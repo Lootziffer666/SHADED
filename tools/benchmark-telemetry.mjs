@@ -93,7 +93,7 @@ export function collectMemory() {
   const ru = process.resourceUsage();
   // ru_maxrss is kB on Linux, bytes on macOS.
   const maxRssKb = ru.ru_maxrss || 0;
-  const peakRssMb = process.platform === 'darwin' ? maxRssMb / 1024 / 1024 : maxRssMb / 1024;
+  const peakRssMb = process.platform === 'darwin' ? maxRssKb / 1024 / 1024 : maxRssKb / 1024;
   const mem = process.memoryUsage();
   return {
     peak_rss_mb: Math.round(peakRssMb * 100) / 100,
