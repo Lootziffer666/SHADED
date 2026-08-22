@@ -1,0 +1,70 @@
+name: Import BEUTELTIER geodata
+
+on:
+  push:
+    branches:
+      - import/beuteltier-geodata-20260822
+    paths:
+      - .github/workflows/import-beuteltier-geodata.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SHADED import branch
+        uses: actions/checkout@v4
+        with:
+          ref: import/beuteltier-geodata-20260822
+          fetch-depth: 0
+
+      - name: Fetch BEUTELTIER source snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch geo-only https://github.com/Lootziffer666/BEUTELTIER.git "$RUNNER_TEMP/beuteltier-geo"
+          git clone --depth 1 --branch main https://github.com/Lootziffer666/BEUTELTIER.git "$RUNNER_TEMP/beuteltier-main"
+
+      - name: Assemble geodata corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf geodata/beuteltier
+          mkdir -p geodata/beuteltier
+
+          cp -a "$RUNNER_TEMP/beuteltier-geo/raw" geodata/beuteltier/raw
+          cp -a "$RUNNER_TEMP/beuteltier-geo/derived" geodata/beuteltier/derived
+          cp -a "$RUNNER_TEMP/beuteltier-geo/curated" geodata/beuteltier/curated
+          cp "$RUNNER_TEMP/beuteltier-geo/world-origin.json" geodata/beuteltier/world-origin.json
+
+          mkdir -p geodata/beuteltier/reference
+          cp -a "$RUNNER_TEMP/beuteltier-main/data/raw/reference/." geodata/beuteltier/reference/
+
+          mkdir -p geodata/beuteltier/plans-pdf
+          cp -a "$RUNNER_TEMP/beuteltier-main/data/raw/pdf/." geodata/beuteltier/plans-pdf/
+
+          mkdir -p geodata/beuteltier/facade-photos
+          cp -a "$RUNNER_TEMP/beuteltier-main/data/textures/buildings/facades/." geodata/beuteltier/facade-photos/
+
+          mkdir -p geodata/beuteltier/source-metadata
+          for d in alkis dop dznrw slpk; do
+            if [ -d "$RUNNER_TEMP/beuteltier-main/data/raw/$d" ]; then
+              cp -a "$RUNNER_TEMP/beuteltier-main/data/raw/$d" "geodata/beuteltier/source-metadata/$d"
+            fi
+          done
+          if [ -f "$RUNNER_TEMP/beuteltier-main/data/textures/dznrw/facade_nodes.json" ]; then
+            cp "$RUNNER_TEMP/beuteltier-main/data/textures/dznrw/facade_nodes.json" geodata/beuteltier/source-metadata/facade_nodes.json
+          fi
+
+      - name: Commit import and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/import-beuteltier-geodata.yml
+          git add geodata/beuteltier
+          git commit -m "data: import BEUTELTIER geodata and reference plans"
+          git push origin HEAD:import/beuteltier-geodata-20260822
