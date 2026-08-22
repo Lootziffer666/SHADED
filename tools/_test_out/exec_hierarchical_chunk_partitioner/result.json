@@ -1,0 +1,94 @@
+{
+  "format": "SHADED.spatial-provider-result.v1",
+  "provider": "chunk-partitioner",
+  "modelVersion": "octree-v1",
+  "device": "cpu",
+  "precision": "fp32",
+  "channels": {
+    "depth": {
+      "file": "depth.f32",
+      "dtype": "float32-le",
+      "shape": [
+        8,
+        8
+      ]
+    },
+    "normals": {
+      "file": "normals.f32",
+      "dtype": "float32-le",
+      "shape": [
+        8,
+        8,
+        3
+      ]
+    },
+    "points": {
+      "file": "points.f32",
+      "dtype": "float32-le",
+      "shape": [
+        64,
+        6
+      ]
+    },
+    "confidence": {
+      "file": "confidence.f32",
+      "dtype": "float32-le",
+      "shape": [
+        8,
+        8
+      ]
+    }
+  },
+  "camera": {
+    "intrinsics": [
+      [
+        6.928203105926514,
+        0.0,
+        4.0
+      ],
+      [
+        0.0,
+        6.928203105926514,
+        4.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "width": 8,
+    "height": 8,
+    "fx": 6.928203105926514,
+    "fy": 6.928203105926514,
+    "cx": 4.0,
+    "cy": 4.0
+  },
+  "depthConvention": "relative-depth-higher-far",
+  "metric": false,
+  "timingsMs": {
+    "inference": 5.671609999808425,
+    "total_chunks": 82,
+    "write": 7.9374500000994885
+  },
+  "provenance": {
+    "class": "INFERRED",
+    "sourceSha256": "1252f15fcaa207ddb0f67b304bd04059c15719e639d84dd3c990751529026424",
+    "sourceFile": "file_00000000974871f49fe71f6b456f9579.png",
+    "sourceSize": {
+      "width": 10,
+      "height": 10
+    },
+    "processedSize": {
+      "width": 8,
+      "height": 8
+    },
+    "provider": "chunk-partitioner",
+    "modelVersion": "octree-v1",
+    "parameters": {
+      "precision": "fp32",
+      "pointBudget": 250000,
+      "pointDepthMapping": "percentile-1-99-to-camera-z-0.2-1.0"
+    }
+  }
+}

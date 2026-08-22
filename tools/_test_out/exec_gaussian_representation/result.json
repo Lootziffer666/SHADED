@@ -1,0 +1,94 @@
+{
+  "format": "SHADED.spatial-provider-result.v1",
+  "provider": "gaussian-splats",
+  "modelVersion": "v1.0",
+  "device": "cpu",
+  "precision": "fp32",
+  "channels": {
+    "depth": {
+      "file": "depth.f32",
+      "dtype": "float32-le",
+      "shape": [
+        100,
+        100
+      ]
+    },
+    "normals": {
+      "file": "normals.f32",
+      "dtype": "float32-le",
+      "shape": [
+        100,
+        100,
+        3
+      ]
+    },
+    "points": {
+      "file": "points.f32",
+      "dtype": "float32-le",
+      "shape": [
+        10000,
+        6
+      ]
+    },
+    "confidence": {
+      "file": "confidence.f32",
+      "dtype": "float32-le",
+      "shape": [
+        100,
+        100
+      ]
+    }
+  },
+  "camera": {
+    "intrinsics": [
+      [
+        86.6025390625,
+        0.0,
+        50.0
+      ],
+      [
+        0.0,
+        86.6025390625,
+        50.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "width": 100,
+    "height": 100,
+    "fx": 86.6025390625,
+    "fy": 86.6025390625,
+    "cx": 50.0,
+    "cy": 50.0
+  },
+  "depthConvention": "relative-depth-higher-far",
+  "metric": false,
+  "timingsMs": {
+    "inference": 2.105350000420003,
+    "total_ms": 2.105350000420003,
+    "write": 12.128539000514138
+  },
+  "provenance": {
+    "class": "INFERRED",
+    "sourceSha256": "1252f15fcaa207ddb0f67b304bd04059c15719e639d84dd3c990751529026424",
+    "sourceFile": "file_00000000974871f49fe71f6b456f9579.png",
+    "sourceSize": {
+      "width": 1672,
+      "height": 941
+    },
+    "processedSize": {
+      "width": 100,
+      "height": 100
+    },
+    "provider": "gaussian-splats",
+    "modelVersion": "v1.0",
+    "parameters": {
+      "precision": "fp32",
+      "pointBudget": 250000,
+      "pointDepthMapping": "percentile-1-99-to-camera-z-0.2-1.0"
+    }
+  }
+}

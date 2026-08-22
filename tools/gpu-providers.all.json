@@ -1,0 +1,1032 @@
+{
+  "$schema": "https://shaded.dev/schema/provider-registry.v1.json",
+  "description": "Complete provider registry for all SHADED spatial providers (numpy, torch, api tiers)",
+  "version": "1.0.0",
+  "providers": {
+    "gaussian_representation": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "gaussian_representation"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "normals",
+        "points",
+        "confidence"
+      ]
+    },
+    "geometry_neighbourhood": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "geometry_neighbourhood"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "intrinsic_decomposer": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "intrinsic_decomposer"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "normals",
+        "confidence"
+      ]
+    },
+    "hybrid_line_renderer": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "hybrid_line_renderer"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "texture_stationarizer": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "texture_stationarizer"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "multi_view_texture_fuser": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "multi_view_texture_fuser"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "palette_normalizer": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "palette_normalizer"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "motion_smoother": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "motion_smoother"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "simulation",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "contact_detector": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "contact_detector"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "simulation",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "position_to_rotation": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "position_to_rotation"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "simulation",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "appearance_driven_simplifier": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "appearance_driven_simplifier"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "representation",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "stylized_surface_shader": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "stylized_surface_shader"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "primitive_fitter": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "primitive_fitter"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "hall_planner": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "hall_planner"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "provenance_tracker": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "provenance_tracker"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "workflow",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "hierarchical_chunk_partitioner": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "hierarchical_chunk_partitioner"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "representation",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "semantic_mask_filter": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "semantic_mask_filter"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "sequence_consistency_aligner": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "sequence_consistency_aligner"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "photometric_stereo_provider": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "photometric_stereo_provider"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "normals",
+        "confidence"
+      ]
+    },
+    "room_envelopes_layout_estimator": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "room_envelopes_layout_estimator"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "directional_tsdf_extension": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "directional_tsdf_extension"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "surface_separator": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "surface_separator"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "hy_world": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "hy_world"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "reconstruction",
+      "model_version": "v2.0",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "lingbot_map": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "lingbot_map"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "navigation",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "rest3d": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "rest3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "ultrashape_1": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "ultrashape_1"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "3d_regen": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "3d_regen"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "completion",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "rethinking_voxels": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "rethinking_voxels"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "depth_anything_v2": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/providers/depth_anything_v2.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v2",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "depth_anything_v3": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/providers/depth_anything_v3.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "v3",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "depth_anything_software": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "depth_anything_software"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "software-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "vggt": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/providers/shaded_vggt.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "vggt-v1",
+      "capabilities": [
+        "depth",
+        "normals",
+        "points",
+        "confidence"
+      ]
+    },
+    "mapanything": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/providers/shaded_mapanything.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "map-anything-v1",
+      "capabilities": [
+        "depth",
+        "normals",
+        "points",
+        "confidence"
+      ]
+    },
+    "colmap": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/providers/shaded_colmap.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "colmap-cli-v1",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "tsdf_fusion": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/providers/shaded_tsdf_fusion.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "ransac_planes": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/providers/shaded_ransac_planes.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "points",
+        "confidence"
+      ]
+    },
+    "splatter_image": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "splatter_image"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "t3dgs": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "t3dgs"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "wonderjourney": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "wonderjourney"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "pixal3d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "pixal3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "trellis": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "trellis"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "trellis_2": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "trellis_2"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "diffusion_gs": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "diffusion_gs"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "gaussian_4d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "gaussian_4d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "gaussian_gpt": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "gaussian_gpt"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "gaussian_splatting": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "gaussian_splatting"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "infinigen": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "infinigen"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "lyra_video": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "lyra_video"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "seeing_through_clutter": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "seeing_through_clutter"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "api",
+      "model_version": "1.0",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "terrain_diffusion": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "terrain_diffusion"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "spotless_splats": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "spotless_splats"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "bim_geometry_extractor": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "bim_geometry_extractor"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "dgslam_dynamic": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "dgslam_dynamic"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "graphslam_loop_closure": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "graphslam_loop_closure"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "meshgraphnet_lod": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "meshgraphnet_lod"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "scale_align": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/providers/shaded_scale_align.py"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "sam_segmentation": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "sam_segmentation"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "perception",
+      "model_version": "cpu-v1",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    }
+  }
+}

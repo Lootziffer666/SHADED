@@ -11,6 +11,13 @@ from typing import Any, Dict, Optional
 import numpy as np
 from PIL import Image
 
+# PIL compatibility: Resampling enum was added in Pillow 9.1.0;
+# older versions use Image.ANTIALIAS / Image.LANCZOS directly.
+try:
+    _LANCZOS = Image.Resampling.LANCZOS
+except AttributeError:
+    _LANCZOS = Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.ANTIALIAS
+
 
 def source_hash(path: str) -> str:
     digest = hashlib.sha256()
@@ -25,7 +32,7 @@ def load_rgb(path: str, max_edge: int) -> tuple[Image.Image, tuple[int, int]]:
     original = image.size
     if max_edge > 0 and max(image.size) > max_edge:
         scale = max_edge / max(image.size)
-        image = image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))), Image.Resampling.LANCZOS)
+        image = image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))), _LANCZOS)
     return image, original
 
 
@@ -151,7 +158,7 @@ def write_result(
     destination.mkdir(parents=True, exist_ok=True)
     depth = np.asarray(depth, dtype="<f4")
     height, width = depth.shape
-    rgb = np.asarray(image.resize((width, height), Image.Resampling.LANCZOS), dtype=np.uint8)
+    rgb = np.asarray(image.resize((width, height), _LANCZOS), dtype=np.uint8)
     if intrinsics is None:
         focal = width / (2.0 * np.tan(np.deg2rad(60.0) / 2.0))
         intrinsics = np.array([[focal, 0.0, width * 0.5], [0.0, focal, height * 0.5], [0.0, 0.0, 1.0]], dtype=np.float32)
@@ -176,7 +183,9 @@ def write_result(
         confidence = np.asarray(confidence, dtype=np.float32)
         if confidence.shape != depth.shape:
             raise ValueError(f"confidence shape {confidence.shape} does not match depth {depth.shape}")
-        write_array("confidence", confidence)
+    else:
+        confidence = np.ones(depth.shape, dtype=np.float32)
+    write_array("confidence", confidence)
 
     write_preview_maps(destination, point_depth, normals)
 
