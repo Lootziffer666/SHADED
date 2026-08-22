@@ -99,7 +99,7 @@ uniform float u_fireCount;
 uniform sampler2D u_depth;  // 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern); ohne Upload 1x1 schwarz = flach
 uniform vec2 u_parallax;    // Maus-/Kamera-Versatz (0,0 ohne Interaktion -> deterministische Frames)
 uniform sampler2D u_zone;   // K1: Gebäudezonen (R; 1 = Fachwerk-Gebäude) – maskiert Bodeneffekte
-// Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md), Unit 8:
+// Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md), Unit 9:
 // R = Shading (eingebackene Beleuchtung, 0.5 = neutral), G = Konfidenz der Zerlegung,
 // B/A frei für kommende Kanäle (Rauheit, AO). Erst durch WebGL 2 gibt es diesen Slot.
 uniform sampler2D u_material;
@@ -959,12 +959,13 @@ function mkTex(unit){
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
   return t;
 }
-const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7), sound:mkTex(8) };
+const TEX = { scene:mkTex(0), maskA:mkTex(1), maskB:mkTex(2), phys:mkTex(3), emis:mkTex(4), trail:mkTex(5), depth:mkTex(6), zone:mkTex(7), sound:mkTex(8), material:mkTex(9) };
 gl.uniform1i(U.u_scene,0); gl.uniform1i(U.u_maskA,1); gl.uniform1i(U.u_maskB,2);
 gl.uniform1i(U.u_phys,3);  gl.uniform1i(U.u_emis,4);  gl.uniform1i(U.u_trail,5);
 gl.uniform1i(U.u_depth,6); gl.uniform2f(U.u_parallax,0,0);
 gl.uniform1i(U.u_zone,7);
 gl.uniform1i(U.u_sound,8);
+gl.uniform1i(U.u_material,9);
 gl.uniform1f(U.u_fireCount,0);
 gl.uniform1f(U.u_lens,0);
 
@@ -1252,7 +1253,7 @@ function uploadMaterialTexture(){
     tM[j*4+1]=q(intrinsicConf?intrinsicConf[j]:0);
     tM[j*4+3]=255;
   }
-  uploadTex(8,TEX.material,AW,AH,tM);
+  uploadTex(9,TEX.material,AW,AH,tM);
   return true;
 }
 
