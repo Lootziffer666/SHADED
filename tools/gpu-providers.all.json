@@ -1293,6 +1293,122 @@
         "depth",
         "confidence"
       ]
+    },
+    "sdf": {
+      "tier": "numpy",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "sdf"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "sdf-v1",
+      "source": "https://github.com/fogleman/sdf",
+      "capabilities": [
+        "depth",
+        "normals",
+        "points",
+        "confidence"
+      ]
+    },
+    "world_stereo": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "world_stereo"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "reconstruction",
+      "model_version": "ws-v1",
+      "source": "https://github.com/FuchengSu/WorldStereo",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "stable_fast_3d": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "stable_fast_3d"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "sf3d-v1",
+      "source": "https://github.com/Stability-AI/stable-fast-3d",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "3d_cell_forge": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "3d_cell_forge"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "3dcf-v1",
+      "source": "https://github.com/huangserva/3DCellForge",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "articraft": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "articraft"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "geometry",
+      "model_version": "articraft-v1",
+      "source": "https://github.com/mattzh72/articraft",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "world_gen": {
+      "tier": "torch",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "world_gen"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "generation",
+      "model_version": "worldgen-v1",
+      "source": "https://github.com/ZiYang-xie/WorldGen",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }

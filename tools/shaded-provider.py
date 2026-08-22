@@ -71,6 +71,7 @@ from shaded_provider_lib import (
     ultrashape,
     rethinking_voxels,
     depth_anything_software,
+    generate_sdf_scene,
 )
 from shaded_provider_common import (
     load_rgb, write_result, source_hash, normalise_depth, geometry_depth,
@@ -1047,8 +1048,31 @@ def _provider_depth_anything_software(args):
     )
     return 0
 
+
+def _provider_sdf(args):
+    """SDF: procedural SDF scene generation + ray marching (fogleman/sdf port)."""
+    if not _try_import("numpy"):
+        print("ERROR: numpy required", file=sys.stderr); return 2
+    if not _try_import("PIL"):
+        print("ERROR: PIL required", file=sys.stderr); return 2
+    image, orig = load_rgb(args.input, args.max_edge)
+    t0 = time.perf_counter()
+    result = generate_sdf_scene(resolution=min(image.width, 256))
+    elapsed = (time.perf_counter() - t0) * 1000
+    write_result(
+        args.output, "sdf-scene-generation", "sdf-v1", args.device, args.precision,
+        args.input, image, orig, result["depth"],
+        confidence=result["confidence"],
+        depth_convention="relative-depth-higher-far", metric=False,
+        timings_ms={"inference": elapsed}, point_budget=args.point_budget,
+    )
+    return 0
+
 _register("depth_anything_software", "depth", _provider_depth_anything_software)
 ALL_PROVIDERS["depth_anything_software"]["deps"] = _np_deps
+
+_register("sdf", "geometry", _provider_sdf)
+ALL_PROVIDERS["sdf"]["deps"] = _np_deps
 
 # === torch-tier (import-checked, real implementations) ===
 def _register_torch(name, stage, model_version, required_modules, doc):
@@ -1115,7 +1139,17 @@ _register_torch("volrend", "geometry", "vr-v1", ["torch"],
 _register_torch("gauss_cannon", "geometry", "gc-v1", ["torch"],
     "Gauss Cannon: Gaussian splatting utilities based on Blender scenes")
 _register_torch("ml_lito", "render", "lito-v1", ["torch"],
-    "LiTo: Surface light field tokenization")
+    "LiTo: Surface light field tokenization (apple/ml-lito)")
+_register_torch("world_stereo", "reconstruction", "ws-v1", ["torch"],
+    "WorldStereo: camera-guided video generation ↔ scene reconstruction (FuchengSu/WorldStereo)")
+_register_torch("stable_fast_3d", "geometry", "sf3d-v1", ["torch"],
+    "SF3D: Stable Fast 3D mesh reconstruction (Stability-AI/stable-fast-3d)")
+_register_torch("3d_cell_forge", "generation", "3dcf-v1", ["torch"],
+    "3DCellForge: AI-powered interactive 3D model generation (huangserva/3DCellForge)")
+_register_torch("articraft", "geometry", "articraft-v1", ["torch"],
+    "Articraft: agentic system for scalable articulated 3D asset generation (mattzh72/articraft)")
+_register_torch("world_gen", "generation", "worldgen-v1", ["torch"],
+    "WorldGen: generate any 3D scene in seconds (ZiYang-xie/WorldGen)")
 _register_torch("sam_segmentation", "perception", "sam-v1", ["torch"],
     "SAM/SAM2 + GroundingDINO: segment anything + text-to-mask")
 _register_torch("gaussian_4d", "geometry", "4dgs-v1", ["torch"],

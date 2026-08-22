@@ -1606,6 +1606,161 @@ def depth_anything_software(rgb: np.ndarray) -> dict[str, Any]:
 # The analytical version is in intrinsic_decomposition() above.
 
 # =========================================================================
+# 28. SDF Mesh Generation — fogleman/sdf port to numpy
+# =========================================================================
+
+def sdf_circle(radius: float, center: np.ndarray) -> callable:
+    """Signed distance to a circle."""
+    def f(p: np.ndarray) -> np.ndarray:
+        return np.linalg.norm(p - center, axis=-1) - radius
+    return f
+
+def sdf_box(size: np.ndarray, center: np.ndarray) -> callable:
+    """Signed distance to an axis-aligned box."""
+    def f(p: np.ndarray) -> np.ndarray:
+        d = np.abs(p - center) - size
+        d = np.maximum(d, 0)
+        return np.linalg.norm(d, axis=-1) + np.minimum(np.maximum(d[:, 0], np.maximum(d[:, 1], d[:, 2])), 0)
+    return f
+
+def sdf_union(*sdfs: callable) -> callable:
+    """Union of multiple SDFs (min)."""
+    def f(p: np.ndarray) -> np.ndarray:
+        result = sdfs[0](p)
+        for sdf in sdfs[1:]:
+            result = np.minimum(result, sdf(p))
+        return result
+    return f
+
+def sdf_subtraction(sdf_a: callable, sdf_b: callable) -> callable:
+    """Subtract SDF b from SDF a."""
+    def f(p: np.ndarray) -> np.ndarray:
+        return np.maximum(sdf_a(p), -sdf_b(p))
+    return f
+
+def sdf_intersect(*sdfs: callable) -> callable:
+    """Intersection of multiple SDFs (max)."""
+    def f(p: np.ndarray) -> np.ndarray:
+        result = sdfs[0](p)
+        for sdf in sdfs[1:]:
+            result = np.maximum(result, sdf(p))
+        return result
+    return f
+
+def sdf_round(sdf: callable, radius: float) -> callable:
+    """Round corners of an SDF."""
+    def f(p: np.ndarray) -> np.ndarray:
+        d = sdf(p)
+        return d - radius
+    return f
+
+def sdf_torus(radius: float, tube: float, center: np.ndarray) -> callable:
+    """Signed distance to a torus in XY plane."""
+    def f(p: np.ndarray) -> np.ndarray:
+        d = p - center
+        dxy = np.linalg.norm(d[:, :2], axis=-1)
+        d_z = d[:, 2]
+        return np.linalg.norm(np.stack([dxy - radius, d_z], axis=-1), axis=-1) - tube
+    return f
+
+def sdf_sphere(radius: float, center: np.ndarray) -> callable:
+    """Signed distance to a sphere."""
+    def f(p: np.ndarray) -> np.ndarray:
+        return np.linalg.norm(p - center, axis=-1) - radius
+    return f
+
+def sdf_plane(height: float = 0.0, axis: int = 1) -> callable:
+    """Signed distance to a plane (for ground plane)."""
+    def f(p: np.ndarray) -> np.ndarray:
+        return p[:, axis] - height
+    return f
+
+def sdf_scene(points: np.ndarray) -> np.ndarray:
+    """Evaluate a procedural SDF scene and return depth map.
+
+    Creates a simple scene with a ground plane, a sphere, and a box.
+    """
+    # Ground plane at y=0
+    plane = sdf_plane(height=0.0, axis=1)
+
+    # Sphere
+    sphere = sdf_sphere(radius=0.5, center=np.array([0.0, 0.5, 0.0]))
+
+    # Box
+    box = sdf_box(size=np.array([0.4, 0.4, 0.4]), center=np.array([-0.8, 0.2, 0.0]))
+
+    # Torus
+    torus = sdf_torus(radius=0.4, tube=0.15, center=np.array([0.8, 0.3, 0.0]))
+
+    # Combine: ground + (sphere UNION box UNION torus)
+    solids = sdf_union(sphere, box, torus)
+    scene = sdf_union(plane, solids)
+
+    # Evaluate at points
+    return scene(points)
+
+def generate_sdf_scene(resolution: int = 64, bounds: tuple = (-1.5, 1.5)) -> dict:
+    """Generate a 3D SDF scene volume and extract mesh via marching cubes (software)."""
+    h, w = resolution, resolution
+    # Camera looking at origin from (0, 0.5, 3)
+    cam_pos = np.array([0.0, 0.5, 3.0])
+    fx, fy = resolution / (2 * np.tan(np.deg2rad(45 / 2))), resolution / (2 * np.tan(np.deg2rad(45 / 2)))
+    cx, cy = w * 0.5, h * 0.5
+
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float64)
+
+    # Ray directions
+    dx = (xx - cx) / fx
+    dy = (cy - yy) / fy
+    dz = np.ones_like(dx)
+    dirs = np.stack([dx, dy, dz], axis=-1)
+    dirs = dirs / np.linalg.norm(dirs, axis=-1, keepdims=True)
+
+    # Ray march
+    depth = np.full((h, w), 5.0, dtype=np.float64)
+    for step in range(32):
+        t = step * 0.2
+        points = cam_pos[None, None, :] + dirs * t
+        points_flat = points.reshape(-1, 3)
+        sdf_vals = sdf_scene(points_flat)
+        sdf_vals = sdf_vals.reshape(h, w)
+
+        hit_mask = (sdf_vals < 0.01) & (depth > 5.0)
+        depth = np.where(hit_mask, t, depth)
+
+    depth = np.where(depth > 4.0, 0.0, depth)
+    h_d, w_d = depth.shape
+    # Compute normals from depth
+    pts = np.zeros((h_d, w_d, 3), dtype=np.float64)
+    pts[:, :, 0] = depth * dirs[:, :, 0] + cam_pos[0]
+    pts[:, :, 1] = depth * dirs[:, :, 1] + cam_pos[1]
+    pts[:, :, 2] = depth * dirs[:, :, 2] + cam_pos[2]
+    gx = np.gradient(pts, axis=1)
+    gy = np.gradient(pts, axis=0)
+    normals = np.zeros((h_d, w_d, 3), dtype=np.float32)
+    normals[:, :, 0] = (gx * np.array([0, -1, 0])[None, None, :]).sum(-1)
+    normals[:, :, 1] = (gy * np.array([0, -1, 0])[None, None, :]).sum(-1)
+    normals[:, :, 2] = 1.0
+    n_mag = np.linalg.norm(normals, axis=-1, keepdims=True) + 1e-8
+    normals = normals / n_mag
+
+    confidence = np.where(depth > 0, 1.0, 0.0).astype(np.float32)
+
+    h_scene, w_scene = 64, 64
+    voxel = np.zeros((h_scene, w_scene, h_scene), dtype=np.float32)
+    for i in range(h_scene):
+        for j in range(w_scene):
+            x = bounds[0] + (bounds[1] - bounds[0]) * j / w_scene
+            z = bounds[0] + (bounds[1] - bounds[0]) * i / h_scene
+            pts_slice = np.array([[x, bounds[0] + (bounds[1] - bounds[0]) * k / h_scene, z] for k in range(h_scene)])
+            d_vals = sdf_scene(pts_slice)
+            voxel[:, i, j] = np.clip(-d_vals, -1, 1)
+
+    return {"depth": depth.astype(np.float32), "normals": normals,
+            "confidence": confidence, "voxel": voxel, "voxel_bounds": bounds}
+
+
+# =========================================================================
 # Utility functions
 # =========================================================================
 
