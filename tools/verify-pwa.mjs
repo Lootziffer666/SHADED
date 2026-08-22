@@ -24,4 +24,4 @@ for (const [label, ok] of checks) {
   failed ||= !ok;
 }
 if (failed) process.exit(1);
-console.log("PWA verification passed.");
+console.log("PWA files and cache list statically verified (no browser installation claimed).");
