@@ -2210,6 +2210,82 @@
         "depth",
         "confidence"
       ]
+    },
+    "astray_fx": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "astray_fx"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "materials",
+      "model_version": "v1",
+      "source": "https://github.com/Auburn/Fast",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "null_graph": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "null_graph"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/NullSoftware/NullGraph",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "turi": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "turi"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/rari/WebGL",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
+    },
+    "shader_web_background": {
+      "tier": "api",
+      "cli": [
+        "python3",
+        "tools/shaded-provider.py",
+        "--provider",
+        "shader_web_background"
+      ],
+      "doctorArgs": [
+        "--doctor"
+      ],
+      "category": "render",
+      "model_version": "v1",
+      "source": "https://github.com/thednp/shader-web-background",
+      "capabilities": [
+        "depth",
+        "confidence"
+      ]
     }
   }
 }

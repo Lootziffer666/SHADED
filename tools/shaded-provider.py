@@ -1269,6 +1269,12 @@ _register("scene_forge", "generation", None)  # covered by scene-forge (3D scene
 _register("pixel_extractor", "perception", _provider_pixel_extractor)
 ALL_PROVIDERS["pixel_extractor"]["deps"] = _np_deps
 _register("image2scene", "completion", None)  # covered by Image2Scene-API
+
+# Shader/Rendering providers from starred repos
+_register("astray_fx", "materials", None)  # covered by AstrayFX (ReShadeFX collection)
+_register("null_graph", "render", None)  # covered by NullGraph (WebGPU framework)
+_register("turi", "render", None)  # covered by turi (fragment shader game)
+_register("shader_web_background", "render", None)  # covered by shader-web-background
 _register_torch("img23d", "completion", "img23d-v1", ["torch"],
     "Img23D: web-based 2D image to smooth 3D models (harry7557558/img23d)")
 _register_torch("modly", "completion", "modly-v1", ["torch"],
