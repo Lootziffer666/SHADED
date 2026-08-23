@@ -82,6 +82,7 @@ body.cinema #exit-cinema{display:block}
 #spatial-map:not([hidden])~#spatial-pipeline{top:174px;max-height:calc(100% - 220px)}
 #spatial-pipeline-buttons{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:6px 0}
 #spatial-pipeline button{padding:4px 5px;font-size:9px;text-align:left}#spatial-pipeline button.active{border-color:#38bdf8;color:#bae6fd;background:#0c4a6e}
+#spatial-representation{margin-top:5px;padding:5px 6px;border:1px solid #475569;border-radius:4px;background:#111827;color:#facc15;font:600 8px/1.35 ui-monospace,monospace;letter-spacing:.04em}
 #spatial-stage-copy{color:#cbd5e1;line-height:1.35;min-height:42px}
 #spatial-laws{position:absolute;right:12px;bottom:12px;width:260px;max-height:88%;overflow:auto;padding:9px;background:#080b12dd;border:1px solid #334155;border-radius:7px;font-size:10px}
 #spatial-laws label{display:flex;justify-content:space-between;gap:8px;margin:4px 0}#spatial-laws input{width:110px}#spatial-laws select{background:#111827;color:#cbd5e1;border:1px solid #334155}
@@ -113,7 +114,7 @@ body.cinema #exit-cinema{display:block}
   <input type="file" id="f-mat" accept="image/*" title="Optional: gemalte Material-Map">
   <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional – zwei Formate: volle Material-Map (kanonische Palette) ODER eine Kopie der Szene, in der nur die Fenster pink (#F972E9) übermalt sind. Ohne Zweitbild analysiert SHADED alles selbst.</div>
   <input type="file" id="f-depth" accept="image/*" title="Optional: 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern)">
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Dritte Datei optional: Tiefenkarte (Weiß = nah) für 2.5D-Parallaxe – die Maus schwenkt dann die Kamera. Liegt neben <code>bild.png</code> eine <code>bild_depth.png</code> auf dem Server, wird sie automatisch geladen – ebenso eine <code>bild_shading.png</code> (Beleuchtungsfeld, 128 = neutral) für die Materialschicht. Beides ist optional; ohne die Dateien rechnet SHADED selbst.</div>
+  <div style="font-size:9px;color:#556;margin-bottom:4px">Dritte Datei optional: relative Tiefenkarte (Weiß = nah) für 2.5D-Parallaxe. Liegt neben <code>bild.png</code> eine <code>bild_depth.png</code>, wird sie geladen – ebenso eine optionale <code>bild_shading.png</code>. Ohne Tiefenkarte bleibt die Bildwelt 2D; die Raumansicht bricht ab. SHADED erzeugt hier keine Tiefe selbst.</div>
   <button id="btn-demo" style="width:100%">🖼️ Demo-Dorf laden (aus Repo)</button>
 
   <h2>Akteur (SWIFT)</h2>
@@ -213,7 +214,7 @@ body.cinema #exit-cinema{display:block}
     <button id="btn-json">💾 Parameter (JSON)</button>
     <button id="btn-pointcloud">🌌 PointCloud</button>
   </div>
-  <button id="btn-spatial-view" style="width:100%">🧭 Raum frei ansehen</button>
+  <button id="btn-spatial-view" style="width:100%">🧭 POINTS-Raum ansehen</button>
 
   <details>
     <summary>Experten-Regler</summary>
@@ -236,6 +237,7 @@ body.cinema #exit-cinema{display:block}
     <canvas id="spatial-map" width="180" height="180" hidden title="Klicken, um per Dijkstra dorthin zu laufen"></canvas>
     <div id="spatial-pipeline" aria-label="Sichtbare Stufen der Räumlichkeit">
       <strong>So entsteht der Raum</strong>
+      <div id="spatial-representation">VIEW POINTS · SCALE RELATIVE · CAMERA UNKNOWN · RELIABILITY UNKNOWN</div>
       <div id="spatial-pipeline-buttons">
         <button type="button" data-spatial-stage="input">1 · Bildpunkte</button>
         <button type="button" data-spatial-stage="depth">2 · Tiefenhinweis</button>

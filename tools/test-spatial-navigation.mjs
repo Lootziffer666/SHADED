@@ -31,6 +31,7 @@ const environment = buildSpatialEnvironment(visiblePlane, {seed: 42, thickness: 
 assert.equal(environment.observed.length, visiblePlane.length, 'all input samples remain observed');
 assert.notEqual(environment.generated.length, environment.observed.length, 'completion is independently sampled, not one generated point per source point');
 assert.ok(environment.generated.every(point => point.provenance === 'GENERATED'), 'completion provenance is explicit');
+assert.ok(environment.generated.every(point => point.confidence === null && point.reliability === 'NOT_MEASURED'), 'generated geometry never invents measurement confidence');
 assert.ok(environment.generated.every(point => Array.isArray(point.textureSources) && point.textureSources.length > 0), 'generated colours carry their actual patch source indices');
 assert.ok(environment.mirroredCompletion.length > 0, 'structural pixels receive an explicit mirrored fallback shell');
 const mirroredBack = environment.mirroredCompletion.filter(point => point.generationMethod === 'mirrored-structural-shell');
@@ -66,6 +67,17 @@ const providerBundle = {
 const providerWorld = SparseVoxelWorld.fromProviderBundle(providerBundle, {resolution: 24});
 assert.ok(providerWorld.voxels.size > 0, 'self-contained provider bundle imports into the sparse voxel world');
 assert.ok(providerWorld.surfacePoints().every(point => point.provenance === 'INFERRED'), 'provider imports retain inferred provenance');
+assert.ok(providerWorld.surfacePoints().every(point => point.confidence === null), 'missing provider confidence stays unknown');
+assert.ok(providerWorld.surfacePoints().some(point => point.r > point.g || point.g > point.r), 'provider RGB reaches visible voxels instead of a grey placeholder');
+
+const xyzOnlyValues = new Float32Array([0, 0, .5, .1, 0, .6]), xyzOnlyBytes = Buffer.from(xyzOnlyValues.buffer);
+const xyzOnlyBundle = {
+  format: 'SHADED.spatial-provider-bundle.v1',
+  result: {format: 'SHADED.spatial-provider-result.v1', provider: 'fixture-no-rgb', channels: {points: {dtype: 'float32-le', shape: [2, 3]}}},
+  channelData: {points: {encoding: 'base64', bytes: xyzOnlyBytes.length, data: xyzOnlyBytes.toString('base64')}}
+};
+assert.throws(() => SparseVoxelWorld.fromProviderBundle(xyzOnlyBundle), /Platzhalterfarben sind nicht erlaubt/, 'XYZ without RGB fails honestly');
+assert.throws(() => SparseVoxelWorld.fromProviderBundle({format:'SHADED.spatial-provider-bundle.v1',result:{format:'SHADED.spatial-provider-result.v1',provider:'fixture-depth-only',channels:{depth:{dtype:'float32-le',shape:[1,1]}}},channelData:{}}), /kein RGB/, 'depth-only visible import fails honestly');
 
 const paintWorld = new SparseVoxelWorld({resolution: 24});
 const lowPressure = paintWorld.paint([0, 0, 0], {pressure: 0.2, radius: 0.2, material: 'wood', color: [90, 60, 30]});
@@ -109,6 +121,7 @@ assert.ok(transferred.massBudget().fuel > 0 && transferred.time === fireWorld.ti
 
 const boundaryGrid = makeGrid(32), boundary = addProceduralBoundaries(boundaryGrid, 0.7, 'trees', 1);
 assert.ok(boundary.some(point => point.branchId > 0 && point.parentBranchId != null), 'procedural trees contain branch/leaf hierarchy');
+assert.ok(boundary.every(point => point.confidence === null && point.reliability === 'NOT_MEASURED'), 'procedural boundary carries no fake confidence');
 assert.ok(boundaryGrid.fields.fuelMass.some(Boolean), 'tree boundary writes fuel into the shared world field');
 const middle = Math.floor(boundaryGrid.size / 2);
 assert.equal(boundaryGrid.cells[middle * boundaryGrid.size + boundaryGrid.size - 3], 0, 'organic boundary keeps a real gate instead of a sealed ring');

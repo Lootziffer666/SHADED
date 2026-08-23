@@ -7,6 +7,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
 const keyOf = (x, y, z) => x + ':' + y + ':' + z;
 const parseKey = key => key.split(':').map(Number);
+const knownConfidence = sample => sample?.confidence != null && Number.isFinite(Number(sample.confidence))
+  ? clamp(Number(sample.confidence), 0, 1)
+  : null;
 
 function decodeBundleChannel(bundle, name) {
   const descriptor = bundle?.result?.channels?.[name], payload = bundle?.channelData?.[name];
@@ -31,7 +34,9 @@ function normalizeImportedPoints(points) {
   return points.map((point, sourceIndex) => ({
     x: (point.position[0] - center[0]) * scale, y: (point.position[1] - center[1]) * scale, z: (point.position[2] - center[2]) * scale,
     r: point.color[0], g: point.color[1], b: point.color[2], confidence: point.confidence,
-    provenance: VOXEL_PROVENANCE.INFERRED, material: 'unknown', sourceIndex
+    reliability: point.confidence == null ? 'UNKNOWN' : 'PROVIDER_CHANNEL',
+    provenance: VOXEL_PROVENANCE.INFERRED, material: 'unknown', sourceIndex,
+    colorProvenance: 'PROVIDER_POINT_RGB'
   }));
 }
 
@@ -40,24 +45,16 @@ export function providerBundlePoints(bundle, { pointBudget = 500_000 } = {}) {
   const points = [];
   if (bundle.result.channels.points) {
     const channel = decodeBundleChannel(bundle, 'points'), stride = channel.descriptor.shape[1];
-    if (![3, 6].includes(stride)) throw new Error('points braucht Shape [count,3|6]');
+    if (stride !== 6) throw new Error('POINTS-Import abgelehnt: Shape [count,6] mit XYZ+RGB ist erforderlich; Platzhalterfarben sind nicht erlaubt.');
     const count = channel.descriptor.shape[0], step = Math.max(1, Math.ceil(count / Math.max(1, pointBudget)));
+    const confidence = bundle.result.channels.confidence ? decodeBundleChannel(bundle, 'confidence').values : null;
+    if (confidence && confidence.length < count) throw new Error('confidence enthält weniger Werte als points');
     for (let index = 0; index < count; index += step) {
-      const offset = index * stride, colorScale = stride === 6 && Math.max(channel.values[offset + 3], channel.values[offset + 4], channel.values[offset + 5]) <= 1 ? 255 : 1;
-      points.push({ position: [channel.values[offset], channel.values[offset + 1], channel.values[offset + 2]], color: stride === 6 ? [channel.values[offset + 3] * colorScale, channel.values[offset + 4] * colorScale, channel.values[offset + 5] * colorScale] : [160, 160, 160], confidence: 0.7 });
+      const offset = index * stride, colorScale = Math.max(channel.values[offset + 3], channel.values[offset + 4], channel.values[offset + 5]) <= 1 ? 255 : 1;
+      points.push({ position: [channel.values[offset], channel.values[offset + 1], channel.values[offset + 2]], color: [channel.values[offset + 3] * colorScale, channel.values[offset + 4] * colorScale, channel.values[offset + 5] * colorScale], confidence: confidence ? clamp(confidence[index], 0, 1) : null });
     }
   } else {
-    const channel = decodeBundleChannel(bundle, 'depth'), [height, width] = channel.descriptor.shape, camera = bundle.result.camera || {};
-    const fx = camera.fx || width, fy = camera.fy || width, cx = camera.cx ?? width * 0.5, cy = camera.cy ?? height * 0.5;
-    let minimum = Infinity, maximum = -Infinity;
-    for (const value of channel.values) { minimum = Math.min(minimum, value); maximum = Math.max(maximum, value); }
-    const pixelStep = Math.max(1, Math.ceil(Math.sqrt((width * height) / Math.max(1, pointBudget))));
-    const confidence = bundle.result.channels.confidence ? decodeBundleChannel(bundle, 'confidence').values : null;
-    for (let y = 0; y < height; y += pixelStep) for (let x = 0; x < width; x += pixelStep) {
-      const index = y * width + x, raw = channel.values[index], normalized = (raw - minimum) / Math.max(maximum - minimum, 1e-9);
-      const z = bundle.result.metric ? Math.max(raw, 1e-6) : 0.2 + (bundle.result.depthConvention === 'relative-disparity-higher-near' ? 1 - normalized : normalized) * 0.8;
-      points.push({ position: [(x - cx) * z / fx, (cy - y) * z / fy, z], color: [160, 160, 160], confidence: confidence ? clamp(confidence[index], 0, 1) : 0.5 });
-    }
+    throw new Error('DEPTH-Import abgelehnt: Das Bundle enthält kein RGB für die sichtbare Oberfläche; Platzhalterfarben sind nicht erlaubt.');
   }
   if (!points.length) throw new Error('Provider-Bundle enthält keine importierbaren Punkte');
   return normalizeImportedPoints(points);
@@ -105,13 +102,14 @@ export class SparseVoxelWorld {
   }
 
   setSurface(x, y, z, sample = {}) {
-    const key = keyOf(x, y, z), previous = this.voxels.get(key), weight = Math.max(1e-6, Number(sample.weight) || Number(sample.confidence) || 1);
+    const confidence = knownConfidence(sample);
+    const key = keyOf(x, y, z), previous = this.voxels.get(key), weight = Math.max(1e-6, Number(sample.weight) || confidence || 1);
     const color = sample.color || [sample.r ?? 128, sample.g ?? 128, sample.b ?? 128];
     if (previous) {
       const total = previous.weight + weight;
       previous.color = previous.color.map((value, i) => (value * previous.weight + color[i] * weight) / total);
       previous.weight = total;
-      previous.confidence = Math.max(previous.confidence, Number(sample.confidence) || 0);
+      if (confidence != null) previous.confidence = previous.confidence == null ? confidence : Math.max(previous.confidence, confidence);
       if (sample.material) previous.material = sample.material;
       if (sample.provenance === VOXEL_PROVENANCE.USER_APPROVED) previous.provenance = sample.provenance;
       if (sample.sourceIndex != null && !previous.sourceIndices.includes(sample.sourceIndex)) previous.sourceIndices.push(sample.sourceIndex);
@@ -120,7 +118,7 @@ export class SparseVoxelWorld {
     const material = sample.material || 'unknown', fuelMass = material === 'wood' ? 1 : material === 'foliage' || material === 'grass' ? 0.35 : 0;
     const voxel = {
       state: VOXEL_STATE.SURFACE, color: color.slice(), material,
-      confidence: clamp(Number(sample.confidence) || 0, 0, 1),
+      confidence,
       provenance: sample.provenance || VOXEL_PROVENANCE.OBSERVED,
       sourceIndices: sample.sourceIndex == null ? [] : [sample.sourceIndex], weight,
       fields: { ...DEFAULT_FIELDS, fuelMass }
@@ -184,7 +182,7 @@ export class SparseVoxelWorld {
       const key = keyOf(x, y, z), before = clone(this.voxels.get(key) || null);
       if (brush.mode === 'erase' || brush.eraser) this.voxels.delete(key);
       else {
-        const voxel = this.setSurface(x, y, z, { color: brush.color || [128, 128, 128], material: brush.material || 'user', confidence: opacity, provenance: VOXEL_PROVENANCE.USER_APPROVED, weight: opacity });
+        const voxel = this.setSurface(x, y, z, { color: brush.color || [128, 128, 128], material: brush.material || 'user', confidence: null, provenance: VOXEL_PROVENANCE.USER_APPROVED, weight: opacity });
         if (brush.channel && brush.channel in voxel.fields) voxel.fields[brush.channel] = clamp(Number(brush.value) * opacity + voxel.fields[brush.channel] * (1 - opacity), 0, Number.MAX_SAFE_INTEGER);
       }
       const after = clone(this.voxels.get(key) || null);

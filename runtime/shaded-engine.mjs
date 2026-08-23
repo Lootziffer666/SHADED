@@ -1,4 +1,6 @@
 // SHADED Engine Module — single source of truth for shaders/materials (Invariante 7).
+import {buildRelativePointCloud} from './spatial-point-cloud.mjs';
+
 const ENGINE_STUB_IDS=["sliders","s-dayNight","v-dayNight","s-storm","v-storm","s-rain","v-rain","s-wet","v-wet","s-puddle","v-puddle","s-fog","v-fog","s-wind","v-wind","s-glow","v-glow","s-decay","v-decay","s-snow","v-snow","s-snowfall","v-snowfall","s-temperature","v-temperature","s-autumn","v-autumn","s-bloom","v-bloom","s-bleach","v-bleach","btn-create","btn-demo","btn-fire","btn-clear-world","btn-elements-clear","btn-add","btn-cinema","exit-cinema","btn-png","btn-rec","btn-json","btn-pointcloud","btn-showcase","btn-year","btn-timelapse","btn-drama","btn-play","cb-loop","btn-eco-cats","btn-eco-enemies","btn-eco-npcs","btn-eco-heroes","btn-eco-depth-test","f-scene","f-mat","f-depth","f-actor-sheet","f-actor-manifest","gl","ov","rec","showcase-card","showcase-title","showcase-copy","showcase-kicker","dialogue-box","dialogue-speaker","dialogue-text","dialogue-hint","drop-hint","status","stage","story-list","spatial-viewer","spatial-canvas","spatial-close","spatial-walk","spatial-map","spatial-pipeline","spatial-pipeline-buttons","spatial-stage-copy","spatial-laws","spatial-fit-status","spatial-performance","spatial-seasons","spatial-season-status","spatial-scene-season","spatial-scene-event","spatial-scene-duration","spatial-scene-add","spatial-scene-list","spatial-record-duration","spatial-record","spatial-paint","spatial-paint-material","spatial-paint-radius","spatial-paint-opacity","spatial-paint-color","spatial-pressure","spatial-undo","spatial-redo","spatial-voxel-export","spatial-voxel-import","spatial-boundary","spatial-thickness","spatial-texture-blend","spatial-seed","spatial-vegetation","spatial-canopy-flex","spatial-wind-direction","spatial-lightning-rate","spatial-urine-rate","spatial-blood-rate","spatial-rain-extinguish","spatial-time-scale","spatial-now-lightning","spatial-now-blood","spatial-now-urine","spatial-help","spatial-log"];
 function createEngineDOM(){if(document.getElementById("gl")&&document.getElementById("ov"))return;
 let c=document.getElementById("render-container");if(!c){c=document.createElement("div");
@@ -1096,7 +1098,7 @@ function uploadTex(unit,tex,w,h,data){ // data: Uint8Array RGBA oder Image/Canva
 }
 
 // =========================== Analyse-Pipeline ====================
-let sceneImg=null, matImg=null, ready=false;
+let sceneImg=null, sceneSource={kind:'UNKNOWN',label:null}, matImg=null, ready=false;
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
 let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
 let zoneGrid=null;                // K1: Gebäudezonen (1 = Fachwerk-Gebäude)
@@ -3565,6 +3567,7 @@ function loadImageFile(file,isMat){
     if(isMat){ matImg=img; setStatus('Material-Map geladen ('+img.width+'×'+img.height+'). Jetzt „Erstellen“.'); }
     else{
       sceneImg=img;
+      sceneSource={kind:'IMAGE_FILE',label:file.name||null};
       // Ein Zweitbild gehört IMMER zur Szene: neue Szene -> altes Overlay/Map
       // UND alte Tiefenkarte weg (sonst wird Bild B mit Daten von Bild A gerendert!)
       if(matImg){ matImg=null; const fm=document.getElementById('f-mat'); if(fm) fm.value=''; }
@@ -3587,7 +3590,7 @@ function loadImageFile(file,isMat){
       if(file.name&&/\.\w+$/.test(file.name)){
         const depthName=file.name.replace(/(\.\w+)$/,'_depth$1');
         const dImg=new Image();
-        dImg.onload=()=>setDepth(dImg,depthName+' (auto)');
+        dImg.onload=()=>setDepth(dImg,depthName+' (auto)','AUTO_COMPANION_FILE');
         dImg.onerror=()=>{};
         dImg.src=depthName;
 
@@ -3616,7 +3619,7 @@ document.getElementById('f-mat').onchange=e=>e.target.files[0]&&loadImageFile(e.
 // === 2.5D-Tiefenkarte (Unit 6) ===
 // CPU-Sample-Cache der Tiefenkarte (Weiß=nah/1, Schwarz=fern/0) für Partikel-Steuerung
 // (Schnee/Regen/Laub), damit sie ohne GPU-Readback pro Frame die Szenentiefe kennen.
-let depthSample=null; // {data, w, h}
+let depthSample=null; // {data, w, h, source}
 function getDepthAt(u,v){
   if(!depthSample) return null;
   const x=Math.max(0,Math.min(depthSample.w-1, (u*depthSample.w)|0));
@@ -3628,41 +3631,16 @@ function buildSpatialPointCloud(opt){
   if(!sceneImg) throw new Error('Keine Szene geladen.');
   if(!depthSample) throw new Error('Keine Tiefenkarte geladen. Lade eine *_depth.png Companion-Datei oder den Demo-Ort.');
   const srcW=depthSample.w, srcH=depthSample.h;
-  const step=Math.max(1, opt.step|0 || Math.ceil(Math.sqrt((srcW*srcH)/65000)));
-  const fov=((opt.fovDegrees||60)*Math.PI)/180;
-  const fx=srcW/(2*Math.tan(fov/2)), fy=fx, cx=srcW/2, cy=srcH/2;
   const cv=document.createElement('canvas'); cv.width=srcW; cv.height=srcH;
   const c=cv.getContext('2d',{willReadFrequently:true});
   c.drawImage(sceneImg,0,0,srcW,srcH);
   const rgba=c.getImageData(0,0,srcW,srcH).data;
-  const pts=[];
-  for(let y=0;y<srcH;y+=step)for(let x=0;x<srcW;x+=step){
-    const i=(y*srcW+x)*4;
-    const d=depthSample.data[i]/255;
-    if(d<0.02) continue;
-    // Companion-Konvention: weiß = nah. Für ein stabileres JSON liegt z in 0..1,
-    // wobei kleinere Werte weiter entfernt und größere näher sind.
-    const z=d;
-    pts.push({
-      x:((x-cx)*z/fx), y:((cy-y)*z/fy), z,
-      r:rgba[i], g:rgba[i+1], b:rgba[i+2],
-      size:0.006+0.010*z, alpha:0.35+0.55*z,
-      u:(x+.5)/srcW, v:(y+.5)/srcH,
-      pixelX:x, pixelY:y, gridX:Math.floor(x/step), gridY:Math.floor(y/step), step,
-      sourceIndex:pts.length,
-      material:ready?getMaterialTypeAt((x+.5)/srcW,(y+.5)/srcH):null,
-      confidence:z, synthesized:false, provenance:'OBSERVED'
-    });
-  }
-  return {
-    format:'SHADED.spatial-point-cloud.v1',
-    source:{w:sceneImg.width,h:sceneImg.height},
-    depth:{w:srcW,h:srcH, convention:'white-near'},
-    camera:{fovDegrees:opt.fovDegrees||60, fx, fy, cx, cy, step},
-    grid:{width:Math.ceil(srcW/step),height:Math.ceil(srcH/step),step},
-    productRule:'Single-image point clouds expose visible surfaces only; hidden backsides/disocclusions are not measured.',
-    points:pts
-  };
+  return buildRelativePointCloud({
+    rgba,depthRgba:depthSample.data,width:srcW,height:srcH,
+    sourceSize:{w:sceneImg.width,h:sceneImg.height},source:sceneSource,depthSource:depthSample.source,
+    step:opt.step,fovDegrees:opt.fovDegrees,
+    materialAt:ready?(u,v)=>getMaterialTypeAt(u,v):null
+  });
 }
 function downloadSpatialPointCloud(){
   try{
@@ -3672,10 +3650,10 @@ function downloadSpatialPointCloud(){
     a.download='SHADED_pointcloud_'+Date.now()+'.json';
     a.click();
     URL.revokeObjectURL(a.href);
-    setStatus(`🌌 PointCloud exportiert (${pc.points.length} Punkte, step ${pc.camera.step}).`);
+    setStatus(`🌌 POINTS exportiert (${pc.points.length}, relative Skala, Zuverlässigkeit unbekannt, keine Registrierung/Fusion).`);
   }catch(e){ setStatus('⚠️ PointCloud: '+e.message); }
 }
-function setDepth(img,label){
+function setDepth(img,label,sourceKind='EXTERNAL_API'){
   uploadTex(6,TEX.depth,0,0,img);
   hasDepth=true;
   const dc=document.createElement('canvas');
@@ -3683,8 +3661,10 @@ function setDepth(img,label){
   dc.width=dw; dc.height=dh;
   const dctx=dc.getContext('2d');
   dctx.drawImage(img,0,0,dw,dh);
-  depthSample={data:dctx.getImageData(0,0,dw,dh).data, w:dw, h:dh};
-  setStatus('Tiefenkarte geladen: '+(label||img.width+'×'+img.height)+' – Maus über der Szene schwenkt die Kamera.');
+  depthSample={data:dctx.getImageData(0,0,dw,dh).data,w:dw,h:dh,
+               source:{sourceKind,label:label||null,provider:'UNKNOWN',reliability:'UNKNOWN',
+                       originalSize:{w:img.width,h:img.height}}};
+  setStatus('Relative Tiefenkarte geladen: '+(label||img.width+'×'+img.height)+' · Provider und Zuverlässigkeit unbekannt.');
 }
 function clearDepth(){
   if(!hasDepth)return;
@@ -3697,7 +3677,7 @@ function clearDepth(){
 document.getElementById('f-depth').onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
   const img=new Image();
-  img.onload=()=>{ setDepth(img,f.name); URL.revokeObjectURL(img.src); };
+  img.onload=()=>{ setDepth(img,f.name,'USER_UPLOAD'); URL.revokeObjectURL(img.src); };
   img.src=URL.createObjectURL(f);
 };
 

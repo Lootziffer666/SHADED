@@ -295,7 +295,8 @@ export function fitGeometricPrimitives(points, options = {}) {
       primitive = { type: 'box', model: box, indices: component.slice(), rmse: box.rmse, coverage: 1 };
     }
     primitive.id = primitives.length;
-    primitive.confidence = clamp(primitive.coverage * Math.exp(-primitive.rmse / Math.max(globalBounds.diagonal * 0.02, EPS)), 0, 1);
+    primitive.fitScore = clamp(primitive.coverage * Math.exp(-primitive.rmse / Math.max(globalBounds.diagonal * 0.02, EPS)), 0, 1);
+    primitive.scoreKind = 'HEURISTIC_RESIDUAL_COVERAGE_SCORE';
     primitive.indices.forEach(index => { assigned[index] = 1; });
     primitives.push(primitive);
   }
@@ -331,7 +332,7 @@ function colourFromObserved(points, primitive, position, blend = 0.75) {
 
 function generatedPoint(points, primitive, position, blend) {
   const sample = colourFromObserved(points, primitive, position, blend);
-  return { x: position[0], y: position[1], z: position[2], r: sample.color[0], g: sample.color[1], b: sample.color[2], generated: true, synthesized: true, provenance: 'GENERATED', generationMethod: `primitive-${primitive.type}`, primitiveId: primitive.id, primitiveType: primitive.type, textureSources: sample.sources, textureWeights: sample.weights, confidence: primitive.confidence * 0.45 };
+  return { x: position[0], y: position[1], z: position[2], r: sample.color[0], g: sample.color[1], b: sample.color[2], generated: true, synthesized: true, provenance: 'GENERATED', generationMethod: `primitive-${primitive.type}`, primitiveId: primitive.id, primitiveType: primitive.type, textureSources: sample.sources, textureWeights: sample.weights, confidence: null, reliability: 'NOT_MEASURED', fitScore: primitive.fitScore, fitScoreKind: primitive.scoreKind };
 }
 
 function samplePlaneCompletion(points, primitive, options) {
@@ -407,7 +408,7 @@ export function completeMirroredShell(points, options = {}) {
     generated.push({
       ...point, z: backZ, r: point.r * shade, g: point.g * shade, b: point.b * shade,
       generated: true, synthesized: true, provenance: 'GENERATED', generationMethod: 'mirrored-structural-shell',
-      textureSources: [sourceIndex], textureWeights: [1], confidence: clamp((point.confidence || 0.5) * 0.3, 0.05, 0.3)
+      textureSources: [sourceIndex], textureWeights: [1], confidence: null, reliability: 'NOT_MEASURED'
     });
     const key = pointGridKey(point), gx = Number.isFinite(point.gridX) ? point.gridX : point.pixelX, gy = Number.isFinite(point.gridY) ? point.gridY : point.pixelY;
     if (!key || [[-1,0],[1,0],[0,-1],[0,1]].every(([dx,dy]) => lookup.has((gx + dx) + ':' + (gy + dy)))) continue;
@@ -417,7 +418,7 @@ export function completeMirroredShell(points, options = {}) {
       generated.push({
         ...point, z: point.z + (backZ - point.z) * t, r: point.r * (1 - t * 0.32), g: point.g * (1 - t * 0.32), b: point.b * (1 - t * 0.32),
         generated: true, synthesized: true, provenance: 'GENERATED', generationMethod: 'mirrored-structural-sidewall',
-        textureSources: [sourceIndex], textureWeights: [1], confidence: clamp((point.confidence || 0.5) * 0.25, 0.04, 0.25)
+        textureSources: [sourceIndex], textureWeights: [1], confidence: null, reliability: 'NOT_MEASURED'
       });
     }
   }
@@ -431,7 +432,7 @@ export function buildSpatialEnvironment(sourcePoints, options = {}) {
   // Leave a guaranteed walkable band between the reconstructed scene and the
   // procedural boundary ring.
   const scale = maximum ? 0.62 / maximum : 1;
-  const observed = sourcePoints.map((p, index) => ({ ...p, x: p.x * scale, y: p.y * scale, z: (p.z - 0.5) * scale, sourceIndex: p.sourceIndex ?? index, generated: false, synthesized: false, provenance: 'OBSERVED' }));
+  const observed = sourcePoints.map((p, index) => ({ ...p, x: p.x * scale, y: p.y * scale, z: (p.z - 0.5) * scale, sourceIndex: p.sourceIndex ?? index, generated: false, synthesized: false, provenance: p.provenance || 'OBSERVED' }));
   const vertical = observed.map(point => point.y).sort((a, b) => a - b), floorY = vertical[Math.min(vertical.length - 1, Math.floor(vertical.length * 0.08))];
   const fitted = fitGeometricPrimitives(observed, options), primitiveCompletion = completeFromPrimitives(observed, fitted.primitives, options);
   const mirroredCompletion = options.mirrorShell === false ? [] : completeMirroredShell(observed, options), generated = [...primitiveCompletion, ...mirroredCompletion], allBounds = pointBounds([...observed, ...generated]);

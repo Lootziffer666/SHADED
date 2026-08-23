@@ -90,18 +90,18 @@ function blockCell(grid, x, z, material) {
 
 function addTree(points, x, z, treeId, canopyFlex) {
   const trunkHeight = 0.48 + 0.08 * Math.sin(treeId * 1.7), trunkTop = -0.31 + trunkHeight;
-  for (let y = -0.31; y <= trunkTop; y += 0.035) points.push({x, y, z, r: 91, g: 58, b: 34, kind: 2, treeId, branchId: 0, generated: true, provenance: 'GENERATED', confidence: 0.25});
+  for (let y = -0.31; y <= trunkTop; y += 0.035) points.push({x, y, z, r: 91, g: 58, b: 34, kind: 2, treeId, branchId: 0, generated: true, provenance: 'GENERATED', confidence: null, reliability: 'NOT_MEASURED'});
   const bendKind = canopyFlex < 0.25 ? 20 : canopyFlex < 0.7 ? 21 : 22;
   for (let branch = 0; branch < 7; branch++) {
     const angle = branch / 7 * Math.PI * 2 + treeId * 0.73, elevation = -0.08 + (branch % 3) * 0.055, branchLength = 0.12 + (branch % 2) * 0.04;
     let tip = [x, trunkTop - 0.08 + branch * 0.012, z];
     for (let segment = 1; segment <= 5; segment++) {
       const t = segment / 5; tip = [x + Math.cos(angle) * branchLength * t, trunkTop - 0.08 + branch * 0.012 + elevation * t, z + Math.sin(angle) * branchLength * t];
-      points.push({x: tip[0], y: tip[1], z: tip[2], r: 104, g: 67, b: 38, kind: bendKind, treeId, branchId: branch + 1, parentBranchId: 0, generated: true, provenance: 'GENERATED', confidence: 0.25});
+      points.push({x: tip[0], y: tip[1], z: tip[2], r: 104, g: 67, b: 38, kind: bendKind, treeId, branchId: branch + 1, parentBranchId: 0, generated: true, provenance: 'GENERATED', confidence: null, reliability: 'NOT_MEASURED'});
     }
     for (let leaf = 0; leaf < 9; leaf++) {
       const phi = leaf / 9 * Math.PI * 2, radius = 0.035 + (leaf % 2) * 0.012;
-      points.push({x: tip[0] + Math.cos(phi) * radius, y: tip[1] + Math.sin(phi * 2) * 0.026, z: tip[2] + Math.sin(phi) * radius, r: 38, g: 128, b: 67, kind: bendKind, treeId, branchId: branch + 1, parentBranchId: branch + 1, generated: true, provenance: 'GENERATED', confidence: 0.25});
+      points.push({x: tip[0] + Math.cos(phi) * radius, y: tip[1] + Math.sin(phi * 2) * 0.026, z: tip[2] + Math.sin(phi) * radius, r: 38, g: 128, b: 67, kind: bendKind, treeId, branchId: branch + 1, parentBranchId: branch + 1, generated: true, provenance: 'GENERATED', confidence: null, reliability: 'NOT_MEASURED'});
     }
   }
 }
@@ -109,7 +109,7 @@ function addTree(points, x, z, treeId, canopyFlex) {
 function addRock(points, x, z, rockId) {
   for (let latitude = 0; latitude <= 5; latitude++) for (let longitude = 0; longitude < 10; longitude++) {
     const phi = latitude / 5 * Math.PI, theta = longitude / 10 * Math.PI * 2, warp = 0.85 + 0.15 * Math.sin(theta * 3 + rockId);
-    points.push({x: x + Math.sin(phi) * Math.cos(theta) * 0.12 * warp, y: -0.31 + (1 - Math.cos(phi)) * 0.075, z: z + Math.sin(phi) * Math.sin(theta) * 0.09 * warp, r: 91, g: 101, b: 116, kind: 3, rockId, generated: true, provenance: 'GENERATED', confidence: 0.25});
+    points.push({x: x + Math.sin(phi) * Math.cos(theta) * 0.12 * warp, y: -0.31 + (1 - Math.cos(phi)) * 0.075, z: z + Math.sin(phi) * Math.sin(theta) * 0.09 * warp, r: 91, g: 101, b: 116, kind: 3, rockId, generated: true, provenance: 'GENERATED', confidence: null, reliability: 'NOT_MEASURED'});
   }
 }
 
@@ -135,7 +135,7 @@ export function buildWorldLawPoints(grid, params = {}) {
     const index = z * grid.size + x; if (grid.cells[index]) continue;
     const value = grid.fields?.waterVolume?.[index] ?? water, basin = (Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
     if (value < 0.04 && Math.abs(basin) > water * 0.38) continue;
-    points.push({x: cellToWorld(x, grid.size), y: -0.31, z: cellToWorld(z, grid.size), r: 45, g: 132, b: 190, kind: 1, generated: true, provenance: 'GENERATED', confidence: 0.5, size: Math.max(value, water * 0.2)});
+    points.push({x: cellToWorld(x, grid.size), y: -0.31, z: cellToWorld(z, grid.size), r: 45, g: 132, b: 190, kind: 1, generated: true, provenance: 'GENERATED', confidence: null, reliability: 'NOT_MEASURED', size: Math.max(value, water * 0.2)});
   }
   return points;
 }
