@@ -8,6 +8,10 @@ RGB-Einzelbild plus **genau ein** metrischer Anker.
 python3 tools/single_view_room.py content/raum/messehalle.png   # -> .room.json
 python3 tools/room_to_assets.py content/raum/messehalle.room.json
 #   -> _depth.png  .pointcloud.json  -overlay.png  .hall.json
+
+# Anker wählen (Vorgabe: decke -- siehe "Zwei Anker" unten) und mehrere
+# Fotos nacheinander messen, einzeln aufgezählt oder als Verzeichnis:
+python3 tools/single_view_room.py --anker-quelle decke --anker-m 0.60 content/raum/
 ```
 
 ## Warum kein Schätznetz
@@ -38,6 +42,7 @@ sie läuft ohne Modellgewichte und ohne GPU.
 | **Spiegelprobe** | Deckenhöhe `hc/h` = 0,276 | zwei Bänder unabhängig, 5 % Abweichung |
 | Stützen im Wandband | Breite, Reihen | Reihenstreuung 0,021 / 0,040 bei X/h ≈ −1,91 / +1,18 |
 | Bodenraster (Autokorrelation + Spektrum) | Brennweite | 968 px → 70° Bildwinkel |
+| Deckenraster (Autokorrelation, seitlich) | Kassetten-/Trägerteilung | Korrelation 0,51 (Boden zum Vergleich: 0,44) |
 
 ### Die Spiegelprobe
 
@@ -81,18 +86,46 @@ nachweislich falsch: es ergäbe 28° Bildwinkel, bei dem die Decke nicht mehr ü
 der Kamera stünde. Sie steht dort. Die verbleibende Bandbreite plausibler
 Brennweiten steht als `f_bandbreite_px` im Modell (876 … 1244 px).
 
-## Ergebnis (Anker: Fliese 0,60 m)
+## Zwei Anker, eine Rekonstruktion
+
+Zwei Flächen im Bild tragen je ein eigenes, unabhängig gemessenes
+"je Kamerahöhe"-Verhältnis: `bodenraster()` (Autokorrelation über die
+sichtbaren Bodenplatten) und `deckenraster()` (dieselbe Autokorrelation über
+die Kassetten-/Trägerfugen der Decke, mit den Leuchtbändern ausmaskiert,
+weil sie um ein Vielfaches heller sind als jede Fuge). Beide Verhältnisse
+sind `MEASURED`; welche der beiden Flächen die deklarierte Länge trägt, ist
+eine Sachfrage vor Ort, keine Rechnung.
+
+**Ursprünglich stand hier die Bodenfliese als Anker (0,60 m).** Das war
+falsch — nicht als Rechnung, sondern als Zuordnung: am Referenzfoto sind die
+Bodenplatten großformatig, das feine ~60-cm-Fugenraster sitzt an der Decke.
+`--anker-quelle` steht deshalb jetzt auf `decke`.
+
+## Ergebnis (Anker: Deckenraster 0,60 m)
 
 | | |
 |---|---|
-| Kamerahöhe | **1,75 m** — Augenhöhe, also widerspricht der Anker sich nicht selbst |
-| lichte Höhe | 2,23 m |
-| Rückwand | 16,4 m |
-| Stützen | 0,26 m, Reihen bei X = −3,35 m und +2,06 m, Joch 1,87 m |
-| Leuchtbänder | Teilung 1,80 m = genau 3 Fliesen |
+| Kamerahöhe | 2,10 m |
+| lichte Höhe | 2,68 m |
+| Rückwand | 19,7 m |
+| Stützen | 0,31 m, Joch 2,25 m |
+| Leuchtbänder | Teilung 2,15 m |
+| Gegenprobe: Bodenfliese | 0,72 m — größer als der Deckenanker, passt zur Beobachtung "Bodenkacheln riesig" |
 
-Der Anker skaliert die Halle, nicht ihre Form. Wer 0,80 m einsetzt, bekommt
-dieselbe Halle ein Drittel größer.
+Der Anker skaliert die Halle, nicht ihre Form. Wer ihn ändert, bekommt
+dieselbe Halle größer oder kleiner — die Gegenprobe-Zeile zeigt, was die
+JEWEILS ANDERE Fläche unter dem gewählten Anker messen müsste; das ist eine
+Plausibilitätsprüfung am Foto, kein Beweis.
+
+**Offener Widerspruch, nicht stillschweigend geglättet:** BEUTELTIERs
+`site.json` führt für Halle 10.1 `clearHeightM: 5.7` mit
+`heightSource: "official"`. Diese Messung ergibt 2,68 m lichte Höhe — Faktor
+~2,1 daneben. Einer von drei Fällen liegt vor: das Foto zeigt nicht dieselbe
+Zone in voller Hallenhöhe (Halle 10 hat mehrere Ebenen, siehe `10.2` mit
+`floorElevationMinM: 7.2`), der 0,60-m-Anker ist selbst noch ungenau, oder
+BEUTELTIERs Wert ist für diese Fläche nicht zutreffend. Keine dieser drei
+Möglichkeiten wird hier entschieden — dafür fehlt eine zweite, unabhängige
+Quelle (ein Türmaß, eine amtliche Vermessung vor Ort).
 
 ## Was nicht messbar ist
 

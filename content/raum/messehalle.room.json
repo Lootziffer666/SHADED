@@ -126,6 +126,14 @@
       "streuung_zwischen_baendern": 0.0005540964007092197,
       "abweichung_der_beiden_verfahren_prozent": 6.35012767785409
     },
+    "deckenraster": {
+      "gitterbreite_je_h": 0.28617900329844304,
+      "phase_seite_k": 0.07726833089057962,
+      "korrelation_seite": 0.50792833840822,
+      "nebengipfel_seite": [],
+      "annahme": "keine -- reine Seitenmessung, kein Quadrat vorausgesetzt",
+      "provenienz": "MEASURED"
+    },
     "stuetzen": {
       "anzahl": 9,
       "liste": [
@@ -358,11 +366,14 @@
       "bildwinkel_senkrecht_grad": 70.45954456048797
     },
     "massstab": {
-      "anker": "Bodenfliese (Kantenlaenge)",
+      "anker": "Deckenraster (Kassetten-/Traegerteilung)",
+      "anker_quelle": "decke",
       "anker_m": 0.6,
-      "kamerahoehe_m": 1.7499571279808337,
+      "kamerahoehe_m": 2.096589872368405,
       "hinweis": "Ein Einzelbild kennt keine Meter. Alle Verhaeltnisse sind gemessen; genau diese eine Laenge ist gesetzt. Wer sie aendert, skaliert die ganze Halle -- ihre Form bleibt unberuehrt.",
-      "gegenprobe": "Aus einem 0,60-m-Modul faellt eine Kamerahoehe von rund 1,7 m -- Augenhoehe. Der Anker widerspricht sich also nicht selbst.",
+      "gegenprobe_kamerahoehe": "Kamerahoehe 2.10 m -- plausibel, wenn sie in Augenhoehe oder erhoehtem Stativ liegt.",
+      "gegenprobe_andere_flaeche_m": 0.7188484239454012,
+      "gegenprobe_andere_flaeche_hinweis": "Unter diesem Anker waere die Bodenfliese 0.72 m breit -- pruefen, ob das zum Foto passt.",
       "provenienz": "DECLARED"
     },
     "raum_je_kamerahoehe": {
@@ -374,17 +385,19 @@
       "stuetzenbreite": 0.14876975771701414,
       "stuetzen_jochteilung": 1.0711732180724274,
       "fliesenmodul": 0.3428655424789192,
+      "deckengittermodul": 0.28617900329844304,
       "brennweite_px": 967.7656440937235
     },
     "raum_meter": {
-      "lichte_hoehe_m": 2.232793307853186,
-      "rueckwand_tiefe_m": 16.41422925182318,
-      "stuetzenreihen_abstand_m": 5.404203065321829,
-      "stuetzenbreite_m": 0.2603406979448705,
-      "stuetzen_jochteilung_m": 1.8745072082680123,
-      "fliesenmodul_m": 0.6,
-      "kamerahoehe_m": 1.7499571279808337,
-      "leuchtband_teilung_m": 1.796888641784172
+      "lichte_hoehe_m": 2.6750665839101693,
+      "rueckwand_tiefe_m": 19.66557137991932,
+      "stuetzenreihen_abstand_m": 6.474671426979171,
+      "stuetzenbreite_m": 0.3119091673441932,
+      "stuetzen_jochteilung_m": 2.245810920562924,
+      "fliesenmodul_m": 0.7188484239454012,
+      "deckengittermodul_m": 0.6,
+      "kamerahoehe_m": 2.096589872368405,
+      "leuchtband_teilung_m": 2.152817613586574
     },
     "nicht_messbar": [
       "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; seitlich geht der Raum weiter, als das Bild zeigt.",
