@@ -1,0 +1,55 @@
+{
+  "format": "SHADED.hall-plan.v1",
+  "einheit": "m",
+  "herkunft": {
+    "provider": "SingleViewRoomProvider",
+    "quelle": "image-1787681391070.jpg",
+    "sha256": "1aa2e5d6c4a5bf0015068a9413906ef858ce41b8f6a019b71d70cacb97a74ec6"
+  },
+  "kamera": {
+    "hoehe_m": 1.8002943405335183,
+    "f_px": 277.1281292110204,
+    "hauptpunkt_px": [
+      42.369555394604326,
+      356.5120983921786
+    ],
+    "bildgroesse_px": [
+      320,
+      480
+    ],
+    "blick": "entlang +Z, waagerecht, ohne Rollung"
+  },
+  "raum": {
+    "boden_y_m": 0.0,
+    "decke_y_m": -1.2177378597967188,
+    "rueckwand_z_m": -3.8227276150449265,
+    "breite_m": null
+  },
+  "boden": {
+    "fliese_m": 0.0
+  },
+  "stuetzen": {
+    "breite_m": 0.0,
+    "reihen_x_m": [],
+    "jochteilung_z_m": 0.0,
+    "positionen_xz_m": []
+  },
+  "leuchtbaender": {
+    "x_m": [],
+    "teilung_m": 1.8002943405335183,
+    "hoehe_y_m": -1.2177378597967188
+  },
+  "nicht_gemessen": [
+    "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; seitlich geht der Raum weiter, als das Bild zeigt.",
+    "Alles hinter der Rueckwand und hinter den Stuetzen (Einzelbild, keine Rueckseiten).",
+    "Der absolute Massstab -- dafuer steht der deklarierte Anker.",
+    "Die Brennweite ohne Formaussage: jede Brennweite bildet sich exakt auf das Ausgangsbild zurueck. Gewaehlt wurde die quadratische Bodenfliese; das quadratische Stuetzenjoch schied aus, es ergaebe 28 Grad Bildwinkel."
+  ],
+  "guete": {
+    "fluchtpunkt_restfehler_px": 0.7268656307053387,
+    "wandfuge_restfehler_px": 4.402565814610711,
+    "spiegelprobe_abweichung_prozent": null,
+    "stuetzenreihen_streuung_je_h": [],
+    "brennweite_bandbreite_px": []
+  }
+}

@@ -27,9 +27,29 @@ from PIL import Image, ImageDraw
 
 
 def modell_laden(pfad):
+    """Laedt ein .room.json in metrische Groessen.
+
+    single_view_room.py liefert seit der INFERRED-Erweiterung nicht mehr
+    garantiert lauter Zahlen -- ein Feld, das nicht gemessen werden konnte,
+    steht als None im Bericht, statt den ganzen Lauf abzubrechen. Fehlende
+    Werte werden hier durch dokumentierte 0-Platzhalter ersetzt: das
+    entfernt die Struktur, die nicht gemessen wurde (keine Stuetzen im Feld,
+    kein Fliesenmuster), erfindet aber keine Zahl. Der Punktwolke/Tiefen-
+    Erzeugung darunter reicht das, um trotzdem zu laufen -- die Herkunft
+    jedes Felds steht bereits ehrlich im .room.json selbst.
+    """
     m = json.load(open(pfad))
     b = m["messung"]
+
+    def g(x, default=0.0):
+        return default if x is None else x
+
     h = b["massstab"]["kamerahoehe_m"]
+    if h is None:
+        # Kein Anker trug -- ohne Kamerahoehe gibt es keine Meter, nur Pixel.
+        # 1.0 m ist ein dokumentierter Notbehelf (keine Messung), damit
+        # wenigstens eine Geometrie in EINER Einheit entsteht.
+        h = 1.0
     return {
         "quelle": m["quelle"],
         "ppx": b["hauptpunkt"]["x"],
@@ -37,16 +57,16 @@ def modell_laden(pfad):
         "f": b["bodenraster"]["f_px"],
         "h": h,                                     # Kamerahoehe ueber Boden
         "hc": b["deckenhoehe_je_kamerahoehe"]["wert"] * h,   # Decke ueber Kamera
-        "z_wand": b["raum_je_kamerahoehe"]["rueckwand_tiefe"] * h,
-        "fliese": b["bodenraster"]["fliesenbreite_je_h"] * h,
-        "fliese_phase_x": b["bodenraster"]["phase_seite_k"] * h,
-        "fliese_phase_b": b["bodenraster"]["phase_tiefe_b"],
-        "st_breite": b["raster"]["stuetzenbreite_je_h"] * h,
+        "z_wand": g(b["raum_je_kamerahoehe"]["rueckwand_tiefe"]) * h,
+        "fliese": g(b["bodenraster"]["fliesenbreite_je_h"]) * h,
+        "fliese_phase_x": g(b["bodenraster"]["phase_seite_k"]) * h,
+        "fliese_phase_b": g(b["bodenraster"]["phase_tiefe_b"]),
+        "st_breite": g(b["raster"]["stuetzenbreite_je_h"]) * h,
         "st_reihen": [x * h for x in b["raster"]["reihen_x_je_h"]],
-        "st_joch": b["bodenraster"]["f_px"] * b["raster"]["tiefenteilung_1_durch_v"] * h,
+        "st_joch": b["bodenraster"]["f_px"] * g(b["raster"]["tiefenteilung_1_durch_v"]) * h,
         "stuetzen": b["stuetzen"]["liste"],
         "baender": [bb["x_je_h"] * h for bb in b["leuchtbaender"]["liste"]],
-        "band_teilung": b["leuchtbaender"].get("teilung_je_h", 1.0) * h,
+        "band_teilung": g(b["leuchtbaender"].get("teilung_je_h"), 1.0) * h,
         "messung": b,
     }
 
@@ -197,26 +217,31 @@ def overlay(M, bildpfad, pfad):
 
     GELB, ROT, CYAN, GRUEN = (255, 210, 40), (255, 70, 70), (60, 220, 255), (120, 255, 120)
 
-    # Bodenfugen -- laengs und quer
+    # Bodenfugen -- laengs und quer. Reine Sichtbeweis-Overlaylinien; ohne
+    # gemessenes Bodenraster (m<=0, sb None/0 -- der INFERRED-Fall) gibt es
+    # kein Fugenmuster zu zeichnen, statt durch 0 zu teilen oder endlos zu
+    # laufen (bval bliebe bei sb=0 fuer immer konstant).
     m = M["fliese"]
-    nx = int(6.0 / m) + 1
-    for i in range(-nx, nx + 1):
-        X = i * m + M["fliese_phase_x"]
-        strecke((X, -h, 1.2), (X, -h, M["z_wand"]), GELB, 1)
-    # Querfugen liegen in 1/v aequidistant, nicht in Z -- so werden sie erzeugt
-    bb0 = M["fliese_phase_b"]
     sb = M["messung"]["bodenraster"]["fliesentiefe_1_durch_v"]
-    n = 1
-    while True:
-        bval = bb0 + n * sb
-        if bval <= 0:
-            n += 1; continue
-        zq = M["h"] * M["f"] * bval     # Z = f*h/v  mit  b = 1/v
-        if zq > M["z_wand"]:
-            break
-        if zq > 1.2:
-            strecke((-nx * m, -h, zq), (nx * m, -h, zq), GELB, 1)
-        n += 1
+    if m > 0:
+        nx = int(6.0 / m) + 1
+        for i in range(-nx, nx + 1):
+            X = i * m + M["fliese_phase_x"]
+            strecke((X, -h, 1.2), (X, -h, M["z_wand"]), GELB, 1)
+        # Querfugen liegen in 1/v aequidistant, nicht in Z -- so werden sie erzeugt
+        if sb:
+            bb0 = M["fliese_phase_b"]
+            n = 1
+            while True:
+                bval = bb0 + n * sb
+                if bval <= 0:
+                    n += 1; continue
+                zq = M["h"] * M["f"] * bval     # Z = f*h/v  mit  b = 1/v
+                if zq > M["z_wand"]:
+                    break
+                if zq > 1.2:
+                    strecke((-nx * m, -h, zq), (nx * m, -h, zq), GELB, 1)
+                n += 1
     # Rueckwand
     strecke((-6, -h, M["z_wand"]), (6, -h, M["z_wand"]), ROT, 3)
     strecke((-6, hc, M["z_wand"]), (6, hc, M["z_wand"]), ROT, 3)
