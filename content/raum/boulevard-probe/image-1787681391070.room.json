@@ -1,0 +1,176 @@
+{
+  "format": "SHADED.single-view-room.v1",
+  "provider": "SingleViewRoomProvider",
+  "version": "1.0.0",
+  "quelle": {
+    "datei": "image-1787681391070.jpg",
+    "sha256": "1aa2e5d6c4a5bf0015068a9413906ef858ce41b8f6a019b71d70cacb97a74ec6",
+    "breite": 320,
+    "height": 480
+  },
+  "koordinaten": "Rechtssystem. Ursprung = Kamera. X rechts, Y oben, Z in die Halle. Der Boden liegt bei Y = -Kamerahoehe.",
+  "messung": {
+    "fluchtpunkt": {
+      "x": 42.369555394604326,
+      "y": 356.5120983921786,
+      "linien_gesamt": 50,
+      "linien_tragend": 11,
+      "restfehler_px": 0.7268656307053387,
+      "provenienz": "MEASURED"
+    },
+    "hauptpunkt": {
+      "x": 42.369555394604326,
+      "y": 356.5120983921786,
+      "begruendung": "Quer- und Senkrechtlinien sind im Bild parallel; damit steht die Bildebene parallel zu Raum-X und Raum-Y und der Hauptpunkt faellt mit dem Fluchtpunkt zusammen. Das Bild ist ein Ausschnitt.",
+      "querlinien_winkelstreuung_grad": 87.36130752145334,
+      "bildmitte": [
+        160.0,
+        240.0
+      ],
+      "versatz_zur_bildmitte_px": [
+        -117.63044460539567,
+        116.51209839217859
+      ],
+      "provenienz": "MEASURED"
+    },
+    "wand_boden_fuge": {
+      "y": 226.0,
+      "v": -130.5120983921786,
+      "stuetzstellen": 4,
+      "neigung_px_je_breite": -1.8153034300791746,
+      "restfehler_px": 4.402565814610711,
+      "provenienz": "MEASURED"
+    },
+    "wand_decken_fuge": {
+      "y": 137.72025607403094,
+      "v": -218.79184231814764,
+      "provenienz": "MEASURED"
+    },
+    "deckenhoehe_je_kamerahoehe": {
+      "wert": -1.6764104248841005,
+      "lichte_raumhoehe_je_kamerahoehe": -0.6764104248841005,
+      "quelle": "wandkante",
+      "provenienz": "MEASURED"
+    },
+    "leuchtbaender": {
+      "anzahl": 0,
+      "liste": [],
+      "provenienz": "MEASURED"
+    },
+    "spiegelprobe": {
+      "erklaerung": "Ein Leuchtband in der Hoehe hc hat im Boden ein Spiegelbild in der scheinbaren Tiefe 2h+hc. Aus der Lage des angetroffenen Glanzstreifens faellt hc zurueck. Das misst ueber die volle Bildhoehe statt ueber die wenigen weichen Pixel der Wandoberkante -- darum fuehrt dieser Wert.",
+      "proben": [],
+      "hc_je_h_aus_spiegelung": null,
+      "hc_je_h_aus_wandkante": -1.6764104248841005,
+      "streuung_zwischen_baendern": null,
+      "abweichung_der_beiden_verfahren_prozent": null
+    },
+    "deckenraster": {
+      "gitterbreite_je_h": 0.33327883473887365,
+      "phase_seite_k": 0.27495503865957077,
+      "korrelation_seite": 0.5153812178178395,
+      "nebengipfel_seite": [
+        [
+          0.36,
+          0.49620728734121367
+        ]
+      ],
+      "annahme": "keine -- reine Seitenmessung, kein Quadrat vorausgesetzt",
+      "provenienz": "MEASURED"
+    },
+    "stuetzen": {
+      "anzahl": 2,
+      "liste": [
+        {
+          "x_links": 20.15109889251373,
+          "x_rechts": 40.38140910628401,
+          "x_mitte": 30.26625399939887,
+          "fuss_y": 197,
+          "v": -159.5120983921786,
+          "breite_px": 20.23031021377028,
+          "breite_je_h": -0.12682618069528348,
+          "x_je_h": 0.07587701194581566
+        },
+        {
+          "x_links": 47.95630171817869,
+          "x_rechts": 57.911635538578516,
+          "x_mitte": 52.93396862837861,
+          "fuss_y": 197,
+          "v": -159.5120983921786,
+          "breite_px": 9.955333820399822,
+          "breite_je_h": -0.06241115201132584,
+          "x_je_h": -0.06622954208652232
+        }
+      ],
+      "provenienz": "MEASURED"
+    },
+    "raster": {
+      "reihenabstand_je_h": null,
+      "reihen_x_streuung": [],
+      "tiefenteilung_1_durch_v": null,
+      "reihen_x_je_h": [],
+      "reihenabstand_streuung": null,
+      "ordnungszahlen_je_reihe": [],
+      "stuetzenbreite_je_h": null,
+      "reihen_besetzung": [],
+      "provenienz": "INFERRED",
+      "hinweis": "Kein Stuetzenraster bestimmbar (zu wenige Stuetzen oder keine Reihenstruktur)."
+    },
+    "bodenraster": {
+      "fliesenbreite_je_h": null,
+      "fliesentiefe_1_durch_v": null,
+      "phase_seite_k": null,
+      "phase_tiefe_b": null,
+      "korrelation_seite": null,
+      "korrelation_tiefe": null,
+      "f_px": 277.1281292110204,
+      "f_bandbreite_px": [],
+      "nebengipfel_seite": [],
+      "nebengipfel_tiefe": [],
+      "annahme": "60 Grad horizontales Blickfeld (SHADED-Standardannahme)",
+      "provenienz": "INFERRED",
+      "hinweis": "Kein Bodenraster gefunden -- Brennweite aus Standard-Blickfeld, nicht gemessen.",
+      "bildwinkel_senkrecht_grad": 76.15863223876568
+    },
+    "massstab": {
+      "anker": "Deckenraster (Kassetten-/Traegerteilung)",
+      "anker_quelle": "decke",
+      "anker_m": 0.6,
+      "kamerahoehe_m": 1.8002943405335183,
+      "hinweis": "Ein Einzelbild kennt keine Meter. Alle Verhaeltnisse sind gemessen; genau diese eine Laenge ist gesetzt. Wer sie aendert, skaliert die ganze Halle -- ihre Form bleibt unberuehrt.",
+      "gegenprobe_kamerahoehe": "Kamerahoehe 1.80 m -- plausibel, wenn sie in Augenhoehe oder erhoehtem Stativ liegt.",
+      "gegenprobe_andere_flaeche_m": null,
+      "gegenprobe_andere_flaeche_hinweis": null,
+      "provenienz": "DECLARED"
+    },
+    "raum_je_kamerahoehe": {
+      "bodenhoehe": -1.0,
+      "deckenhoehe": -1.6764104248841005,
+      "lichte_hoehe": -0.6764104248841005,
+      "rueckwand_tiefe": -2.1233903417771445,
+      "stuetzenreihen_abstand": null,
+      "stuetzenbreite": null,
+      "stuetzen_jochteilung": null,
+      "fliesenmodul": null,
+      "deckengittermodul": 0.33327883473887365,
+      "brennweite_px": 277.1281292110204
+    },
+    "raum_meter": {
+      "lichte_hoehe_m": -1.2177378597967188,
+      "rueckwand_tiefe_m": -3.8227276150449265,
+      "stuetzenreihen_abstand_m": null,
+      "stuetzenbreite_m": null,
+      "stuetzen_jochteilung_m": null,
+      "fliesenmodul_m": null,
+      "deckengittermodul_m": 0.6,
+      "kamerahoehe_m": 1.8002943405335183,
+      "leuchtband_teilung_m": null
+    },
+    "nicht_messbar": [
+      "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; seitlich geht der Raum weiter, als das Bild zeigt.",
+      "Alles hinter der Rueckwand und hinter den Stuetzen (Einzelbild, keine Rueckseiten).",
+      "Der absolute Massstab -- dafuer steht der deklarierte Anker.",
+      "Die Brennweite ohne Formaussage: jede Brennweite bildet sich exakt auf das Ausgangsbild zurueck. Gewaehlt wurde die quadratische Bodenfliese; das quadratische Stuetzenjoch schied aus, es ergaebe 28 Grad Bildwinkel."
+    ]
+  }
+}

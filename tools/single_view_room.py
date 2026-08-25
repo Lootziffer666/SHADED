@@ -68,6 +68,38 @@ VERSION = "1.0.0"
 MEASURED = "MEASURED"
 RECONSTRUCTED = "RECONSTRUCTED"
 DECLARED = "DECLARED"
+# Wie in shaded_provider_common.write_result: ein Platzhalter, wo eine echte
+# Messung nicht gelang. Nie mit MEASURED verwechselbar -- jedes INFERRED-Feld
+# traegt einen "hinweis", der sagt, welche Annahme an die Stelle der Messung trat.
+INFERRED = "INFERRED"
+
+
+def _opt(x):
+    """float(x) wenn x nicht None ist, sonst None -- fuer Felder, die nach
+    einem INFERRED-Fallback fehlen duerfen, ohne den Rest des Berichts
+    zum Absturz zu bringen."""
+    return None if x is None else float(x)
+
+# Referenzmasse von content/raum/messehalle.png (1103x1426), an denen die
+# urspruengliche Messkette entwickelt und kalibriert wurde. Jede vormals
+# absolute Pixelgrenze im Modul ist eine Bruchzahl dieser beiden Werte --
+# so bleibt jede Suchregion an demselben Bildausschnitt verankert, auch
+# wenn ein anderes Foto eine andere Aufloesung oder einen anderen
+# Seitenschnitt hat. Ohne diese Umrechnung sucht z.B. die Stuetzenerkennung
+# in der falschen Bildhaelfte, sobald ein Foto nicht 1103x1426 ist --
+# genau das Symptom, an dem `Stuetzenraster nicht bestimmbar` haengt.
+_REF_H = 1426.0
+_REF_W = 1103.0
+
+
+def _refy(px, H):
+    """Pixel-y aus der Referenzhoehe (1426) auf die tatsaechliche Bildhoehe H."""
+    return int(round(px / _REF_H * H))
+
+
+def _refx(px, W):
+    """Pixel-x aus der Referenzbreite (1103) auf die tatsaechliche Bildbreite W."""
+    return int(round(px / _REF_W * W))
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +143,12 @@ class Linienfeld:
     def __init__(self, mag, schwelle=0.9):
         self.mag = mag
         self.H, self.W = mag.shape
+        # Flaechenbasierter Skalenfaktor gegen das Referenzbild -- linear in
+        # Pixellaengen (Wurzel aus dem Flaechenverhaeltnis), damit Toleranzen
+        # in Pixeln (Bandbreite, Nachbarunterdrueckung) unabhaengig von
+        # Seitenverhaeltnis und Aufloesung an derselben SICHTBAREN Groesse
+        # bleiben wie am Referenzbild.
+        self.skala = math.sqrt((self.H * self.W) / (_REF_H * _REF_W))
         ys, xs = np.nonzero(mag > schwelle)
         self.P = np.vstack([xs, ys]).T.astype(np.float64)
         self.w = mag[ys, xs]
@@ -131,15 +169,22 @@ class Linienfeld:
         k = np.array([1.0, 2, 3, 2, 1]); k /= k.sum()
         acc = np.apply_along_axis(lambda a: np.convolve(a, k, "same"), 1, acc)
         out, A = [], acc.copy()
+        # Nachbarunterdrueckung auf der rho-Achse ist eine Pixeldistanz und
+        # skaliert mit; die theta-Achse ist gradbasiert und bleibt unveraendert.
+        sup_rho = max(4, int(round(14 * self.skala)))
         for _ in range(n_spitzen):
             idx = np.unravel_index(np.argmax(A), A.shape)
             if A[idx] <= 0:
                 break
             out.append((th[idx[0]], idx[1] - diag))
-            A[max(0, idx[0] - 8):idx[0] + 9, max(0, idx[1] - 14):idx[1] + 15] = 0
+            A[max(0, idx[0] - 8):idx[0] + 9, max(0, idx[1] - sup_rho):idx[1] + sup_rho + 1] = 0
         return out
 
-    def verfeinern(self, theta, rho, bereich, band=3.0, runden=4, minpix=60):
+    def verfeinern(self, theta, rho, bereich, band=None, runden=4, minpix=None):
+        if band is None:
+            band = 3.0 * self.skala
+        if minpix is None:
+            minpix = max(10, int(round(60 * self.skala ** 2)))
         n = np.array([math.cos(theta), math.sin(theta)])
         r = float(rho)
         im_bereich = (self.P[:, 1] >= bereich[0]) & (self.P[:, 1] < bereich[1])
@@ -208,12 +253,13 @@ def wand_boden_fuge(lum, ppx, ppy):
     ist eben. Beides wird als Streuung zurueckgegeben statt behauptet.
     """
     H, W = lum.shape
+    y_lo, y_hi = _refy(520, H), _refy(690, H)
     xs, ys = [], []
     for x in range(10, W - 10, 20):
         spalte = np.convolve(lum[:, max(0, x - 12):x + 13].mean(axis=1),
                              np.ones(3) / 3, "same")
         best, bestv = None, 0.0
-        for y in range(520, 690):
+        for y in range(y_lo, y_hi):
             sprung = spalte[y - 4:y].mean() - spalte[y + 2:y + 7].mean()
             if sprung > bestv:
                 bestv, best = sprung, y
@@ -240,11 +286,12 @@ def wand_boden_fuge(lum, ppx, ppy):
 
 def wand_decken_fuge(lum, ppy, x0, x1):
     """Oberkante der Rueckwand: Uebergang von dunkler Decke zu heller Wand."""
+    H = lum.shape[0]
     profil = np.convolve(lum[:, x0:x1].mean(axis=1), np.ones(3) / 3, "same")
-    decke = profil[380:420].mean()
-    wand = profil[480:540].mean()
+    decke = profil[_refy(380, H):_refy(420, H)].mean()
+    wand = profil[_refy(480, H):_refy(540, H)].mean()
     ziel = decke + 0.35 * (wand - decke)
-    for y in range(400, 500):
+    for y in range(_refy(400, H), _refy(500, H)):
         if profil[y] < ziel <= profil[y + 1]:
             t = (ziel - profil[y]) / (profil[y + 1] - profil[y])
             return float(y + t)
@@ -258,6 +305,9 @@ def wand_decken_fuge(lum, ppy, x0, x1):
 def leuchtbaender(lum, ppx, ppy, deckengrenze):
     """Helle, langgestreckte Komponenten in der Decke, als Geraden gefittet."""
     H, W = lum.shape
+    pix_min = max(50, int(round(400 / (_REF_H * _REF_W) * H * W)))
+    v0_min = _refy(20, H)
+    vv = -float(_refy(200, H))
     m = lum[:deckengrenze] > 0.72
     gesehen = np.zeros_like(m)
     ergebnis = []
@@ -278,7 +328,7 @@ def leuchtbaender(lum, ppx, ppy, deckengrenze):
                                 and m[ny, nx] and not gesehen[ny, nx]):
                             gesehen[ny, nx] = True
                             q.append((ny, nx))
-            if len(pix) < 400:
+            if len(pix) < pix_min:
                 continue
             p = np.array(pix, float)
             yy, xx = p[:, 0], p[:, 1]
@@ -291,7 +341,7 @@ def leuchtbaender(lum, ppx, ppy, deckengrenze):
             # Steigung im Fluchtpunktbuendel: k = u/v, konstant laengs der Linie
             v0 = my - ppy
             u0 = mx - ppx
-            if abs(v0) < 20:
+            if abs(v0) < v0_min:
                 continue
             k = (u0 - d[0] / d[1] * v0) if abs(d[1]) > 1e-6 else 0.0
             # exakt: Schnitt mit einer Geraden durch PP -> k = u/v am Fusspunkt
@@ -299,8 +349,7 @@ def leuchtbaender(lum, ppx, ppy, deckengrenze):
             # Geradengleichung aufstellen und k als u/v eines beliebigen Punktes
             n = np.array([-d[1], d[0]])
             c = -(n @ [mx, my])
-            # Punkt der Linie bei v = -200 (im Deckenbereich)
-            vv = -200.0
+            # Punkt der Linie bei v = -200 (Referenzbild), skaliert im Deckenbereich
             if abs(n[0]) > 1e-9:
                 uu = (-c - n[1] * (vv + ppy)) / n[0] - ppx
                 k = uu / vv
@@ -326,15 +375,23 @@ def spiegelprobe(lum, ppx, ppy, baender, hc_h):
     H, W = lum.shape
     faktor = hc_h / (2.0 + hc_h)
     # Laengsstrukturen im Nahfeld: schmale Helligkeitsruecken
-    zeilen = [1180, 1240, 1300, 1360, 1415]
+    zeilen = [_refy(f, H) for f in (1180, 1240, 1300, 1360, 1415)]
+    bg_fenster = max(3, _refx(61, W) | 1)
+    ziel_tol = _refx(30, W)
+    # Peak-Suchradius (Referenzbild: 12 px) skaliert mit; x_rand muss
+    # mindestens so gross sein, sonst wird r[x-pk_halb:x+pk_halb+1] am
+    # Bildrand negativ indiziert und liefert ein leeres Array statt eines
+    # Fensters -- das riss auf schmalen Bildern (z.B. 320 px) den Lauf ab.
+    pk_halb = max(3, _refx(12, W))
+    x_rand = max(_refx(35, W), pk_halb)
     gefunden = []
     for y in zeilen:
         row = np.convolve(lum[y - 3:y + 4].mean(axis=0), np.ones(5) / 5, "same")
-        bg = np.convolve(row, np.ones(61) / 61, "same")
+        bg = np.convolve(row, np.ones(bg_fenster) / bg_fenster, "same")
         r = row - bg
         pk = []
-        for x in range(35, W - 35):
-            if r[x] == r[x - 12:x + 13].max() and r[x] > 0.05:
+        for x in range(x_rand, W - x_rand):
+            if r[x] == r[x - pk_halb:x + pk_halb + 1].max() and r[x] > 0.05:
                 pk.append(x)
         gefunden.append((y, pk))
     proben = []
@@ -344,7 +401,7 @@ def spiegelprobe(lum, ppx, ppy, baender, hc_h):
         for y, pk in gefunden:
             v = y - ppy
             ziel = ppx + vorher * v
-            nah = [x for x in pk if abs(x - ziel) < 30]
+            nah = [x for x in pk if abs(x - ziel) < ziel_tol]
             if nah:
                 x = min(nah, key=lambda t: abs(t - ziel))
                 treffer.append((x - ppx) / v)
@@ -395,7 +452,7 @@ def gitterteilung(q, smin, smax, schritte=4000):
 # 8. Stuetzen
 # ---------------------------------------------------------------------------
 
-def stuetzen(lum, ppx, ppy, band=(478, 558)):
+def stuetzen(lum, ppx, ppy, band=None):
     """Dunkle Senkrechtbalken vor heller Wand.
 
     Rueckgabe je Stuetze: Bildkanten, Fusspunkt, Breite/h, X/h.
@@ -403,6 +460,8 @@ def stuetzen(lum, ppx, ppy, band=(478, 558)):
     uebersetzt Bildbreite in Weltbreite: w/h = dx/v.
     """
     H, W = lum.shape
+    if band is None:
+        band = (_refy(478, H), _refy(558, H))
     profil = np.convolve(lum[band[0]:band[1]].mean(axis=0), np.ones(3) / 3, "same")
     dunkel = profil < 0.30
     laeufe = []
@@ -454,7 +513,7 @@ def stuetzen(lum, ppx, ppy, band=(478, 558)):
         eigen = float(np.median(innen[band[0]:band[1]]))
         schwelle = eigen + 0.055
         fuss = None
-        for y in range(585, H - 34):
+        for y in range(_refy(585, H), H - _refy(34, H)):
             # anhaltend heller, sonst faengt jeder Glanzfleck den Fuss ab
             if all(innen[y + d] > schwelle for d in (0, 10, 20, 30)):
                 fuss = y
@@ -491,13 +550,16 @@ def bodenraster(lum, ppx, ppy):
         b = 1/v  -> Fliesentiefe   D/(f h)
     """
     H, W = lum.shape
+    y_untergrenze = _refy(600, H)
+    v_min = _refy(140, H)
     R = np.clip(kastenfilter(lum, 5) - lum, 0, None)
-    ys, xs = np.nonzero(R[600:] > 0.05)
-    ys = ys + 600
+    ys, xs = np.nonzero(R[y_untergrenze:] > 0.05)
+    ys = ys + y_untergrenze
     v = ys - ppy
     u = xs - ppx
-    ok = v > 140
-    if ok.sum() < 5000:
+    ok = v > v_min
+    pix_min = max(500, int(round(5000 / (_REF_H * _REF_W) * H * W)))
+    if ok.sum() < pix_min:
         return None
     k = u[ok] / v[ok]
     gew = R[ys[ok], xs[ok]] * np.sqrt(v[ok])
@@ -595,6 +657,85 @@ def bodenraster(lum, ppx, ppy):
     }
 
 
+def deckenraster(lum, ppx, ppy, deckengrenze, baender):
+    """Kassetten-/Traegerraster der Decke, seitlich per Autokorrelation.
+
+    Analog zu `bodenraster()`, aber auf der Deckenflaeche statt dem Boden --
+    mit einem Unterschied, der die Messung eher einfacher macht: die Decke
+    ist keine durchgezeichnete Flaeche mit Rissen und Flecken, sondern ein
+    gebautes Liniensystem aus wenigen hellen Fugen vor dunklem Feld. Die
+    Leuchtbaender selbst sind um ein Vielfaches heller als jede Fuge und
+    wuerden die Korrelation kappen -- ihre Flaechen (aus `leuchtbaender()`,
+    per Bounding-Box) werden deshalb ausmaskiert, bevor gemessen wird.
+
+    Liefert nur die SEITLICHE Teilung (u/v, "je_h") -- das reicht als
+    Massstabsanker, ohne eine Quadrat-Annahme: anders als beim Bodenraster
+    wird hier keine Brennweite gebraucht, nur ein Verhaeltnis zur
+    Kamerahoehe. Ob das Deckenfeld quadratisch ist, wird nicht vorausgesetzt
+    -- dafuer fehlt hier die zweite (Tiefen-)Achse bewusst.
+    """
+    H, W = lum.shape
+    R = np.clip(kastenfilter(lum, 5) - lum, 0, None)
+    frei = np.ones_like(lum, bool)
+    for b in baender:
+        x0, x1 = sorted([b["p0"][0], b["p1"][0]])
+        y0, y1 = sorted([b["p0"][1], b["p1"][1]])
+        m0 = max(0, int(y0) - 14)
+        m1 = min(deckengrenze, int(y1) + 14)
+        n0 = max(0, int(x0) - 14)
+        n1 = min(W, int(x1) + 14)
+        frei[m0:m1, n0:n1] = False
+    R = R * frei
+    ys, xs = np.nonzero(R[:deckengrenze] > 0.04)
+    v = ppy - ys.astype(np.float64)      # positiv: oberhalb des Hauptpunkts
+    u = xs.astype(np.float64) - ppx
+    ok = v > _refy(24, H)
+    pix_min = max(200, int(round(2000 / (_REF_H * _REF_W) * H * W)))
+    if ok.sum() < pix_min:
+        return None
+    k = u[ok] / v[ok]
+    gew = R[ys[ok], xs[ok]] * np.sqrt(v[ok])
+
+    def gipfel(sig, lo, hi):
+        sig = sig - sig.mean()
+        n = len(sig)
+        F = np.fft.rfft(sig * np.hanning(n))
+        ac = np.fft.irfft(F * np.conj(F))[:n // 2]
+        ac = ac / ac[0]
+        kand = [(i, ac[i]) for i in range(lo, min(hi, len(ac) - 2))
+                if ac[i] == ac[i - 2:i + 3].max() and ac[i] > 0.10]
+        if not kand:
+            return None, None, None
+        beste = max(v for _, v in kand)
+        i, val = next((i, v) for i, v in kand if v >= 0.92 * beste)
+        nebenbuhler = [(j, v) for j, v in kand if v >= 0.92 * beste and j != i]
+        a, b, c = ac[i - 1], ac[i], ac[i + 1]
+        d = 0.5 * (a - c) / (a - 2 * b + c) if (a - 2 * b + c) else 0.0
+        return i + d, float(val), nebenbuhler
+
+    dk = 0.002
+    hist, _ = np.histogram(k, bins=np.arange(-2.0, 2.0 + dk, dk), weights=gew)
+    ik, gk, nk = gipfel(hist, 40, 260)      # 0.08 .. 0.52 in k-Einheiten
+    if ik is None:
+        return None
+    w_h = ik * dk
+
+    def phase(werte, gew_, teil):
+        ph = np.linspace(0, teil, 200, endpoint=False)
+        antwort = [float((gew_ * np.cos(2 * np.pi * (werte - p0) / teil)).sum()) for p0 in ph]
+        return float(ph[int(np.argmax(antwort))])
+
+    ph_k = phase(k, gew, w_h)
+    return {
+        "gitterbreite_je_h": float(w_h),
+        "phase_seite_k": float(ph_k),
+        "korrelation_seite": gk,
+        "nebengipfel_seite": [[float(j * dk), float(vv)] for j, vv in nk],
+        "annahme": "keine -- reine Seitenmessung, kein Quadrat vorausgesetzt",
+        "provenienz": MEASURED,
+    }
+
+
 def stuetzenraster(saeulen, ppx, ppy):
     """Lage der Stuetzen: Reihen in X, Jochteilung in Z.
 
@@ -668,7 +809,7 @@ def stuetzenraster(saeulen, ppx, ppy):
 # Hauptlauf
 # ---------------------------------------------------------------------------
 
-def vermessen(pfad, anker_fliese_m):
+def vermessen(pfad, anker_m, anker_quelle="decke"):
     rgb, lum = luminanz(pfad)
     H, W = lum.shape
     gx, gy = sobel(lum)
@@ -677,32 +818,56 @@ def vermessen(pfad, anker_fliese_m):
 
     bericht = {}
 
+    # Flaechenbasierter Skalenfaktor gegen das Referenzbild (siehe
+    # Linienfeld.skala) -- fuer Pixel-Laengentoleranzen ausserhalb der Klasse.
+    _skala = math.sqrt((H * W) / (_REF_H * _REF_W))
+
     # --- Fluchtpunkt --------------------------------------------------------
+    # Bild in Wand- und Bodenhaelfte geteilt (Referenzbild: Trennlinien bei
+    # 432 und 560 von 1426 Zeilen) -- als Bruchzahl von H, damit die Suche
+    # bei anderer Bildgroesse in derselben Bildregion bleibt.
+    _y_wand = _refy(432, H)
+    _y_boden = _refy(560, H)
     kand = []
-    for ymin, ymax, lo, hi in ((0, 432, 55, 75), (0, 432, 95, 135),
-                               (560, H, 20, 60), (560, H, 120, 175), (560, H, 0, 20)):
+    for ymin, ymax, lo, hi in ((0, _y_wand, 55, 75), (0, _y_wand, 95, 135),
+                               (_y_boden, H, 20, 60), (_y_boden, H, 120, 175),
+                               (_y_boden, H, 0, 20)):
         for t, r in lf.hough(ymin, ymax, 10, lo, hi):
             L = lf.verfeinern(t, r, (ymin, ymax))
-            if L and L["laenge"] > 150:
+            if L and L["laenge"] > 150 * _skala:
                 kand.append(L)
     if len(kand) < 6:
-        raise SystemExit("zu wenige Linien fuer einen Fluchtpunkt gefunden")
-    vp, inlier, rest = ransac_fluchtpunkt(kand)
-    ppx, ppy = float(vp[0]), float(vp[1])
-    bericht["fluchtpunkt"] = {
-        "x": ppx, "y": ppy,
-        "linien_gesamt": len(kand),
-        "linien_tragend": int(inlier.sum()),
-        "restfehler_px": rest,
-        "provenienz": MEASURED,
-    }
+        # Kein echter Fluchtpunkt bestimmbar. Bildmitte als Platzhalter --
+        # alles, was darauf aufbaut, erbt INFERRED statt MEASURED.
+        ppx, ppy = W / 2.0, H / 2.0
+        bericht["fluchtpunkt"] = {
+            "x": ppx, "y": ppy,
+            "linien_gesamt": len(kand),
+            "linien_tragend": 0,
+            "restfehler_px": None,
+            "provenienz": INFERRED,
+            "hinweis": ("Weniger als 6 tragfaehige Linien gefunden -- kein Fluchtpunkt "
+                        "aus dem Bild ablesbar. Bildmitte als Platzhalter gesetzt; "
+                        "die gesamte folgende Kette baut auf einer Annahme, nicht "
+                        "auf einer Messung."),
+        }
+    else:
+        vp, inlier, rest = ransac_fluchtpunkt(kand, toleranz=10.0 * _skala)
+        ppx, ppy = float(vp[0]), float(vp[1])
+        bericht["fluchtpunkt"] = {
+            "x": ppx, "y": ppy,
+            "linien_gesamt": len(kand),
+            "linien_tragend": int(inlier.sum()),
+            "restfehler_px": rest,
+            "provenienz": MEASURED,
+        }
 
     # --- Parallelitaetsprobe -> Hauptpunkt ----------------------------------
     quer = []
-    for ymin, ymax in ((0, 432), (600, H)):
+    for ymin, ymax in ((0, _y_wand), (_refy(600, H), H)):
         for t, r in lf.hough(ymin, ymax, 14, 85, 95):
             L = lf.verfeinern(t, r, (ymin, ymax))
-            if L and L["laenge"] > 500:
+            if L and L["laenge"] > 500 * _skala:
                 quer.append(math.degrees(math.atan2(L["richtung"][1], L["richtung"][0])))
     quer = np.array([(a + 180) % 180 for a in quer])
     bericht["hauptpunkt"] = {
@@ -720,19 +885,34 @@ def vermessen(pfad, anker_fliese_m):
     fuge = wand_boden_fuge(lum, ppx, ppy)
     fuge["provenienz"] = MEASURED
     bericht["wand_boden_fuge"] = fuge
-    oben = wand_decken_fuge(lum, ppy, 420, 900)
+    oben = wand_decken_fuge(lum, ppy, _refx(420, W), _refx(900, W))
     if oben is None:
-        raise SystemExit("Wand-Decken-Fuge nicht gefunden")
-    hc_h = (ppy - oben) / fuge["v"]
-    bericht["wand_decken_fuge"] = {"y": oben, "v": float(oben - ppy), "provenienz": MEASURED}
-    bericht["deckenhoehe_je_kamerahoehe"] = {
-        "wert": float(hc_h),
-        "lichte_raumhoehe_je_kamerahoehe": float(1.0 + hc_h),
-        "provenienz": MEASURED,
-    }
+        # Kein Helligkeitsuebergang Decke->Wand gefunden. hc_h = 1.0 (Decke so
+        # weit ueber der Kamera wie der Boden darunter) ist eine neutrale
+        # Annahme, keine Messung -- explizit als INFERRED markiert.
+        hc_h = 1.0
+        bericht["wand_decken_fuge"] = {
+            "y": None, "v": None, "provenienz": INFERRED,
+            "hinweis": "Kein Helligkeitsuebergang Decke->Wand im erwarteten Bildbereich gefunden.",
+        }
+        bericht["deckenhoehe_je_kamerahoehe"] = {
+            "wert": float(hc_h),
+            "lichte_raumhoehe_je_kamerahoehe": float(1.0 + hc_h),
+            "provenienz": INFERRED,
+            "hinweis": "hc_h=1.0 als Platzhalter (Decke so hoch ueber der Kamera wie der Boden darunter).",
+        }
+    else:
+        hc_h = (ppy - oben) / fuge["v"]
+        bericht["wand_decken_fuge"] = {"y": oben, "v": float(oben - ppy), "provenienz": MEASURED}
+        bericht["deckenhoehe_je_kamerahoehe"] = {
+            "wert": float(hc_h),
+            "lichte_raumhoehe_je_kamerahoehe": float(1.0 + hc_h),
+            "provenienz": MEASURED,
+        }
 
     # --- Leuchtbaender + Spiegelprobe --------------------------------------
-    baender = leuchtbaender(lum, ppx, ppy, 440)
+    deckengrenze = _refy(440, H)
+    baender = leuchtbaender(lum, ppx, ppy, deckengrenze)
     for b in baender:
         b["x_je_hc"] = -b["k"]
         b["x_je_h"] = -b["k"] * hc_h
@@ -766,20 +946,41 @@ def vermessen(pfad, anker_fliese_m):
         "abweichung_der_beiden_verfahren_prozent": (
             float(abs(np.median(rueck) - hc_kante) / hc_kante * 100) if rueck else None),
     }
+    # Die Spiegelprobe ist eine eigene, unabhaengige Messung -- sie kann hc_h
+    # auch dann noch MEASURED bestaetigen, wenn die Wand-Decken-Fuge selbst
+    # (oben) nicht gefunden wurde. Erst wenn WEDER Fuge NOCH Spiegelung
+    # etwas liefern, bleibt hc_h beim INFERRED-Platzhalter von oben.
+    hc_gemessen = len(rueck) >= 2 or oben is not None
     bericht["deckenhoehe_je_kamerahoehe"] = {
         "wert": float(hc_h),
         "lichte_raumhoehe_je_kamerahoehe": float(1.0 + hc_h),
-        "quelle": "spiegelprobe" if len(rueck) >= 2 else "wandkante",
-        "provenienz": MEASURED,
+        "quelle": "spiegelprobe" if len(rueck) >= 2 else ("wandkante" if oben is not None else "platzhalter"),
+        "provenienz": MEASURED if hc_gemessen else INFERRED,
     }
+
+    # --- Deckenraster (Kassetten-/Traegerteilung) ---------------------------
+    decke = deckenraster(lum, ppx, ppy, deckengrenze, baender)
+    if decke is not None:
+        bericht["deckenraster"] = decke
 
     # --- Stuetzen -----------------------------------------------------------
     sa = stuetzen(lum, ppx, ppy)
     bericht["stuetzen"] = {"anzahl": len(sa), "liste": sa, "provenienz": MEASURED}
     raster = stuetzenraster(sa, ppx, ppy)
     if raster is None:
-        raise SystemExit("Stuetzenraster nicht bestimmbar")
-    raster["provenienz"] = MEASURED
+        # Zu wenige Stuetzen oder keine Reihenstruktur erkennbar. Platzhalter
+        # mit null-Feldern statt Abbruch -- alles hier ist INFERRED, nichts
+        # davon darf mit einer echten Jochmessung verwechselt werden.
+        raster = {
+            "reihenabstand_je_h": None, "reihen_x_streuung": [],
+            "tiefenteilung_1_durch_v": None, "reihen_x_je_h": [],
+            "reihenabstand_streuung": None, "ordnungszahlen_je_reihe": [],
+            "stuetzenbreite_je_h": None, "reihen_besetzung": [],
+            "provenienz": INFERRED,
+            "hinweis": "Kein Stuetzenraster bestimmbar (zu wenige Stuetzen oder keine Reihenstruktur).",
+        }
+    else:
+        raster["provenienz"] = MEASURED
     bericht["raster"] = raster
 
     # --- Brennweite aus dem Bodenraster ------------------------------------
@@ -793,29 +994,83 @@ def vermessen(pfad, anker_fliese_m):
     # ist hier aber nachweislich falsch: es ergaebe 28 Grad Bildwinkel,
     # bei dem die Decke nicht mehr ueber der Kamera stuende. Sie steht dort.
     boden = bodenraster(lum, ppx, ppy)
+    # bodenraster() kann einen Bericht zurueckgeben, dessen f_px trotzdem
+    # unbrauchbar ist: bei einer entarteten Tiefenachse (s_z -> inf durch
+    # eine leere/flache Trendkurve) wird f_px zu genau 0.0, ohne dass die
+    # Funktion selbst None liefert. Dieselbe Fallback-Schwelle greift daher
+    # auch hier, statt spaeter an math.atan(ppy/f) mit ZeroDivisionError
+    # abzustuerzen.
+    if boden is not None and not (math.isfinite(boden["f_px"]) and boden["f_px"] > 0):
+        boden = None
     if boden is None:
-        raise SystemExit("Bodenraster nicht bestimmbar")
+        # Kein Bodenraster gefunden -- ohne Formaussage bleibt die Brennweite
+        # unbestimmbar (siehe oben). Fallback: dieselbe 60-Grad-Standard-
+        # Blickfeldannahme, die SHADEDs generische Provider nutzen
+        # (shaded_provider_common.write_result), damit wenigstens ein
+        # rechnender Kamerakegel entsteht -- explizit INFERRED, keine Messung.
+        f_platzhalter = W / (2.0 * math.tan(math.radians(60.0) / 2.0))
+        boden = {
+            "fliesenbreite_je_h": None, "fliesentiefe_1_durch_v": None,
+            "phase_seite_k": None, "phase_tiefe_b": None,
+            "korrelation_seite": None, "korrelation_tiefe": None,
+            "f_px": float(f_platzhalter), "f_bandbreite_px": [],
+            "nebengipfel_seite": [], "nebengipfel_tiefe": [],
+            "annahme": "60 Grad horizontales Blickfeld (SHADED-Standardannahme)",
+            "provenienz": INFERRED,
+            "hinweis": "Kein Bodenraster gefunden -- Brennweite aus Standard-Blickfeld, nicht gemessen.",
+        }
     bericht["bodenraster"] = boden
     f = boden["f_px"]
     bericht["bodenraster"]["bildwinkel_senkrecht_grad"] = float(
         math.degrees(math.atan(ppy / f) + math.atan((H - ppy) / f)))
 
     # --- Massstab -----------------------------------------------------------
-    # Anker ist das Bodenmodul, nicht die Kamerahoehe: eine Fliese ist ein
-    # Bauteil mit Normmass, die Kamerahoehe waere geraten. Dass daraus eine
-    # Kamerahoehe von rund 1,7 m faellt, ist die Gegenprobe auf den Anker.
-    w_h = boden["fliesenbreite_je_h"]
-    h_m = anker_fliese_m / w_h
+    # Der Anker ist ein Bauteil mit Normmass, nie die Kamerahoehe -- die waere
+    # geraten. Zwei Quellen stehen zur Wahl, unabhaengig voneinander gemessen:
+    #   'boden' -- Bodenraster (liefert auch die Brennweite, per Quadrat-Annahme)
+    #   'decke' -- Deckenraster (reine Seitenmessung, keine Formannahme)
+    # Beide "je_h"-Werte sind MEASURED; welcher der beiden die richtige
+    # Bauteilgroesse traegt, ist eine Sachfrage vor Ort -- keine Rechnung
+    # entscheidet das. Vorgabe ist 'decke': am Referenzbild sind die
+    # Bodenplatten grossformatig (deutlich groesser als das deklarierte
+    # Mass), das feine Fugenraster sitzt an der Decke.
+    w_h_boden = boden["fliesenbreite_je_h"]
+    w_h_decke = decke["gitterbreite_je_h"] if decke is not None else None
+    quelle = anker_quelle if (anker_quelle == "boden" or w_h_decke is not None) else "boden"
+    w_h = w_h_decke if quelle == "decke" else w_h_boden
+    # Ohne Bodenraster UND ohne Deckenraster gibt es kein Modul, an dem der
+    # Anker haengen koennte -- h_m bleibt None, der Massstab ist dann
+    # unbestimmt (nicht erfunden). Alle *_m-Felder darunter erben das.
+    h_m = (anker_m / w_h) if w_h is not None else None
+    massstab_gemessen = w_h is not None
+    # Gegenprobe: was wuerde die JEWEILS ANDERE Flaeche unter demselben h_m
+    # tragen? Weit ausserhalb plausibler Bauteilgroessen ist ein Warnsignal,
+    # keine Bestaetigung -- beide Flaechen muessen fuer sich Sinn ergeben.
+    andere_flaeche_m = (w_h_boden if quelle == "decke" else w_h_decke)
+    andere_flaeche_m = (float(andere_flaeche_m * h_m)
+                         if andere_flaeche_m is not None and h_m is not None else None)
     bericht["massstab"] = {
-        "anker": "Bodenfliese (Kantenlaenge)",
-        "anker_m": anker_fliese_m,
-        "kamerahoehe_m": float(h_m),
+        "anker": "Deckenraster (Kassetten-/Traegerteilung)" if quelle == "decke"
+                 else "Bodenfliese (Kantenlaenge)",
+        "anker_quelle": quelle,
+        "anker_m": anker_m,
+        "kamerahoehe_m": _opt(h_m),
         "hinweis": ("Ein Einzelbild kennt keine Meter. Alle Verhaeltnisse sind gemessen; "
                     "genau diese eine Laenge ist gesetzt. Wer sie aendert, skaliert die "
-                    "ganze Halle -- ihre Form bleibt unberuehrt."),
-        "gegenprobe": ("Aus einem 0,60-m-Modul faellt eine Kamerahoehe von rund 1,7 m -- "
-                       "Augenhoehe. Der Anker widerspricht sich also nicht selbst."),
-        "provenienz": DECLARED,
+                    "ganze Halle -- ihre Form bleibt unberuehrt.") if massstab_gemessen else (
+                    "Weder Bodenraster noch Deckenraster gefunden -- kein Modul, an dem "
+                    "der deklarierte Anker haengen koennte. Kamerahoehe und alle *_m-Werte "
+                    "bleiben unbestimmt statt erfunden."),
+        "gegenprobe_kamerahoehe": ("Kamerahoehe %.2f m -- plausibel, wenn sie in "
+                                    "Augenhoehe oder erhoehtem Stativ liegt." % h_m
+                                    if h_m is not None else None),
+        "gegenprobe_andere_flaeche_m": andere_flaeche_m,
+        "gegenprobe_andere_flaeche_hinweis": (
+            ("Unter diesem Anker waere die Bodenfliese %.2f m breit -- pruefen, ob das "
+             "zum Foto passt." % andere_flaeche_m) if quelle == "decke" and andere_flaeche_m
+            else ("Unter diesem Anker waere das Deckenraster %.2f m breit -- pruefen, ob "
+                  "das zum Foto passt." % andere_flaeche_m) if andere_flaeche_m else None),
+        "provenienz": DECLARED if massstab_gemessen else INFERRED,
     }
 
     # --- Zusammengesetzter Raum --------------------------------------------
@@ -826,22 +1081,35 @@ def vermessen(pfad, anker_fliese_m):
         "deckenhoehe": float(hc_h),
         "lichte_hoehe": float(1.0 + hc_h),
         "rueckwand_tiefe": float(z_wand_h),
-        "stuetzenreihen_abstand": float(joch_h),
-        "stuetzenbreite": float(raster["stuetzenbreite_je_h"]),
-        "stuetzen_jochteilung": float(f * raster["tiefenteilung_1_durch_v"]),
-        "fliesenmodul": float(w_h),
+        "stuetzenreihen_abstand": _opt(joch_h),
+        "stuetzenbreite": _opt(raster["stuetzenbreite_je_h"]),
+        "stuetzen_jochteilung": _opt(f * raster["tiefenteilung_1_durch_v"]
+                                     if raster["tiefenteilung_1_durch_v"] is not None else None),
+        "fliesenmodul": _opt(w_h_boden),
+        "deckengittermodul": _opt(w_h_decke),
         "brennweite_px": float(f),
     }
+
+    def _mal(a, b):
+        """a*b als float, oder None sobald einer der beiden Faktoren fehlt --
+        genau der Fall, wenn eine der beteiligten Messungen INFERRED war."""
+        return None if a is None or b is None else float(a) * float(b)
+
+    teilung_je_h = bericht["leuchtbaender"].get("teilung_je_h")
     bericht["raum_meter"] = {
-        "lichte_hoehe_m": float((1.0 + hc_h) * h_m),
-        "rueckwand_tiefe_m": float(z_wand_h * h_m),
-        "stuetzenreihen_abstand_m": float(joch_h * h_m),
-        "stuetzenbreite_m": float(raster["stuetzenbreite_je_h"] * h_m),
-        "stuetzen_jochteilung_m": float(f * raster["tiefenteilung_1_durch_v"] * h_m),
-        "fliesenmodul_m": float(w_h * h_m),
-        "kamerahoehe_m": float(h_m),
-        "leuchtband_teilung_m": (float(bericht["leuchtbaender"].get("teilung_je_h", 0) * h_m)
-                                 if "teilung_je_h" in bericht["leuchtbaender"] else None),
+        "lichte_hoehe_m": _mal(1.0 + hc_h, h_m),
+        "rueckwand_tiefe_m": _mal(z_wand_h, h_m),
+        "stuetzenreihen_abstand_m": _mal(joch_h, h_m),
+        "stuetzenbreite_m": _mal(raster["stuetzenbreite_je_h"], h_m),
+        "stuetzen_jochteilung_m": _mal(_mal(f, raster["tiefenteilung_1_durch_v"]), h_m),
+        # Beide Flaechenmodule stehen unabhaengig vom gewaehlten Anker: das
+        # eine traegt ihn (== anker_m), das andere ist seine Vorhersage --
+        # genau die "gegenprobe_andere_flaeche_m" oben, hier griffbereit
+        # neben den uebrigen Massen statt nur im massstab-Block.
+        "fliesenmodul_m": _mal(w_h_boden, h_m),
+        "deckengittermodul_m": _mal(w_h_decke, h_m),
+        "kamerahoehe_m": _opt(h_m),
+        "leuchtband_teilung_m": _mal(teilung_je_h, h_m),
     }
     bericht["nicht_messbar"] = [
         "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; "
@@ -855,27 +1123,44 @@ def vermessen(pfad, anker_fliese_m):
     return rgb, lum, bericht
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("bild")
-    ap.add_argument("--fliese-m", type=float, default=0.60,
-                    help="metrischer Anker: Kantenlaenge einer Bodenfliese (Vorgabe 0.60 m)")
-    ap.add_argument("--out", default=None, help="Zielverzeichnis (Vorgabe: neben dem Bild)")
-    a = ap.parse_args()
+def _bilddateien(pfade):
+    """Loest Verzeichnisse zu Bilddateien auf; Einzeldateien bleiben, wie sie sind.
 
-    ziel = a.out or os.path.dirname(os.path.abspath(a.bild))
+    Ermoeglicht den Batch-Aufruf `single_view_room.py content/raum/` genauso
+    wie den Aufruf mit einzeln aufgezaehlten Dateien -- eine Warteschlange,
+    keine zwei Codepfade.
+    """
+    endungen = (".png", ".jpg", ".jpeg")
+    aus = []
+    for p in pfade:
+        if os.path.isdir(p):
+            for name in sorted(os.listdir(p)):
+                if name.lower().endswith(endungen):
+                    aus.append(os.path.join(p, name))
+        else:
+            aus.append(p)
+    return aus
+
+
+def verarbeite_bild(bild, anker_m, anker_quelle, ziel=None):
+    """Ein Bild durch die volle Messkette, Artefakt schreiben, Bericht drucken.
+
+    Der Kern von `main()`, herausgeloest, damit ein Batch-Lauf ueber mehrere
+    Bilder denselben Weg nimmt wie ein einzelner Aufruf -- keine zweite,
+    abweichende Kurzfassung fuer den Mehrfach-Fall.
+    """
+    ziel = ziel or os.path.dirname(os.path.abspath(bild))
     os.makedirs(ziel, exist_ok=True)
-    basis = os.path.splitext(os.path.basename(a.bild))[0]
+    basis = os.path.splitext(os.path.basename(bild))[0]
 
-    rgb, lum, bericht = vermessen(a.bild, a.fliese_m)
-    with open(a.bild, "rb") as fh:
+    rgb, lum, bericht = vermessen(bild, anker_m, anker_quelle)
+    with open(bild, "rb") as fh:
         digest = hashlib.sha256(fh.read()).hexdigest()
     modell = {
         "format": "SHADED.single-view-room.v1",
         "provider": PROVIDER,
         "version": VERSION,
-        "quelle": {"datei": os.path.basename(a.bild),
+        "quelle": {"datei": os.path.basename(bild),
                    "sha256": digest,
                    "breite": lum.shape[1], "height": lum.shape[0]},
         "koordinaten": ("Rechtssystem. Ursprung = Kamera. X rechts, Y oben, Z in die "
@@ -887,35 +1172,105 @@ def main():
         json.dump(modell, fh, indent=2, ensure_ascii=False)
     print("geschrieben:", pfad)
 
+    def _fmt(spec, wert):
+        """Formatiert wert mit spec, oder 'n/a (INFERRED)' wenn wert None ist --
+        ein fehlendes Feld darf den Bericht nicht zum Absturz bringen."""
+        return "n/a (INFERRED)" if wert is None else (spec % wert)
+
     b = bericht
-    print("\n=== Messbericht ===")
-    print("Fluchtpunkt      (%.2f, %.2f)  aus %d von %d Linien, Restfehler %.2f px"
+    print("\n=== Messbericht: %s ===" % os.path.basename(bild))
+    print("Fluchtpunkt      (%.2f, %.2f)  aus %d von %d Linien, Restfehler %s  [%s]"
           % (b["fluchtpunkt"]["x"], b["fluchtpunkt"]["y"], b["fluchtpunkt"]["linien_tragend"],
-             b["fluchtpunkt"]["linien_gesamt"], b["fluchtpunkt"]["restfehler_px"]))
+             b["fluchtpunkt"]["linien_gesamt"], _fmt("%.2f px", b["fluchtpunkt"]["restfehler_px"]),
+             b["fluchtpunkt"]["provenienz"]))
     print("Wand-Boden-Fuge  y=%.1f ueber %d Stuetzstellen, Restfehler %.2f px, Neigung %.1f px"
           % (b["wand_boden_fuge"]["y"], b["wand_boden_fuge"]["stuetzstellen"],
              b["wand_boden_fuge"]["restfehler_px"], b["wand_boden_fuge"]["neigung_px_je_breite"]))
-    print("Deckenhoehe      hc = %.4f h   ->  lichte Hoehe %.4f h"
+    print("Deckenhoehe      hc = %.4f h   ->  lichte Hoehe %.4f h  [%s]"
           % (b["deckenhoehe_je_kamerahoehe"]["wert"],
-             b["deckenhoehe_je_kamerahoehe"]["lichte_raumhoehe_je_kamerahoehe"]))
+             b["deckenhoehe_je_kamerahoehe"]["lichte_raumhoehe_je_kamerahoehe"],
+             b["deckenhoehe_je_kamerahoehe"]["provenienz"]))
     for p in b["spiegelprobe"]["proben"]:
         print("  Spiegelprobe   Band k=%+.4f -> erwartet %+.4f, gemessen %+.4f  (%.1f %%)"
               % (p["band_k"], p["erwartet_k"], p["gemessen_k"], p["abweichung_prozent"]))
-    print("Stuetzen         %d gefunden, Breite %.4f h, Reihen %s (Streuung %s)"
-          % (b["stuetzen"]["anzahl"], b["raster"]["stuetzenbreite_je_h"],
+    print("Stuetzen         %d gefunden, Breite %s h, Reihen %s (Streuung %s)  [%s]"
+          % (b["stuetzen"]["anzahl"], _fmt("%.4f", b["raster"]["stuetzenbreite_je_h"]),
              ["%.2f" % x for x in b["raster"]["reihen_x_je_h"]],
-             ["%.3f" % x for x in b["raster"]["reihen_x_streuung"]]))
-    print("Stuetzenraster   Reihenabstand %.3f h, Jochteilung(1/v) %.6f"
-          % (b["raster"]["reihenabstand_je_h"], b["raster"]["tiefenteilung_1_durch_v"]))
-    print("Bodenraster      Fliese %.4f h seitlich, %.6f in 1/v  (Korr %.2f / %.2f)"
-          % (b["bodenraster"]["fliesenbreite_je_h"], b["bodenraster"]["fliesentiefe_1_durch_v"],
-             b["bodenraster"]["korrelation_seite"], b["bodenraster"]["korrelation_tiefe"]))
+             ["%.3f" % x for x in b["raster"]["reihen_x_streuung"]],
+             b["raster"]["provenienz"]))
+    print("Stuetzenraster   Reihenabstand %s h, Jochteilung(1/v) %s"
+          % (_fmt("%.3f", b["raster"]["reihenabstand_je_h"]),
+             _fmt("%.6f", b["raster"]["tiefenteilung_1_durch_v"])))
+    print("Bodenraster      Fliese %s h seitlich, %s in 1/v  (Korr %s / %s)  [%s]"
+          % (_fmt("%.4f", b["bodenraster"]["fliesenbreite_je_h"]),
+             _fmt("%.6f", b["bodenraster"]["fliesentiefe_1_durch_v"]),
+             _fmt("%.2f", b["bodenraster"]["korrelation_seite"]),
+             _fmt("%.2f", b["bodenraster"]["korrelation_tiefe"]),
+             b["bodenraster"]["provenienz"]))
+    if "deckenraster" in b:
+        print("Deckenraster     Gitter %.4f h seitlich  (Korr %.2f)"
+              % (b["deckenraster"]["gitterbreite_je_h"], b["deckenraster"]["korrelation_seite"]))
+    else:
+        print("Deckenraster     nicht bestimmbar (zu wenig Kontrast/Kandidaten)")
     print("Brennweite       f = %.0f px  ->  senkrechter Bildwinkel %.1f Grad"
           % (b["bodenraster"]["f_px"], b["bodenraster"]["bildwinkel_senkrecht_grad"]))
-    print("\n=== In Metern (Anker: Fliese %.2f m) ===" % a.fliese_m)
+    print("Massstab         Anker: %s = %.2f m  ->  Kamerahoehe %s  [%s]"
+          % (b["massstab"]["anker"], b["massstab"]["anker_m"],
+             _fmt("%.2f m", b["massstab"]["kamerahoehe_m"]), b["massstab"]["provenienz"]))
+    if b["massstab"]["gegenprobe_andere_flaeche_hinweis"]:
+        print("                 " + b["massstab"]["gegenprobe_andere_flaeche_hinweis"])
+    print("\n=== In Metern (Anker: %s, %.2f m) ===" % (b["massstab"]["anker"], anker_m))
     for k, v in b["raum_meter"].items():
         if v is not None:
             print("  %-26s %.2f" % (k, v))
+    return bericht
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("bilder", nargs="+",
+                    help="ein oder mehrere Bilder, oder ein Verzeichnis davon "
+                         "(fuer den Stapellauf ueber alle Referenzfotos)")
+    ap.add_argument("--anker-m", type=float, default=0.60,
+                    help="metrischer Anker: Kantenlaenge des gewaehlten Rasters (Vorgabe 0.60 m)")
+    ap.add_argument("--anker-quelle", choices=["decke", "boden"], default="decke",
+                    help="welche Flaeche den Anker traegt (Vorgabe: decke -- am "
+                         "Referenzfoto sind die Bodenplatten grossformatig, das feine "
+                         "Fugenraster sitzt an der Decke)")
+    ap.add_argument("--out", default=None, help="Zielverzeichnis (Vorgabe: neben jedem Bild)")
+    a = ap.parse_args()
+
+    bilder = _bilddateien(a.bilder)
+    if not bilder:
+        raise SystemExit("keine Bilddateien gefunden")
+
+    berichte = {}
+    fehler = {}
+    for bild in bilder:
+        try:
+            berichte[bild] = verarbeite_bild(bild, a.anker_m, a.anker_quelle, a.out)
+        except SystemExit as e:
+            fehler[bild] = str(e)
+            print("UEBERSPRUNGEN %s: %s" % (os.path.basename(bild), e))
+
+    if len(bilder) > 1:
+        print("\n=== Stapel: %d Bilder, %d gemessen, %d uebersprungen ===" %
+              (len(bilder), len(berichte), len(fehler)))
+        kopf = "%-28s %8s %8s %8s %8s %10s" % (
+            "Datei", "h_m", "Decke_m", "Ruewand_m", "Joch_m", "Anker")
+        print(kopf)
+        def _spalte(wert):
+            return "%8.2f" % wert if wert is not None else "%8s" % "n/a"
+
+        for bild, b in berichte.items():
+            rm = b["raum_meter"]
+            print("%-28s %s %s %s %s %10s" % (
+                os.path.basename(bild)[:28], _spalte(rm["kamerahoehe_m"]), _spalte(rm["lichte_hoehe_m"]),
+                _spalte(rm["rueckwand_tiefe_m"]), _spalte(rm["stuetzen_jochteilung_m"]),
+                b["massstab"]["anker_quelle"]))
+        for bild, msg in fehler.items():
+            print("%-28s FEHLER: %s" % (os.path.basename(bild)[:28], msg))
 
 
 if __name__ == "__main__":

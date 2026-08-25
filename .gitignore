@@ -10,3 +10,5 @@ checkpoints/
 *.safetensors
 
 tools/gpu-providers.local.json
+__pycache__/
+*.pyc

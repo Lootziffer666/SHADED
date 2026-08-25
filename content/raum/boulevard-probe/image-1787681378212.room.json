@@ -1,0 +1,369 @@
+{
+  "format": "SHADED.single-view-room.v1",
+  "provider": "SingleViewRoomProvider",
+  "version": "1.0.0",
+  "quelle": {
+    "datei": "image-1787681378212.jpg",
+    "sha256": "2c6489ddbd807d672f6ff9ec3b0fa827cec2adae7dfb420f94e45eadf20c2f7b",
+    "breite": 320,
+    "height": 480
+  },
+  "koordinaten": "Rechtssystem. Ursprung = Kamera. X rechts, Y oben, Z in die Halle. Der Boden liegt bei Y = -Kamerahoehe.",
+  "messung": {
+    "fluchtpunkt": {
+      "x": 200.57072500009153,
+      "y": 328.1310183252829,
+      "linien_gesamt": 50,
+      "linien_tragend": 10,
+      "restfehler_px": 1.167375001722832,
+      "provenienz": "MEASURED"
+    },
+    "hauptpunkt": {
+      "x": 200.57072500009153,
+      "y": 328.1310183252829,
+      "begruendung": "Quer- und Senkrechtlinien sind im Bild parallel; damit steht die Bildebene parallel zu Raum-X und Raum-Y und der Hauptpunkt faellt mit dem Fluchtpunkt zusammen. Das Bild ist ein Ausschnitt.",
+      "querlinien_winkelstreuung_grad": 83.39564687416598,
+      "bildmitte": [
+        160.0,
+        240.0
+      ],
+      "versatz_zur_bildmitte_px": [
+        40.57072500009153,
+        88.13101832528292
+      ],
+      "provenienz": "MEASURED"
+    },
+    "wand_boden_fuge": {
+      "y": 192.0,
+      "v": -136.13101832528292,
+      "stuetzstellen": 8,
+      "neigung_px_je_breite": 4.702508960573306,
+      "restfehler_px": 0.49368775411823496,
+      "provenienz": "MEASURED"
+    },
+    "wand_decken_fuge": {
+      "y": 152.2599205771277,
+      "v": -175.87109774815522,
+      "provenienz": "MEASURED"
+    },
+    "deckenhoehe_je_kamerahoehe": {
+      "wert": -1.2919252343203222,
+      "lichte_raumhoehe_je_kamerahoehe": -0.29192523432032225,
+      "quelle": "wandkante",
+      "provenienz": "MEASURED"
+    },
+    "leuchtbaender": {
+      "anzahl": 11,
+      "liste": [
+        {
+          "k": -1181.2921331436958,
+          "pixel": 53,
+          "p0": [
+            154.0,
+            122.0
+          ],
+          "p1": [
+            176.0,
+            122.0
+          ],
+          "x_je_hc": 1181.2921331436958,
+          "x_je_h": -1526.1411159124225
+        },
+        {
+          "k": -125.85479608755239,
+          "pixel": 56,
+          "p0": [
+            56.0,
+            113.0
+          ],
+          "p1": [
+            77.0,
+            112.0
+          ],
+          "x_je_hc": 125.85479608755239,
+          "x_je_h": -162.5949869257475
+        },
+        {
+          "k": -2.946429069299363,
+          "pixel": 57,
+          "p0": [
+            39.0,
+            3.0
+          ],
+          "p1": [
+            77.0,
+            30.0
+          ],
+          "x_je_hc": 2.946429069299363,
+          "x_je_h": -3.806566065762788
+        },
+        {
+          "k": -1.4533815511076924,
+          "pixel": 150,
+          "p0": [
+            288.0,
+            109.0
+          ],
+          "p1": [
+            296.0,
+            140.0
+          ],
+          "x_je_hc": 1.4533815511076924,
+          "x_je_h": -1.8776603009716388
+        },
+        {
+          "k": 12.47619978600307,
+          "pixel": 133,
+          "p0": [
+            91.0,
+            33.0
+          ],
+          "p1": [
+            150.0,
+            16.0
+          ],
+          "x_je_hc": -12.47619978600307,
+          "x_je_h": 16.11831733195917
+        },
+        {
+          "k": 15.06251614917855,
+          "pixel": 81,
+          "p0": [
+            234.0,
+            59.0
+          ],
+          "p1": [
+            265.0,
+            52.0
+          ],
+          "x_je_hc": -15.06251614917855,
+          "x_je_h": 19.459644705481136
+        },
+        {
+          "k": 16.304538520182124,
+          "pixel": 119,
+          "p0": [
+            155.0,
+            72.0
+          ],
+          "p1": [
+            201.0,
+            65.0
+          ],
+          "x_je_hc": -16.304538520182124,
+          "x_je_h": 21.06424474817101
+        },
+        {
+          "k": 16.354444847332307,
+          "pixel": 79,
+          "p0": [
+            65.0,
+            89.0
+          ],
+          "p1": [
+            114.0,
+            80.0
+          ],
+          "x_je_hc": -16.354444847332307,
+          "x_je_h": 21.128719991568577
+        },
+        {
+          "k": 16.86946183444789,
+          "pixel": 97,
+          "p0": [
+            267.0,
+            51.0
+          ],
+          "p1": [
+            319.0,
+            42.0
+          ],
+          "x_je_hc": -16.86946183444789,
+          "x_je_h": 21.794083433326822
+        },
+        {
+          "k": 52.038548336874776,
+          "pixel": 113,
+          "p0": [
+            259.0,
+            104.0
+          ],
+          "p1": [
+            291.0,
+            103.0
+          ],
+          "x_je_hc": -52.038548336874776,
+          "x_je_h": 67.22991375380636
+        },
+        {
+          "k": 96.381040274968,
+          "pixel": 62,
+          "p0": [
+            213.0,
+            116.0
+          ],
+          "p1": [
+            236.0,
+            115.0
+          ],
+          "x_je_hc": -96.381040274968,
+          "x_je_h": 124.51709804127445
+        }
+      ],
+      "provenienz": "MEASURED",
+      "teilung_je_h": 10.668652503226387
+    },
+    "spiegelprobe": {
+      "erklaerung": "Ein Leuchtband in der Hoehe hc hat im Boden ein Spiegelbild in der scheinbaren Tiefe 2h+hc. Aus der Lage des angetroffenen Glanzstreifens faellt hc zurueck. Das misst ueber die volle Bildhoehe statt ueber die wenigen weichen Pixel der Wandoberkante -- darum fuehrt dieser Wert.",
+      "proben": [],
+      "hc_je_h_aus_spiegelung": null,
+      "hc_je_h_aus_wandkante": -1.2919252343203222,
+      "streuung_zwischen_baendern": null,
+      "abweichung_der_beiden_verfahren_prozent": null
+    },
+    "deckenraster": {
+      "gitterbreite_je_h": 0.08790961482596474,
+      "phase_seite_k": 0.07955820141749809,
+      "korrelation_seite": 0.5782652801022001,
+      "nebengipfel_seite": [],
+      "annahme": "keine -- reine Seitenmessung, kein Quadrat vorausgesetzt",
+      "provenienz": "MEASURED"
+    },
+    "stuetzen": {
+      "anzahl": 2,
+      "liste": [
+        {
+          "x_links": 265.82800177129013,
+          "x_rechts": 297.29716798202793,
+          "x_mitte": 281.562584876659,
+          "fuss_y": 197,
+          "v": -131.13101832528292,
+          "breite_px": 31.469166210737797,
+          "breite_je_h": -0.2399826266328196,
+          "x_je_h": -0.617640745194699
+        },
+        {
+          "x_links": 298.4212625238028,
+          "x_rechts": 305.8767895934817,
+          "x_mitte": 302.1490260586422,
+          "fuss_y": 197,
+          "v": -131.13101832528292,
+          "breite_px": 7.455527069678908,
+          "breite_je_h": -0.05685555686896876,
+          "x_je_h": -0.7746321378102631
+        }
+      ],
+      "provenienz": "MEASURED"
+    },
+    "raster": {
+      "reihenabstand_je_h": null,
+      "reihen_x_streuung": [],
+      "tiefenteilung_1_durch_v": null,
+      "reihen_x_je_h": [],
+      "reihenabstand_streuung": null,
+      "ordnungszahlen_je_reihe": [],
+      "stuetzenbreite_je_h": null,
+      "reihen_besetzung": [],
+      "provenienz": "INFERRED",
+      "hinweis": "Kein Stuetzenraster bestimmbar (zu wenige Stuetzen oder keine Reihenstruktur)."
+    },
+    "bodenraster": {
+      "fliesenbreite_je_h": 0.3962424558297601,
+      "fliesentiefe_1_durch_v": 0.0003915789473684211,
+      "phase_seite_k": 0.15453455777360645,
+      "phase_tiefe_b": 8.810526315789474e-05,
+      "korrelation_seite": 0.13539906562540524,
+      "korrelation_tiefe": 2.4292110003026397,
+      "f_px": 1011.9094974147098,
+      "f_bandbreite_px": [
+        905,
+        959,
+        1012,
+        1042,
+        1062,
+        1065,
+        1118,
+        1172
+      ],
+      "nebengipfel_seite": [
+        [
+          0.40800000000000003,
+          0.12910406167590158
+        ],
+        [
+          0.41600000000000004,
+          0.12621075509189628
+        ]
+      ],
+      "nebengipfel_tiefe": [
+        [
+          0.0003915789473684211,
+          2.662580706848653
+        ],
+        [
+          0.00037200000000000004,
+          2.628226011246171
+        ],
+        [
+          0.0004133333333333333,
+          2.608111249652991
+        ],
+        [
+          0.0003542857142857143,
+          2.511239753544035
+        ],
+        [
+          0.00043764705882352943,
+          2.4657943997038245
+        ],
+        [
+          0.0003381818181818182,
+          2.3238997568406465
+        ]
+      ],
+      "annahme": "quadratische Bodenfliesen",
+      "provenienz": "RECONSTRUCTED",
+      "bildwinkel_senkrecht_grad": 26.501615773049444
+    },
+    "massstab": {
+      "anker": "Deckenraster (Kassetten-/Traegerteilung)",
+      "anker_quelle": "decke",
+      "anker_m": 0.6,
+      "kamerahoehe_m": 6.825192001896767,
+      "hinweis": "Ein Einzelbild kennt keine Meter. Alle Verhaeltnisse sind gemessen; genau diese eine Laenge ist gesetzt. Wer sie aendert, skaliert die ganze Halle -- ihre Form bleibt unberuehrt.",
+      "gegenprobe_kamerahoehe": "Kamerahoehe 6.83 m -- plausibel, wenn sie in Augenhoehe oder erhoehtem Stativ liegt.",
+      "gegenprobe_andere_flaeche_m": 2.704430840341211,
+      "gegenprobe_andere_flaeche_hinweis": "Unter diesem Anker waere die Bodenfliese 2.70 m breit -- pruefen, ob das zum Foto passt.",
+      "provenienz": "DECLARED"
+    },
+    "raum_je_kamerahoehe": {
+      "bodenhoehe": -1.0,
+      "deckenhoehe": -1.2919252343203222,
+      "lichte_hoehe": -0.29192523432032225,
+      "rueckwand_tiefe": -7.433349943778191,
+      "stuetzenreihen_abstand": null,
+      "stuetzenbreite": null,
+      "stuetzen_jochteilung": null,
+      "fliesenmodul": 0.3962424558297601,
+      "deckengittermodul": 0.08790961482596474,
+      "brennweite_px": 1011.9094974147098
+    },
+    "raum_meter": {
+      "lichte_hoehe_m": -1.992445774434903,
+      "rueckwand_tiefe_m": -50.73404058357469,
+      "stuetzenreihen_abstand_m": null,
+      "stuetzenbreite_m": null,
+      "stuetzen_jochteilung_m": null,
+      "fliesenmodul_m": 2.704430840341211,
+      "deckengittermodul_m": 0.6,
+      "kamerahoehe_m": 6.825192001896767,
+      "leuchtband_teilung_m": 72.81560173603665
+    },
+    "nicht_messbar": [
+      "Hallenbreite -- die Rueckwand fuellt das Bild bis an beide Raender; seitlich geht der Raum weiter, als das Bild zeigt.",
+      "Alles hinter der Rueckwand und hinter den Stuetzen (Einzelbild, keine Rueckseiten).",
+      "Der absolute Massstab -- dafuer steht der deklarierte Anker.",
+      "Die Brennweite ohne Formaussage: jede Brennweite bildet sich exakt auf das Ausgangsbild zurueck. Gewaehlt wurde die quadratische Bodenfliese; das quadratische Stuetzenjoch schied aus, es ergaebe 28 Grad Bildwinkel."
+    ]
+  }
+}

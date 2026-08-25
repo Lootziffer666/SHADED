@@ -1,0 +1,17 @@
+{
+ "format": "SHADED.metric-point-cloud.v1",
+ "einheit": "m",
+ "erzeuger": "SingleViewRoomProvider / room_to_assets",
+ "hinweis": "Metrische Schwester von SHADED.spatial-point-cloud.v1. Dort steht z normiert in 0..1 aus einer Companion-Tiefenkarte; hier stehen echte Meter aus vermessener Geometrie. Zwei Formate statt einer ueberladenen Bedeutung.",
+ "kamera": {
+  "hauptpunkt": [
+   1038.2652673732848,
+   718.5710393829792
+  ],
+  "f_px": 845.8102982720111,
+  "kamerahoehe_m": 2.192972482679451,
+  "schritt": 4
+ },
+ "produktregel": "Ein Einzelbild zeigt nur sichtbare Flaechen. Rueckseiten, Verdeckungen und alles hinter der Rueckwand sind NICHT gemessen und stehen darum auch nicht in dieser Wolke.",
+ "punkte": []
+}

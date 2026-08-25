@@ -8,6 +8,10 @@ RGB-Einzelbild plus **genau ein** metrischer Anker.
 python3 tools/single_view_room.py content/raum/messehalle.png   # -> .room.json
 python3 tools/room_to_assets.py content/raum/messehalle.room.json
 #   -> _depth.png  .pointcloud.json  -overlay.png  .hall.json
+
+# Anker wählen (Vorgabe: decke -- siehe "Zwei Anker" unten) und mehrere
+# Fotos nacheinander messen, einzeln aufgezählt oder als Verzeichnis:
+python3 tools/single_view_room.py --anker-quelle decke --anker-m 0.60 content/raum/
 ```
 
 ## Warum kein Schätznetz
@@ -38,6 +42,7 @@ sie läuft ohne Modellgewichte und ohne GPU.
 | **Spiegelprobe** | Deckenhöhe `hc/h` = 0,276 | zwei Bänder unabhängig, 5 % Abweichung |
 | Stützen im Wandband | Breite, Reihen | Reihenstreuung 0,021 / 0,040 bei X/h ≈ −1,91 / +1,18 |
 | Bodenraster (Autokorrelation + Spektrum) | Brennweite | 968 px → 70° Bildwinkel |
+| Deckenraster (Autokorrelation, seitlich) | Kassetten-/Trägerteilung | Korrelation 0,51 (Boden zum Vergleich: 0,44) |
 
 ### Die Spiegelprobe
 
@@ -81,18 +86,82 @@ nachweislich falsch: es ergäbe 28° Bildwinkel, bei dem die Decke nicht mehr ü
 der Kamera stünde. Sie steht dort. Die verbleibende Bandbreite plausibler
 Brennweiten steht als `f_bandbreite_px` im Modell (876 … 1244 px).
 
-## Ergebnis (Anker: Fliese 0,60 m)
+## Zwei Anker, eine Rekonstruktion
+
+Zwei Flächen im Bild tragen je ein eigenes, unabhängig gemessenes
+"je Kamerahöhe"-Verhältnis: `bodenraster()` (Autokorrelation über die
+sichtbaren Bodenplatten) und `deckenraster()` (dieselbe Autokorrelation über
+die Kassetten-/Trägerfugen der Decke, mit den Leuchtbändern ausmaskiert,
+weil sie um ein Vielfaches heller sind als jede Fuge). Beide Verhältnisse
+sind `MEASURED`; welche der beiden Flächen die deklarierte Länge trägt, ist
+eine Sachfrage vor Ort, keine Rechnung.
+
+**Ursprünglich stand hier die Bodenfliese als Anker (0,60 m).** Das war
+falsch — nicht als Rechnung, sondern als Zuordnung: am Referenzfoto sind die
+Bodenplatten großformatig, das feine ~60-cm-Fugenraster sitzt an der Decke.
+`--anker-quelle` steht deshalb jetzt auf `decke`.
+
+## Ergebnis (Anker: Deckenraster 0,60 m)
 
 | | |
 |---|---|
-| Kamerahöhe | **1,75 m** — Augenhöhe, also widerspricht der Anker sich nicht selbst |
-| lichte Höhe | 2,23 m |
-| Rückwand | 16,4 m |
-| Stützen | 0,26 m, Reihen bei X = −3,35 m und +2,06 m, Joch 1,87 m |
-| Leuchtbänder | Teilung 1,80 m = genau 3 Fliesen |
+| Kamerahöhe | 2,10 m |
+| lichte Höhe | 2,68 m |
+| Rückwand | 19,7 m |
+| Stützen | 0,31 m, Joch 2,25 m |
+| Leuchtbänder | Teilung 2,15 m |
+| Gegenprobe: Bodenfliese | 0,72 m — größer als der Deckenanker, passt zur Beobachtung "Bodenkacheln riesig" |
 
-Der Anker skaliert die Halle, nicht ihre Form. Wer 0,80 m einsetzt, bekommt
-dieselbe Halle ein Drittel größer.
+Der Anker skaliert die Halle, nicht ihre Form. Wer ihn ändert, bekommt
+dieselbe Halle größer oder kleiner — die Gegenprobe-Zeile zeigt, was die
+JEWEILS ANDERE Fläche unter dem gewählten Anker messen müsste; das ist eine
+Plausibilitätsprüfung am Foto, kein Beweis.
+
+**Offener Widerspruch, nicht stillschweigend geglättet:** BEUTELTIERs
+`site.json` führt für Halle 10.1 `clearHeightM: 5.7` mit
+`heightSource: "official"`. Diese Messung ergibt 2,68 m lichte Höhe — Faktor
+~2,1 daneben. Einer von drei Fällen liegt vor: das Foto zeigt nicht dieselbe
+Zone in voller Hallenhöhe (Halle 10 hat mehrere Ebenen, siehe `10.2` mit
+`floorElevationMinM: 7.2`), der 0,60-m-Anker ist selbst noch ungenau, oder
+BEUTELTIERs Wert ist für diese Fläche nicht zutreffend. Keine dieser drei
+Möglichkeiten wird hier entschieden — dafür fehlt eine zweite, unabhängige
+Quelle (ein Türmaß, eine amtliche Vermessung vor Ort).
+
+## Generalisierung: eine Referenzgröße, keine Referenzdatei
+
+Jede innere Suchregion der Messkette (Wand-Boden-Fuge, Wand-Decken-Fuge,
+Leuchtbänder-Deckengrenze, Stützenband, Spiegelprobe-Zeilen, Fluchtpunkt-Regionen,
+Bodenraster/Deckenraster-Schwellen) war ursprünglich auf absolute Pixelwerte
+verdrahtet, die zufällig zu `messehalle.png`s 1103×1426 passten. Ein anders
+großes oder anders geschnittenes Foto traf damit die falsche Bildregion — genau
+das Symptom hinter `Stuetzenraster nicht bestimmbar`. Jede dieser Grenzen ist
+jetzt ein Bruchteil von `messehalle.png`s eigener Höhe/Breite (`_refy`/`_refx`,
+Flächenskalierung `Linienfeld.skala` für Hough-/RANSAC-Toleranzen). Auf
+`messehalle.png` selbst ist die Umrechnung exakt 1:1 — der obige Messbericht
+ist bytegleich reproduziert; das ist der Regressionsbeweis, kein Vertrauensvorschuss.
+
+**Das behebt Größenunterschiede, nicht Kompositionsunterschiede.** Gegen vier
+neue, echte Fotos aus derselben Renovierungsmeldung 2018
+(`BEUTELTIER/data/raw/reference/Dkju*.jpg`, `DkjuioAVsAAOSKv.jpg`) probiert:
+
+| Foto | Ergebnis |
+|---|---|
+| `DkjuioAVsAAOSKv.jpg` | `Stuetzenraster nicht bestimmbar` — Fluchtpunkt fällt auf (2020,8 / 429,3) bei 2048 px Breite, an den Bildrand statt in die Bildmitte. Frontale Symmetrie fehlt: das Foto zeigt einen geschlossenen Rolltor-Abschluss statt der offenen Rückwand, dazu ein dichteres, anders gewinkeltes Deckenraster. |
+| `Dkju190W0AYtHL-.jpg` | `Stuetzenraster nicht bestimmbar` — Schrägaufnahme, Rolltorwand nimmt die Bildhälfte in starker Fluchtung ein. Kein Zentralperspektive-Blick auf eine frontale Rückwand. |
+| `DkjuiR0U0AAUV-C.jpg` | `Wand-Decken-Fuge nicht gefunden` — reiner Deckenausschnitt, keine Wand, kein Boden im Bild. |
+| `DkjuiRxUYAI_jWf.jpg` | `Stuetzenraster nicht bestimmbar` — weiter, schräger Blick über zwei Gassen, keine frontale Rückwandebene. |
+
+Das ist eine **gemessene Grenze der Methode**, keine ungelöste Bruchstelle:
+`single_view_room.py` ist laut eigener Dokumentation für genau eine
+Bildkomposition gebaut — Manhattan-Welt in Zentralperspektive mit frontaler
+Rückwand. Alle vier neuen Fotos sind Schrägaufnahmen oder Ausschnitte ohne
+Rückwand; die Werkzeugkiste (`tools/`, `docs/`) enthält aktuell kein zweites,
+Zweipunkt-perspektivisches Verfahren dafür. Ein solches Verfahren wäre eine
+neue Fähigkeit, keine Reparatur der bestehenden. Bis dahin taugen diese vier
+Fotos nur als **beobachtete** (nicht gemessene) Bestätigung dessen, was am
+Bild klar zu sehen ist — helle Stützen, schwarzes Kassettenraster mit
+Leuchtbändern, grauer Boden — konsistent über alle vier Aufnahmen und mit der
+Beobachtung an `messehalle.png`.
 
 ## Was nicht messbar ist
 
