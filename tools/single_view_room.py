@@ -365,9 +365,14 @@ def spiegelprobe(lum, ppx, ppy, baender, hc_h):
     faktor = hc_h / (2.0 + hc_h)
     # Laengsstrukturen im Nahfeld: schmale Helligkeitsruecken
     zeilen = [_refy(f, H) for f in (1180, 1240, 1300, 1360, 1415)]
-    x_rand = _refx(35, W)
     bg_fenster = max(3, _refx(61, W) | 1)
     ziel_tol = _refx(30, W)
+    # Peak-Suchradius (Referenzbild: 12 px) skaliert mit; x_rand muss
+    # mindestens so gross sein, sonst wird r[x-pk_halb:x+pk_halb+1] am
+    # Bildrand negativ indiziert und liefert ein leeres Array statt eines
+    # Fensters -- das riss auf schmalen Bildern (z.B. 320 px) den Lauf ab.
+    pk_halb = max(3, _refx(12, W))
+    x_rand = max(_refx(35, W), pk_halb)
     gefunden = []
     for y in zeilen:
         row = np.convolve(lum[y - 3:y + 4].mean(axis=0), np.ones(5) / 5, "same")
@@ -375,7 +380,7 @@ def spiegelprobe(lum, ppx, ppy, baender, hc_h):
         r = row - bg
         pk = []
         for x in range(x_rand, W - x_rand):
-            if r[x] == r[x - 12:x + 13].max() and r[x] > 0.05:
+            if r[x] == r[x - pk_halb:x + pk_halb + 1].max() and r[x] > 0.05:
                 pk.append(x)
         gefunden.append((y, pk))
     proben = []
