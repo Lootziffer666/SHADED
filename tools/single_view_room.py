@@ -69,6 +69,27 @@ MEASURED = "MEASURED"
 RECONSTRUCTED = "RECONSTRUCTED"
 DECLARED = "DECLARED"
 
+# Referenzmasse von content/raum/messehalle.png (1103x1426), an denen die
+# urspruengliche Messkette entwickelt und kalibriert wurde. Jede vormals
+# absolute Pixelgrenze im Modul ist eine Bruchzahl dieser beiden Werte --
+# so bleibt jede Suchregion an demselben Bildausschnitt verankert, auch
+# wenn ein anderes Foto eine andere Aufloesung oder einen anderen
+# Seitenschnitt hat. Ohne diese Umrechnung sucht z.B. die Stuetzenerkennung
+# in der falschen Bildhaelfte, sobald ein Foto nicht 1103x1426 ist --
+# genau das Symptom, an dem `Stuetzenraster nicht bestimmbar` haengt.
+_REF_H = 1426.0
+_REF_W = 1103.0
+
+
+def _refy(px, H):
+    """Pixel-y aus der Referenzhoehe (1426) auf die tatsaechliche Bildhoehe H."""
+    return int(round(px / _REF_H * H))
+
+
+def _refx(px, W):
+    """Pixel-x aus der Referenzbreite (1103) auf die tatsaechliche Bildbreite W."""
+    return int(round(px / _REF_W * W))
+
 
 # ---------------------------------------------------------------------------
 # Bildwerkzeug
@@ -111,6 +132,12 @@ class Linienfeld:
     def __init__(self, mag, schwelle=0.9):
         self.mag = mag
         self.H, self.W = mag.shape
+        # Flaechenbasierter Skalenfaktor gegen das Referenzbild -- linear in
+        # Pixellaengen (Wurzel aus dem Flaechenverhaeltnis), damit Toleranzen
+        # in Pixeln (Bandbreite, Nachbarunterdrueckung) unabhaengig von
+        # Seitenverhaeltnis und Aufloesung an derselben SICHTBAREN Groesse
+        # bleiben wie am Referenzbild.
+        self.skala = math.sqrt((self.H * self.W) / (_REF_H * _REF_W))
         ys, xs = np.nonzero(mag > schwelle)
         self.P = np.vstack([xs, ys]).T.astype(np.float64)
         self.w = mag[ys, xs]
@@ -131,15 +158,22 @@ class Linienfeld:
         k = np.array([1.0, 2, 3, 2, 1]); k /= k.sum()
         acc = np.apply_along_axis(lambda a: np.convolve(a, k, "same"), 1, acc)
         out, A = [], acc.copy()
+        # Nachbarunterdrueckung auf der rho-Achse ist eine Pixeldistanz und
+        # skaliert mit; die theta-Achse ist gradbasiert und bleibt unveraendert.
+        sup_rho = max(4, int(round(14 * self.skala)))
         for _ in range(n_spitzen):
             idx = np.unravel_index(np.argmax(A), A.shape)
             if A[idx] <= 0:
                 break
             out.append((th[idx[0]], idx[1] - diag))
-            A[max(0, idx[0] - 8):idx[0] + 9, max(0, idx[1] - 14):idx[1] + 15] = 0
+            A[max(0, idx[0] - 8):idx[0] + 9, max(0, idx[1] - sup_rho):idx[1] + sup_rho + 1] = 0
         return out
 
-    def verfeinern(self, theta, rho, bereich, band=3.0, runden=4, minpix=60):
+    def verfeinern(self, theta, rho, bereich, band=None, runden=4, minpix=None):
+        if band is None:
+            band = 3.0 * self.skala
+        if minpix is None:
+            minpix = max(10, int(round(60 * self.skala ** 2)))
         n = np.array([math.cos(theta), math.sin(theta)])
         r = float(rho)
         im_bereich = (self.P[:, 1] >= bereich[0]) & (self.P[:, 1] < bereich[1])
@@ -208,12 +242,13 @@ def wand_boden_fuge(lum, ppx, ppy):
     ist eben. Beides wird als Streuung zurueckgegeben statt behauptet.
     """
     H, W = lum.shape
+    y_lo, y_hi = _refy(520, H), _refy(690, H)
     xs, ys = [], []
     for x in range(10, W - 10, 20):
         spalte = np.convolve(lum[:, max(0, x - 12):x + 13].mean(axis=1),
                              np.ones(3) / 3, "same")
         best, bestv = None, 0.0
-        for y in range(520, 690):
+        for y in range(y_lo, y_hi):
             sprung = spalte[y - 4:y].mean() - spalte[y + 2:y + 7].mean()
             if sprung > bestv:
                 bestv, best = sprung, y
@@ -240,11 +275,12 @@ def wand_boden_fuge(lum, ppx, ppy):
 
 def wand_decken_fuge(lum, ppy, x0, x1):
     """Oberkante der Rueckwand: Uebergang von dunkler Decke zu heller Wand."""
+    H = lum.shape[0]
     profil = np.convolve(lum[:, x0:x1].mean(axis=1), np.ones(3) / 3, "same")
-    decke = profil[380:420].mean()
-    wand = profil[480:540].mean()
+    decke = profil[_refy(380, H):_refy(420, H)].mean()
+    wand = profil[_refy(480, H):_refy(540, H)].mean()
     ziel = decke + 0.35 * (wand - decke)
-    for y in range(400, 500):
+    for y in range(_refy(400, H), _refy(500, H)):
         if profil[y] < ziel <= profil[y + 1]:
             t = (ziel - profil[y]) / (profil[y + 1] - profil[y])
             return float(y + t)
@@ -258,6 +294,9 @@ def wand_decken_fuge(lum, ppy, x0, x1):
 def leuchtbaender(lum, ppx, ppy, deckengrenze):
     """Helle, langgestreckte Komponenten in der Decke, als Geraden gefittet."""
     H, W = lum.shape
+    pix_min = max(50, int(round(400 / (_REF_H * _REF_W) * H * W)))
+    v0_min = _refy(20, H)
+    vv = -float(_refy(200, H))
     m = lum[:deckengrenze] > 0.72
     gesehen = np.zeros_like(m)
     ergebnis = []
@@ -278,7 +317,7 @@ def leuchtbaender(lum, ppx, ppy, deckengrenze):
                                 and m[ny, nx] and not gesehen[ny, nx]):
                             gesehen[ny, nx] = True
                             q.append((ny, nx))
-            if len(pix) < 400:
+            if len(pix) < pix_min:
                 continue
             p = np.array(pix, float)
             yy, xx = p[:, 0], p[:, 1]
@@ -291,7 +330,7 @@ def leuchtbaender(lum, ppx, ppy, deckengrenze):
             # Steigung im Fluchtpunktbuendel: k = u/v, konstant laengs der Linie
             v0 = my - ppy
             u0 = mx - ppx
-            if abs(v0) < 20:
+            if abs(v0) < v0_min:
                 continue
             k = (u0 - d[0] / d[1] * v0) if abs(d[1]) > 1e-6 else 0.0
             # exakt: Schnitt mit einer Geraden durch PP -> k = u/v am Fusspunkt
@@ -299,8 +338,7 @@ def leuchtbaender(lum, ppx, ppy, deckengrenze):
             # Geradengleichung aufstellen und k als u/v eines beliebigen Punktes
             n = np.array([-d[1], d[0]])
             c = -(n @ [mx, my])
-            # Punkt der Linie bei v = -200 (im Deckenbereich)
-            vv = -200.0
+            # Punkt der Linie bei v = -200 (Referenzbild), skaliert im Deckenbereich
             if abs(n[0]) > 1e-9:
                 uu = (-c - n[1] * (vv + ppy)) / n[0] - ppx
                 k = uu / vv
@@ -326,14 +364,17 @@ def spiegelprobe(lum, ppx, ppy, baender, hc_h):
     H, W = lum.shape
     faktor = hc_h / (2.0 + hc_h)
     # Laengsstrukturen im Nahfeld: schmale Helligkeitsruecken
-    zeilen = [1180, 1240, 1300, 1360, 1415]
+    zeilen = [_refy(f, H) for f in (1180, 1240, 1300, 1360, 1415)]
+    x_rand = _refx(35, W)
+    bg_fenster = max(3, _refx(61, W) | 1)
+    ziel_tol = _refx(30, W)
     gefunden = []
     for y in zeilen:
         row = np.convolve(lum[y - 3:y + 4].mean(axis=0), np.ones(5) / 5, "same")
-        bg = np.convolve(row, np.ones(61) / 61, "same")
+        bg = np.convolve(row, np.ones(bg_fenster) / bg_fenster, "same")
         r = row - bg
         pk = []
-        for x in range(35, W - 35):
+        for x in range(x_rand, W - x_rand):
             if r[x] == r[x - 12:x + 13].max() and r[x] > 0.05:
                 pk.append(x)
         gefunden.append((y, pk))
@@ -344,7 +385,7 @@ def spiegelprobe(lum, ppx, ppy, baender, hc_h):
         for y, pk in gefunden:
             v = y - ppy
             ziel = ppx + vorher * v
-            nah = [x for x in pk if abs(x - ziel) < 30]
+            nah = [x for x in pk if abs(x - ziel) < ziel_tol]
             if nah:
                 x = min(nah, key=lambda t: abs(t - ziel))
                 treffer.append((x - ppx) / v)
@@ -395,7 +436,7 @@ def gitterteilung(q, smin, smax, schritte=4000):
 # 8. Stuetzen
 # ---------------------------------------------------------------------------
 
-def stuetzen(lum, ppx, ppy, band=(478, 558)):
+def stuetzen(lum, ppx, ppy, band=None):
     """Dunkle Senkrechtbalken vor heller Wand.
 
     Rueckgabe je Stuetze: Bildkanten, Fusspunkt, Breite/h, X/h.
@@ -403,6 +444,8 @@ def stuetzen(lum, ppx, ppy, band=(478, 558)):
     uebersetzt Bildbreite in Weltbreite: w/h = dx/v.
     """
     H, W = lum.shape
+    if band is None:
+        band = (_refy(478, H), _refy(558, H))
     profil = np.convolve(lum[band[0]:band[1]].mean(axis=0), np.ones(3) / 3, "same")
     dunkel = profil < 0.30
     laeufe = []
@@ -454,7 +497,7 @@ def stuetzen(lum, ppx, ppy, band=(478, 558)):
         eigen = float(np.median(innen[band[0]:band[1]]))
         schwelle = eigen + 0.055
         fuss = None
-        for y in range(585, H - 34):
+        for y in range(_refy(585, H), H - _refy(34, H)):
             # anhaltend heller, sonst faengt jeder Glanzfleck den Fuss ab
             if all(innen[y + d] > schwelle for d in (0, 10, 20, 30)):
                 fuss = y
@@ -491,13 +534,16 @@ def bodenraster(lum, ppx, ppy):
         b = 1/v  -> Fliesentiefe   D/(f h)
     """
     H, W = lum.shape
+    y_untergrenze = _refy(600, H)
+    v_min = _refy(140, H)
     R = np.clip(kastenfilter(lum, 5) - lum, 0, None)
-    ys, xs = np.nonzero(R[600:] > 0.05)
-    ys = ys + 600
+    ys, xs = np.nonzero(R[y_untergrenze:] > 0.05)
+    ys = ys + y_untergrenze
     v = ys - ppy
     u = xs - ppx
-    ok = v > 140
-    if ok.sum() < 5000:
+    ok = v > v_min
+    pix_min = max(500, int(round(5000 / (_REF_H * _REF_W) * H * W)))
+    if ok.sum() < pix_min:
         return None
     k = u[ok] / v[ok]
     gew = R[ys[ok], xs[ok]] * np.sqrt(v[ok])
@@ -627,8 +673,9 @@ def deckenraster(lum, ppx, ppy, deckengrenze, baender):
     ys, xs = np.nonzero(R[:deckengrenze] > 0.04)
     v = ppy - ys.astype(np.float64)      # positiv: oberhalb des Hauptpunkts
     u = xs.astype(np.float64) - ppx
-    ok = v > 24
-    if ok.sum() < 2000:
+    ok = v > _refy(24, H)
+    pix_min = max(200, int(round(2000 / (_REF_H * _REF_W) * H * W)))
+    if ok.sum() < pix_min:
         return None
     k = u[ok] / v[ok]
     gew = R[ys[ok], xs[ok]] * np.sqrt(v[ok])
@@ -755,17 +802,27 @@ def vermessen(pfad, anker_m, anker_quelle="decke"):
 
     bericht = {}
 
+    # Flaechenbasierter Skalenfaktor gegen das Referenzbild (siehe
+    # Linienfeld.skala) -- fuer Pixel-Laengentoleranzen ausserhalb der Klasse.
+    _skala = math.sqrt((H * W) / (_REF_H * _REF_W))
+
     # --- Fluchtpunkt --------------------------------------------------------
+    # Bild in Wand- und Bodenhaelfte geteilt (Referenzbild: Trennlinien bei
+    # 432 und 560 von 1426 Zeilen) -- als Bruchzahl von H, damit die Suche
+    # bei anderer Bildgroesse in derselben Bildregion bleibt.
+    _y_wand = _refy(432, H)
+    _y_boden = _refy(560, H)
     kand = []
-    for ymin, ymax, lo, hi in ((0, 432, 55, 75), (0, 432, 95, 135),
-                               (560, H, 20, 60), (560, H, 120, 175), (560, H, 0, 20)):
+    for ymin, ymax, lo, hi in ((0, _y_wand, 55, 75), (0, _y_wand, 95, 135),
+                               (_y_boden, H, 20, 60), (_y_boden, H, 120, 175),
+                               (_y_boden, H, 0, 20)):
         for t, r in lf.hough(ymin, ymax, 10, lo, hi):
             L = lf.verfeinern(t, r, (ymin, ymax))
-            if L and L["laenge"] > 150:
+            if L and L["laenge"] > 150 * _skala:
                 kand.append(L)
     if len(kand) < 6:
         raise SystemExit("zu wenige Linien fuer einen Fluchtpunkt gefunden")
-    vp, inlier, rest = ransac_fluchtpunkt(kand)
+    vp, inlier, rest = ransac_fluchtpunkt(kand, toleranz=10.0 * _skala)
     ppx, ppy = float(vp[0]), float(vp[1])
     bericht["fluchtpunkt"] = {
         "x": ppx, "y": ppy,
@@ -777,10 +834,10 @@ def vermessen(pfad, anker_m, anker_quelle="decke"):
 
     # --- Parallelitaetsprobe -> Hauptpunkt ----------------------------------
     quer = []
-    for ymin, ymax in ((0, 432), (600, H)):
+    for ymin, ymax in ((0, _y_wand), (_refy(600, H), H)):
         for t, r in lf.hough(ymin, ymax, 14, 85, 95):
             L = lf.verfeinern(t, r, (ymin, ymax))
-            if L and L["laenge"] > 500:
+            if L and L["laenge"] > 500 * _skala:
                 quer.append(math.degrees(math.atan2(L["richtung"][1], L["richtung"][0])))
     quer = np.array([(a + 180) % 180 for a in quer])
     bericht["hauptpunkt"] = {
@@ -798,7 +855,7 @@ def vermessen(pfad, anker_m, anker_quelle="decke"):
     fuge = wand_boden_fuge(lum, ppx, ppy)
     fuge["provenienz"] = MEASURED
     bericht["wand_boden_fuge"] = fuge
-    oben = wand_decken_fuge(lum, ppy, 420, 900)
+    oben = wand_decken_fuge(lum, ppy, _refx(420, W), _refx(900, W))
     if oben is None:
         raise SystemExit("Wand-Decken-Fuge nicht gefunden")
     hc_h = (ppy - oben) / fuge["v"]
@@ -810,7 +867,8 @@ def vermessen(pfad, anker_m, anker_quelle="decke"):
     }
 
     # --- Leuchtbaender + Spiegelprobe --------------------------------------
-    baender = leuchtbaender(lum, ppx, ppy, 440)
+    deckengrenze = _refy(440, H)
+    baender = leuchtbaender(lum, ppx, ppy, deckengrenze)
     for b in baender:
         b["x_je_hc"] = -b["k"]
         b["x_je_h"] = -b["k"] * hc_h
@@ -852,7 +910,7 @@ def vermessen(pfad, anker_m, anker_quelle="decke"):
     }
 
     # --- Deckenraster (Kassetten-/Traegerteilung) ---------------------------
-    decke = deckenraster(lum, ppx, ppy, 440, baender)
+    decke = deckenraster(lum, ppx, ppy, deckengrenze, baender)
     if decke is not None:
         bericht["deckenraster"] = decke
 

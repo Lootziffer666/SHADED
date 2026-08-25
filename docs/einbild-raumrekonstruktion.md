@@ -127,6 +127,42 @@ BEUTELTIERs Wert ist für diese Fläche nicht zutreffend. Keine dieser drei
 Möglichkeiten wird hier entschieden — dafür fehlt eine zweite, unabhängige
 Quelle (ein Türmaß, eine amtliche Vermessung vor Ort).
 
+## Generalisierung: eine Referenzgröße, keine Referenzdatei
+
+Jede innere Suchregion der Messkette (Wand-Boden-Fuge, Wand-Decken-Fuge,
+Leuchtbänder-Deckengrenze, Stützenband, Spiegelprobe-Zeilen, Fluchtpunkt-Regionen,
+Bodenraster/Deckenraster-Schwellen) war ursprünglich auf absolute Pixelwerte
+verdrahtet, die zufällig zu `messehalle.png`s 1103×1426 passten. Ein anders
+großes oder anders geschnittenes Foto traf damit die falsche Bildregion — genau
+das Symptom hinter `Stuetzenraster nicht bestimmbar`. Jede dieser Grenzen ist
+jetzt ein Bruchteil von `messehalle.png`s eigener Höhe/Breite (`_refy`/`_refx`,
+Flächenskalierung `Linienfeld.skala` für Hough-/RANSAC-Toleranzen). Auf
+`messehalle.png` selbst ist die Umrechnung exakt 1:1 — der obige Messbericht
+ist bytegleich reproduziert; das ist der Regressionsbeweis, kein Vertrauensvorschuss.
+
+**Das behebt Größenunterschiede, nicht Kompositionsunterschiede.** Gegen vier
+neue, echte Fotos aus derselben Renovierungsmeldung 2018
+(`BEUTELTIER/data/raw/reference/Dkju*.jpg`, `DkjuioAVsAAOSKv.jpg`) probiert:
+
+| Foto | Ergebnis |
+|---|---|
+| `DkjuioAVsAAOSKv.jpg` | `Stuetzenraster nicht bestimmbar` — Fluchtpunkt fällt auf (2020,8 / 429,3) bei 2048 px Breite, an den Bildrand statt in die Bildmitte. Frontale Symmetrie fehlt: das Foto zeigt einen geschlossenen Rolltor-Abschluss statt der offenen Rückwand, dazu ein dichteres, anders gewinkeltes Deckenraster. |
+| `Dkju190W0AYtHL-.jpg` | `Stuetzenraster nicht bestimmbar` — Schrägaufnahme, Rolltorwand nimmt die Bildhälfte in starker Fluchtung ein. Kein Zentralperspektive-Blick auf eine frontale Rückwand. |
+| `DkjuiR0U0AAUV-C.jpg` | `Wand-Decken-Fuge nicht gefunden` — reiner Deckenausschnitt, keine Wand, kein Boden im Bild. |
+| `DkjuiRxUYAI_jWf.jpg` | `Stuetzenraster nicht bestimmbar` — weiter, schräger Blick über zwei Gassen, keine frontale Rückwandebene. |
+
+Das ist eine **gemessene Grenze der Methode**, keine ungelöste Bruchstelle:
+`single_view_room.py` ist laut eigener Dokumentation für genau eine
+Bildkomposition gebaut — Manhattan-Welt in Zentralperspektive mit frontaler
+Rückwand. Alle vier neuen Fotos sind Schrägaufnahmen oder Ausschnitte ohne
+Rückwand; die Werkzeugkiste (`tools/`, `docs/`) enthält aktuell kein zweites,
+Zweipunkt-perspektivisches Verfahren dafür. Ein solches Verfahren wäre eine
+neue Fähigkeit, keine Reparatur der bestehenden. Bis dahin taugen diese vier
+Fotos nur als **beobachtete** (nicht gemessene) Bestätigung dessen, was am
+Bild klar zu sehen ist — helle Stützen, schwarzes Kassettenraster mit
+Leuchtbändern, grauer Boden — konsistent über alle vier Aufnahmen und mit der
+Beobachtung an `messehalle.png`.
+
 ## Was nicht messbar ist
 
 * **Die Hallenbreite.** Die Rückwand füllt das Bild bis an beide Ränder; seitlich
