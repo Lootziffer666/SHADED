@@ -19,7 +19,7 @@ const checks = [
   ["editor manifest linked", /rel="manifest" href="\/manifest\.webmanifest"/.test(editorHtml)],
   ["editor install module linked", /type="module" src="\/runtime\/install\.js/.test(editorHtml)],
   ["editor install button exists", /id="btn-install"/.test(editorHtml)],
-  ["runtime modules cached offline", ["./runtime/spatial-viewer.js","./runtime/install.js","./runtime/spatial-navigation.mjs","./runtime/spatial-reconstruction.mjs","./runtime/sparse-voxel-world.mjs","./runtime/surface-world-simulation.mjs"].every(file => worker.includes(`'${file}'`))],
+  ["runtime modules cached offline", ["./runtime/spatial-viewer.js","./runtime/install.js","./runtime/spatial-point-cloud.mjs","./runtime/spatial-navigation.mjs","./runtime/spatial-reconstruction.mjs","./runtime/sparse-voxel-world.mjs","./runtime/surface-world-simulation.mjs"].every(file => worker.includes(`'${file}'`))],
   ["editor cached offline", ["./editor/index.html","./editor/app.js"].every(file => worker.includes(`'${file}'`))],
   ["canonical demo cached offline", ["./file_00000000974871f49fe71f6b456f9579.png","./file_00000000974871f49fe71f6b456f9579_depth.png","./file_00000000c84071f4bcd6ff9afdba7246.png"].every(file => worker.includes(`'${file}'`))],
 ];

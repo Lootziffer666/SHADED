@@ -238,7 +238,7 @@ export class SpatialWorldSimulation {
 
   points() {
     const out = [], s = this.grid.size;
-    const add = (x, z, y, value, kind, color, threshold = 0.04) => { if (value < threshold) return; out.push({x: cellToWorld(x, s), y, z: cellToWorld(z, s), r: color[0], g: color[1], b: color[2], kind, generated: true, provenance: 'GENERATED', confidence: 0.5, size: value}); };
+    const add = (x, z, y, value, kind, color, threshold = 0.04) => { if (value < threshold) return; out.push({x: cellToWorld(x, s), y, z: cellToWorld(z, s), r: color[0], g: color[1], b: color[2], kind, generated: true, provenance: 'GENERATED', confidence: null, reliability: 'NOT_MEASURED', size: value}); };
     for (let z = 1; z < s - 1; z++) for (let x = 1; x < s - 1; x++) {
       const i = z * s + x; if (this.grid.cells[i] && this.grid.material?.[i] !== 1) continue;
       const pigment = clamp01(this.blood[i] + this.urine[i]);

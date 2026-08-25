@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v15';
+const CACHE = 'shaded-shell-v16';
 const SHELL = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const SHELL = [
   './runtime/install.js',
   './runtime/spatial-viewer.js',
   './runtime/install.js?v=8',
+  './runtime/spatial-point-cloud.mjs',
   './runtime/spatial-navigation.mjs',
   './runtime/spatial-reconstruction.mjs',
   './runtime/sparse-voxel-world.mjs',
