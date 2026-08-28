@@ -68,10 +68,14 @@ try {
   await page.click('.coast-launch');
   await page.waitForFunction(() => document.body.classList.contains('coast-mode'));
   await page.waitForFunction(() => /GLSL READY|DEPTH LIVE/.test(document.getElementById('coast-state')?.textContent || ''));
-  await page.locator('[data-coast="waterLevel"]').fill('0.20');
-  await page.locator('[data-coast="foam"]').fill('0.88');
-  await page.locator('[data-coast="refraction"]').fill('0.52');
-  await page.locator('[data-coast="wind"]').fill('-0.32');
+  await page.evaluate(values => {
+    for (const [key, value] of Object.entries(values)) {
+      const input = document.querySelector(`[data-coast="${key}"]`);
+      if (!input) throw new Error(`missing Coast control ${key}`);
+      input.value = String(value);
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+  }, {waterLevel:0.20, foam:0.88, refraction:0.52, wind:-0.32});
   await page.waitForTimeout(900);
   const coastState = await page.evaluate(() => {
     const canvas = document.getElementById('coast-canvas');
