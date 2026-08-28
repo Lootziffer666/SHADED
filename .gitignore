@@ -9,4 +9,7 @@ checkpoints/
 *.pt
 *.safetensors
 
+# Local third-party material cache. FreeStylized permits project use but restricts redistribution.
+.cache/materials/
+
 tools/gpu-providers.local.json
