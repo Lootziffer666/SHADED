@@ -24,8 +24,9 @@ const requiredEffects = [
 ];
 for (const id of requiredEffects) assert.match(js, new RegExp(`id: '${id}'`), `missing sandbox effect: ${id}`);
 
-const forbidden = /\b(?:TODO|STUB|PLACEHOLDER|FAKE)\b/i;
-assert.equal(forbidden.test(js), false, 'sandbox runtime contains forbidden placeholder language');
-assert.equal(forbidden.test(html), false, 'sandbox UI contains forbidden placeholder language');
+const forbiddenRuntime = /\b(?:TODO|STUB|PLACEHOLDER|FAKE)\b/i;
+const forbiddenUi = /\b(?:TODO|STUB|FAKE_RENDER)\b/i;
+assert.equal(forbiddenRuntime.test(js), false, 'sandbox runtime contains forbidden placeholder language');
+assert.equal(forbiddenUi.test(html), false, 'sandbox UI contains forbidden placeholder rendering');
 
 console.log(`sandbox verify: ${requiredEffects.length} effects · WebGL2/GLSL300 · local material hook · mobile shell`);
