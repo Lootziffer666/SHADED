@@ -1,0 +1,83 @@
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.css':'text/css; charset=utf-8'};
+const server = http.createServer((request, response) => {
+  const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+  const requested = pathname === '/' ? '/index.html' : pathname;
+  const filename = path.resolve(root, '.' + requested), relative = path.relative(root, filename);
+  if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) {
+    response.writeHead(404); response.end(); return;
+  }
+  response.writeHead(200, {'Content-Type': mime[path.extname(filename)] || 'application/octet-stream', 'Cache-Control':'no-cache'});
+  fs.createReadStream(filename).pipe(response);
+});
+
+const listen = () => new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const effects = ['water','ice','sand','mud','soil','wet','snow','moss','lava','fire','smoke','steam','fog','cloud','hologram','dissolve'];
+
+let browser;
+try {
+  await listen();
+  const address = server.address(), origin = `http://127.0.0.1:${address.port}`;
+  browser = await chromium.launch({headless:true,args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist','--no-sandbox','--disable-dev-shm-usage']});
+  const page = await browser.newPage({viewport:{width:1280,height:800}}), failures=[];
+  page.on('pageerror', error => failures.push(`page: ${error.message}`));
+  page.on('console', message => { if (message.type()==='error' && !/Failed to load resource/.test(message.text())) failures.push(`console: ${message.text()}`); });
+
+  await page.goto(origin + '/editor/sandbox.html', {waitUntil:'domcontentloaded'});
+  await page.waitForFunction(() => /GLSL ES 3\.00 · LIVE/.test(document.getElementById('sandbox-status')?.textContent || ''));
+  const glState = await page.evaluate(() => {
+    const canvas = document.getElementById('sandbox-canvas');
+    const gl = canvas?.getContext('webgl2');
+    return {
+      webgl2: !!gl,
+      width: canvas?.width || 0,
+      height: canvas?.height || 0,
+      renderer: gl ? gl.getParameter(gl.RENDERER) : '',
+      error: gl ? gl.getError() : -1,
+    };
+  });
+  assert(glState.webgl2, 'Sandbox hat keinen WebGL2-Kontext');
+  assert(glState.width > 400 && glState.height > 250, `Sandbox-Canvas ist nicht gerendert (${glState.width}x${glState.height})`);
+  assert(glState.error === 0, `WebGL meldet Fehler ${glState.error} direkt nach Shader-Link`);
+
+  for (const effect of effects) {
+    await page.locator(`[data-effect="${effect}"]`).click();
+    await page.waitForFunction(id => document.querySelector(`[data-effect="${id}"]`)?.classList.contains('active'), effect);
+    await page.waitForTimeout(effect === 'fire' || effect === 'smoke' || effect === 'steam' || effect === 'fog' || effect === 'cloud' ? 90 : 45);
+    const error = await page.evaluate(() => document.getElementById('sandbox-canvas').getContext('webgl2').getError());
+    assert(error === 0, `${effect}: WebGL error ${error}`);
+  }
+
+  await page.selectOption('#quality-select', 'fast');
+  await page.waitForTimeout(80);
+  await page.selectOption('#quality-select', 'hq');
+  await page.locator('[data-effect="water"]').click();
+  const intensity = page.locator('[data-param="intensity"]');
+  await intensity.fill('0.31');
+  assert(await intensity.inputValue() === '0.31', 'Sandbox-Parameter lässt sich nicht live ändern');
+
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(60);
+  assert(await page.evaluate(() => document.body.classList.contains('library-closed')), 'Mobile Sandbox startet nicht viewport-first');
+  await page.click('#btn-library-toggle');
+  await page.waitForTimeout(40);
+  const mobileLibrary = await page.evaluate(() => ({libraryClosed:document.body.classList.contains('library-closed'),controlsClosed:document.body.classList.contains('controls-closed')}));
+  assert(!mobileLibrary.libraryClosed && mobileLibrary.controlsClosed, 'Mobile EFFEKTE öffnet nicht exklusiv');
+  await page.click('#btn-controls-toggle');
+  await page.waitForTimeout(40);
+  const mobileControls = await page.evaluate(() => ({libraryClosed:document.body.classList.contains('library-closed'),controlsClosed:document.body.classList.contains('controls-closed')}));
+  assert(mobileControls.libraryClosed && !mobileControls.controlsClosed, 'Mobile PARAMETER öffnet nicht exklusiv');
+
+  assert(!failures.length, `Browserfehler: ${failures.join(' | ')}`);
+  console.log(`✅ Sandbox Browser: WebGL2/GLSL300 kompiliert · ${effects.length} Modi · Desktop + Mobile Drawer · ${glState.renderer}`);
+} finally {
+  await browser?.close();
+  await new Promise(resolve => server.close(resolve));
+}
