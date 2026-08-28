@@ -105,9 +105,9 @@ vec3 sandColor(vec3 p,vec3 n,float dist){
 }
 vec3 waterColor(vec3 ro,vec3 rd,vec3 p,vec3 n,float thickness,float dist){
   vec3 v=normalize(ro-p);float fres=pow(1.-max(dot(n,v),0.),4.);vec2 refracted=p.xz+n.xz*uRefraction*thickness*.42;
-  float bedY=terrainHeight(refracted);vec3 bedP=vec3(refracted,bedY);vec3 bedN=normalTerrain(refracted);vec3 seabed=sandColor(bedP,bedN,dist+thickness);
+  float bedY=terrainHeight(refracted);vec3 bedP=vec3(refracted.x,bedY,refracted.y);vec3 bedN=normalTerrain(refracted);vec3 seabed=sandColor(bedP,bedN,dist+thickness);
   float depthRatio=clamp(thickness/2.7,0.,1.);vec3 shallow=vec3(.055,.43,.48),deep=vec3(.008,.075,.14);vec3 volume=mix(shallow,deep,depthRatio);
-  vec3 absorbCoeff=mix(vec3(.22,.10,.05),vec3(.85,.32,.12),uAbsorption/1.5);vec3 trans=exp(-max(thickness,0.)*absorbCoeff*uAbsorption);
+  vec3 absorbCoeff=mix(vec3(.22,.10,.05),vec3(.85,.32,.12),clamp(uAbsorption/1.5,0.,1.));vec3 trans=exp(-max(thickness,0.)*absorbCoeff*uAbsorption);
   vec3 refractedColor=mix(volume,seabed*volume*2.0,trans);
   vec3 reflected=sky(reflect(rd,n));vec3 c=mix(refractedColor,reflected,.12+fres*.72);
   float shore=1.-smoothstep(.05,.72,thickness);float crest=smoothstep(.58,.92,clamp((waterHeight(p.xz)-uWaterLevel)/max(.001,uWaveHeight)*.5+.5,0.,1.));
@@ -132,8 +132,8 @@ class CoastRenderer{
   constructor(canvas){this.canvas=canvas;this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'});if(!this.gl)throw new Error('WebGL2 unavailable');this.program=this.makeProgram(COAST_VERT,COAST_FRAG);this.started=performance.now();this.last=this.started;this.frames=0;this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);this.resize();this.loop=this.loop.bind(this);requestAnimationFrame(this.loop);}
   shader(type,src){const g=this.gl,s=g.createShader(type);g.shaderSource(s,src);g.compileShader(s);if(!g.getShaderParameter(s,g.COMPILE_STATUS))throw new Error(g.getShaderInfoLog(s)||'coast shader compile failed');return s;}
   makeProgram(v,f){const g=this.gl,p=g.createProgram();g.attachShader(p,this.shader(g.VERTEX_SHADER,v));g.attachShader(p,this.shader(g.FRAGMENT_SHADER,f));g.linkProgram(p);if(!g.getProgramParameter(p,g.LINK_STATUS))throw new Error(g.getProgramInfoLog(p)||'coast program link failed');return p;}
-  resize(){const q=matchMedia('(max-width:700px)').matches?.58:.82;const dpr=Math.min(devicePixelRatio||1,2)*q,w=Math.max(2,Math.floor(this.canvas.clientWidth*dpr)),h=Math.max(2,Math.floor(this.canvas.clientHeight*dpr));if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}}
-  set(name,value){const g=this.gl,l=g.getUniformLocation(this.program,name);if(l)g.uniform1f(l,value);}
+  resize(){const q=matchMedia('(max-width:700px)').matches ? .58 : .82;const dpr=Math.min(devicePixelRatio||1,2)*q,w=Math.max(2,Math.floor(this.canvas.clientWidth*dpr)),h=Math.max(2,Math.floor(this.canvas.clientHeight*dpr));if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}}
+  set(name,value){const g=this.gl,l=g.getUniformLocation(this.program,name);if(l!==null)g.uniform1f(l,value);}
   loop(now){requestAnimationFrame(this.loop);if(!coastState.active||coastState.paused)return;this.resize();const g=this.gl;g.bindFramebuffer(g.FRAMEBUFFER,null);g.viewport(0,0,this.canvas.width,this.canvas.height);g.useProgram(this.program);g.uniform2f(g.getUniformLocation(this.program,'uResolution'),this.canvas.width,this.canvas.height);this.set('uTime',(now-this.started)/1000);this.set('uWaterLevel',coastState.waterLevel);this.set('uDuneHeight',coastState.duneHeight);this.set('uWaveHeight',coastState.waveHeight);this.set('uWaveSpeed',coastState.waveSpeed);this.set('uFoam',coastState.foam);this.set('uRefraction',coastState.refraction);this.set('uAbsorption',coastState.absorption);this.set('uWind',coastState.wind);this.set('uRipples',coastState.ripples);this.set('uYaw',coastState.yaw);this.set('uPitch',coastState.pitch);this.set('uZoom',coastState.zoom);g.drawArrays(g.TRIANGLES,0,3);this.frames++;if(now-this.last>700){const fps=this.frames*1000/(now-this.last);this.frames=0;this.last=now;document.getElementById('coast-state').textContent=`DEPTH LIVE · ${fps.toFixed(0)} FPS`;}}
 }
 
@@ -149,9 +149,11 @@ document.getElementById('coast-pause').addEventListener('click',e=>{coastState.p
 document.getElementById('coast-reset').addEventListener('click',()=>{Object.assign(coastState,{...coastDefaults,yaw:.64,pitch:.22,zoom:7.2});coastControls.querySelectorAll('[data-coast]').forEach(input=>{input.value=coastState[input.dataset.coast];input.parentElement.querySelector('output').textContent=Number(input.value).toFixed(2);});});
 
 document.addEventListener('click',e=>{if(document.body.classList.contains('coast-mode')&&e.target.closest('.granular-launch'))coastExit();},true);
+for (const id of ['btn-library-toggle','btn-controls-toggle']) document.getElementById(id)?.addEventListener('click',()=>{if(document.body.classList.contains('coast-mode'))coastExit();},{capture:true});
 let coastDrag=false,coastX=0,coastY=0;
 coastCanvas.addEventListener('pointerdown',e=>{coastDrag=true;coastX=e.clientX;coastY=e.clientY;coastCanvas.setPointerCapture(e.pointerId);});
 coastCanvas.addEventListener('pointermove',e=>{if(!coastDrag)return;coastState.yaw-=(e.clientX-coastX)*.006;coastState.pitch=Math.max(-.15,Math.min(1.05,coastState.pitch+(e.clientY-coastY)*.005));coastX=e.clientX;coastY=e.clientY;});
 coastCanvas.addEventListener('pointerup',e=>{coastDrag=false;coastCanvas.releasePointerCapture?.(e.pointerId);});
+coastCanvas.addEventListener('pointercancel',()=>{coastDrag=false;});
 coastCanvas.addEventListener('wheel',e=>{e.preventDefault();coastState.zoom=Math.max(3.5,Math.min(14,coastState.zoom+e.deltaY*.006));},{passive:false});
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='c'&&!/input|select|textarea/i.test(e.target.tagName)){document.body.classList.contains('coast-mode')?coastExit():coastEnter();}});
