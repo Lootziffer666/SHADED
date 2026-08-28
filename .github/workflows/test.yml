@@ -38,6 +38,7 @@ jobs:
       run: |
         node --check editor/sandbox-ui-fixes.js
         node --check editor/sandbox-granular.js
+        node --check editor/sandbox-coast.js
         node --check tools/verify-sandbox-browser.mjs
         node tools/verify-sandbox-browser.mjs
 
