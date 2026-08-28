@@ -27,17 +27,16 @@ try {
   await listen();
   const address = server.address(), origin = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch({headless:true,args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist','--no-sandbox','--disable-dev-shm-usage']});
-  const page = await browser.newPage({viewport:{width:900,height:500}}), failures=[];
-  page.setDefaultTimeout(10000);
+  const page = await browser.newPage({viewport:{width:640,height:360}}), failures=[];
+  page.setDefaultTimeout(12000);
   page.on('pageerror', error => failures.push(`page: ${error.message}`));
   page.on('console', message => { if (message.type()==='error' && !/Failed to load resource/.test(message.text())) failures.push(`console: ${message.text()}`); });
 
   await page.goto(origin + '/editor/sandbox.html', {waitUntil:'domcontentloaded'});
   await page.waitForFunction(() => /GLSL ES 3\.00 · LIVE/.test(document.getElementById('sandbox-status')?.textContent || ''));
 
-  // CI runs Chromium through CPU-backed SwiftShader. Prove every mode on the real
-  // WebGL2 path, but keep the raymarch budget small so this is a correctness test,
-  // not an accidental CPU benchmark.
+  // CI uses CPU-backed SwiftShader. Exercise every actual WebGL2 path at a small
+  // render budget: this is correctness verification, not a CPU benchmark.
   await page.selectOption('#quality-select', 'fast');
   await page.waitForTimeout(80);
 
@@ -53,7 +52,7 @@ try {
     };
   });
   assert(glState.webgl2, 'Sandbox hat keinen WebGL2-Kontext');
-  assert(glState.width > 300 && glState.height > 150, `Sandbox-Canvas ist nicht gerendert (${glState.width}x${glState.height})`);
+  assert(glState.width > 200 && glState.height > 100, `Sandbox-Canvas ist nicht gerendert (${glState.width}x${glState.height})`);
   assert(glState.error === 0, `WebGL meldet Fehler ${glState.error} direkt nach Shader-Link`);
 
   for (const effect of effects) {
@@ -64,13 +63,36 @@ try {
     assert(error === 0, `${effect}: WebGL error ${error}`);
   }
 
+  // Coast Lab: a separate depth-aware surface/world experiment. Prove that its
+  // GLSL program links, renders, reacts to world-level controls and returns cleanly.
+  await page.click('.coast-launch');
+  await page.waitForFunction(() => document.body.classList.contains('coast-mode'));
+  await page.waitForFunction(() => /GLSL READY|DEPTH LIVE/.test(document.getElementById('coast-state')?.textContent || ''));
+  await page.locator('[data-coast="waterLevel"]').fill('0.20');
+  await page.locator('[data-coast="foam"]').fill('0.88');
+  await page.locator('[data-coast="refraction"]').fill('0.52');
+  await page.locator('[data-coast="wind"]').fill('-0.32');
+  await page.waitForTimeout(900);
+  const coastState = await page.evaluate(() => {
+    const canvas = document.getElementById('coast-canvas');
+    const gl = canvas?.getContext('webgl2');
+    const pixel = new Uint8Array(4);
+    if (gl && canvas.width && canvas.height) gl.readPixels(Math.floor(canvas.width/2), Math.floor(canvas.height/2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return {webgl2:!!gl,error:gl?gl.getError():-1,status:document.getElementById('coast-state')?.textContent||'',pixel:[...pixel]};
+  });
+  assert(coastState.webgl2 && coastState.error === 0, `Coast WebGL2 error ${coastState.error}`);
+  assert(/DEPTH LIVE/.test(coastState.status), `Coast Lab rendert nicht fortlaufend: ${coastState.status}`);
+  assert(coastState.pixel[3] > 0 && coastState.pixel.slice(0,3).some(value => value > 2), `Coast Lab liefert kein sichtbares Pixel: ${coastState.pixel.join(',')}`);
+  await page.click('#coast-exit');
+  await page.waitForFunction(() => !document.body.classList.contains('coast-mode'));
+
   // Granular Lab is a separate GPU-state system, not another material preset.
   await page.click('.granular-launch');
   await page.waitForFunction(() => document.body.classList.contains('granular-mode'));
   await page.waitForFunction(() => /GPU READY|PASS/.test(document.getElementById('granular-state')?.textContent || ''));
   const granular = page.locator('#granular-canvas');
   const box = await granular.boundingBox();
-  assert(box && box.width > 300 && box.height > 150, 'Granular-Canvas ist nicht sichtbar');
+  assert(box && box.width > 250 && box.height > 120, 'Granular-Canvas ist nicht sichtbar');
   await page.mouse.move(box.x + box.width * .45, box.y + box.height * .22);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * .58, box.y + box.height * .28, {steps:4});
@@ -113,7 +135,7 @@ try {
   assert(mobileControls.libraryClosed && !mobileControls.controlsClosed, 'Mobile PARAMETER öffnet nicht exklusiv');
 
   assert(!failures.length, `Browserfehler: ${failures.join(' | ')}`);
-  console.log(`✅ Sandbox Browser: WebGL2/GLSL300 · ${effects.length} effect modes · GPU granular ping-pong · desktop/mobile UI · ${glState.renderer}`);
+  console.log(`✅ Sandbox Browser: WebGL2/GLSL300 · ${effects.length} effect modes · depth-aware Coast Lab · GPU granular ping-pong · desktop/mobile UI · ${glState.renderer}`);
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
