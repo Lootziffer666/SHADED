@@ -37,6 +37,7 @@ jobs:
     - name: Verify viewport-first shader sandbox in Chromium
       run: |
         node --check editor/sandbox-ui-fixes.js
+        node --check editor/sandbox-granular.js
         node --check tools/verify-sandbox-browser.mjs
         node tools/verify-sandbox-browser.mjs
 
