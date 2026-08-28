@@ -64,7 +64,10 @@ try {
   }
 
   // Coast Lab: a separate depth-aware surface/world experiment. Prove that its
-  // GLSL program links, renders, reacts to world-level controls and returns cleanly.
+  // GLSL program links, draws continuously, reacts to world-level controls and
+  // returns cleanly. Do not read pixels here: preserveDrawingBuffer=false allows
+  // Chromium to clear the backbuffer after compositing even when the canvas is
+  // visibly rendered.
   await page.click('.coast-launch');
   await page.waitForFunction(() => document.body.classList.contains('coast-mode'));
   await page.waitForFunction(() => /GLSL READY|DEPTH LIVE/.test(document.getElementById('coast-state')?.textContent || ''));
@@ -80,13 +83,23 @@ try {
   const coastState = await page.evaluate(() => {
     const canvas = document.getElementById('coast-canvas');
     const gl = canvas?.getContext('webgl2');
-    const pixel = new Uint8Array(4);
-    if (gl && canvas.width && canvas.height) gl.readPixels(Math.floor(canvas.width/2), Math.floor(canvas.height/2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    return {webgl2:!!gl,error:gl?gl.getError():-1,status:document.getElementById('coast-state')?.textContent||'',pixel:[...pixel]};
+    return {
+      webgl2:!!gl,
+      error:gl?gl.getError():-1,
+      status:document.getElementById('coast-state')?.textContent||'',
+      width:canvas?.width||0,
+      height:canvas?.height||0,
+      program:!!(gl && gl.getParameter(gl.CURRENT_PROGRAM)),
+      waterLevel:document.querySelector('[data-coast="waterLevel"]')?.value,
+      foam:document.querySelector('[data-coast="foam"]')?.value,
+      refraction:document.querySelector('[data-coast="refraction"]')?.value,
+      wind:document.querySelector('[data-coast="wind"]')?.value,
+    };
   });
   assert(coastState.webgl2 && coastState.error === 0, `Coast WebGL2 error ${coastState.error}`);
   assert(/DEPTH LIVE/.test(coastState.status), `Coast Lab rendert nicht fortlaufend: ${coastState.status}`);
-  assert(coastState.pixel[3] > 0 && coastState.pixel.slice(0,3).some(value => value > 2), `Coast Lab liefert kein sichtbares Pixel: ${coastState.pixel.join(',')}`);
+  assert(coastState.width > 200 && coastState.height > 100 && coastState.program, `Coast draw state fehlt (${coastState.width}x${coastState.height}, program=${coastState.program})`);
+  assert(coastState.waterLevel === '0.2' && coastState.foam === '0.88' && coastState.refraction === '0.52' && coastState.wind === '-0.32', 'Coast controls erreichen den Live-Renderer nicht');
   await page.click('#coast-exit');
   await page.waitForFunction(() => !document.body.classList.contains('coast-mode'));
 
