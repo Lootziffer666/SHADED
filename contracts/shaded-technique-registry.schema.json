@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "shaded.style.technique-registry/v1",
+  "title": "SHADED Style TechniqueDescriptor Registry",
+  "description": "Form angelehnt an docs/research/operators.json (Donor-/Lizenz-Registry-Muster). Jeder Eintrag ist eine unabhängig aus veröffentlichten Formeln implementierte Rendertechnik der Style-Discovery-Sandbox (sandbox/passes/style.glsl.js) — kein fremder Code wird eingebettet (Root-LICENSE ist all rights reserved).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "family", "name", "source", "supportedBudgets"],
+    "additionalProperties": false,
+    "properties": {
+      "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "family": {
+        "enum": ["lighting", "specular", "rim", "normal", "outline", "palette", "texture", "post", "shadow"]
+      },
+      "name": { "type": "string" },
+      "description": { "type": "string" },
+      "source": {
+        "type": "object",
+        "required": ["name", "licenseClass", "usage"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string" },
+          "licenseClass": {
+            "enum": ["A", "B", "C", "D"],
+            "description": "A = permissiv/eigene Formel, B = LYGIA-artig (nicht als MIT annehmen), C = Shadertoy/GodotShaders/Gist (nur Konzept), D = proprietär/unklar (nur Architektur-Referenz, z. B. Crest)."
+          },
+          "license": { "type": "string" },
+          "usage": {
+            "enum": ["algorithm-reference", "research-only"],
+            "description": "Diese Registry listet AUSSCHLIESSLICH unabhängig implementierte Algorithmus-Referenzen oder als researchOnly markierte Donor-Einträge — nie 'direct' oder 'port' fremden Codes."
+          }
+        }
+      },
+      "supportedBudgets": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "enum": ["FULL", "BALANCED", "MOBILE", "MINIMAL"] }
+      },
+      "parameters": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["key", "kind"],
+          "properties": {
+            "key": { "type": "string" },
+            "kind": { "enum": ["categorical", "continuous"] }
+          }
+        }
+      },
+      "researchOnly": { "type": "boolean", "description": "true = (noch) nicht implementiert, kein Dropdown-Eintrag in der Sandbox-UI — nur Provenance-Dokumentation." }
+    }
+  }
+}

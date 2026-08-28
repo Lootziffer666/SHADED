@@ -250,6 +250,32 @@ Fassade**, statt einer zweiten Implementierung der Engine-Interna.
   tools/orchestrate.js --project tools/orchestrate-example-request.json --json`
   (End-to-End-CLI-Beweis).
 
+## Style Discovery Sandbox (`runtime/style/` + `sandbox/`)
+
+Vertikale Scheibe der Zielarchitektur `WorldState → Solver → MaterialResponse
+→ StyleProfile → RenderBudget → Final Render`, als Beweisfeld für eine
+künftige Trennung von Weltzustand und Stil — **keine dauerhafte
+Parallelarchitektur** und **`runtime/shaded-engine.mjs` bleibt in dieser
+Schicht unberührt**. Zwei strikt getrennte Teile:
+
+- **`runtime/style/`** ist der renderer-unabhängige Kern: reines ESM, kein
+  DOM/WebGL, in Node importierbar und per `node tools/test-style-discovery.mjs`
+  deterministisch getestet (WorldState, MaterialResponse, StyleProfile,
+  TechniqueDescriptor-Registry, Preference-Model, Candidate-Serialisierung,
+  RenderBudget).
+- **`sandbox/`** ist die dünne, austauschbare WebGL2/SDF-Schicht + UI
+  (Blindvergleich, Voting, Isolationsmodus, Custom-Profil-Komposition,
+  FULL/MOBILE) — analog zu `runtime/spatial-viewer.js` als Präzedenzfall
+  für einen zweiten, unabhängigen WebGL2-Renderer, der KEINE zweite
+  Material-Wahrheit ist.
+
+Nur FULL und MOBILE sind nutzersichtbare Budget-Stufen; MaterialResponse
+reicht mehr als `{baseColor, roughness, reflectance, emission, damage}` über
+die Style-Grenze (Nässe/Ruß/Risse/Frost/Schnee/Rost bleiben als eigene
+Kanäle erhalten). Details, Bedienung und der volle Verifikations-Workflow:
+`docs/STYLE_DISCOVERY.md`. Ein späterer Task darf einen Adapter ergänzen,
+der dasselbe `StyleProfile` auf den Produktionsrenderer anwendet.
+
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 
 ```bash

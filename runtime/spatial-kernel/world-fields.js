@@ -6,7 +6,7 @@
 //
 // Pure, dependency-free; deterministic via a seeded RNG.
 
-function mulberry32(seed) {
+export function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0;

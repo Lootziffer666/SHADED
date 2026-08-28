@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "shaded.style.profile/v1",
+  "title": "SHADED StyleProfile / Candidate / Discovery Export",
+  "description": "Renderer-unabhängiges Stilprofil der Style-Discovery-Sandbox (runtime/style/style-profile.js), plus die daraus abgeleiteten Formen Candidate (runtime/style/candidate.js) und der gesamte persistierte Discovery-Zustand (runtime/style/discovery-store.js). Enthält keine Bild-Bytes und keinen Bezug zu runtime/shaded-engine.mjs.",
+  "definitions": {
+    "styleProfile": {
+      "type": "object",
+      "required": ["schema", "id", "name", "lighting", "specular", "rim", "normal", "outline", "palette", "texture", "post", "shadow"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "shaded.style.profile/v1" },
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "Interner Name (z. B. 'soft-toon'). Wird der UI erst NACH dem Votum gezeigt — vor der Abstimmung ist dies für den Nutzer unsichtbar." },
+        "lighting": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "rampBands", "rampSoftness"],
+          "properties": {
+            "mode": { "enum": ["halfLambert", "banded", "hardCel"] },
+            "rampBands": { "type": "number", "minimum": 2, "maximum": 6 },
+            "rampSoftness": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "specular": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "intensity"],
+          "properties": {
+            "mode": { "enum": ["ggx", "banded"] },
+            "intensity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "rim": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "width", "hue"],
+          "properties": {
+            "mode": { "enum": ["off", "soft", "hard"] },
+            "width": { "type": "number", "minimum": 0, "maximum": 1 },
+            "hue": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "normal": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "strength"],
+          "properties": {
+            "mode": { "enum": ["smooth", "curvature", "faceted"] },
+            "strength": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "outline": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "thickness"],
+          "properties": {
+            "mode": { "enum": ["none", "sobel"] },
+            "thickness": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "palette": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "steps", "hue"],
+          "properties": {
+            "mode": { "enum": ["free", "gradientMap", "posterize"] },
+            "steps": { "type": "number", "minimum": 2, "maximum": 8 },
+            "hue": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "texture": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "strength"],
+          "properties": {
+            "mode": { "enum": ["clean", "breakup"] },
+            "strength": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "post": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "intensity"],
+          "properties": {
+            "mode": { "enum": ["bloomGrain", "halftone"] },
+            "intensity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "shadow": {
+          "type": "object", "additionalProperties": false,
+          "required": ["warmth"],
+          "properties": {
+            "warmth": { "type": "number", "minimum": -1, "maximum": 1, "description": "-1 = kalter Schatten, +1 = warmer Schatten." }
+          }
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["schema", "id", "seed", "profile", "worldStateId", "budget", "sceneVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "shaded.style.candidate/v1" },
+        "id": { "type": "string" },
+        "seed": { "type": "integer", "minimum": 0 },
+        "profile": { "$ref": "#/definitions/styleProfile" },
+        "worldStateId": { "type": "string" },
+        "budget": { "enum": ["FULL", "BALANCED", "MOBILE", "MINIMAL"] },
+        "sceneVersion": { "type": "string" }
+      }
+    },
+    "discoveryState": {
+      "type": "object",
+      "required": ["schema", "preferenceModelState", "history", "round", "customProfiles"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "shaded.style.discovery/v1" },
+        "preferenceModelState": { "type": "object", "description": "PreferenceModel.toJSON() — pro STYLE_DIMENSIONS-Eintrag ein Score-Objekt." },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["isolatedDimension", "round"],
+            "properties": {
+              "isolatedDimension": { "type": "string" },
+              "round": { "type": "integer", "minimum": 0 },
+              "winner": { "enum": ["a", "b", "tie"] },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "round": { "type": "integer", "minimum": 0 },
+        "customProfiles": { "type": "array", "items": { "$ref": "#/definitions/styleProfile" } }
+      }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/definitions/styleProfile" },
+    { "$ref": "#/definitions/candidate" },
+    { "$ref": "#/definitions/discoveryState" }
+  ]
+}

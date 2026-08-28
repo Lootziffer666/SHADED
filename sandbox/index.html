@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHADED Style Discovery Sandbox</title>
+<link rel="stylesheet" href="style-lab.css">
+</head>
+<body>
+<header class="lab-header">
+  <h1>SHADED Style Discovery Sandbox</h1>
+  <p>Blind vergleichen, das System schätzt deine Vorlieben, du komponierst am Ende dein eigenes Stilprofil.
+     Diese Sandbox ist ein Beweisfeld für <code>runtime/style/</code> — <code>runtime/shaded-engine.mjs</code> bleibt unberührt.</p>
+  <div class="top-controls">
+    <button id="btn-budget-full" class="active" data-budget="FULL">Budget: FULL</button>
+    <button id="btn-budget-mobile" data-budget="MOBILE">Budget: MOBILE</button>
+    <button id="btn-toggle-expert">Expertenpanel</button>
+  </div>
+</header>
+
+<section class="lab-section" id="compare-section">
+  <h2>Blindvergleich</h2>
+  <div class="round-status" id="round-status">Runde 1</div>
+
+  <div class="side-toggle">
+    <button id="toggle-show-a" class="active" data-side="a">Kandidat A</button>
+    <button id="toggle-show-b" data-side="b">Kandidat B</button>
+  </div>
+
+  <div class="compare-grid">
+    <div class="candidate-card" id="card-a" data-side="a">
+      <canvas id="canvas-a" width="480" height="300"></canvas>
+      <div class="candidate-name" id="name-a"></div>
+      <div class="reaction-row">
+        <button data-reaction="like" data-side="a">👍</button>
+        <button data-reaction="dislike" data-side="a">👎</button>
+        <button data-reaction="interesting" data-side="a">🤔 interessant</button>
+      </div>
+    </div>
+    <div class="candidate-card" id="card-b" data-side="b" hidden>
+      <canvas id="canvas-b" width="480" height="300"></canvas>
+      <div class="candidate-name" id="name-b"></div>
+      <div class="reaction-row">
+        <button data-reaction="like" data-side="b">👍</button>
+        <button data-reaction="dislike" data-side="b">👎</button>
+        <button data-reaction="interesting" data-side="b">🤔 interessant</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="vote-row">
+    <button id="vote-a" class="primary">Bevorzuge A</button>
+    <button id="vote-b" class="primary">Bevorzuge B</button>
+    <button id="vote-tie">Keine Präferenz</button>
+    <button id="undo-vote">↶ Letztes Votum rückgängig</button>
+  </div>
+
+  <label style="display:flex;gap:.4rem;align-items:center;margin-top:.6rem;font-size:.82rem;color:var(--muted)">
+    <input type="checkbox" id="isolation-toggle"> Isolationsmodus (immer genau eine Dimension isolieren)
+  </label>
+
+  <div class="explain-box" id="explain-box" hidden>
+    <span id="explain-reason"></span>
+    <span class="dim-chip" id="explain-dimension" hidden></span>
+  </div>
+
+  <div class="vote-row">
+    <button id="next-round" class="primary" hidden>Nächster Vergleich →</button>
+  </div>
+</section>
+
+<section class="lab-section" id="custom-section">
+  <h2>Eigenes Stilprofil komponieren</h2>
+  <div class="dimension-grid" id="dimension-grid"></div>
+  <div class="vote-row">
+    <button id="custom-render">Vorschau rendern</button>
+    <button id="custom-save">Als Favorit speichern</button>
+    <button id="custom-breed">Aus zwei Favoriten kreuzen</button>
+  </div>
+  <div class="custom-preview">
+    <canvas id="canvas-custom" width="480" height="300"></canvas>
+  </div>
+  <div id="favorites-list" style="margin-top:.6rem;font-size:.8rem;color:var(--muted)"></div>
+</section>
+
+<section class="lab-section" id="grid-state-section">
+  <h2>Gleicher Zustand, alle Stile</h2>
+  <div class="grid-controls">
+    <label for="grid-state-select">Weltzustand:</label>
+    <select id="grid-state-select"></select>
+    <button id="grid-state-render">Raster rendern</button>
+  </div>
+  <div class="thumb-grid" id="grid-state-output"></div>
+</section>
+
+<section class="lab-section" id="grid-style-section">
+  <h2>Gleicher Stil, alle Zustände</h2>
+  <div class="grid-controls">
+    <label for="grid-style-select">Stil:</label>
+    <select id="grid-style-select"></select>
+    <button id="grid-style-render">Raster rendern</button>
+  </div>
+  <div class="thumb-grid" id="grid-style-output"></div>
+</section>
+
+<section class="lab-section" id="expert-panel" hidden>
+  <h2>Expertenpanel</h2>
+  <div class="telemetry-grid" id="telemetry-a"></div>
+  <div class="telemetry-grid" id="telemetry-b" style="margin-top:.4rem"></div>
+  <h3 style="font-size:.85rem;margin:.7rem 0 .2rem;color:var(--muted)">Preference-Model — Konfidenz je Dimension</h3>
+  <ul class="confidence-list" id="confidence-list"></ul>
+  <h3 style="font-size:.85rem;margin:.7rem 0 .2rem;color:var(--muted)">12-Frame-Orbit (Bewegungsstabilitäts-Debug)</h3>
+  <div class="vote-row">
+    <input type="number" id="orbit-frame" min="0" max="11" value="0" style="width:4rem">
+    <button id="orbit-render">Orbit-Frame rendern</button>
+  </div>
+  <canvas id="canvas-orbit" width="320" height="200" style="margin-top:.4rem;border-radius:6px;background:#000;max-width:100%"></canvas>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
