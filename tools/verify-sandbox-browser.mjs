@@ -64,6 +64,31 @@ try {
     assert(error === 0, `${effect}: WebGL error ${error}`);
   }
 
+  // Granular Lab is a separate GPU-state system, not another material preset.
+  await page.click('.granular-launch');
+  await page.waitForFunction(() => document.body.classList.contains('granular-mode'));
+  await page.waitForFunction(() => /GPU READY|PASS/.test(document.getElementById('granular-state')?.textContent || ''));
+  const granular = page.locator('#granular-canvas');
+  const box = await granular.boundingBox();
+  assert(box && box.width > 300 && box.height > 150, 'Granular-Canvas ist nicht sichtbar');
+  await page.mouse.move(box.x + box.width * .45, box.y + box.height * .22);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * .58, box.y + box.height * .28, {steps:4});
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  const granularState = await page.evaluate(() => {
+    const canvas = document.getElementById('granular-canvas');
+    const gl = canvas?.getContext('webgl2');
+    return {webgl2:!!gl,error:gl?gl.getError():-1,status:document.getElementById('granular-state')?.textContent||''};
+  });
+  assert(granularState.webgl2 && granularState.error === 0, `Granular WebGL2 error ${granularState.error}`);
+  assert(/2 PASS/.test(granularState.status), `Granular-Simulation läuft nicht: ${granularState.status}`);
+  await page.click('[data-grain="water"]');
+  await page.mouse.move(box.x + box.width * .62, box.y + box.height * .18);
+  await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.up();
+  await page.click('#granular-exit');
+  await page.waitForFunction(() => !document.body.classList.contains('granular-mode'));
+
   // HQ/Balanced/Fast switching itself is also part of the contract. Keep the cheap
   // surface mode active while checking the higher budgets.
   await page.evaluate(() => document.querySelector('[data-effect="water"]')?.click());
@@ -88,7 +113,7 @@ try {
   assert(mobileControls.libraryClosed && !mobileControls.controlsClosed, 'Mobile PARAMETER öffnet nicht exklusiv');
 
   assert(!failures.length, `Browserfehler: ${failures.join(' | ')}`);
-  console.log(`✅ Sandbox Browser: WebGL2/GLSL300 kompiliert · ${effects.length} Modi · Desktop + Mobile Drawer · ${glState.renderer}`);
+  console.log(`✅ Sandbox Browser: WebGL2/GLSL300 · ${effects.length} effect modes · GPU granular ping-pong · desktop/mobile UI · ${glState.renderer}`);
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
