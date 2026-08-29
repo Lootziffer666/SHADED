@@ -3291,7 +3291,7 @@ window.addEventListener('keydown',e=>{
     if(!player.active&&ready) spawnPlayer();
     if(player.active) e.preventDefault();
   }
-  if(k===' '&&player.active&&dialogueIndex<0){ e.preventDefault(); dash(); }
+  if(k===' '&&player.active&&!window.SHADED.dialogue.isPlaying()){ e.preventDefault(); dash(); }
   if(k==='f'&&player.active){ igniteFire(player.u+0.012*(player.lookX||1), player.v); }
 });
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
@@ -3896,10 +3896,8 @@ function frame(now){
   const frameDt=acc;
   while(acc>0){ const s=Math.min(0.05,acc); tickWorld(s); acc-=s; }
   const dt=frameDt;
-  // Runde 10: EIN Tick pro Frame mit eigenem, eng gekappten Delta (nicht die Substep-Schleife
-  // oben) - sonst würde eine reale Pause (Tab im Hintergrund, langsamer Rechner) den gesamten
-  // Text auf einen Schlag aufdecken statt normal weiterzutippen, sobald es weitergeht.
-  dialogueTick(Math.min(dt, 0.1));
+  // Runde 10: Dialog-Engine tickt sich seit der Extraktion (runtime/dialogue-engine.mjs)
+  // über ihre eigene RAF-Schleife selbst, nicht mehr hier.
   if(ready) trailUpload();
   if(ready) soundUpload();
 
@@ -3964,53 +3962,9 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 
-// === Runde 10: Dialog-Engine ========================================================// Datengetrieben, motorunabhängig vom eigentlichen Skriptinhalt: SHADED selbst bleibt generisch,
-// echte Erzähl-Inhalte (z. B. content/prolog-act1.js) werden separat geladen und nur als Array
-// von "Beats" übergeben. Beat-Typen: {type:'direction'|'line', speaker?, text} (angezeigt,
-// Schreibmaschinen-Effekt), {type:'lens', n} / {type:'sound-emit', at:[u,v], strength}
-// (Trigger, laufen sofort durch, keine Wartezeit - koppeln an Runde 8 ohne diese zu duplizieren).
-let dialogueBeats=[], dialogueIndex=-1, dialogueRevealChars=0;
-const DIALOGUE_CPS=42; // Zeichen pro Sekunde, Schreibmaschinen-Tempo
-function dialogueShowCurrent(){
-  const box=document.getElementById('dialogue-box');
-  const speakerEl=document.getElementById('dialogue-speaker');
-  const textEl=document.getElementById('dialogue-text');
-  const hintEl=document.getElementById('dialogue-hint');
-  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length){ box.classList.add('hidden'); return; }
-  const beat=dialogueBeats[dialogueIndex];
-  box.classList.remove('hidden');
-  if(beat.type==='direction'){ speakerEl.textContent=''; speakerEl.className='direction'; }
-  else { speakerEl.textContent=beat.speaker||''; speakerEl.className=''; }
-  const full=beat.text||'';
-  textEl.textContent=full.slice(0, Math.floor(dialogueRevealChars));
-  const complete=dialogueRevealChars>=full.length;
-  hintEl.textContent = !complete ? '' : (dialogueIndex>=dialogueBeats.length-1 ? '■ Ende (Leertaste/Klick)' : '▶ weiter (Leertaste/Klick)');
-}
-function dialogueTick(dt){
-  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length) return;
-  const full=dialogueBeats[dialogueIndex].text||'';
-  if(dialogueRevealChars<full.length){ dialogueRevealChars=Math.min(full.length, dialogueRevealChars+DIALOGUE_CPS*dt); dialogueShowCurrent(); }
-}
-function dialogueGoto(index){
-  dialogueIndex=index; dialogueRevealChars=0;
-  if(dialogueIndex>=dialogueBeats.length){ dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); return; }
-  const beat=dialogueBeats[dialogueIndex];
-  if(beat.type==='lens'){ lensState=Math.max(0,Math.min(5,beat.n|0)); dialogueGoto(dialogueIndex+1); return; }
-  if(beat.type==='sound-emit'){ const at=beat.at||[0.5,0.5]; soundStamp(at[0],at[1],beat.strength==null?1:beat.strength); dialogueGoto(dialogueIndex+1); return; }
-  dialogueShowCurrent();
-}
-function dialoguePlay(beats){ dialogueBeats=Array.isArray(beats)?beats:[]; dialogueGoto(0); }
-function dialogueAdvance(){
-  if(dialogueIndex<0) return;
-  const full=dialogueBeats[dialogueIndex].text||'';
-  if(dialogueRevealChars<full.length){ dialogueRevealChars=full.length; dialogueShowCurrent(); return; } // erst: Text sofort komplett zeigen
-  dialogueGoto(dialogueIndex+1); // dann erst: naechster Beat
-}
-function dialogueSkip(){ dialogueBeats=[]; dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); }
-document.getElementById('dialogue-box').addEventListener('click', dialogueAdvance);
-window.addEventListener('keydown', e=>{
-  if(dialogueIndex>=0 && (e.key===' '||e.key==='Enter')){ e.preventDefault(); dialogueAdvance(); }
-});
+// === Runde 10: Dialog-Engine — extrahiert nach runtime/dialogue-engine.mjs ===
+// (eigenes ESM-Modul, hängt window.SHADED.dialogue nach dem Laden dieser Datei an;
+// siehe dort für die vollständige Implementierung und Begründung der Extraktion.)
 
 // =========================== Agent-/Test-API (nicht entfernen!) ===========================
 console.log('Script reached window.SHARED assignment');
@@ -4158,12 +4112,8 @@ window.SHADED = {
     }
   },
   sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear },
-  // Runde 10: Dialog-Engine (motorseitig generisch, Inhalte kommen separat, z.B. content/*.js)
-  dialogue:{
-    play:dialoguePlay, advance:dialogueAdvance, skip:dialogueSkip,
-    isPlaying:()=>dialogueIndex>=0,
-    current:()=>dialogueIndex>=0?{index:dialogueIndex, total:dialogueBeats.length, beat:dialogueBeats[dialogueIndex], revealed:Math.floor(dialogueRevealChars)}:null,
-  },
+  // Runde 10: Dialog-Engine — window.SHADED.dialogue wird von runtime/dialogue-engine.mjs
+  // angehängt, nachdem dieses Modul geladen ist (siehe dort).
 };
 
 export default window.SHADED;

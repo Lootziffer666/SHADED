@@ -13,11 +13,12 @@ fs.mkdirSync(OUT, { recursive: true });
 const BASE_IMG = path.join(REPO, 'file_00000000974871f49fe71f6b456f9579.png');
 const MARKER_IMG = path.join(REPO, 'file_00000000c84071f4bcd6ff9afdba7246.png');
 
+const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.css':'text/css; charset=utf-8','.png':'image/png'};
 const server = http.createServer((req, res) => {
   const p = path.join(REPO, decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '') || 'index.html');
   try {
     const data = fs.readFileSync(p === REPO + '/' ? path.join(REPO, 'index.html') : p);
-    res.writeHead(200, { 'Content-Type': p.endsWith('.html') ? 'text/html' : 'image/png' });
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(p).toLowerCase()] || 'application/octet-stream' });
     res.end(data);
   } catch (e) { res.writeHead(404); res.end(); }
 });
@@ -38,12 +39,15 @@ const server = http.createServer((req, res) => {
   function check(name, ok, detail) { console.log(`  ${ok ? '✓ PASS' : '✗ FAIL'}: ${name}${detail ? ' — ' + detail : ''}`); if (!ok) failed = true; }
 
   await page.goto('http://localhost:8936/index.html');
+  // World Studios Onboarding-Panel (editor/world-studio.js) hijackt #btn-erstellen per
+  // Capture-Listener - direkter API-Aufruf umgeht das, gleiches Muster wie tools/verify.js.
+  await page.evaluate(() => { const el = document.getElementById('world-studio'); if (el) el.style.display = 'none'; });
   await page.setInputFiles('#f-scene', BASE_IMG);
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 30000 });
   await page.setInputFiles('#f-mat', MARKER_IMG);
-  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
-  await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'), { timeout: 30000 });
+  await page.evaluate(() => window.SHADED.erstellen());
+  await page.waitForFunction(() => window.SHADED.isReady(), { timeout: 30000 });
   await page.evaluate(() => { window.SHADED.applyAct('tag'); window.SHADED.setTime(2.0, true); });
   await page.waitForTimeout(200);
 
