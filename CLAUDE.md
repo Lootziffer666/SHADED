@@ -3,6 +3,28 @@
 SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
 (Environmental Storytelling). Kernversprechen: **Bild laden → „✨ Erstellen” → die Szene lebt.**
 
+## Referenzdokument: `docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md`
+
+Dieses Dokument ist die ausführliche Architektur- und Denkmodell-Referenz für SHADED
+(Kernprinzipien: „One image. One small world.", Reconstruct in dependency order,
+OBSERVED/DERIVED/INFERRED/INVENTED/UNKNOWN, Provider als Werkzeuge statt Autorität,
+Falsifizierbarkeit) und für BEUTELTIER, die davon abgeleitete, separate Erweiterung
+für große raumübergreifende Rekonstruktion aus chaotischem Foto-/Videomaterial (z. B.
+Messehallen) mit vielen Providern. BEUTELTIER ist ein eigenständiges, größeres Problem
+auf derselben epistemischen Grundlage – keine Neudefinition von SHADEDs Kernziel.
+**Das Dokument bestätigt und schärft explizit Entscheidungen, die in diesem Repo
+bereits umgesetzt sind:** Single-SHADED-UI (`index.html` ist der Editor, kein
+Engine-plus-Editor-Zwilling), „eine Wahrheit heißt eine Semantik, nicht eine Datei",
+Legacy-Code als klassifizierter Capability-Donor (A: extrahieren, B: nur bei
+nachweisbarer Überlegenheit, C: nicht migrieren ohne verifizierten Ersatz), inkrementelle
+Extraktion mit Verifikations-Checkpoints statt Big-Bang-Rewrite, und die
+WorldState→Solver→MaterialResponse→StyleProfile→TechniqueRegistry→RenderBudget-Kette
+aus `runtime/style/`. Es hält außerdem ausdrücklich fest: **Projektregeln wie dieses
+Dokument sind abgeleitete Verfassung, keine höherwertige Wahrheit als eine explizite
+neue Architekturentscheidung des Maintainers** – bei Widerspruch wird CLAUDE.md
+korrigiert, nicht die neue Architektur zurückgebogen. Nicht verhandelbar bleiben davon
+unberührt: Kernziel, Provenance-Trennung, Material-Wahrheit, Observability.
+
 ## SWIFT→SHADED Integration
 
 SHADED ist nun das **Rendering-Ziel für procedural generierte Charaktere** aus SWIFT
@@ -56,17 +78,43 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
 
 ## Unverhandelbare Invarianten
 
-1. **Modulare, statisch auslieferbare Runtime — kein Single-File-Zwang.** Die frühere
-   Single-File-Regel wurde vom Maintainer ausdrücklich aufgehoben. `index.html` bleibt
-   das Rendering-Ziel und die eine Shader-/Materialwahrheit bleibt unverhandelbar;
-   Installation, Offline-Lifecycle, UI und künftige räumliche Systeme dürfen jedoch in
-   eigene Dateien unter `runtime/` ausgelagert werden. Ein Build-Schritt oder Framework
-   ist nicht erforderlich: die ausgelieferte App muss weiterhin statisch über HTTP(S)
-   funktionieren. PWA-Funktionen benötigen dabei einen sicheren Kontext (`localhost`
-   oder HTTPS); der nackte Doppelklick bleibt nur ein nicht-installierbarer Fallback.
-   `editor/` bleibt ein separates Autorenwerkzeug und steuert die Engine ausschließlich
-   über `window.SHADED`; Modularisierung erlaubt weiterhin keine zweite Shader- oder
-   Klassifikationsimplementierung.
+1. **SHADED ist EIN Editor — modulare, statisch auslieferbare Runtime, kein
+   Single-File-Zwang, kein Zwei-Seiten-Zwang.** Die frühere Single-File-Regel wurde
+   vom Maintainer ausdrücklich aufgehoben; danach existierte für eine Weile eine
+   Zwei-Seiten-Architektur (`index.html` als per-iframe eingebettetes Rendering-Ziel,
+   `editor/index.html` als separates Autorenwerkzeug) — auch DIESE Trennung ist
+   aufgehoben. **`index.html` ist der einzige Einstiegspunkt und die einzige
+   sichtbare Oberfläche.** Es lädt die Engine direkt im selben Dokument (kein
+   `<iframe>`), trägt die moderne Editor-Shell (Topbar/Rail/Inspector) und bleibt
+   trotzdem statisch über HTTP(S) auslieferbar, ohne Build-Schritt oder Framework.
+   PWA-Funktionen benötigen dabei einen sicheren Kontext (`localhost` oder HTTPS);
+   der nackte Doppelklick bleibt nur ein nicht-installierbarer Fallback. `editor/`
+   ist kein zweites UI-Dokument mehr, sondern der Ort für die CSS-/JS-Module der
+   Editor-Shell (Fassaden, Panels, Weltwerkzeuge) — sie binden sich in `index.html`
+   ein, statt eine eigene Seite zu sein.
+   **„Eine Material-/Shader-Wahrheit" heißt EIN kanonischer Vertrag/eine
+   Implementierung, NICHT eine einzige Datei.** `runtime/shaded-engine.mjs` darf
+   nach Verantwortlichkeit in eigene Module aufgeteilt werden (Renderer/WebGL-
+   Lifecycle, Szenen-/Asset-Ladepfad, Weltzustand/Simulation, Material, Actors/
+   Animation, räumlicher Viewer, Eingabe/Kamera, Persistenz/Presets, Editor-
+   Bindings) — solange `analyze()`/`classGrid`/die Shader-Quelle selbst dabei
+   NICHT dupliziert werden (Invariante 2/7 gelten unverändert für den Inhalt,
+   nicht für die Dateigrenze) und jeder Extraktionsschritt mit dem
+   `shaded-visual-verify`-Workflow gegen die Zielbilder geprüft wird, bevor der
+   nächste beginnt. Ein neuer Runtime-Modul-Schnitt ersetzt den alten
+   Verantwortungsbereich vollständig (keine zwei Implementierungen derselben
+   Zuständigkeit nebeneinander); UI-Module dürfen Runtime-APIs aufrufen, Runtime-
+   Module dürfen NICHT von Editor-DOM-Struktur abhängen.
+   Alte Effekte/Presets aus `runtime/shaded-engine.mjs` sind nicht automatisch
+   geschützt, nur weil sie alt sind — aber sie werden auch nicht gelöscht, nur
+   weil es sie schon lange gibt: Ersetzt wird eine Fähigkeit erst, wenn die
+   `runtime/style/`-Architektur (WorldState → Solver/Simulation →
+   MaterialResponse → StyleProfile → TechniqueRegistry/RenderBudget → Renderer,
+   siehe „Style Discovery Sandbox" unten) einen echten, verifizierten Ersatz
+   dafür liefert — nicht weil `runtime/style/` insgesamt „die Zukunft" ist. Ohne
+   verifizierten Ersatz bleibt die alte Implementierung stehen und wird als
+   „legacy, Migration aussteht" markiert statt stillschweigend für immobil
+   erklärt zu werden.
 2. **Eine Material-Wahrheit.** Die CPU-Analyse (`classGrid`, `getMaterialTypeAt`) und die
    GPU-Masken-Texturen entstehen aus DERSELBEN Segmentierung in `analyze()`.
    Niemals eine zweite, unabhängige Klassifikation einführen – genau daran ist der
@@ -169,7 +217,10 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
    Trail-Decay wirkt IMMER direkt auf den Pixeldaten – nie über
    Canvas-Composite-Tricks.
    **Es gibt genau EINE Shader-Quelle.** Das ist die Invariante – nicht die Sprache,
-   in der sie ausgedrückt ist. Zwei parallele Shader-Quellen wären zwei Wahrheiten;
+   in der sie ausgedrückt ist, UND NICHT die Datei, in der sie steht (siehe
+   Invariante 1: `runtime/shaded-engine.mjs` darf nach Verantwortlichkeit modularisiert
+   werden, solange der Shader-/Analyse-Inhalt dabei nicht dupliziert wird). Zwei
+   parallele Shader-Quellen wären zwei Wahrheiten;
    ein neues Ausführungs-Backend ersetzt die bestehende Quelle vollständig, es tritt
    nie neben sie.
    **Aktuelles Ausführungs-Backend:** WebGL 2 mit GLSL ES 3.00 (`#version 300 es`,
@@ -183,40 +234,53 @@ und §10 Phase 5 (Backend-Erweiterungen, ohne Big-Bang-Rewrite).
    `tools/verify.js` prüft Kontext und Belegung.
    Begründung: `docs/neuronale-materialien-svbrdf-pbr.md` §10.
 
-## SHADED Editor (`editor/`)
+## SHADED Editor — jetzt `index.html` selbst (`editor/` liefert nur noch Module)
 
 SHADED hatte nie einen echten Editor — nur die eingefrorene Referenz
 `gaime_shader_editor_pro_v2_6_bio_physics_edition.html` (Invariante 4, nicht anfassen)
-und die rohe `window.SHADED`-API. `editor/` ist der erste echte, funktionierende Editor,
+und die rohe `window.SHADED`-API. `editor/` war der erste echte, funktionierende Editor,
 konzeptionell an [Capybara 2D Engine](https://github.com/d-liya/capybara_2d_engine)
 angelehnt: **eine große Engine hinter einer kleinen, stabilen, agentenfreundlichen
-Fassade**, statt einer zweiten Implementierung der Engine-Interna.
+Fassade**, statt einer zweiten Implementierung der Engine-Interna — zunächst als
+separates `editor/index.html`, das die Engine per `<iframe>` einbettete. Diese
+Zwei-Seiten-Architektur ist aufgehoben (siehe Invariante 1): **`index.html` ist jetzt
+das eine Dokument**, das sowohl die Engine (`runtime/shaded-engine.mjs`, `runtime/
+spatial-viewer.js`) als auch die Editor-Shell (Topbar/Rail/Inspector) trägt. `editor/`
+enthält nur noch CSS/JS-Module, kein eigenes HTML-Dokument mehr.
 
-- **`editor/facade.js` — `SceneEditorFacade`.** Die einzige Klasse, die
-  `../index.html` anfasst — per `<iframe>` eingebettet, unverändert. Ruft
-  ausschließlich das bestehende `window.SHADED`-API auf (`loadImageFile`, `erstellen`,
-  `getParams`/`setParams`, `applyAct`, `isReady`, `getMaterialTypeAt`). Kein
-  Shader-/Analyse-Code wird hier dupliziert oder geforkt — Invariante 2 gilt für den
-  Editor genauso hart wie für `index.html` selbst.
+- **`editor/facade.js` — `SceneEditorFacade`.** Ruft ausschließlich das bestehende
+  `window.SHADED`-API auf (`loadImageFile`, `erstellen`, `getParams`/`setParams`,
+  `applyAct`, `isReady`, `getMaterialTypeAt`). Kein Shader-/Analyse-Code wird hier
+  dupliziert oder geforkt — Invariante 2 gilt genauso hart wie für die Engine selbst.
+  Ein optionales `iframeEl`-Argument existiert weiterhin (`win`/`doc` fallen sonst auf
+  `window`/`document` zurück) — für isolierte Tests, nicht für den Normalbetrieb, der
+  seit der Konsolidierung ohne `<iframe>` läuft.
 - **`editor/markerPainter.js` — `MarkerPainter`.** Zweite kleine Fassade: ein
   Pinsel-Werkzeug für das in Invariante 3 beschriebene Marker-Overlay. Malt direkt auf
   eine Canvas-Kopie des Szenenbilds; unveränderte Pixel bleiben exakt erhalten (SHADEDs
   eigene Marker-Erkennung ist diff-basiert). `MARKER_BRUSH`/`CANONICAL_PALETTE` sind von
-  Hand mit `index.html`s `PALETTE`-Objekt synchron gehalten — `index.html` bleibt die
-  Wahrheit, der Editor kopiert nur die Farbwerte.
+  Hand mit der Engine-`PALETTE` synchron gehalten — die Engine bleibt die Wahrheit, der
+  Editor kopiert nur die Farbwerte.
 - **`editor/actorPlacer.js` — `ActorPlacer`.** Dritte kleine Fassade: platziert
-  SWIFT-Sprite-Sheet-Akteure ausschließlich über `window.SHADED.addActor()`. Übergibt
-  `image`/`depthImage`/`emissiveImage` immer als `blob:`-URL-Strings und `manifest`
-  immer als JSON-String — niemals als Parent-Fenster-`Image()`/-Objekt, weil
-  `addActor`s interne `instanceof HTMLImageElement`-Prüfung sonst am Iframe-Realm
-  scheitert. `scale` ist laut echtem `addActor`-Handle nur beim Erstellen setzbar
-  (kein `setScale`) — Änderung entfernt den Actor und legt ihn mit denselben
-  gecachten Dateien neu an, statt eine nicht existierende API zu erfinden.
-- **`editor/storyboardTimeline.js` — `StoryboardTimeline`.** Vierte kleine Fassade:
-  bearbeitet `window.SHADED.story.board()` — das ist dieselbe Live-Referenz, die
-  `playStory()`/`tickStory()` intern abspielen, keine zweite Storyboard-Wahrheit.
-- **`editor/app.js`** verdrahtet nur UI-Events auf die vier Fassaden — enthält selbst
-  keine Engine- oder Klassifikationslogik.
+  SWIFT-Sprite-Sheet-Akteure ausschließlich über `window.SHADED.addActor()`, über die
+  eigenen `#f-actor-sheet-editor`/`#f-actor-manifest-editor`-Eingaben (nicht die
+  gleichnamigen Legacy-IDs `f-actor-sheet`/`f-actor-manifest`, die die Engine intern
+  für einen einfachen Auto-Add-Pfad ohne Drag-Positionierung stubbt — keine doppelten
+  Steuerelemente auf derselben ID). `scale` ist laut echtem `addActor`-Handle nur beim
+  Erstellen setzbar (kein `setScale`) — Änderung entfernt den Actor und legt ihn mit
+  denselben gecachten Dateien neu an, statt eine nicht existierende API zu erfinden.
+- **Storyboard-Editor:** existiert real, aber (noch) nicht als eigene Fassaden-Klasse —
+  `#story-list`/`#btn-play`/`#btn-add`/`#cb-loop` in `index.html`s Inspector-Panel
+  „Story" sind dieselben IDs, gegen die `runtime/shaded-engine.mjs` seine eigene
+  Timeline-Logik (`renderStory()`/`playStory()`/`tickStory()`, arbeitet direkt auf
+  `window.SHADED.story.board()`) verdrahtet. Eine künftige `StoryboardTimeline`-Fassade
+  müsste diese Engine-Logik ablösen (Kategorie B/C-Prüfung: erst migrieren, wenn der
+  Ersatz nachweislich mindestens gleichwertig ist), nicht neben ihr existieren.
+- **`editor/app.js`** verdrahtet UI-Events auf die Fassaden — enthält selbst keine
+  Engine- oder Klassifikationslogik. Verdoppelt NICHT, was die Engine bereits selbst
+  gegen ihre eigenen Legacy-IDs (`f-scene`/`f-mat`/`f-depth`/`btn-demo`/`#sliders`)
+  verdrahtet — das war früher eine zweite, veraltete Implementierung mit
+  unvollständiger Parameterliste und ist entfernt.
 - **Funktionsumfang:**
   1. Live-Parameter-Tuning (alle Slider aus `PARAM_META`, direkt gegen die laufende
      Engine, Preset speichern/laden).
@@ -249,6 +313,32 @@ Fassade**, statt einer zweiten Implementierung der Engine-Interna.
   Verifikation: `node editor/facade.test.js` (fünf Methoden direkt), `node
   tools/orchestrate.js --project tools/orchestrate-example-request.json --json`
   (End-to-End-CLI-Beweis).
+
+## Style Discovery Sandbox (`runtime/style/` + `sandbox/`)
+
+Vertikale Scheibe der Zielarchitektur `WorldState → Solver → MaterialResponse
+→ StyleProfile → RenderBudget → Final Render`, als Beweisfeld für eine
+künftige Trennung von Weltzustand und Stil — **keine dauerhafte
+Parallelarchitektur** und **`runtime/shaded-engine.mjs` bleibt in dieser
+Schicht unberührt**. Zwei strikt getrennte Teile:
+
+- **`runtime/style/`** ist der renderer-unabhängige Kern: reines ESM, kein
+  DOM/WebGL, in Node importierbar und per `node tools/test-style-discovery.mjs`
+  deterministisch getestet (WorldState, MaterialResponse, StyleProfile,
+  TechniqueDescriptor-Registry, Preference-Model, Candidate-Serialisierung,
+  RenderBudget).
+- **`sandbox/`** ist die dünne, austauschbare WebGL2/SDF-Schicht + UI
+  (Blindvergleich, Voting, Isolationsmodus, Custom-Profil-Komposition,
+  FULL/MOBILE) — analog zu `runtime/spatial-viewer.js` als Präzedenzfall
+  für einen zweiten, unabhängigen WebGL2-Renderer, der KEINE zweite
+  Material-Wahrheit ist.
+
+Nur FULL und MOBILE sind nutzersichtbare Budget-Stufen; MaterialResponse
+reicht mehr als `{baseColor, roughness, reflectance, emission, damage}` über
+die Style-Grenze (Nässe/Ruß/Risse/Frost/Schnee/Rost bleiben als eigene
+Kanäle erhalten). Details, Bedienung und der volle Verifikations-Workflow:
+`docs/STYLE_DISCOVERY.md`. Ein späterer Task darf einen Adapter ergänzen,
+der dasselbe `StyleProfile` auf den Produktionsrenderer anwendet.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 

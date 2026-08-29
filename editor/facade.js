@@ -1,16 +1,19 @@
 // SceneEditorFacade — the ONE small, stable surface the rest of the editor talks to.
 // Everything else in editor/ only ever calls methods on this class, never touches
-// iframe internals directly. This mirrors two things at once:
+// engine internals directly. This mirrors two things at once:
 //   - Capybara's core idea (github.com/d-liya/capybara_2d_engine): a big engine
 //     hides behind one small, documented, agent-friendly facade (their `Game.ts`).
 //   - SHADED's own existing rule for `window.SHADED` itself (CLAUDE.md: "API-Vertrag
 //     für Tests und Agenten ... nie entfernen oder umbenennen, nur erweitern").
 //
 // The facade never reimplements SHADED — it only calls the real, already-stable
-// `window.SHADED` API inside the embedded engine iframe. No shader/analyze code is
-// duplicated or forked here.
+// `window.SHADED` API. Since the SHADED-is-the-editor consolidation, the engine
+// (runtime/shaded-engine.mjs) runs in the SAME document as the editor shell, so
+// `win`/`doc` resolve to the top-level window/document by default. An iframe
+// element can still be passed in (e.g. for isolated tests) — the facade doesn't
+// care which realm `window.SHADED` actually lives in.
 export class SceneEditorFacade {
-  constructor(iframeEl) {
+  constructor(iframeEl = null) {
     this.iframe = iframeEl;
     // Eigene, kleine Buchführung für headless Orchestrierung (tools/orchestrate.js,
     // Real Golden Run R-08/R-09) — getrennt von der interaktiven ActorPlacer-Fassade,
@@ -21,11 +24,11 @@ export class SceneEditorFacade {
   }
 
   get win() {
-    return this.iframe.contentWindow;
+    return this.iframe ? this.iframe.contentWindow : window;
   }
 
   get doc() {
-    return this.iframe.contentDocument;
+    return this.iframe ? this.iframe.contentDocument : document;
   }
 
   isEngineLoaded() {

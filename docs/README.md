@@ -11,6 +11,17 @@
 - [`raumrekonstruktion-dykstra-dijkstra.md`](./raumrekonstruktion-dykstra-dijkstra.md) – Ebenenkandidaten, Raumhülle per Constraint-Projektion, Begehbarkeit und Raumgraph
 - [`research-radar-themen.md`](./research-radar-themen.md) – Prüfraster für größere Forschungs- und Technologieklassen
 
+## Style-Schicht (Vertical Slice, Beweisfeld)
+
+- [`STYLE_DISCOVERY.md`](./STYLE_DISCOVERY.md) – Style-Discovery-Sandbox
+  (`runtime/style/` + `sandbox/`): `WorldState → Solver → MaterialResponse →
+  StyleProfile → RenderBudget → Final Render`. Renderer-unabhängiger Kern in
+  reinem ESM, dünne austauschbare WebGL2/SDF-Schicht. **`runtime/shaded-engine.mjs`
+  bleibt unberührt** — die Sandbox ist Beweisfeld, keine dauerhafte
+  Parallelarchitektur.
+- [`research/STYLE_TECHNIQUE_REGISTRY.md`](./research/STYLE_TECHNIQUE_REGISTRY.md)
+  – Donor-/Provenance-Tabelle für die Style-Primitiven (Lizenzklassen A–D).
+
 ## Produkt-Einordnung
 
 - [`shaded-faehigkeiten.md`](./shaded-faehigkeiten.md) – Produkt-Einordnung: SHADED als materialbewusste 2D-Weltsimulation statt reine Shader-Effektliste

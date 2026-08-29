@@ -1,5 +1,11 @@
 // SHADED Engine Module — single source of truth for shaders/materials (Invariante 7).
 import {buildRelativePointCloud} from './spatial-point-cloud.mjs';
+// Wiederverwendung statt einer dritten Flood-Fill-Implementierung (Exp. 2, siehe
+// docs/first-glimpse-depth-layers.md): dieselbe getestete 8-Konnektivitäts-Komponentensuche,
+// die runtime/hall-plan/plan-analyzer.mjs für Grundrisse nutzt, ist bild-/domänenunabhängig
+// (arbeitet auf einer reinen 0/255-Maske + {width,height}) und eignet sich unverändert für
+// classGrid-abgeleitete Masken.
+import {connectedComponents} from './hall-plan/plan-analyzer.mjs';
 
 const ENGINE_STUB_IDS=["sliders","s-dayNight","v-dayNight","s-storm","v-storm","s-rain","v-rain","s-wet","v-wet","s-puddle","v-puddle","s-fog","v-fog","s-wind","v-wind","s-glow","v-glow","s-decay","v-decay","s-snow","v-snow","s-snowfall","v-snowfall","s-temperature","v-temperature","s-autumn","v-autumn","s-bloom","v-bloom","s-bleach","v-bleach","btn-create","btn-demo","btn-fire","btn-clear-world","btn-elements-clear","btn-add","btn-cinema","exit-cinema","btn-png","btn-rec","btn-json","btn-pointcloud","btn-showcase","btn-year","btn-timelapse","btn-drama","btn-play","cb-loop","btn-eco-cats","btn-eco-enemies","btn-eco-npcs","btn-eco-heroes","btn-eco-depth-test","f-scene","f-mat","f-depth","f-actor-sheet","f-actor-manifest","gl","ov","rec","showcase-card","showcase-title","showcase-copy","showcase-kicker","dialogue-box","dialogue-speaker","dialogue-text","dialogue-hint","drop-hint","status","stage","story-list","spatial-viewer","spatial-canvas","spatial-close","spatial-walk","spatial-map","spatial-pipeline","spatial-pipeline-buttons","spatial-stage-copy","spatial-laws","spatial-fit-status","spatial-performance","spatial-seasons","spatial-season-status","spatial-scene-season","spatial-scene-event","spatial-scene-duration","spatial-scene-add","spatial-scene-list","spatial-record-duration","spatial-record","spatial-paint","spatial-paint-material","spatial-paint-radius","spatial-paint-opacity","spatial-paint-color","spatial-pressure","spatial-undo","spatial-redo","spatial-voxel-export","spatial-voxel-import","spatial-boundary","spatial-thickness","spatial-texture-blend","spatial-seed","spatial-vegetation","spatial-canopy-flex","spatial-wind-direction","spatial-lightning-rate","spatial-urine-rate","spatial-blood-rate","spatial-rain-extinguish","spatial-time-scale","spatial-now-lightning","spatial-now-blood","spatial-now-urine","spatial-help","spatial-log"];
 function createEngineDOM(){if(document.getElementById("gl")&&document.getElementById("ov"))return;
@@ -1102,6 +1108,31 @@ let sceneImg=null, sceneSource={kind:'UNKNOWN',label:null}, matImg=null, ready=f
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
 let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
 let zoneGrid=null;                // K1: Gebäudezonen (1 = Fachwerk-Gebäude)
+let skyGrid=null;                  // K7: Himmel-Flood-Ergebnis (1 = Himmel, inert; sonst 0)
+                                    // klassifiziert selbst NICHT — die Pixel sind im classGrid
+                                    // längst als K (Fels) verewigt; dies ist nur die Herkunfts-
+                                    // markierung, damit z.B. Wetterpartikel echten Fels von
+                                    // Himmel-als-Fels unterscheiden können, ohne ein zweites
+                                    // Klassifikationssystem zu erfinden (Invariante 2).
+let skyRegionFound=false;          // true nur, wenn K7 tatsächlich eine Himmel-Region bestätigt
+                                    // hat (Größe/Farbtor erfüllt) — sonst ist skyGrid nutzlos
+                                    // "immer 0" und darf NICHT als "hier ist kein Himmel" gelesen
+                                    // werden (z. B. bedeckte/dunkle Quellbilder ohne blauen Himmel).
+
+// --- First-Glimpse-Tiefenschicht (Exp. 1, siehe docs/first-glimpse-depth-layers.md) ---
+// Eine grobe NEAR/MID/FAR/STRUCTURAL/UNKNOWN-Ordnung, DERIVED aus classGrid/zoneGrid/
+// skyGrid — keine neue Klassifikation (Invariante 2 bleibt unberührt: layerGrid liest
+// nur, was analyze() bereits als Material-Wahrheit festgelegt hat). Absichtlich keine
+// eigene Texture-Unit/kein Shader-Kanal: bleibt vorerst reine CPU-Abfrage für Systeme
+// wie Wetterpartikel, die eine grobe Tiefenordnung brauchen, aber keine dichte Depth-Map.
+const LAYER_NEAR=0, LAYER_MID=1, LAYER_FAR=2, LAYER_STRUCTURAL=3, LAYER_UNKNOWN=4;
+const LAYER_NAMES=['near','mid','far','structural','unknown'];
+let layerGrid=null;
+// Exp. 2: zusammenhängende Regionen INNERHALB jeder Exp.-1-Schicht (statt verstreuter
+// Einzelpixel derselben Schicht) — z. B. "dieses Dach" statt "irgendein STRUCTURAL-Pixel".
+// componentGrid[j] ist 1-basiert (0 = unter minArea gefiltert, kein Rauschfleck erfasst).
+let layerRegions=[];
+let componentGrid=null;
 
 /* --- Materialschicht: Intrinsic Decomposition -----------------------------
    Siehe docs/neuronale-materialien-svbrdf-pbr.md. Das Quellbild enthält
@@ -1545,10 +1576,12 @@ function analyze(){
         if(y>0&&skyC(classGrid[j-AW])&&!inSky[j-AW]){inSky[j-AW]=1;stH.push(j-AW);}
         if(y<AH-1&&skyC(classGrid[j+AW])&&!inSky[j+AW]){inSky[j+AW]=1;stH.push(j+AW);}
       }
+      skyGrid=new Uint8Array(AW*AH);
+      skyRegionFound=false;
       if(region.length>AW*AH*0.02){
         sr/=region.length; sg/=region.length; sb/=region.length;
         const lum=(sr*0.299+sg*0.587+sb*0.114);
-        if(sb>sr && lum>110) region.forEach(j=>classGrid[j]=K);
+        if(sb>sr && lum>110){ region.forEach(j=>{classGrid[j]=K; skyGrid[j]=1;}); skyRegionFound=true; }
       }
     }
 
@@ -2069,6 +2102,8 @@ function analyze(){
   uploadTex(4,TEX.emis,AW,AH,tE);
   uploadTex(7,TEX.zone,AW,AH,tZ);
   uploadMaterialTexture();
+  buildLayerGrid();
+  buildLayerRegions();
   ready=true;
   applyPendingShading();   // ueberschreibt das eingebaute Backend, wenn ein Feld daneben lag
 }
@@ -2079,6 +2114,85 @@ function getMaterialTypeAt(u,v){
   const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
   const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
   return CLASSES[classGrid[y*AW+x]];
+}
+// Nächstes Pfad-Pixel zur Bildmitte – für runtime/player-fire.mjs (spawnPlayer). Bleibt hier
+// statt classGrid roh zu exportieren: Invariante 2 gilt für den Inhalt, nicht die Datei, aber
+// eine rohe Array-Freigabe würde ein zweites Modul an die interne classGrid-Repräsentation
+// binden statt an eine Verhaltens-Schnittstelle wie getMaterialTypeAt.
+function findSpawnPoint(){
+  if(!classGrid) return null;
+  let best=1e9,bu=0.5,bv=0.6;
+  for(let y=0;y<AH;y+=2)for(let x=0;x<AW;x+=2){
+    if(classGrid[y*AW+x]!==P)continue;
+    const du=x/AW-0.5, dv=y/AH-0.55, d=du*du+dv*dv;
+    if(d<best){best=d;bu=x/AW;bv=y/AH;}
+  }
+  return {u:bu,v:bv};
+}
+
+// Grobe Tiefenschicht aus bereits vorhandenen Ergebnissen ableiten (Exp. 1) — keine
+// neue Erkennung, nur eine Prioritätsliste über classGrid/zoneGrid/skyGrid. Absichtlich
+// simpel gehalten (kein Adjazenz-/Konnektivitäts-Aufwand): Holz gilt immer als Struktur
+// (Fachwerk/Zaun/Träger), Fels als Mittelgrund — beide Annahmen sind die bewusst
+// schwächsten dieser ersten Stufe und Kandidaten für eine spätere Verfeinerung
+// (docs/first-glimpse-depth-layers.md, Exp. 2), nicht für diese.
+function buildLayerGrid(){
+  if(!classGrid) return;
+  layerGrid=new Uint8Array(AW*AH);
+  for(let j=0;j<AW*AH;j++){
+    if(skyGrid&&skyGrid[j]){ layerGrid[j]=LAYER_FAR; continue; }
+    if(zoneGrid&&zoneGrid[j]){ layerGrid[j]=LAYER_STRUCTURAL; continue; }
+    switch(classGrid[j]){
+      case R: case N: case W: layerGrid[j]=LAYER_STRUCTURAL; break;
+      case F: case K:         layerGrid[j]=LAYER_MID; break;
+      case P: case G: case A: layerGrid[j]=LAYER_NEAR; break;
+      default:                 layerGrid[j]=LAYER_UNKNOWN;
+    }
+  }
+}
+
+// Exp. 2 (docs/first-glimpse-depth-layers.md): innerhalb jeder Exp.-1-Schicht die
+// tatsächlich zusammenhängenden Regionen finden — "dieses eine Dach", nicht "40000
+// verstreute STRUCTURAL-Pixel". Läuft die bereits getestete Komponentensuche einmal pro
+// Schicht (near/mid/far/structural/unknown), da sie eine binäre 0/255-Maske erwartet.
+// minArea skaliert mit der Bildfläche statt eines festen Pixelwerts (Invariante aus
+// docs/bildkanon.md: nichts an feste Rastergrößen binden), damit dieselbe relative
+// Rausch-Schwelle bei jeder Analyseauflösung gilt.
+function buildLayerRegions(){
+  layerRegions=[];
+  componentGrid=null;
+  if(!layerGrid) return;
+  componentGrid=new Int32Array(AW*AH);
+  const shape={width:AW,height:AH};
+  const minArea=Math.max(16, Math.round(AW*AH*0.0015));
+  const mask=new Uint8Array(AW*AH);
+  let nextId=1;
+  for(let li=0; li<LAYER_NAMES.length; li++){
+    for(let j=0;j<AW*AH;j++) mask[j]=(layerGrid[j]===li)?255:0;
+    const comps=connectedComponents(shape,mask,minArea);
+    const label=comps.labelGrid;
+    // Lokale (pro Schicht) Labels sind nicht global eindeutig -> auf componentGrid mit
+    // fortlaufender globaler ID umschreiben, während wir ohnehin einmal drüberlaufen.
+    const idFor=new Map();
+    for(const c of comps){ idFor.set(c.id, nextId); nextId++; }
+    for(let j=0;j<AW*AH;j++){
+      const localId=label[j];
+      if(!localId) continue;
+      const globalId=idFor.get(localId);
+      if(!globalId) continue; // sollte nicht vorkommen: minArea hat labelGrid selbst schon gefiltert
+      componentGrid[j]=globalId;
+    }
+    for(const c of comps){
+      layerRegions.push({
+        id: idFor.get(c.id),
+        layer: LAYER_NAMES[li],
+        pixels: c.pixels,
+        bbox: { minU:c.minX/AW, minV:c.minY/AH, maxU:(c.maxX+1)/AW, maxV:(c.maxY+1)/AH },
+        centroid: { u:(c.sumX/c.pixels)/AW, v:(c.sumY/c.pixels)/AH }
+      });
+    }
+  }
+  layerRegions.sort((a,b)=>b.pixels-a.pixels);
 }
 
 // =========================== Storyboard ====================
@@ -2240,144 +2354,17 @@ function tickLightning(t){
 }
 
 // =========================== Runde 4: Spieler, Feuer, Ökosystem ====================
+// Spieler & Lagerfeuer sind nach runtime/player-fire.mjs extrahiert (eigenes ESM-Modul,
+// hängt window.SHADED.player/window.SHADED.fire sowie window.SHADED_ENGINE_INTERNAL.
+// {player,fires,playerFireTick,drawPlayer} nach dem Laden dieser Datei an). fireUniforms()
+// bleibt hier zurück, weil es direkt GL-Uniforms schreibt (Kopplung an den WebGL-Kern) —
+// es liest den geteilten `fires`-Zustand nur über die Bridge.
 const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
 
-const player={active:false,u:0.5,v:0.6,vu:0,vv:0,exert:0,wet:0,age:0,
-               breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0,
-               carryMud:0,carryAsh:0};
-const keys={};
-const MAT_SPEED={path:1.0,grass:0.75,rock:0.85,wood:0.9,foliage:0.6,water:0.45,window:0.9,roof:0.9};
-
-function spawnPlayer(){
-  if(player.active||!ready)return;
-  // nächstes Pfad-Pixel zur Bildmitte suchen
-  let best=1e9,bu=0.5,bv=0.6;
-  for(let y=0;y<AH;y+=2)for(let x=0;x<AW;x+=2){
-    if(classGrid[y*AW+x]!==P)continue;
-    const du=x/AW-0.5, dv=y/AH-0.55, d=du*du+dv*dv;
-    if(d<best){best=d;bu=x/AW;bv=y/AH;}
-  }
-  player.u=bu; player.v=bv; player.active=true;
-  setStatus('🚶 Figur erwacht. WASD laufen · Leertaste Sprint · F Feuer.');
-}
-function dash(){
-  if(!player.active||player.dashCd>0)return;
-  player.dashT=0.25; player.dashCd=1.1; player.exert=Math.min(1,player.exert+0.5);
-  trailStamp(player.u,player.v,0.05,1,0.9);           // Impuls: Laub & Vegetation stieben
-  leaves.forEach(l=>{
-    const d=Math.hypot(l.u-player.u,(l.v-player.v));
-    if(d<0.09&&l.z<=0){ const a=Math.atan2(l.v-player.v,l.u-player.u);
-      l.vz=0.5+Math.random()*0.5; l.vu+=Math.cos(a)*0.06; l.vv+=Math.sin(a)*0.06; l.va=(Math.random()-0.5)*14; }
-  });
-  // Früchte fallen von nahen Kronen
-  for(let tries=0,drops=0;tries<24&&drops<2;tries++){
-    const ru=player.u+(Math.random()-0.5)*0.12, rv=player.v+(Math.random()-0.5)*0.12;
-    if(getMaterialTypeAt(ru,rv)==='foliage'){
-      fruits.push({u:ru,v:rv,z:0.9,vz:0,vu:(Math.random()-0.5)*0.01,vv:(Math.random()-0.5)*0.01,age:0,r:1});
-      drops++;
-    }
-  }
-}
-function playerTick(dt){
-  if(!player.active)return;
-  let mu=0,mv=0;
-  if(keys.w||keys.arrowup)mv-=1;
-  if(keys.s||keys.arrowdown)mv+=1;
-  if(keys.a||keys.arrowleft)mu-=1;
-  if(keys.d||keys.arrowright)mu+=1;
-  const mat=getMaterialTypeAt(player.u,player.v)||'path';
-  const tempC=CUR.temperature*50-20;
-  const slippery = tempC<0 && (mat==='water'||mat==='path'||mat==='rock');
-  const moving = (mu||mv);
-  let speed=0.085*(MAT_SPEED[mat]||1)*(1-CUR.snow*0.45);
-  if(player.dashT>0){speed*=3.4;player.dashT-=dt;}
-  if(player.dashCd>0)player.dashCd-=dt;
-  if(moving){
-    const len=Math.hypot(mu,mv), tu=mu/len*speed, tv=mv/len*speed;
-    if(slippery){ player.vu+=(tu-player.vu)*1.6*dt; player.vv+=(tv-player.vv)*1.6*dt; }
-    else{ player.vu=tu; player.vv=tv; }
-    player.exert=Math.min(1,player.exert+dt*(player.dashT>0?0.6:0.18));
-    player.lookX=Math.sign(mu); player.lookY=Math.sign(mv);
-  }else if(slippery){ player.vu*=Math.pow(0.5,dt/1.2); player.vv*=Math.pow(0.5,dt/1.2); }
-  else{ player.vu=0; player.vv=0; }
-  player.exert=Math.max(0,player.exert-dt*0.10);
-  const du=player.vu*dt, dv=player.vv*dt;
-  player.u=Math.max(0.01,Math.min(0.99,player.u+du));
-  player.v=Math.max(0.01,Math.min(0.99,player.v+dv));
-  // Fußspuren: oberflächenspezifisch, lesbar & konsequent (Weltgesetz #2)
-  player.stampAcc+=Math.hypot(du,dv);
-  if(player.stampAcc>0.014){
-    player.stampAcc=0;
-    const mat=getMaterialTypeAt(player.u,player.v)||'path';
-    const onSnow = CUR.snow>0.05 && (mat==='grass'||mat==='foliage'||mat==='roof'||mat==='rock'||mat==='path');
-    const onAsh  = trailSample(player.u,player.v).a>0.15;        // steht auf Brand/Asche
-    const wet = CUR.wet>0.4 || mat==='water';
-    // Kontamination an den Schuhen: Schlamm aus Nässe, Asche von Brandstellen
-    if(wet && (mat==='path'||mat==='grass'||mat==='water')) player.mud=Math.min(1,player.mud+0.25);
-    else player.mud=Math.max(0,player.mud-dt*0.4);
-    player.ash = onAsh?1:Math.max(0,player.ash-dt*0.6);
-    // (R) frische Delle – tief auf Schnee, leicht auf Stein/Holz
-    let rStr=0.7, rRad=0.007;
-    if(onSnow){ rStr=1.0; rRad=0.010; }
-    else if(mat==='rock'||mat==='wood'){ rStr=0.4; rRad=0.006; }
-    trailStamp(player.u,player.v+0.006,rRad,0,rStr);
-    // (B) permanenter Trampelpfad – Basis wie Runde 4 (sichtbar & beständig)
-    trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
-    // #2 Übertragung: Schuhe nehmen Schlamm/Asche auf und tragen sie weiter
-    if(player.carryMud>0.05){
-      trailStamp(player.u,player.v+0.006,0.010,2,0.05*player.carryMud,235); // braune Lehmbahn
-      player.carryMud=Math.max(0,player.carryMud-0.35);
-    }
-    if(player.carryAsh>0.05){
-      trailStamp(player.u,player.v+0.006,0.011,3,0.10*player.carryAsh);    // schwarze Asche-Schleppspur
-      player.carryAsh=Math.max(0,player.carryAsh-0.30);
-    }
-  }
-  // #2 Aufnahme: nasser Boden -> Schlamm an den Schuhen; verkohlter Boden -> Asche
-  if(CUR.wet>0.25 && (mat==='grass'||mat==='foliage'||mat==='path'))
-    player.carryMud=Math.min(1,player.carryMud+dt*0.5*CUR.wet*(moving?1:0.2));
-  const localChar=trailSample(player.u,player.v).a;
-  if(localChar>0.18) player.carryAsh=Math.min(1,player.carryAsh+dt*0.7);
-  // Nässe der Figur
-  if(CUR.rain>0.1) player.wet=Math.min(1,player.wet+CUR.rain*dt*0.25);
-  let nearFire=fires.some(f=>Math.hypot(f.u-player.u,f.v-player.v)<0.09);
-  player.wet=Math.max(0,player.wet-dt*(nearFire?0.35:0.02));
-}
-
-// --- Lagerfeuer ---
-const fires=[];
-let fireToolActive=false;
-function igniteFire(u,v,wild){
-  if(!ready)return false;
-  if(wild){ const m=getMaterialTypeAt(u,v); if(m!=='wood'&&m!=='roof'&&m!=='foliage')return false; }
-  if(fires.length>=8)return false;
-  if(fires.some(f=>Math.hypot(f.u-u,f.v-v)<0.025))return false;
-  fires.push({u,v,fuel:22+Math.random()*10,max:30,size:0.020+Math.random()*0.008,wild:!!wild,seed:Math.random()*7});
-  return true;
-}
-function fireTick(dt){
-  for(let i=fires.length-1;i>=0;i--){
-    const f=fires[i];
-    const douse=1 + CUR.rain*2.5 + Math.max(0,CUR.wet-0.4)*2.0;
-    f.fuel-=dt*douse;
-    // Brandspur + Schneeschmelze in den A-Kanal brennen
-    trailStamp(f.u,f.v,f.size*(0.8+0.4*(1-f.fuel/f.max)),3,0.55*dt);
-    // Rauch & Funken
-    if(Math.random()<0.5) smoke.push({u:f.u+(Math.random()-0.5)*0.012,v:f.v-0.008,
-      vu:(Math.random()-0.5)*0.004+CUR.wind*0.012, vv:-0.015-Math.random()*0.012,
-      r:0.004+Math.random()*0.004, life:1});
-    if(Math.random()<0.4) sparks.push({u:f.u+(Math.random()-0.5)*0.008,v:f.v-0.006,
-      vu:(Math.random()-0.5)*0.02+CUR.wind*0.02, vv:-0.03-Math.random()*0.03, life:0.8});
-    // Ausbreitung: nur trocken, windgetrieben
-    if(f.fuel>6 && CUR.wet<0.3 && CUR.rain<0.35 && Math.random()<dt*1.2){
-      igniteFire(f.u+(Math.random()-0.35+CUR.wind*0.4)*0.05, f.v+(Math.random()-0.5)*0.04, true);
-    }
-    if(f.fuel<=0) fires.splice(i,1);
-  }
-}
 const fireArr=new Float32Array(32);
 function fireUniforms(){
+  const fires=window.SHADED_ENGINE_INTERNAL.fires;
   fireArr.fill(0);
   fires.forEach((f,i)=>{
     const p=Math.min(1,f.fuel/f.max);
@@ -2389,336 +2376,11 @@ function fireUniforms(){
   gl.uniform1f(U.u_fireCount,fires.length);
 }
 
-// --- Partikel-Ökosystem (Overlay; rückwärts splicen!) ---
-let leaves=[],fruits=[],smoke=[],sparks=[],breaths=[],snowflakes=[],raindrops=[],hailstones=[],steamPuffs=[],pressureBursts=[],lavaFlows=[];
-function initEco(){
-  leaves=[];fruits=[];smoke=[];sparks=[];breaths=[];hailstones=[];steamPuffs=[];pressureBursts=[];lavaFlows=[];
-  for(let i=0;i<90;i++) leaves.push({u:Math.random(),v:Math.random(),
-    vu:0,vv:0,z:0,vz:0,ang:Math.random()*6.28,va:0,s:0.5+Math.random()*0.5,
-    col:['#c96f10','#b7420e','#a3320b','#8a6d1c'][i&3]});
-}
-function spawnElementParticles(kind,u=0.5,v=0.62,count=1){
-  if(kind==='steam') for(let i=0;i<count;i++) steamPuffs.push({u:u+(Math.random()-0.5)*0.10,v:v+(Math.random()-0.5)*0.05,
-    vu:(Math.random()-0.5)*0.010+CUR.wind*0.014,vv:-0.028-Math.random()*0.018,r:0.006+Math.random()*0.010,life:1});
-  if(kind==='pressure') for(let i=0;i<count;i++) pressureBursts.push({u:u+(Math.random()-0.5)*0.08,v:v+(Math.random()-0.5)*0.05,
-    r:0.008+Math.random()*0.014,life:1,seed:Math.random()*6.28});
-  if(kind==='hail') for(let i=0;i<count;i++) hailstones.push({u:Math.random(),v:-0.1-Math.random()*0.25,
-    vu:CUR.wind*0.22+(Math.random()-0.5)*0.08,vv:0.75+Math.random()*0.45,r:0.003+Math.random()*0.004,
-    bounce:1,life:1,depth:Math.random()});
-  if(kind==='lava') for(let i=0;i<count;i++){
-    const a=(Math.random()*6.283), d=Math.random()*0.055;
-    lavaFlows.push({u:u+Math.cos(a)*d,v:v+Math.sin(a)*d*0.7,vu:Math.cos(a)*0.010+CUR.wind*0.006,
-      vv:0.018+Math.random()*0.018,r:0.010+Math.random()*0.012,heat:1,life:1});
-  }
-  if(kind==='leaves') for(let i=0;i<count;i++) leaves.push({u:Math.random(),v:-0.05-Math.random()*0.4,
-    vu:(Math.random()-0.5)*0.05,vv:0.02+Math.random()*0.05,z:0.2+Math.random()*0.7,vz:0,
-    ang:Math.random()*6.28,va:(Math.random()-0.5)*10,s:0.6+Math.random()*0.8,
-    col:['#e07a12','#c2410c','#92400e','#f59e0b','#7c2d12'][i%5]});
-}
-function ecoTick(dt){
-  const windU=CUR.wind*0.010;
-  const autumnWind = CUR.autumn > 0.3 ? (CUR.autumn * 0.015) : 0;
-  // Vortex-Wind: sanfte positive/negative Oszillation (wie Schneestrudel)
-  const turbulencePhase = vortexPhase * 0.7;
-  const turbulenceWind = Math.sin(turbulencePhase) * CUR.storm * 0.3;
-  const turbulenceLift = Math.max(0, Math.sin(turbulencePhase + 1.57)*CUR.storm*0.08);  // Aufwind im Strudel
-
-  for(let i=leaves.length-1;i>=0;i--){
-    const l=leaves[i];
-
-    // Blätter am Boden (settled in Nischen) bewegen sich kaum
-    if(l.settled){
-      // Am Boden stabilisiert, aber Regen/Turbulenzen heben sie auf
-      const turbulenceStrength = CUR.storm * 0.5 + CUR.rain * 0.3;
-      if(turbulenceStrength > 0.4 && Math.random()<turbulenceStrength*0.15){
-        l.settled = false;  // Starke Turbulenzen wirbeln Blätter auf
-        l.vv = -0.15;  // Aufwind
-        l.vz = 0.08;
-        l.z = 0.02;
-      }
-      // Sanfte Bodenbewegung mit Vortex-Wind
-      l.vu += turbulenceWind*0.003*dt;
-      l.vu *= Math.pow(0.92, dt);
-      l.u += l.vu*dt;
-      if(l.u<0)l.u+=1; if(l.u>1)l.u-=1;
-      continue;
-    }
-
-    // Interaktion mit Spieler
-    if(player.active&&l.z<=0){
-      const d=Math.hypot(l.u-player.u,l.v-player.v);
-      if(d<0.02){ const a=Math.atan2(l.v-player.v,l.u-player.u);
-        l.vu+=Math.cos(a)*0.02; l.vv+=Math.sin(a)*0.02; }
-    }
-
-    // Luftphase (z > 0): wirbelt herum
-    if(l.z>0){
-      l.vz -= dt*2.2;
-      l.vz += turbulenceLift*dt;  // Strudel-Aufwind
-      l.z += l.vz*dt;
-      l.ang += l.va*dt;
-      l.vu += (windU+autumnWind+turbulenceWind)*dt*3.0;  // Wind + Vortex
-      if(l.z<=0){l.z=0;l.vz=0;l.va=0;}
-    }
-    else {
-      // Fallende Phase: in Nischen sammeln (Tiefenbewusstsein)
-      const fallSpeed = CUR.autumn > 0.2 ? CUR.autumn * 0.3 : 0.02;
-      l.vv += fallSpeed * dt;
-
-      // Vortex-Wind: positive/negative für Wirbel-Effekt
-      l.vu += (windU+autumnWind+turbulenceWind)*dt*(0.3+0.4*CUR.autumn);
-
-      // Herbst-Blätter wirbeln in Strudeln (Sinusoszillation mit Turbulenzen)
-      const wob = CUR.autumn > 0.5 ? Math.sin(time*1.2 + i*0.3 + turbulencePhase)*0.008 : 0;
-      l.vu += wob;
-
-      // Reibung / Bremsen (etwas weniger in Strudeln)
-      const frictionDamping = 1.0 - CUR.storm*0.1;
-      const fr=Math.pow(0.5,dt/0.5*frictionDamping);
-      l.vu*=fr;
-      l.vv*=Math.pow(0.8,dt/0.3);
-
-      // TIEFENBEWUSSTSEIN: Blätter sammeln sich in Nischen (hohe wet-Werte = Senken)
-      // Wenn Blatt in nasse Gegend fällt (puddle/path mit Wasser), settlement bevorzugen
-      const isInNiche = l.v > 0.88 && CUR.wet > 0.2;  // nähe am Boden + nasse Gegend
-      const nicheThreshold = isInNiche ? 0.92 : 0.95;
-
-      if(l.v > nicheThreshold){
-        l.settled = true;
-        l.v = Math.min(0.98, nicheThreshold + Math.random()*0.03);
-        l.vv = 0;
-        l.vu = 0;
-        l.va = 0;
-        continue;
-      }
-    }
-
-    l.u+=l.vu*dt*(l.z>0?3:1);
-    l.v+=l.vv*dt*(l.z>0?3:1);
-    if(l.u<0)l.u+=1; if(l.u>1)l.u-=1;
-    if(l.v<0)l.v+=1; if(l.v>1)l.v-=1;
-  }
-  for(let i=fruits.length-1;i>=0;i--){
-    const fr=fruits[i]; fr.age+=dt;
-    if(fr.z>0){ fr.vz-=dt*2.6; fr.z+=fr.vz*dt; fr.u+=fr.vu*dt; fr.v+=fr.vv*dt;
-      if(fr.z<=0){fr.z=0; if(Math.abs(fr.vz)>0.3){fr.vz=-fr.vz*0.35;fr.z=0.001;} else fr.vz=0;} }
-    if(fr.age>18) fruits.splice(i,1);
-  }
-  for(let i=smoke.length-1;i>=0;i--){
-    const s=smoke[i]; s.life-=dt*0.5;
-    if(s.life<=0){smoke.splice(i,1);continue;}
-    s.u+=s.vu*dt*3; s.v+=s.vv*dt*3; s.r+=dt*0.006; s.vu+=CUR.wind*0.004*dt;
-  }
-  for(let i=sparks.length-1;i>=0;i--){
-    const s=sparks[i]; s.life-=dt*1.3;
-    if(s.life<=0){sparks.splice(i,1);continue;}
-    s.u+=s.vu*dt; s.v+=s.vv*dt; s.vv+=dt*0.05;
-  }
-  for(let i=breaths.length-1;i>=0;i--){
-    const b=breaths[i]; b.life-=dt*1.1;
-    if(b.life<=0){breaths.splice(i,1);continue;}
-    b.u+=b.vu*dt; b.v+=b.vv*dt; b.r+=dt*0.008;
-  }
-  for(let i=steamPuffs.length-1;i>=0;i--){
-    const s=steamPuffs[i]; s.life-=dt*0.38;
-    if(s.life<=0){steamPuffs.splice(i,1);continue;}
-    s.u+=s.vu*dt; s.v+=s.vv*dt; s.r+=dt*(0.014+heatWarp*0.002); s.vu+=CUR.wind*0.006*dt;
-  }
-  for(let i=pressureBursts.length-1;i>=0;i--){
-    const p=pressureBursts[i]; p.life-=dt*0.85;
-    if(p.life<=0){pressureBursts.splice(i,1);continue;}
-    p.r+=dt*(0.10+CUR.puddle*0.05);
-  }
-  for(let i=lavaFlows.length-1;i>=0;i--){
-    const l=lavaFlows[i]; l.life-=dt*0.10; l.heat*=Math.pow(0.72,dt);
-    if(l.life<=0||l.heat<0.05){lavaFlows.splice(i,1);continue;}
-    l.u+=l.vu*dt; l.v+=l.vv*dt; l.vv+=dt*0.012; l.r+=dt*0.002;
-    trailStamp(l.u,l.v,l.r,3,0.45*dt);
-    if(Math.random()<0.35) sparks.push({u:l.u,v:l.v,vu:(Math.random()-0.5)*0.025+CUR.wind*0.02,vv:-0.04-Math.random()*0.04,life:0.9});
-    if(CUR.wet>0.25||CUR.rain>0.1) spawnElementParticles('steam',l.u,l.v,1);
-  }
-}
-
-// --- Schnee-Partikel-System: Tiefenkarte steuert Fall, Temperatur+Material steuern Liegenbleiben ---
-let vortexPhase = 0;  // für weiche positive/negative Wind-Oszillation
-const SNOW_SETTLE_MAX=260; // Deckel gegen unbegrenztes Wachstum bei Dauerschnee
-function snowDepthAt(s){
-  // Echte Tiefenkarte wenn vorhanden (1=nah/weiß, 0=fern/schwarz), sonst die alte Pseudo-Tiefe
-  return hasDepth ? getDepthAt(s.u,s.v) : s.pseudoDepth;
-}
-function snowTick(dt){
-  // Vortex-Wind: sanfte Sinusoszillation zwischen -1 und +1
-  vortexPhase += dt * 1.2;  // Vortex-Frequenz
-  const vortexWind = Math.sin(vortexPhase) * CUR.storm * 0.4;  // Strudel stärker bei Sturm
-  const cold = CUR.temperature < 0.42; // ~ 1 °C (tempC = temperature*50-20), s. Frost-System oben
-
-  // Schneeflocken spawnen VON OBEN, klein beginnend (konsistent bei Schneefall)
-  const targetSnowflakes = Math.ceil(CUR.snowfall * 80);
-  while(snowflakes.length < targetSnowflakes && Math.random()<0.6){
-    snowflakes.push({
-      u: Math.random(),
-      v: -0.15,  // KONSISTENT von oben, nicht zufällig
-      z: 0,
-      pseudoDepth: -0.5 + Math.random(),  // Fallback ohne Tiefenkarte
-      size: 0.6 + Math.random()*0.5,      // startet als kleines Flöckchen
-      vu: (Math.random()-0.5)*0.01,
-      vv: 0.08 + Math.random()*0.04 + CUR.snowfall*0.12,
-      wobble: Math.random()*6.28,
-      wobbleSpeed: 1.5 + Math.random()*2.0,
-      age: 0,
-      settled: false,
-      layer: 0
-    });
-  }
-
-  // Spieler klopft nahen liegenden Schnee ab (Abklopfbarkeit)
-  if(player.active){
-    for(const s of snowflakes){
-      if(!s.settled) continue;
-      const d=Math.hypot(s.u-player.u, s.v-player.v);
-      if(d<0.025){
-        s.settled=false; s.layer=0;
-        s.vu=(s.u-player.u)*2.2+(Math.random()-0.5)*0.02;
-        s.vv=-0.06-Math.random()*0.05; // kurz aufwirbeln
-      }
-    }
-  }
-
-  // Update: Fall mit Tiefensteuerung, Settle mit Temperatur+Material, Schichtenbildung
-  let settledCount=0;
-  for(const s of snowflakes) if(s.settled) settledCount++;
-  for(let i=snowflakes.length-1;i>=0;i--){
-    const s = snowflakes[i];
-    s.age += dt;
-
-    if(s.settled){
-      // Liegender Schnee: sehr träge, Wind kann ihn minimal verschieben
-      s.vu *= Math.pow(0.85, dt);
-      s.vu += (CUR.wind*0.005 + vortexWind*0.008)*dt;
-      s.u += s.vu*dt;
-      if(s.u<0) s.u+=1; if(s.u>1) s.u-=1;
-      // Taut es wieder auf (zu warm), verschwindet die Liegeschicht allmählich
-      if(!cold){ s.age+=dt*2; if(s.age>60){ snowflakes.splice(i,1); } }
-      continue;
-    }
-
-    // Tiefe (echte Karte oder Pseudo-Tiefe) steuert Fallgeschwindigkeit + wahrgenommene Größe:
-    // nah (Tiefe→1) fällt schneller/größer, fern (Tiefe→0) langsamer/kleiner.
-    const depth = snowDepthAt(s);
-    const depthF = depth===null ? 0.5 : depth;
-    const depthSpeed = 0.6 + depthF*0.7;   // 0.6x (fern) .. 1.3x (nah)
-
-    s.v += s.vv * depthSpeed * dt;
-    s.u += (s.vu + CUR.wind*0.008 + vortexWind*0.012 + Math.sin(s.wobble + time*s.wobbleSpeed)*0.002) * dt;
-    s.wobble += s.wobbleSpeed*dt*0.2;
-    s._depth = depthF; // fürs Rendering gemerkt
-
-    if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
-
-    // Liegenbleiben: NUR wenn kalt genug. Reihenfolge nach Oberfläche -
-    // erhöhte/exponierte Flächen (Dach, Laub) sammeln zuerst, Boden erst wenn die
-    // Flocke fast unten ist. Wasser/Fenster nehmen keinen Schnee an.
-    if(cold && s.v>=0 && settledCount<SNOW_SETTLE_MAX){
-      const mat = ready ? getMaterialTypeAt(s.u,s.v) : null;
-      const elevated = mat==='roof' || mat==='foliage';
-      const groundReady = s.v > 0.90;
-      // Zeitabhängige Klebechance statt Pro-Frame-Münzwurf, sonst friert die Szene
-      // quasi sofort ein statt Schnee sichtbar über Sekunden aufzubauen.
-      const stickChance = 1 - Math.pow(1 - (elevated?0.7:0.5), dt);
-      if(mat && mat!=='water' && mat!=='window' && (elevated || groundReady) && Math.random()<stickChance){
-        // Schichten: je mehr bereits liegender Schnee in der Nähe, desto höher die Lage
-        let neighbors=0;
-        for(const o of snowflakes){ if(o.settled && Math.hypot(o.u-s.u,o.v-s.v)<0.018) neighbors++; }
-        s.settled = true; settledCount++;
-        s.layer = Math.min(4, neighbors);
-        s.v = elevated ? s.v : Math.min(0.985, 0.90 + Math.random()*0.06) - s.layer*0.003;
-        s.vv = 0; s.vu = 0;
-        continue;
-      }
-    }
-
-    // Ausspawn: unten raus (kein Liegenbleiben möglich, z.B. zu warm) oder nach langer Zeit
-    if(s.v > 1.1 || s.age > 30) snowflakes.splice(i,1);
-  }
-}
-
-// --- Regen-System mit Tiefenvarianz und Vortex-Wind ---
-function rainTick(dt){
-  // Regen-Tropfen spawnen basierend auf rain-Parameter
-  const targetRaindrops = Math.ceil(CUR.rain * 120);
-  while(raindrops.length < targetRaindrops && Math.random()<0.7){
-    // Wind bestimmt Richtung; Vortex moduliert nur die STÄRKE (0.7x..1.3x), niemals
-    // das Vorzeichen - sonst fällt Regen bei niedrigem Wind+hohem Sturm gleichzeitig
-    // in beide Richtungen (reproduzierter Bug: vorheriges additives +/- kehrte die
-    // Grundrichtung bei windAngle<vortexInfluence um).
-    const windAngle = CUR.wind * 0.5;
-    const vortexMod = 1 + Math.sin(vortexPhase) * CUR.storm * 0.3;
-    const length = 0.015 + Math.random()*0.008;
-    const u = -length + Math.random(), v = -0.05 + Math.random()*0.1;
-
-    // Regen-Tropfen haben Tiefe: echte Tiefenkarte wenn vorhanden (0=vorne/schnell,
-    // 1=hinten/langsam - invers zu getDepthAt, wo 1=nah), sonst Pseudo-Tiefe.
-    const realD = hasDepth ? getDepthAt(u,v) : null;
-    const depth = realD!==null ? 1-realD : Math.random();
-    const depthMultiplier = 0.6 + depth*0.4;  // 0.6x bis 1.0x
-
-    raindrops.push({
-      u, v,
-      vx: windAngle * vortexMod * (0.4 + CUR.wind*0.3),
-      vy: (0.6 + CUR.storm*0.3) * depthMultiplier,  // Tiefenvarianz
-      depth: depth,  // für Rendering-Größe/Transparenz (bei echter Karte pro Frame aktualisiert)
-      length: length,
-      age: 0
-    });
-  }
-
-  // Update mit Tiefenbewusstsein
-  for(let i=raindrops.length-1;i>=0;i--){
-    const r = raindrops[i];
-    r.age += dt;
-
-    // Tiefere Tropfen sind weniger von Vortex-Wind beeinflusst; multiplikative
-    // Modulation um 1.0 herum kann die Grundrichtung nie umkehren (s. Spawn-Kommentar).
-    const windModifier = 1.0 - r.depth*0.4;
-    const vortexMod = 1 + Math.sin(vortexPhase) * CUR.storm * 0.15 * windModifier;
-    r.vx = CUR.wind * 0.5 * vortexMod * (0.4 + CUR.wind*0.3);
-
-    r.v += r.vy * dt;
-    r.u += r.vx * dt;
-
-    // Tiefe pro Frame nachführen (echte Karte reagiert auf Position, nicht nur Spawn-Punkt)
-    if(hasDepth){ const d=getDepthAt(r.u,r.v); if(d!==null) r.depth = 1-d; }
-
-    // wrapping
-    if(r.u > 1) r.u = -r.length;
-
-    // ausspawn (tiefere Tropfen bleiben länger sichtbar)
-    const lifetime = 8 + r.depth*4;
-    if(r.v>1.1 || r.age>lifetime) raindrops.splice(i,1);
-  }
-}
-
-function hailTick(dt){
-  const targetHail = Math.ceil(Math.max(0, CUR.storm*CUR.rain - 0.35) * 70);
-  while(hailstones.length < targetHail && Math.random()<0.45) spawnElementParticles('hail',0.5,0,1);
-  for(let i=hailstones.length-1;i>=0;i--){
-    const h=hailstones[i];
-    h.life-=dt*0.08;
-    h.vv+=dt*0.38;
-    h.v+=h.vv*dt;
-    h.u+=h.vu*dt;
-    if(hasDepth){ const d=getDepthAt(h.u,h.v); if(d!==null) h.depth=1-d; }
-    if(h.v>0.92 && h.bounce>0){
-      h.v=0.92+Math.random()*0.06;
-      h.vv=-h.vv*(0.20+Math.random()*0.18);
-      h.vu+=(Math.random()-0.5)*0.08;
-      h.bounce--;
-      pressureBursts.push({u:h.u,v:h.v,r:0.006,life:0.45,seed:Math.random()*6.28});
-      trailStamp(h.u,h.v,0.009,0,0.35);
-    }
-    if(h.u<-0.1||h.u>1.1||h.v>1.15||h.life<=0) hailstones.splice(i,1);
-  }
-}
+// === Weather-/Ökosystem-Partikel — extrahiert nach runtime/weather-particles.mjs ===
+// (eigenes ESM-Modul: initEco, spawnElementParticles, ecoTick, snowDepthAt/snowTick,
+// rainTick, hailTick und ihr Anteil an der Overlay-Zeichnung. Hängt window.SHADED_ENGINE_INTERNAL.
+// {initEco,spawnElementParticles,weatherTick,weatherDrawBeforeFire,weatherDrawAfterFire} nach
+// dem Laden dieser Datei an; siehe dort für die vollständige Implementierung.)
 
 // --- Overlay-Rendering (deckungsgleich über dem GL-Canvas) ---
 function drawOverlay(dt){
@@ -2726,23 +2388,10 @@ function drawOverlay(dt){
   ovx.clearRect(0,0,W,H);
   if(!ready)return;
   const S=W/1400;  // Größenreferenz
-  const night=CUR.dayNight;
-  // Laub nur, wenn Herbst es erzählt
-  if(CUR.autumn>0.06) leaves.forEach(l=>{
-    ovx.save(); ovx.translate(l.u*W,(l.v-l.z*0.04)*H); ovx.rotate(l.ang);
-    ovx.globalAlpha=0.85*Math.min(1,CUR.autumn*2)*(1-night*0.5);
-    ovx.fillStyle=l.col;
-    ovx.beginPath(); ovx.ellipse(0,0,7*S*l.s,3.5*S*l.s,0,0,6.283); ovx.fill();
-    ovx.restore();
-  });
-  fruits.forEach(f=>{
-    ovx.save(); ovx.translate(f.u*W,(f.v-f.z*0.05)*H);
-    ovx.globalAlpha=Math.min(1,(18-f.age)/3);
-    ovx.fillStyle='#c0262b'; ovx.beginPath(); ovx.arc(0,0,5.5*S,0,6.283); ovx.fill();
-    ovx.fillStyle='#5c3a13'; ovx.fillRect(-0.8*S,-7*S,1.6*S,3*S);
-    ovx.restore();
-  });
-  fires.forEach(f=>{
+  // runtime/weather-particles.mjs zeichnet Laub/Früchte VOR den Flammen — Reihenfolge
+  // muss für identisches Layering erhalten bleiben (siehe Kommentar dort).
+  window.SHADED_ENGINE_INTERNAL.weatherDrawBeforeFire?.();
+  window.SHADED_ENGINE_INTERNAL.fires.forEach(f=>{
     const p=Math.min(1,f.fuel/f.max), fx=f.u*W, fy=f.v*H;
     for(let k=0;k<5;k++){
       const hgt=(16+Math.sin(time*11+f.seed+k*2.2)*6)*S*p;
@@ -2756,393 +2405,19 @@ function drawOverlay(dt){
       ovx.fill();
     }
   });
-  smoke.forEach(s=>{
-    ovx.globalAlpha=s.life*0.3;
-    ovx.fillStyle= night>0.5?'rgba(120,125,140,1)':'rgba(90,90,96,1)';
-    ovx.beginPath(); ovx.arc(s.u*W,s.v*H,s.r*W,0,6.283); ovx.fill();
-  });
-  sparks.forEach(s=>{
-    ovx.globalAlpha=s.life;
-    ovx.fillStyle=Math.random()<0.5?'#ffb347':'#ff5533';
-    ovx.beginPath(); ovx.arc(s.u*W,s.v*H,1.6*S,0,6.283); ovx.fill();
-  });
-  breaths.forEach(b=>{
-    ovx.globalAlpha=b.life*0.35;
-    ovx.fillStyle='rgba(235,245,255,1)';
-    ovx.beginPath(); ovx.arc(b.u*W,b.v*H,b.r*W,0,6.283); ovx.fill();
-  });
-  steamPuffs.forEach(s=>{
-    const g=ovx.createRadialGradient(s.u*W,s.v*H,0,s.u*W,s.v*H,s.r*W);
-    g.addColorStop(0,`rgba(245,248,255,${0.34*s.life})`);
-    g.addColorStop(0.55,`rgba(200,215,225,${0.18*s.life})`);
-    g.addColorStop(1,'rgba(200,215,225,0)');
-    ovx.globalAlpha=1;
-    ovx.fillStyle=g;
-    ovx.beginPath(); ovx.arc(s.u*W,s.v*H,s.r*W,0,6.283); ovx.fill();
-  });
-  pressureBursts.forEach(p=>{
-    ovx.globalAlpha=Math.max(0,p.life)*0.55;
-    ovx.strokeStyle='rgba(160,220,255,1)';
-    ovx.lineWidth=Math.max(1,2*S*p.life);
-    ovx.beginPath();
-    ovx.arc(p.u*W,p.v*H,p.r*W*(1+0.06*Math.sin(time*18+p.seed)),0,6.283);
-    ovx.stroke();
-  });
-  lavaFlows.forEach(l=>{
-    const g=ovx.createRadialGradient(l.u*W,l.v*H,0,l.u*W,l.v*H,l.r*W);
-    g.addColorStop(0,`rgba(255,245,170,${0.92*l.heat})`);
-    g.addColorStop(0.35,`rgba(255,90,20,${0.78*l.heat})`);
-    g.addColorStop(1,`rgba(90,20,10,${0.18*l.heat})`);
-    ovx.globalAlpha=1;
-    ovx.fillStyle=g;
-    ovx.beginPath(); ovx.arc(l.u*W,l.v*H,l.r*W,0,6.283); ovx.fill();
-  });
-  // Schneeflocken: Tiefenvarianz (vordere größer/sichtbar, hintere kleiner/subtil)
-  snowflakes.forEach(sn=>{
-    // Tiefe (echte Karte oder Pseudo-Tiefe, 0=fern..1=nah) steuert Größe/Transparenz
-    const d = sn._depth ?? 0.5;
-    const depthMultiplier = 0.6 + d*0.6;   // fern 0.6x .. nah 1.2x
-    const depthAlpha = 0.5 + d*0.5;        // fern schwächer, nah kräftiger
-    const layerBoost = sn.settled ? (1 + sn.layer*0.22) : 1; // Schichten wachsen sichtbar
-
-    const maxAge = sn.settled ? 40 : 25;
-    ovx.globalAlpha = Math.min(0.95, (1-sn.age/maxAge)*0.6 + CUR.snowfall*0.3) * depthAlpha;
-
-    const fadeNight = night>0.6 ? (0.4+night*0.3) : 1.0;
-    // Fernere Flocken leicht bluer (Luftperspektive)
-    const blueShift = Math.max(0, (1-d)*20)|0;
-    ovx.fillStyle = `rgba(${Math.max(180, 220*fadeNight-blueShift)|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
-
-    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier * layerBoost;
-    ovx.beginPath();
-    ovx.arc(sn.u*W, sn.v*H, Math.max(0.3, pixelSize), 0, 6.283);
-    ovx.fill();
-  });
-  // Regen-Tropfen: Tiefenvarianz (vordere Tropfen sichtbar, hintere subtil)
-  raindrops.forEach(r=>{
-    // Tiefere Tropfen (r.depth ~ 1): schwächer und dünner (Parallax-Effekt)
-    const depthAlpha = 0.4 + r.depth*0.6;  // vorne 0.4-1.0, hinten 0.4-0.7
-    const lifetime = 8 + r.depth*4;
-    ovx.globalAlpha = Math.min(0.8, CUR.rain*0.9 * (1-r.age/lifetime)) * depthAlpha;
-
-    const depthFade = 0.3 + (1-r.v)*0.7;
-    // Tiefere Tropfen leicht blauer (Luftperspektive)
-    const blueShift = r.depth*20|0;
-    ovx.strokeStyle = `rgba(${Math.max(0,180*depthFade-blueShift)|0},${200*depthFade|0},${255*depthFade|0},1)`;
-
-    // Tiefere Tropfen sind länger (Parallax) aber dünner
-    const depthMultiplier = 0.8 + r.depth*0.4;
-    ovx.lineWidth = Math.max(0.3, (1.5 - r.v)*depthMultiplier);
-
-    ovx.beginPath();
-    const x1 = r.u*W, y1 = r.v*H;
-    const x2 = x1 + r.length*W*depthMultiplier, y2 = y1 + r.length*H*2*depthMultiplier;
-    ovx.moveTo(x1, y1);
-    ovx.lineTo(x2, y2);
-    ovx.stroke();
-  });
-  hailstones.forEach(h=>{
-    const depthScale=0.65+h.depth*0.55;
-    ovx.globalAlpha=0.45+0.45*h.life;
-    ovx.fillStyle='rgba(225,240,255,1)';
-    ovx.strokeStyle='rgba(90,140,180,.65)';
-    ovx.lineWidth=Math.max(0.6,S);
-    ovx.beginPath(); ovx.arc(h.u*W,h.v*H,h.r*W*depthScale,0,6.283); ovx.fill(); ovx.stroke();
-  });
+  window.SHADED_ENGINE_INTERNAL.weatherDrawAfterFire?.();
   ovx.globalAlpha=1;
-  if(player.active) drawPlayer(W,H,S,dt);
-  drawActors(dt);
-}
-function drawPlayer(W,H,S,dt){
-  const tempC=CUR.temperature*50-20;
-  player.breathT+=dt*(1.7+player.exert*4.0);
-  const br=Math.sin(player.breathT)*(1+player.exert*1.6);
-  // Frost-Atem in Ausatemphase
-  const cyc=player.breathT%6.283;
-  if(tempC<5 && cyc>2.8 && cyc<4.6 && Math.random()<0.2)
-    breaths.push({u:player.u+0.004*(player.lookX||1),v:player.v-0.012,
-      vu:0.003*(player.lookX||1)+CUR.wind*0.006,vv:-0.002,r:0.0015,life:1});
-  const px=player.u*W, py=player.v*H;
-  const shiver=(tempC<0&&!player.dashT)?Math.sin(time*46)*Math.min(3,-tempC*0.2)*S:0;
-  ovx.save(); ovx.translate(px+shiver,py);
-  ovx.fillStyle='rgba(0,0,0,0.35)';
-  ovx.beginPath(); ovx.ellipse(0,4*S,10*S,4*S,0,0,6.283); ovx.fill();
-  // Körper (atmet)
-  let coat=player.wet>0.4?'#2c3e57':'#3b3b5c';
-  ovx.fillStyle=coat;
-  ovx.beginPath(); ovx.ellipse(0,-4*S,(8+br*0.5)*S,(9+br*0.7)*S,0,0,6.283); ovx.fill();
-  if(player.wet>0.15){ ovx.globalAlpha=Math.min(0.5,player.wet*0.5);
-    ovx.fillStyle='#48627f'; ovx.beginPath();
-    ovx.ellipse(0,(-1+br*0.2)*S,(8+br*0.5)*S,(5)*S,0,0,6.283); ovx.fill(); ovx.globalAlpha=1; }
-  // Kopf
-  ovx.fillStyle='#f3c99a';
-  ovx.beginPath(); ovx.arc(0,(-16+br*0.25)*S,6*S,0,6.283); ovx.fill();
-  // Haar (ergraut mit age)
-  const g=Math.round(30+player.age*180);
-  ovx.fillStyle=`rgb(${g},${g},${Math.round(40+player.age*175)})`;
-  ovx.beginPath(); ovx.arc(0,(-18.5+br*0.25)*S,6*S,Math.PI,6.283); ovx.fill();
-  // Augen (Blickrichtung)
-  ovx.fillStyle='#141414';
-  const lx=player.lookX*1.6*S, ly=(-16+br*0.25)*S+player.lookY*1.0*S;
-  ovx.beginPath(); ovx.arc(-2*S+lx,ly,1.3*S,0,6.283); ovx.arc(2*S+lx,ly,1.3*S,0,6.283); ovx.fill();
-  ovx.restore();
+  window.SHADED_ENGINE_INTERNAL.drawPlayer?.(W,H,S,dt);
+  // SWIFT-Actor-Bridge (runtime/actor-bridge.mjs) registriert diesen Hook nach dem Laden;
+  // guard nötig, weil drawOverlay theoretisch vor dem ersten rAF nie ohne geladenes Modul
+  // läuft, aber der Zugriff soll trotzdem nie hart gegen ein fehlendes Modul knallen.
+  window.SHADED_ENGINE_INTERNAL.drawActors?.(dt);
 }
 
-// =========================== SWIFT-Actor-Bridge ====================// Lädt animierte Sprite-Sheets + Manifest (identisches Schema wie SWIFTs
-// core.sprite_sheet.SpriteSheetManifest, siehe SWIFT-Repo) und zeichnet sie
-// als rein optische Akteure auf dem Overlay-Canvas – parallel zur Spielfigur,
-// ohne classGrid/getMaterialTypeAt (die Material-Wahrheit) zu berühren.
-let actors=[];
-// Phase B2: durchschnittliche Tiefe eines Frames (0..1, 1 = nah/hell in der Depth-Map),
-// einmal pro Frame-ID berechnet und am Actor gecacht. Ergebnis ist ein reiner
-// Helligkeitsfaktor (nah bis +30 %, fern bis −15 %) – nie eine Farbverschiebung.
-function actorDepthBrightness(a, frameId){
-  if(!(a.depthImg&&a.depthReady&&a.manifest&&a.manifest.depthFrameRects)) return 1;
-  const rect=a.manifest.depthFrameRects[frameId];
-  if(!rect) return 1;
-  a._depthAvg=a._depthAvg||{};
-  if(!(frameId in a._depthAvg)){
-    const diw=a.depthImg.naturalWidth||a.depthImg.width, dih=a.depthImg.naturalHeight||a.depthImg.height;
-    const scX=a.manifest.depthSourceW?diw/a.manifest.depthSourceW:1;
-    const scY=a.manifest.depthSourceH?dih/a.manifest.depthSourceH:1;
-    const w=Math.max(1,Math.round(rect[2]*scX)), h=Math.max(1,Math.round(rect[3]*scY));
-    const c=document.createElement('canvas'); c.width=w; c.height=h;
-    const cx=c.getContext('2d',{willReadFrequently:true});
-    cx.drawImage(a.depthImg, rect[0]*scX, rect[1]*scY, w, h, 0, 0, w, h);
-    const d=cx.getImageData(0,0,w,h).data;
-    let sum=0; for(let i=0;i<d.length;i+=4) sum+=d[i];
-    a._depthAvg[frameId]=(sum/(d.length/4))/255;   // 0 = fern/dunkel, 1 = nah/hell
-  }
-  const f=a._depthAvg[frameId];
-  return 1 + f*0.3 - (1-f)*0.15;
-}
-function parseActorManifest(data){
-  if(data.mappingVersion&&data.mappingVersion!=='1.4.0'&&data.mappingVersion!=='1.3.0'){
-    console.warn('SHADED: unbekannte Manifest-mappingVersion "'+data.mappingVersion+'" – erwartet 1.3.0/1.4.0, lade nach Best Effort.');
-  }
-  const m={sourceW:(data.sourceImage&&data.sourceImage.w)||0,
-           sourceH:(data.sourceImage&&data.sourceImage.h)||0,
-           frameRects:{}, animations:{}, depthImage:data.depthImage||null,
-           depthSourceW:(data.depthSourceImage&&data.depthSourceImage.w)||0,
-           depthSourceH:(data.depthSourceImage&&data.depthSourceImage.h)||0,
-           depthFrameRects:{},
-           // SWIFT v1.4.0-Erweiterungen (--emissive-pass / --normal-pass / --world-states):
-           // emissive wird als additives Nacht-Glühen gerendert; normal wird geparst,
-           // aber (noch) nicht gerendert (Canvas-2D hat keinen Licht-Pass);
-           // worldStates referenzieren Varianten-Sheets (setWorldState am Handle).
-           emissiveImage:data.emissiveImage||null,
-           emissiveSourceW:(data.emissiveSourceImage&&data.emissiveSourceImage.w)||0,
-           emissiveSourceH:(data.emissiveSourceImage&&data.emissiveSourceImage.h)||0,
-           emissiveFrameRects:{},
-           normalImage:data.normalImage||null,
-           worldStates:{}, variants:Array.isArray(data.variants)?data.variants:[]};
-  const frames=data.frames||[];
-  const explicit=data.frameRects||{};
-  if(Object.keys(explicit).length){
-    frames.forEach(f=>{ const r=explicit[f.id]; if(r) m.frameRects[f.id]=[r.x,r.y,r.w,r.h]; });
-  } else if(data.grid){
-    const cols=data.grid.columns||{}, rows=data.grid.rows||{};
-    frames.forEach(f=>{
-      const c=cols[String(f.col)]||{}, rw=rows[String(f.row)]||{};
-      m.frameRects[f.id]=[c.x||0, rw.y||0, c.w||0, rw.h||0];
-    });
-  }
-  // Optional: Depth-Frame-Rects (identische Koordinaten wie Color-Frames, aber andere Quelle)
-  const depthExplicit=data.depthFrameRects||{};
-  if(Object.keys(depthExplicit).length){
-    frames.forEach(f=>{ const r=depthExplicit[f.id]; if(r) m.depthFrameRects[f.id]=[r.x,r.y,r.w,r.h]; });
-  }
-  // Optional: Emissive-Frame-Rects (Layout identisch zu frameRects, eigene Quelle)
-  const emisExplicit=data.emissiveFrameRects||{};
-  if(Object.keys(emisExplicit).length){
-    frames.forEach(f=>{ const r=emisExplicit[f.id]; if(r) m.emissiveFrameRects[f.id]=[r.x,r.y,r.w,r.h]; });
-  }
-  // Optional: worldStates (SWIFT WorldStateRef; legacy `palette` wird toleriert)
-  for(const name in (data.worldStates||{})){
-    const ws=data.worldStates[name]||{};
-    m.worldStates[name]={name:ws.name||name,
-                         transform:ws.transform||ws.palette||name,
-                         intensity:typeof ws.intensity==='number'?ws.intensity:0.5,
-                         variantPath:ws.variant_path||null,
-                         params:ws.params||null};
-  }
-  for(const name in (data.animations||{})){
-    const a=data.animations[name];
-    m.animations[name]={frames:a.frames||[], fps:a.fps||12, loop:a.loop!==false};
-  }
-  return m;
-}
-function drawActors(dt){
-  const W=ov.width,H=ov.height;
-  // Tiefenschichtung: back wird ZUERST gemalt (landet unten), front ZULETZT (landet oben).
-  // Canvas-2D: spätere drawImage-Aufrufe liegen über früheren.
-  // Innerhalb jeder Schicht: nach Y sortieren (hinten = kleineres Y zuerst)
-  const sortedActors=[...actors].sort((a,b)=>{
-    const order={back:0, mid:1, front:2};
-    const layerCmp=(order[a.depthLayer]??1)-(order[b.depthLayer]??1);
-    if(layerCmp!==0) return layerCmp;
-    return a.y-b.y;  // Gleichschicht: nach Y (hinten=kleineres Y zuerst)
-  });
-  // CLAUDE.md v1.4.0: globalAlpha = baseAlpha * (1 - fog * 0.5) * (1 - dayNight * 0.3)
-  const fog=PARAMS.fog||0, dayNight=PARAMS.dayNight||0.5;
-  const fogMult=1-fog*0.5;
-  const nightMult=1-dayNight*0.3;
-  for(const a of sortedActors){
-    if(!a.visible||!a.imgReady||!a.manifest)continue;
-    // #2: SWIFT-Aktoren hinterlassen Spuren, wo sie über begehbaren Boden laufen
-    const aMat = (typeof getMaterialTypeAt==='function') ? getMaterialTypeAt(a.x,a.y) : null;
-    const onGround = aMat && aMat!=='water' && aMat!=='roof' && aMat!=='window';
-    if(onGround && (a.depthLayer==='mid'||a.depthLayer==='front') && a._lu!==undefined){
-      const moved=Math.hypot(a.x-a._lu, a.y-a._lv);
-      if(moved>0.012){
-        trailStamp(a.x, a.y+0.006, 0.008, 0, 0.6);                  // frische Delle
-        trailStamp(a.x, a.y+0.006, 0.010, 2, 0.03, 235);           // leichter Dauerpfad
-        if(a.blood) trailStamp(a.x, a.y+0.006, 0.010, 3, 0.12);    // Blut-Schleppspur
-      }
-    }
-    a._lu=a.x; a._lv=a.y;
-    const anim=a.manifest.animations[a.anim]||a.manifest.animations[Object.keys(a.manifest.animations)[0]];
-    if(!anim||!anim.frames.length)continue;
-    a.frameT+=dt*anim.fps;
-    let idx=Math.floor(a.frameT);
-    if(anim.loop) idx%=anim.frames.length; else idx=Math.min(idx,anim.frames.length-1);
-    const rect=a.manifest.frameRects[anim.frames[idx]];
-    if(!rect)continue;
-    const iw=a.img.naturalWidth||a.img.width, ih=a.img.naturalHeight||a.img.height;
-    const scaleX=a.manifest.sourceW?iw/a.manifest.sourceW:1, scaleY=a.manifest.sourceH?ih/a.manifest.sourceH:1;
-    const sx=rect[0]*scaleX, sy=rect[1]*scaleY, sw=rect[2]*scaleX, sh=rect[3]*scaleY;
-    const dw=sw*a.scale, dh=sh*a.scale;
-    const oldAlpha=ovx.globalAlpha;
-    ovx.globalAlpha=fogMult*nightMult;
-    // Phase B2: avgDepth pro Frame-ID einmalig vorberechnet (kein getImageData im
-    // Render-Pfad) steuert die Helligkeit: nah = leichter Highlight, fern = leicht
-    // abgedunkelt. Bewusst KEIN Farbtint (Regel: keine Farbverschiebung auf Actors).
-    const depthBright=actorDepthBrightness(a, anim.frames[idx]);
-    if(depthBright!==1) ovx.filter='brightness('+depthBright.toFixed(3)+')';
-    ovx.drawImage(a.img, sx,sy,sw,sh, a.x*W-dw/2, a.y*H-dh, dw,dh);
-    if(depthBright!==1) ovx.filter='none';
-    // SWIFT --emissive-pass: Emission additiv obendrauf. Kein Tint der Basistextur
-    // (Regel „keine Farbverschiebung auf Actors" bleibt gewahrt) – die Emission ist
-    // von SWIFT autorisiertes Eigenlicht. Nachts voll, tags schwach; Nebel dämpft
-    // (gleicher fogMult wie der Actor selbst).
-    if(a.emissiveReady&&a.emissiveImg){
-      const fid=anim.frames[idx];
-      const er=a.manifest.emissiveFrameRects[fid]||a.manifest.frameRects[fid];
-      if(er){
-        const eiw=a.emissiveImg.naturalWidth||a.emissiveImg.width,
-              eih=a.emissiveImg.naturalHeight||a.emissiveImg.height;
-        const eSW=a.manifest.emissiveSourceW||a.manifest.sourceW,
-              eSH=a.manifest.emissiveSourceH||a.manifest.sourceH;
-        const esX=eSW?eiw/eSW:1, esY=eSH?eih/eSH:1;
-        const oldComp=ovx.globalCompositeOperation;
-        ovx.globalCompositeOperation='lighter';
-        ovx.globalAlpha=fogMult*(0.25+0.75*dayNight);
-        ovx.drawImage(a.emissiveImg, er[0]*esX,er[1]*esY,er[2]*esX,er[3]*esY,
-                      a.x*W-dw/2, a.y*H-dh, dw,dh);
-        ovx.globalCompositeOperation=oldComp;
-      }
-    }
-    ovx.globalAlpha=oldAlpha;
-    // Weltgesetz #2: SWIFT-Aktoren hinterlassen Spuren, wo es Sinn ergibt
-    // (nur front/mid – back-Akteure stehen hinter der Szene, keine Bodenspur)
-    if(a.depthLayer!=='back'){
-      if(a._lx!==undefined){
-        const am=Math.hypot(a.x-a._lx, a.y-a._ly);
-        if(am>0.004){
-          a._ta=(a._ta||0)+am;
-          if(a._ta>0.02){
-            a._ta=0;
-            trailStamp(a.x, a.y, 0.008, 0, 0.45);             // frischer Abdruck
-            trailStamp(a.x, a.y, 0.010, 2, 0.03, 170);        // leichter Pfad
-          }
-        }
-      }
-      a._lx=a.x; a._ly=a.y;
-    }
-  }
-}
-function addActor(opts){
-  opts=opts||{};
-  const actor={img:null, imgReady:false, depthImg:null, depthReady:false, manifest:null,
-                x:opts.x??0.5, y:opts.y??0.6, scale:opts.scale||1,
-                anim:opts.anim||null, frameT:0, visible:true, depthLayer:opts.depthLayer||'mid',
-                blood:!!opts.blood,
-                // SWIFT v1.5: Emissive-Sheet und Weltzustands-Varianten. Diese Felder
-                // MÜSSEN hier stehen – setWorldState() schreibt sonst in undefined.
-                emissiveImg:null, emissiveReady:false,
-                worldStateImgs:{}, worldState:null, _baseImg:null};
-  actors.push(actor);
-  if(opts.manifest){
-    actor.manifest=parseActorManifest(typeof opts.manifest==='string'?JSON.parse(opts.manifest):opts.manifest);
-    if(!actor.anim) actor.anim=Object.keys(actor.manifest.animations)[0];
-  }
-  const loadInto=(src,cb)=>{
-    if(src instanceof HTMLImageElement){
-      if(src.complete) cb(src);
-      else src.addEventListener('load',()=>cb(src));
-    } else if(typeof src==='string'){
-      const img=new Image(); img.onload=()=>cb(img); img.src=src;
-    }
-  };
-  if(opts.image) loadInto(opts.image, img=>{ actor.img=img; actor.imgReady=true; });
-  if(opts.depthImage) loadInto(opts.depthImage, img=>{ actor.depthImg=img; actor.depthReady=true; });
-  // SWIFT --emissive-pass: wie depthImage wird das Emissive-Sheet NICHT automatisch
-  // aus dem Manifest-Pfad geladen, sondern explizit als Option übergeben.
-  if(opts.emissiveImage) loadInto(opts.emissiveImage, img=>{ actor.emissiveImg=img; actor.emissiveReady=true; });
-  // SWIFT --world-states: Varianten-Sheets (identisches Frame-Layout, Vertrag §5).
-  // worldStateImages: { dust:<url|HTMLImage>, aging:... } – Auswahl via setWorldState().
-  for(const wsName in (opts.worldStateImages||{})){
-    const slot={img:null, ready:false, onReady:null};
-    actor.worldStateImgs[wsName]=slot;
-    loadInto(opts.worldStateImages[wsName], img=>{ slot.img=img; slot.ready=true; if(slot.onReady) slot.onReady(); });
-  }
-  return {
-    setAnim:(name)=>{ if(actor.manifest&&actor.manifest.animations[name]){ actor.anim=name; actor.frameT=0; } },
-    setPosition:(x,y)=>{ actor.x=x; actor.y=y; },
-    setVisible:(v)=>{ actor.visible=!!v; },
-    setDepthLayer:(l)=>{ if(['front','mid','back'].includes(l)) actor.depthLayer=l; },
-    // SWIFT-Weltzustands-Variante aktivieren (null = Basis-Sheet). Rein optisch –
-    // Frame-Layout ist laut Orchestration-Vertrag über alle Varianten identisch.
-    setWorldState:(name)=>{
-      if(!name){
-        if(actor._baseImg){ actor.img=actor._baseImg; actor.imgReady=true; }
-        actor.worldState=null; return true;
-      }
-      const slot=actor.worldStateImgs[name];
-      if(!slot) return false;
-      if(!actor._baseImg) actor._baseImg=actor.img;
-      const apply=()=>{ actor.img=slot.img; actor.imgReady=true; actor.worldState=name; };
-      if(slot.ready) apply(); else slot.onReady=apply;
-      return true;
-    },
-    getWorldStates:()=>actor.manifest?Object.keys(actor.manifest.worldStates):[],
-    getWorldState:()=>actor.worldState,
-    remove:()=>{ const i=actors.indexOf(actor); if(i>=0) actors.splice(i,1); }
-  };
-}
-function loadActorPair(imgFile,manifestFile){
-  const img=new Image();
-  img.onload=()=>{
-    const reader=new FileReader();
-    reader.onload=()=>{
-      try{
-        const data=JSON.parse(reader.result);
-        addActor({image:img, manifest:data});
-        setStatus('Akteur geladen: '+img.width+'×'+img.height+' ('+Object.keys(data.animations||{}).length+' Animation(en)).');
-      }catch(e){ setStatus('⚠️ Akteur-Manifest ungültig: '+e.message); }
-    };
-    reader.readAsText(manifestFile);
-    URL.revokeObjectURL(img.src);
-  };
-  img.src=URL.createObjectURL(imgFile);
-}
-let pendingActorSheet=null;
-document.getElementById('f-actor-sheet').onchange=e=>{ pendingActorSheet=e.target.files[0]||null; };
-document.getElementById('f-actor-manifest').onchange=e=>{
-  const mf=e.target.files[0];
-  if(mf&&pendingActorSheet){ loadActorPair(pendingActorSheet,mf); pendingActorSheet=null; }
-  else if(mf) setStatus('⚠️ Erst Sprite-Sheet-Bild wählen, dann Manifest.');
-};
+// === SWIFT-Actor-Bridge — extrahiert nach runtime/actor-bridge.mjs ===
+// (eigenes ESM-Modul, hängt window.SHADED.addActor und den internen
+// window.SHADED_ENGINE_INTERNAL.drawActors-Hook nach dem Laden dieser Datei an;
+// siehe dort für die vollständige Implementierung und Begründung der Extraktion.)
 
 // --- Ökosystem-Manager: Runde 7 Ökosystem-Integration ---
 const ecosystemDefs={
@@ -3193,7 +2468,7 @@ async function spawnEcosystem(type){
       loadCount++;
       if(loadCount===2){
         defs.forEach((config,idx)=>{
-          const h=addActor({
+          const h=window.SHADED.addActor({
             image:img,
             manifest:manifest,
             depthImage:depthImg,
@@ -3222,7 +2497,7 @@ async function spawnEcosystem(type){
       loadCount++;
       if(loadCount===2){ // Both RGB and Depth images loaded
         defs.forEach((config,idx)=>{
-          const h=addActor({
+          const h=window.SHADED.addActor({
             image:img,
             manifest:manifest,
             depthImage:depthImg,
@@ -3247,7 +2522,7 @@ async function spawnEcosystem(type){
     const img=new Image();
     img.onload=()=>{
       defs.forEach((config,idx)=>{
-        const h=addActor({
+        const h=window.SHADED.addActor({
           image:img,
           manifest:manifest,
           x:config.x,
@@ -3266,7 +2541,7 @@ async function spawnEcosystem(type){
     defs.forEach((config,idx)=>{
       const img=new Image();
       img.onload=()=>{
-        const h=addActor({
+        const h=window.SHADED.addActor({
           image:img,
           x:config.x,
           y:config.y,
@@ -3283,18 +2558,8 @@ async function spawnEcosystem(type){
   }
 }
 
-// --- Eingaben (Runde 4) ---
-window.addEventListener('keydown',e=>{
-  const k=e.key.toLowerCase();
-  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){
-    keys[k]=true;
-    if(!player.active&&ready) spawnPlayer();
-    if(player.active) e.preventDefault();
-  }
-  if(k===' '&&player.active&&dialogueIndex<0){ e.preventDefault(); dash(); }
-  if(k==='f'&&player.active){ igniteFire(player.u+0.012*(player.lookX||1), player.v); }
-});
-window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+// --- Eingaben (Runde 4) — WASD/Dash/F(euer) sind nach runtime/player-fire.mjs extrahiert,
+// siehe dort für die keydown/keyup-Listener und die #btn-fire/#ov-Klick-Verdrahtung. ---
 
 // --- Runde 8: Wally-Monokel — Tasten 1..5 schalten die Inspektions-Linsen (Klak.) ---
 window.addEventListener('keydown',e=>{
@@ -3304,22 +2569,8 @@ window.addEventListener('keydown',e=>{
   }
 });
 
-document.getElementById('btn-fire').onclick=()=>{
-  fireToolActive=!fireToolActive;
-  ov.classList.toggle('firetool',fireToolActive);
-  const b=document.getElementById('btn-fire');
-  b.classList.toggle('active',fireToolActive);
-  b.textContent=fireToolActive?'🔥 Klicke in die Szene':'🔥 Feuer-Tool';
-};
-ov.addEventListener('click',e=>{
-  if(!fireToolActive||!ready)return;
-  const r=ov.getBoundingClientRect();       // CSS-Box -> UV (Prototyp-Bug Nr. 8!)
-  const u=(e.clientX-r.left)/r.width, v=(e.clientY-r.top)/r.height;
-  if(igniteFire(u,v)) setStatus('🔥 Feuer entzündet ('+(getMaterialTypeAt(u,v)||'?')+').');
-});
 document.getElementById('btn-clear-world').onclick=()=>{
-  trailClear(); fires.length=0; smoke.length=0; sparks.length=0;
-  steamPuffs.length=0; pressureBursts.length=0; lavaFlows.length=0; hailstones.length=0;
+  trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
   Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧹 Spuren, Matsch und Brandflecken entfernt.');
 };
@@ -3333,41 +2584,42 @@ function elementPreset(kind){
   if(!ensureElementScene()) return;
   const apply=p=>{ Object.assign(PARAMS,{...PARAMS,...p}); Object.assign(CUR,{...CUR,...p}); syncSliders(); };
   const burst=p=>Object.assign(elementBurst,{...elementBurst,...p});
-  const center={u:player.active?player.u:0.5, v:player.active?player.v:0.62};
+  const pPos=window.SHADED.player.pos();
+  const center={u:pPos.active?pPos.u:0.5, v:pPos.active?pPos.v:0.62};
   if(kind==='fluid'){
     burst({wet:1,pressure:0.45});
     apply({rain:0.72, wet:1, puddle:0.96, fog:0.20, storm:0.55, wind:0.45, temperature:0.58});
     for(let i=0;i<28;i++) trailStamp(0.18+Math.random()*0.64,0.58+Math.random()*0.30,0.014,0,0.35);
-    spawnElementParticles('pressure',0.50,0.72,5);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('pressure',0.50,0.72,5);
     setStatus('💧 Flüssigkeit: Pfützenfüllstand, Rinnsale, nasse Grasränder und Druckringe aktiv.');
   } else if(kind==='steam'){
     burst({wet:0.45,heat:0.85});
     apply({rain:0.05, wet:0.55, puddle:0.45, fog:0.46, wind:0.35, temperature:0.94, glow:0.45});
-    spawnElementParticles('steam',center.u,center.v,28);
-    igniteFire(center.u,center.v);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('steam',center.u,center.v,28);
+    window.SHADED.fire.ignite(center.u,center.v);
     setStatus('♨️ Dampf: heiße nasse Oberfläche erzeugt aufsteigende, windgetriebene Nebelpuffs.');
   } else if(kind==='pressure'){
     burst({pressure:1,wet:0.35});
     apply({wet:0.75, puddle:0.70, rain:0.18, fog:0.10, wind:0.25});
-    spawnElementParticles('pressure',center.u,center.v,16);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('pressure',center.u,center.v,16);
     soundStamp(center.u,center.v,1);
     setStatus('🫧 Druck: konzentrische Impulswellen, Sound-Feld und Dellen in derselben Welt.');
   } else if(kind==='heat'){
     burst({heat:1,ash:0.35});
     apply({temperature:1, wet:0.18, rain:0, fog:0.16, glow:0.75, storm:0.08, wind:0.28});
-    igniteFire(center.u,center.v);
-    spawnElementParticles('steam',center.u,center.v,8);
+    window.SHADED.fire.ignite(center.u,center.v);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('steam',center.u,center.v,8);
     setStatus('🔥 Hitze: Feuerlicht, Wärmeflimmern, Trocknung und Funken.');
   } else if(kind==='mud'){
     burst({wet:0.8,pressure:0.35});
     apply({rain:0.28, wet:0.92, puddle:0.68, fog:0.16, wind:0.20, temperature:0.55});
     for(let i=0;i<38;i++) trailStamp(0.16+Math.random()*0.68,0.58+Math.random()*0.34,0.018,2,0.15,235);
-    if(!player.active) spawnPlayer();
+    if(!window.SHADED.player.pos().active) window.SHADED.player.enable();
     setStatus('🟤 Matsch: permanente Trampelpfad-/Schlammspur im Trail-Kanal, durch Regen glänzend.');
   } else if(kind==='ice'){
     burst({wet:0.65,hail:0.35,pressure:0.25});
     apply({temperature:0.08, snow:0.18, snowfall:0.05, wet:0.95, puddle:0.86, rain:0.06, fog:0.32, dayNight:0.56, glow:0.65});
-    spawnElementParticles('pressure',center.u,center.v,4);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('pressure',center.u,center.v,4);
     setStatus('🧊 Eis: Pfützen gefrieren, Reflexionen werden matt, Bewegung wird glatter/gefährlicher.');
   } else if(kind==='snow'){
     burst({hail:0.22,wet:0.25});
@@ -3376,25 +2628,23 @@ function elementPreset(kind){
   } else if(kind==='fire'){
     burst({heat:1,ash:0.7});
     apply({temperature:0.88, rain:0, wet:0.12, fog:0.14, wind:0.35, glow:0.95, dayNight:0.72});
-    for(let i=0;i<4;i++) igniteFire(center.u+(Math.random()-0.5)*0.12,center.v+(Math.random()-0.5)*0.08);
+    for(let i=0;i<4;i++) window.SHADED.fire.ignite(center.u+(Math.random()-0.5)*0.12,center.v+(Math.random()-0.5)*0.08);
     setStatus('🔥 Feuer: Brennstoff, Brandspur, Funken, Rauch und Wet-Dousing laufen zusammen.');
   } else if(kind==='smoke'){
     burst({ash:0.7,heat:0.25});
     apply({fog:0.72, wind:0.42, storm:0.24, rain:0.06, wet:0.20, temperature:0.72, glow:0.50});
-    for(let i=0;i<24;i++) smoke.push({u:center.u+(Math.random()-0.5)*0.08,v:center.v+(Math.random()-0.5)*0.04,
-      vu:(Math.random()-0.5)*0.004+CUR.wind*0.012, vv:-0.012-Math.random()*0.014, r:0.006+Math.random()*0.008, life:1});
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('smoke',center.u,center.v,24);
     setStatus('🌫️ Rauch: Schichtung, Winddrift und Nebelkopplung.');
   } else if(kind==='ember'){
     burst({heat:0.95,ash:1});
     apply({temperature:0.82, rain:0, wet:0.06, fog:0.10, glow:1, dayNight:0.86, wind:0.25});
-    for(let i=0;i<46;i++) sparks.push({u:center.u+(Math.random()-0.5)*0.08,v:center.v+(Math.random()-0.5)*0.04,
-      vu:(Math.random()-0.5)*0.035+CUR.wind*0.018, vv:-0.045-Math.random()*0.055, life:0.5+Math.random()*0.7});
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('ember',center.u,center.v,46);
     trailStamp(center.u,center.v,0.045,3,0.8);
     setStatus('🪵 Glut: glühende Partikel plus bleibende Brandwärme im Trail-A-Kanal.');
   } else if(kind==='lava'){
     burst({heat:1,lava:1,ash:0.8});
     apply({temperature:1, rain:0, wet:0.22, puddle:0.22, fog:0.28, glow:1, dayNight:0.88, wind:0.18, decay:0.35});
-    spawnElementParticles('lava',center.u,center.v,20);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('lava',center.u,center.v,20);
     setStatus('🌋 Lava: zäh fließende heiße Flecken, Glut, Brandspur und Dampf bei Nässe.');
   } else if(kind==='rain'){
     burst({wet:1,pressure:0.45});
@@ -3403,18 +2653,18 @@ function elementPreset(kind){
   } else if(kind==='hail'){
     burst({hail:1,pressure:0.8,wet:0.55});
     apply({rain:0.95, wet:0.85, puddle:0.72, storm:1, fog:0.22, wind:0.76, temperature:0.20, snow:0.22});
-    spawnElementParticles('hail',0.5,0,45);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('hail',0.5,0,45);
     setStatus('🧊 Hagel: harte Körner fallen mit Tiefe, prallen ab und stempeln Druck/Dellen.');
   } else if(kind==='leaves'){
     burst({pressure:0.18});
     apply({autumn:1, wind:0.92, storm:0.30, rain:0.04, wet:0.12, fog:0.10, temperature:0.52});
-    spawnElementParticles('leaves',0.5,0,70);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('leaves',0.5,0,70);
     setStatus('🍂 Blätter: Wirbel, Settle-Zonen, Aufwirbeln durch Sturm und Spieler.');
   } else if(kind==='lightning'){
     burst({pressure:1,heat:0.6,wet:0.6,hail:0.35});
     apply({dayNight:1, storm:1, rain:0.86, wet:0.94, puddle:0.88, fog:0.28, wind:1, glow:1});
     flashPulses.push(time,time+0.10,time+0.22);
-    spawnElementParticles('pressure',0.50,0.55,10);
+    window.SHADED_ENGINE_INTERNAL.spawnElementParticles('pressure',0.50,0.55,10);
     soundStamp(0.50,0.55,1);
     setStatus('⚡ Blitze: Doppelschlag, Kameraruck, Druckwelle und Licht auf nassen Flächen.');
   }
@@ -3422,7 +2672,7 @@ function elementPreset(kind){
 document.querySelectorAll('[data-element]').forEach(b=>b.onclick=()=>elementPreset(b.dataset.element));
 document.getElementById('btn-elements-clear').onclick=()=>{
   if(!ready) return;
-  trailClear(); fires.length=0; smoke.length=0; sparks.length=0; steamPuffs.length=0; pressureBursts.length=0; lavaFlows.length=0; hailstones.length=0;
+  trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
   Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧼 Element-Partikel, Druckringe, Lava, Hagel, Feuer und Spuren zurückgesetzt.');
 };
@@ -3534,8 +2784,8 @@ async function startShowcase(){
     showcaseStoryboard();
     playStory();
     spawnEcosystem('gaime_npcs');
-    if(!player.active) spawnPlayer();
-    igniteFire(0.58,0.62);
+    if(!window.SHADED.player.pos().active) window.SHADED.player.enable();
+    window.SHADED.fire.ignite(0.58,0.62);
     soundStamp(0.50,0.58,1);
     showcase={t:0, beat:-1};
     setShowcaseCaption(SHOWCASE_BEATS[0].title,SHOWCASE_BEATS[0].copy);
@@ -3709,9 +2959,9 @@ function erstellen(){
   if(!sceneImg){ setStatus('⚠️ Zuerst ein Bild laden!'); return false; }
   setStatus('🧠 Analysiere Materialien, Senken, Flussfeld, Lichtquellen …');
   mossBoost=0;
-  trailClear(); fires.length=0; player.active=false;
+  trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.player.active=false;
   analyze();
-  initEco();
+  window.SHADED_ENGINE_INTERNAL.initEco?.();
   defaultStoryboard();
   // Starte mit Nacht-Zustand für Übergang zu Tag in erstem Storyboard-Schritt
   const nightStart = {...ACTS.morgen.p, dayNight:0.95, storm:0.08, rain:0, wet:0.70};
@@ -3825,11 +3075,12 @@ function tickWorld(dt){
     // Phase C: World Laws Extension
     dryPhase+=dt*Math.max(0, 0.8-CUR.wet);
     rustAccum+=dt*Math.max(0, CUR.wet-0.3)*0.15;
-    heatWarp=CUR.temperature*CUR.fireCount;
-    smokeAmount=CUR.fog*(CUR.storm+CUR.fireCount*0.5);
+    const fireCount=window.SHADED_ENGINE_INTERNAL.fires.length;
+    heatWarp=CUR.temperature*fireCount;
+    smokeAmount=CUR.fog*(CUR.storm+fireCount*0.5);
     // Phase C+
     breathAmount+=dt*(CUR.temperature<0.3?0.3:0)*(1-CUR.wet*0.5);
-    pressureDim=CUR.fireCount*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
+    pressureDim=fireCount*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
     pollutionGlow=CUR.glow*0.5+CUR.wind*0.1;
     moonBright=(1-CUR.dayNight)*0.6+CUR.bloom*0.1;
     shelfShadow=CUR.storm*0.3+Math.max(0,CUR.rain-0.5)*0.2;
@@ -3840,7 +3091,7 @@ function tickWorld(dt){
     runeGlow=CUR.fog*0.3+CUR.bloom*0.1;
     // Finale Sprint-Welt-Gesetze
     shadowAge+=dt*Math.max(0, 0.5-CUR.glow)*0.4; // Schatten verlangsamen Verfall
-    smellDrift+=dt*(CUR.decay*0.6+CUR.fireCount*0.2); // Verfall + Feuer → Geruch
+    smellDrift+=dt*(CUR.decay*0.6+fireCount*0.2); // Verfall + Feuer → Geruch
     touchWear+=dt*0.05; // konstantes Abnutzen
     repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
@@ -3879,27 +3130,38 @@ function tickWorld(dt){
     if(ready){
       // Feuchte-Patina: lange Nässe lässt Moos schneller kommen (persistiert über Akte)
       mossBoost = Math.min(1, mossBoost + dt*Math.max(0, CUR.wet-0.5)*0.02);
+      const player=window.SHADED_ENGINE_INTERNAL.player;
       bloodStain = Math.min(1, player.blood);   // Blut-Transfer auf Schuhen (#2)
       mudStain = Math.min(1, player.mud);       // Schlamm-Transfer auf Schuhen (#2)
-      playerTick(dt);
-    fireTick(dt);
-    ecoTick(dt);
-    snowTick(dt);
-    rainTick(dt);
-    hailTick(dt);
+      window.SHADED_ENGINE_INTERNAL.playerFireTick?.(dt);
+    window.SHADED_ENGINE_INTERNAL.weatherTick?.(dt);
     trailTick(dt);
     soundTick(dt);
   }
 }
 function frame(now){
+  // requestAnimationFrame(frame) stand bisher als letzte Anweisung IM Funktionskoerper --
+  // jede unbehandelte Ausnahme irgendwo im Frame (tickWorld, drawOverlay, ein einzelner
+  // gl.uniform-Aufruf, ...) hat den gesamten Render-/Simulationsloop damit STILLSCHWEIGEND
+  // und DAUERHAFT eingefroren (kein Absturz, keine sichtbare Fehlermeldung -- nur ein
+  // reglosen Bild ab diesem Zeitpunkt). try/finally stellt sicher, dass der Loop nach EINEM
+  // fehlerhaften Frame weiterlaeuft statt fuer den Rest der Sitzung zu sterben; der Fehler
+  // bleibt trotzdem sichtbar (console.error mit Stacktrace), er verschwindet nicht.
+  try {
+    frameBody(now);
+  } catch(e) {
+    console.error('SHADED: unbehandelter Fehler im Render-Loop (Frame übersprungen, Loop läuft weiter):', e);
+  } finally {
+    requestAnimationFrame(frame);
+  }
+}
+function frameBody(now){
   let acc=Math.min(1.0,(now-lastT)/1000||0); lastT=now;
   const frameDt=acc;
   while(acc>0){ const s=Math.min(0.05,acc); tickWorld(s); acc-=s; }
   const dt=frameDt;
-  // Runde 10: EIN Tick pro Frame mit eigenem, eng gekappten Delta (nicht die Substep-Schleife
-  // oben) - sonst würde eine reale Pause (Tab im Hintergrund, langsamer Rechner) den gesamten
-  // Text auf einen Schlag aufdecken statt normal weiterzutippen, sobald es weitergeht.
-  dialogueTick(Math.min(dt, 0.1));
+  // Runde 10: Dialog-Engine tickt sich seit der Extraktion (runtime/dialogue-engine.mjs)
+  // über ihre eigene RAF-Schleife selbst, nicht mehr hier.
   if(ready) trailUpload();
   if(ready) soundUpload();
 
@@ -3960,57 +3222,12 @@ function frame(now){
     // CSS-Transforms landen nicht in der Aufnahme -> Versatz als Pixel-Offset
     if(recorder&&recCtx){ recCtx.drawImage(canvas,0,0); recCtx.drawImage(ov,fx*canvas.width,fy*canvas.height); }
   }
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-// === Runde 10: Dialog-Engine ========================================================// Datengetrieben, motorunabhängig vom eigentlichen Skriptinhalt: SHADED selbst bleibt generisch,
-// echte Erzähl-Inhalte (z. B. content/prolog-act1.js) werden separat geladen und nur als Array
-// von "Beats" übergeben. Beat-Typen: {type:'direction'|'line', speaker?, text} (angezeigt,
-// Schreibmaschinen-Effekt), {type:'lens', n} / {type:'sound-emit', at:[u,v], strength}
-// (Trigger, laufen sofort durch, keine Wartezeit - koppeln an Runde 8 ohne diese zu duplizieren).
-let dialogueBeats=[], dialogueIndex=-1, dialogueRevealChars=0;
-const DIALOGUE_CPS=42; // Zeichen pro Sekunde, Schreibmaschinen-Tempo
-function dialogueShowCurrent(){
-  const box=document.getElementById('dialogue-box');
-  const speakerEl=document.getElementById('dialogue-speaker');
-  const textEl=document.getElementById('dialogue-text');
-  const hintEl=document.getElementById('dialogue-hint');
-  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length){ box.classList.add('hidden'); return; }
-  const beat=dialogueBeats[dialogueIndex];
-  box.classList.remove('hidden');
-  if(beat.type==='direction'){ speakerEl.textContent=''; speakerEl.className='direction'; }
-  else { speakerEl.textContent=beat.speaker||''; speakerEl.className=''; }
-  const full=beat.text||'';
-  textEl.textContent=full.slice(0, Math.floor(dialogueRevealChars));
-  const complete=dialogueRevealChars>=full.length;
-  hintEl.textContent = !complete ? '' : (dialogueIndex>=dialogueBeats.length-1 ? '■ Ende (Leertaste/Klick)' : '▶ weiter (Leertaste/Klick)');
-}
-function dialogueTick(dt){
-  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length) return;
-  const full=dialogueBeats[dialogueIndex].text||'';
-  if(dialogueRevealChars<full.length){ dialogueRevealChars=Math.min(full.length, dialogueRevealChars+DIALOGUE_CPS*dt); dialogueShowCurrent(); }
-}
-function dialogueGoto(index){
-  dialogueIndex=index; dialogueRevealChars=0;
-  if(dialogueIndex>=dialogueBeats.length){ dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); return; }
-  const beat=dialogueBeats[dialogueIndex];
-  if(beat.type==='lens'){ lensState=Math.max(0,Math.min(5,beat.n|0)); dialogueGoto(dialogueIndex+1); return; }
-  if(beat.type==='sound-emit'){ const at=beat.at||[0.5,0.5]; soundStamp(at[0],at[1],beat.strength==null?1:beat.strength); dialogueGoto(dialogueIndex+1); return; }
-  dialogueShowCurrent();
-}
-function dialoguePlay(beats){ dialogueBeats=Array.isArray(beats)?beats:[]; dialogueGoto(0); }
-function dialogueAdvance(){
-  if(dialogueIndex<0) return;
-  const full=dialogueBeats[dialogueIndex].text||'';
-  if(dialogueRevealChars<full.length){ dialogueRevealChars=full.length; dialogueShowCurrent(); return; } // erst: Text sofort komplett zeigen
-  dialogueGoto(dialogueIndex+1); // dann erst: naechster Beat
-}
-function dialogueSkip(){ dialogueBeats=[]; dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); }
-document.getElementById('dialogue-box').addEventListener('click', dialogueAdvance);
-window.addEventListener('keydown', e=>{
-  if(dialogueIndex>=0 && (e.key===' '||e.key==='Enter')){ e.preventDefault(); dialogueAdvance(); }
-});
+// === Runde 10: Dialog-Engine — extrahiert nach runtime/dialogue-engine.mjs ===
+// (eigenes ESM-Modul, hängt window.SHADED.dialogue nach dem Laden dieser Datei an;
+// siehe dort für die vollständige Implementierung und Begründung der Extraktion.)
 
 // =========================== Agent-/Test-API (nicht entfernen!) ===========================
 console.log('Script reached window.SHARED assignment');
@@ -4021,13 +3238,14 @@ window.SHADED = {
   setParams:(p)=>{ stopStory(); Object.assign(PARAMS,p); Object.assign(CUR,p); syncSliders(); },
   getParams:()=>({...CUR}),
   setTime:(t,freeze)=>{ time=t; timeFrozen=!!freeze;     // freeze=true: deterministische Frames
+    const fireCount=window.SHADED_ENGINE_INTERNAL.fires.length;
     rainPhase=t*(1.0+CUR.wind*0.4); windDrift=t*CUR.wind;
     dryPhase=t*Math.max(0, 0.8-CUR.wet);
     rustAccum=t*Math.max(0, CUR.wet-0.3)*0.15;
-    heatWarp=CUR.temperature*CUR.fireCount;
-    smokeAmount=CUR.fog*(CUR.storm+CUR.fireCount*0.5);
+    heatWarp=CUR.temperature*fireCount;
+    smokeAmount=CUR.fog*(CUR.storm+fireCount*0.5);
     breathAmount=t*(CUR.temperature<0.3?0.3:0)*(1-CUR.wet*0.5);
-    pressureDim=CUR.fireCount*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
+    pressureDim=fireCount*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
     pollutionGlow=CUR.glow*0.5+CUR.wind*0.1;
     moonBright=(1-CUR.dayNight)*0.6+CUR.bloom*0.1;
     shelfShadow=CUR.storm*0.3+Math.max(0,CUR.rain-0.5)*0.2;
@@ -4037,7 +3255,7 @@ window.SHADED = {
     forbiddenCold=CUR.storm*0.2;
     runeGlow=CUR.fog*0.3+CUR.bloom*0.1;
     shadowAge=t*Math.max(0, 0.5-CUR.glow)*0.4;
-    smellDrift=t*(CUR.decay*0.6+CUR.fireCount*0.2);
+    smellDrift=t*(CUR.decay*0.6+fireCount*0.2);
     touchWear=t*0.05;
     repairMark=CUR.glow*0.3+CUR.wind*0.1;
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3;
@@ -4049,27 +3267,19 @@ window.SHADED = {
   elements:{ trigger:elementPreset, clear:()=>document.getElementById('btn-elements-clear').click() },
   // Räumliche Runtime-Module lesen dieselben transienten Weltgesetze, statt
   // parallel eigene UI-Schalter oder eine zweite Simulationswahrheit zu erfinden.
-  worldState:()=>({params:{...CUR},elements:{...elementBurst},fireCount:fires.length,
+  worldState:()=>{ const player=window.SHADED_ENGINE_INTERNAL.player;
+                   return {params:{...CUR},elements:{...elementBurst},fireCount:window.SHADED_ENGINE_INTERNAL.fires.length,
                    player:{active:player.active,blood:player.blood||0,mud:player.mud||0},
-                   phases:{dry:dryPhase,rust:rustAccum,smoke:smokeAmount,heat:heatWarp}}),
+                   phases:{dry:dryPhase,rust:rustAccum,smoke:smokeAmount,heat:heatWarp}}; },
   spatial:{ pointCloud:buildSpatialPointCloud, downloadPointCloud:downloadSpatialPointCloud },
   loadDemo:loadDemoScene,
   loadImageFile,
-  // Runde 4
-  player:{ enable:spawnPlayer, pos:()=>({u:player.u,v:player.v,active:player.active,wet:player.wet}),
-           setAge:(a)=>{player.age=Math.max(0,Math.min(1,a));},
-           move:(du,dv)=>{                       // direkter Schritt inkl. Fußspuren (Tests/Agenten)
-             if(!player.active) spawnPlayer();
-             const steps=Math.max(1,Math.ceil(Math.hypot(du,dv)/0.012));
-             for(let s2=0;s2<steps;s2++){
-               player.u=Math.max(0.01,Math.min(0.99,player.u+du/steps));
-               player.v=Math.max(0.01,Math.min(0.99,player.v+dv/steps));
-               trailStamp(player.u,player.v+0.006,0.007,0,0.7);
-               trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
-             }
-           } },
-  fire:{ ignite:igniteFire, list:()=>fires.map(f=>({u:f.u,v:f.v,fuel:f.fuel})) },
-  trail:{ clear:trailClear, sample:trailSample },
+  // Runde 4: window.SHADED.player/window.SHADED.fire werden von runtime/player-fire.mjs
+  // angehängt, nachdem dieses Modul geladen ist (siehe dort).
+  // stamp: bis Stufe 2 der Engine-Aufteilung rein intern (docs/engine-decomposition-plan.md) —
+  // öffentlich gemacht, damit runtime/actor-bridge.mjs Fußspuren über das Vertrags-API setzt,
+  // statt Engine-Interna zu importieren (Invariante 5: nur erweitern).
+  trail:{ clear:trailClear, sample:trailSample, stamp:trailStamp },
   structure:()=>structDiag,  // Runde 5: Struktur-Pass-Diagnose
   zoneAt:(u,v)=>{            // K1: Gebäudezone an UV-Position (0|1)
     if(!zoneGrid) return 0;
@@ -4077,16 +3287,58 @@ window.SHADED = {
     const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
     return zoneGrid[y*AW+x];
   },
+  // K7: war diese UV-Position Teil der Himmel-Flood aus analyze() (0|1)? Kein zweites
+  // Klassifikationssystem — nur die Herkunftsmarkierung für Pixel, die classGrid
+  // bereits als K (Fels) trägt, damit z.B. Wetterpartikel echten Fels von
+  // Himmel-als-Fels unterscheiden können (Invariante 2).
+  skyAt:(u,v)=>{
+    if(!skyGrid) return 0;
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    return skyGrid[y*AW+x];
+  },
+  // Wurde bei diesem Bild überhaupt eine Himmel-Region gefunden? Ohne dieses Signal
+  // ist skyAt() überall "0" nicht, weil es dort echten Boden gäbe, sondern weil die
+  // Erkennung nicht angeschlagen hat (bedecktes/dunkles Quellbild) — Aufrufer, die
+  // skyAt() zur Landung/Occlusion nutzen, müssen das getrennt prüfen.
+  hasSkyRegion:()=>skyRegionFound,
+  // First-Glimpse-Tiefenschicht (Exp. 1, docs/first-glimpse-depth-layers.md): grobe
+  // NEAR/MID/FAR/STRUCTURAL/UNKNOWN-Ordnung, DERIVED aus classGrid/zoneGrid/skyGrid —
+  // keine Detektion, keine zweite Material-Wahrheit (Invariante 2).
+  depthLayerAt:(u,v)=>{
+    if(!layerGrid) return 'unknown';
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    return LAYER_NAMES[layerGrid[y*AW+x]];
+  },
+  depthLayers:()=>{   // Diagnose: Pixelzahl je Schicht (für Verify/Debug)
+    const out={near:0,mid:0,far:0,structural:0,unknown:0};
+    if(!layerGrid) return out;
+    for(let j=0;j<layerGrid.length;j++) out[LAYER_NAMES[layerGrid[j]]]++;
+    return out;
+  },
+  // Exp. 2: zusammenhängende Regionen je Schicht — größte zuerst. Kopien statt Referenzen,
+  // damit Aufrufer layerRegions nicht versehentlich mutieren.
+  depthRegions:()=>layerRegions.map(r=>({...r, bbox:{...r.bbox}, centroid:{...r.centroid}})),
+  depthRegionAt:(u,v)=>{
+    if(!componentGrid) return null;
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    const id=componentGrid[y*AW+x];
+    return id ? id : null;
+  },
   // 2.5D: Tiefenkarte + Parallaxe (deterministisch für Tests steuerbar)
   parallax:{ set:(x,y)=>{ parallaxTarget.x=x; parallaxTarget.y=y;
                           parallaxCurrent.x=x; parallaxCurrent.y=y; },
              get:()=>({...parallaxCurrent}),
              hasDepth:()=>hasDepth,
+             // sampleDepth: bis Stufe 3 der Engine-Aufteilung rein intern (getDepthAt) —
+             // öffentlich gemacht, damit runtime/weather-particles.mjs Tiefenwerte für
+             // Schnee/Regen/Hagel liest, statt Engine-Interna zu importieren (Invariante 5).
+             sampleDepth:getDepthAt,
              setDepthImage:setDepth, clearDepth },
-  // SWIFT-Actor-Bridge: animierte Sprite-Sheets (z.B. aus SWIFTs
-  // `render --format sprite_sheet`, samt automatisch erzeugtem Manifest)
-  // als optische Akteure hinzufügen. Rein additiv, rührt classGrid nicht an.
-  addActor,
+  // SWIFT-Actor-Bridge: window.SHADED.addActor wird von runtime/actor-bridge.mjs
+  // angehängt, nachdem dieses Modul geladen ist (siehe dort).
   // Runde 7: Ökosystem-Integration
   ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) },
   // Runde 8: Wally-Monokel (Inspektions-Linsen) + Klang-Wellenfeld
@@ -4158,12 +3410,16 @@ window.SHADED = {
     }
   },
   sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear },
-  // Runde 10: Dialog-Engine (motorseitig generisch, Inhalte kommen separat, z.B. content/*.js)
-  dialogue:{
-    play:dialoguePlay, advance:dialogueAdvance, skip:dialogueSkip,
-    isPlaying:()=>dialogueIndex>=0,
-    current:()=>dialogueIndex>=0?{index:dialogueIndex, total:dialogueBeats.length, beat:dialogueBeats[dialogueIndex], revealed:Math.floor(dialogueRevealChars)}:null,
-  },
+  // Runde 10: Dialog-Engine — window.SHADED.dialogue wird von runtime/dialogue-engine.mjs
+  // angehängt, nachdem dieses Modul geladen ist (siehe dort).
 };
+
+// Bewusst NICHT Teil des dokumentierten window.SHADED-Vertrags (Invariante 5) — eine reine
+// Cross-Modul-Bridge für extrahierte Engine-Module (docs/engine-decomposition-plan.md), die
+// (noch) keinen sauberen Platz im öffentlichen API haben. Nie von externen Konsumenten/Tests
+// verwenden; nur von Modulen, die shaded-engine.mjs selbst aufgeteilt hat.
+// time/heatWarp sind Getter (kein Snapshot), weil beide `let`-Variablen sind, die jeden Frame
+// neu berechnet werden — eine Kopie zum Bridge-Aufbauzeitpunkt wäre sofort veraltet.
+window.SHADED_ENGINE_INTERNAL = { PARAMS, CUR, get time(){return time;}, get heatWarp(){return heatWarp;}, findSpawnPoint };
 
 export default window.SHADED;

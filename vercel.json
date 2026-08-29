@@ -2,13 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": false,
   "trailingSlash": false,
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/editor/index.html",
-      "permanent": false
-    }
-  ],
   "headers": [
     {
       "source": "/service-worker.js",

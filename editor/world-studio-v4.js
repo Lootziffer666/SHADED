@@ -1,4 +1,3 @@
-const iframe = document.getElementById('engine-frame');
 const viewport = document.querySelector('.viewport');
 const topCreate = document.getElementById('btn-erstellen');
 const legacySceneInput = document.getElementById('f-scene');
@@ -51,8 +50,8 @@ let lastBundle = null;
 let generatedMaps = null;
 let bridgeKnownReachable = false;
 
-const engine = () => iframe?.contentWindow?.SHADED || null;
-const engineDoc = () => iframe?.contentDocument || null;
+const engine = () => window.SHADED || null;
+const engineDoc = () => document;
 const yieldFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve()));
 
 function waitForEngine(timeout = 12000) {

@@ -1,4 +1,6 @@
 node_modules/
+__pycache__/
+*.pyc
 tools/verify-out/
 tools/register-out/
 tools/gpu-out/

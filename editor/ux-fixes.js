@@ -1,7 +1,6 @@
 // Hard UX contract for the authoring shell. The viewport stays visible and only
 // the requested inspector section opens over it.
 const body = document.body;
-const iframe = document.getElementById('engine-frame');
 const status = document.getElementById('editor-status');
 
 const railButtons = () => [...document.querySelectorAll('.rail-btn[data-target]')];
@@ -68,26 +67,15 @@ document.addEventListener('click', event => {
 
 window.addEventListener('keydown', event => { if (event.key === 'Escape') closeChrome(); });
 
-function installEngineHooks() {
-  const doc = iframe?.contentDocument;
-  if (!doc?.head || !doc.body) return;
-  if (!doc.querySelector('script[data-solid-runtime]')) {
-    const script = doc.createElement('script');
-    script.type = 'module';
-    script.src = '/runtime/spatial-solid-runtime.js?v=7';
-    script.dataset.solidRuntime = '1';
-    doc.head.appendChild(script);
-  }
-  if (!doc.body.dataset.editorDismissHook) {
-    doc.body.dataset.editorDismissHook = '1';
-    doc.addEventListener('pointerdown', event => {
-      if (event.target.closest?.('#spatial-viewer')) return;
-      closeChrome();
-    }, true);
-  }
-}
-iframe?.addEventListener('load', installEngineHooks);
-if (iframe?.contentDocument?.readyState === 'complete') installEngineHooks();
+// Klick in den Viewport (außerhalb des Spatial-Viewers) schließt offene
+// Inspector-Panels. runtime/spatial-solid-runtime.js wird jetzt statisch in
+// index.html geladen, nicht mehr dynamisch in ein iframe-Dokument injiziert.
+const previewWrap = document.getElementById('preview-wrap');
+previewWrap?.addEventListener('pointerdown', event => {
+  if (event.target.closest?.('#spatial-viewer')) return;
+  if (event.target.closest?.('.actor-marker')) return;
+  closeChrome();
+}, true);
 
 // Material correction canvas
 const paintCanvas = document.getElementById('paint-canvas');
@@ -108,8 +96,7 @@ function activeBrushColor() {
 
 function seedCorrectionCanvasFromScene() {
   if (!paintCanvas || !paintCtx) return false;
-  const doc = iframe?.contentDocument;
-  const source = doc?.getElementById('gl') || doc?.querySelector('#canvas-wrap canvas');
+  const source = document.getElementById('gl') || document.querySelector('#canvas-wrap canvas');
   if (!source || !source.width || !source.height) {
     setStatus('Korrektur: erst eine Szene laden/erstellen.');
     return false;
@@ -175,11 +162,10 @@ document.getElementById('btn-paint-apply')?.addEventListener('click', event => {
   event.preventDefault(); event.stopImmediatePropagation();
   paintCanvas.toBlob(async blob => {
     if (!blob) return;
-    const win = iframe?.contentWindow;
-    if (!win?.SHADED?.loadImageFile) return setStatus('⚠️ Engine ist noch nicht bereit.');
+    if (!window.SHADED?.loadImageFile) return setStatus('⚠️ Engine ist noch nicht bereit.');
     try {
       const file = new File([blob], 'marker-overlay.png', { type: 'image/png' });
-      await win.SHADED.loadImageFile(file, true);
+      await window.SHADED.loadImageFile(file, true);
       setStatus('Materialkorrektur übernommen — „Erstellen“ aktualisiert die Szene.');
       correctionChanged = false;
     } catch (error) { setStatus(`⚠️ Korrektur konnte nicht übernommen werden: ${error.message}`); }

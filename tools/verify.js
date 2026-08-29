@@ -51,10 +51,18 @@ const server = http.createServer((req, res) => {
 
   // Screenshot via Viewport-Clip (kein "element stability"-Wait, der auf dauerhaft
   // animierenden WebGL-Canvas hängt). Semantik der Verifikation bleibt unverändert.
+  // viewport-first.css macht .editor-shell/.viewport bewusst vollflächig
+  // (Topbar/Rail/Inspector schweben als transluzente Overlays DARÜBER, statt
+  // Layout-Platz zu beanspruchen) — #gl/#canvas-wrap melden deshalb die volle
+  // Seite als boundingBox. Für die reine Shader-/Materialwahrheit wird der
+  // Topbar-Streifen (schwebt über der Szene) aus dem Screenshot geschnitten.
   async function shotSel(sel, file) {
     const el = await page.$(sel);
     const box = await el.boundingBox();
-    await page.screenshot({ path: file, clip: box });
+    const topbarBox = await (await page.$('.topbar'))?.boundingBox();
+    const topOffset = topbarBox ? topbarBox.height : 0;
+    const clip = { x: box.x, y: box.y + topOffset, width: box.width, height: Math.max(1, box.height - topOffset) };
+    await page.screenshot({ path: file, clip });
   }
 
   // Klassenzählung + Regression gegen tools/expected-classes.json (±10 %)
@@ -127,17 +135,22 @@ const server = http.createServer((req, res) => {
               `${ctx.fragUnits - USED_UNITS} frei), ${ctx.drawBuffers} Draw-Buffer`);
   if (ctx.fragUnits < 16) { console.log('✗ FAIL: weniger Sampler als von WebGL 2 garantiert'); process.exit(1); }
 
-  // Der Editor muss von der Runtime aus erreichbar sein - sonst existiert er
-  // fuer jeden, der nicht die URL kennt, schlicht nicht.
-  const editorLink = await page.evaluate(() => {
-    const a = document.getElementById('link-editor');
-    return a ? a.getAttribute('href') : null;
-  });
-  const editorReachable = editorLink
-    ? (await page.request.get(`http://localhost:8931/${editorLink}`)).status() === 200
-    : false;
-  console.log(`Editor-Link: ${editorLink || 'FEHLT'} -> ${editorReachable ? 'erreichbar' : 'NICHT erreichbar'}`);
-  if (!editorReachable) linkFailures++;
+  // SHADED ist EIN Dokument (CLAUDE.md Invariante 1): kein "Editor öffnen"-Link,
+  // kein <iframe> mehr — Engine und Editor-Shell laufen im selben Dokument.
+  const consolidation = await page.evaluate(() => ({
+    linkEditor: !!document.getElementById('link-editor'),
+    engineFrame: !!document.getElementById('engine-frame'),
+    btnErstellen: !!document.getElementById('btn-erstellen'),
+  }));
+  console.log(`Konsolidierung: link-editor=${consolidation.linkEditor} engine-frame=${consolidation.engineFrame} btn-erstellen=${consolidation.btnErstellen}`);
+  if (consolidation.linkEditor || consolidation.engineFrame || !consolidation.btnErstellen) linkFailures++;
+
+  // World Studios eigenes Onboarding-Panel (editor/world-studio.js) sitzt seit der
+  // Editor-Konsolidierung im selben Dokument wie #gl und würde jeden Screenshot
+  // verdecken — dieser Test vergleicht die REINE Shader-/Materialwahrheit gegen die
+  // Zielbilder (die keinerlei UI zeigen), daher hier bewusst ausgeblendet statt
+  // eingeklappt zu lassen. Produktions-UI/-Verhalten bleibt unverändert.
+  await page.evaluate(() => { const el = document.getElementById('world-studio'); if (el) el.style.display = 'none'; });
 
 await page.setInputFiles('#f-scene', BASE_IMG);
   
@@ -165,8 +178,13 @@ await page.setInputFiles('#f-scene', BASE_IMG);
   await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
   await page.setInputFiles('#f-mat', MARKER_IMG);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
-await page.click('#btn-create');
-  
+  // window.SHADED.erstellen() direkt statt #btn-erstellen zu klicken: dieser Button
+  // triggert seit der Editor-Konsolidierung ZUSÄTZLICH World Studios eigene (langsame)
+  // Spatial-Reconstruction-Pipeline (editor/world-studio.js hört auf dieselbe ID) -
+  // dieser Test prueft die Shader-/Materialwahrheit direkt ueber die dokumentierte API,
+  // nicht die Editor-UI-Verdrahtung.
+await page.evaluate(() => window.SHADED.erstellen());
+
   // Debug: check SHADED object
   const shadedCheck = await page.evaluate(() => {
     return { type: typeof window.SHADED, hasSHADED: !!window.SHADED };
@@ -278,13 +296,16 @@ await page.click('#btn-create');
     console.log('Actor-Test-Fixtures nicht gefunden (OK für CI ohne SWIFT)');
   }
 
-  // Zweiter Durchlauf: Legacy-Szene mit gemalter Palette-Material-Map
+  // Zweiter Durchlauf: Legacy-Szene mit gemalter Palette-Material-Map.
+  // Auf echte Statusmeldungen warten statt auf feste Timeouts — sonst kann
+  // erstellen() bei langsamerem Bild-Decode (großes Bild, Software-Rendering)
+  // auf einer noch nicht fertig geladenen Material-Map laufen.
   await page.setInputFiles('#f-scene', LEGACY_IMG);
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
   await page.setInputFiles('#f-mat', MAT_IMG);
-  await page.waitForTimeout(300);
-  await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'), { timeout: 60000 });
+  await page.evaluate(() => window.SHADED.erstellen());
+  await page.waitForFunction(() => window.SHADED.isReady(), { timeout: 60000 });
   await page.evaluate(() => { window.SHADED.applyAct('sturmnacht'); window.SHADED.setTime(21.7,true); });
   await page.waitForTimeout(250);
   await shotSel('#gl', path.join(OUT, 'shot_map_sturmnacht.png'));
@@ -300,9 +321,9 @@ await page.click('#btn-create');
   // Dritter Durchlauf: Taverne (andere Auflösung, anderer Stil, ohne Zweitbild)
   // Vergleichen mit ResizedImage_2026-06-30_23-13-00_0185[1].png (Regen-Target)
   await page.setInputFiles('#f-scene', path.join(REPO, 'ResizedImage_2026-06-30_23-14-34_6442[1].jpg'));
-  await page.waitForTimeout(300);
-  await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
+  await page.evaluate(() => window.SHADED.erstellen());
+  await page.waitForFunction(() => window.SHADED.isReady(), { timeout: 60000 });
   await page.evaluate(() => {
     window.SHADED.applyAct('morgen');
     window.SHADED.setParams({ ...window.SHADED.getParams(), dayNight: 0.35, fog: 0.5, rain: 0.5, wet: 1, puddle: 0.8, glow: 0.8 });
@@ -315,9 +336,9 @@ await page.click('#btn-create');
 
   // Vierter Durchlauf: Kanon-Dorf top-down (Bildkanon: Rahmen-Fenster, Blauglas)
   await page.setInputFiles('#f-scene', path.join(REPO, 'file_00000000c40471f4859a10d6bf3ac39b.png'));
-  await page.waitForTimeout(300);
-  await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
+  await page.evaluate(() => window.SHADED.erstellen());
+  await page.waitForFunction(() => window.SHADED.isReady(), { timeout: 60000 });
   await logClasses('dorf-kanon');
   await page.evaluate(() => { window.SHADED.applyAct('sturmnacht');
     window.SHADED.setParams({ ...window.SHADED.getParams(), rain: 0.3 });
@@ -327,9 +348,9 @@ await page.click('#btn-create');
 
   // Fünfter Durchlauf: Kanon-Dorf perspektivisch MIT Himmel (Bildkanon K7)
   await page.setInputFiles('#f-scene', path.join(REPO, 'file_00000000723471f48a11eaa8371edfb7.png'));
-  await page.waitForTimeout(300);
-  await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 60000 });
+  await page.evaluate(() => window.SHADED.erstellen());
+  await page.waitForFunction(() => window.SHADED.isReady(), { timeout: 60000 });
   await logClasses('dorf-himmel');
   await page.evaluate(() => { window.SHADED.applyAct('sturmnacht');
     window.SHADED.setParams({ ...window.SHADED.getParams(), rain: 0.3 });
@@ -351,7 +372,7 @@ await page.click('#btn-create');
 
   const failed = classFailures || actorFailures || trailFailures || linkFailures || realErrors.length || badNotFound.length;
   console.log(failed
-    ? `\n✗ Verifikation FEHLGESCHLAGEN (${classFailures} Klassen-Regression(en), ${actorFailures} Actor-Fehler, ${trailFailures} Trail-Fehler, ${linkFailures} fehlende Verlinkung, ${realErrors.length} Konsolenfehler, ${badNotFound.length} unerwartete 404)`
+    ? `\n✗ Verifikation FEHLGESCHLAGEN (${classFailures} Klassen-Regression(en), ${actorFailures} Actor-Fehler, ${trailFailures} Trail-Fehler, ${linkFailures} Konsolidierungs-Regression(en), ${realErrors.length} Konsolenfehler, ${badNotFound.length} unerwartete 404)`
     : '\n✓ Verifikation bestanden – Screenshots in tools/verify-out/ jetzt visuell gegen die Zielbilder prüfen.');
 
   await browser.close();

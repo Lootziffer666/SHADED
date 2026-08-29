@@ -8,11 +8,13 @@ Editor **headless** ansteuern können — analog zu SWIFTs `python main.py rende
 
 Es gibt hier **keine zweite Engine und kein zweites Analyse-/Klassifikations-
 system**: `tools/orchestrate.js` startet einen echten lokalen Static-Server +
-echtes headless Chromium, lädt die echte `editor/index.html` und ruft
-ausschließlich `window.SHADED_ORCHESTRATOR` auf — dasselbe Objekt, das
-`editor/app.js` aus der echten `SceneEditorFacade` (`editor/facade.js`)
-zusammensetzt. Der reale `window.SHADED`-Vertrag (im Engine-Iframe) bleibt
-unverändert und unangetastet (CLAUDE.md Invariante 5).
+echtes headless Chromium, lädt die echte `index.html` (SHADED ist ein
+Dokument — Engine und Editor-Shell laufen seit der Konsolidierung im selben
+Dokument, kein `<iframe>` mehr) und ruft ausschließlich
+`window.SHADED_ORCHESTRATOR` auf — dasselbe Objekt, das `editor/app.js` aus
+der echten `SceneEditorFacade` (`editor/facade.js`) zusammensetzt. Der reale
+`window.SHADED`-Vertrag bleibt unverändert und unangetastet (CLAUDE.md
+Invariante 5).
 
 ## Aufruf
 

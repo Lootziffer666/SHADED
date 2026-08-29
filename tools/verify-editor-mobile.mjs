@@ -13,7 +13,7 @@ const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAA
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-  const rel = pathname === '/' ? 'editor/index.html' : pathname.replace(/^\//, '');
+  const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
   const file = path.join(REPO, rel);
   try {
     const data = fs.readFileSync(file);
@@ -30,8 +30,8 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 page.on('pageerror', error => errors.push(`PAGEERROR: ${error.message}`));
 
 try {
-  await page.goto('http://localhost:8941/editor/index.html', { waitUntil: 'load' });
-  await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, undefined, { timeout: 15000 });
+  await page.goto('http://localhost:8941/index.html', { waitUntil: 'load' });
+  await page.waitForFunction(() => !!window.SHADED, undefined, { timeout: 15000 });
 
   const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
@@ -79,12 +79,11 @@ try {
   await page.evaluate(() => { document.getElementById('world-generate')?.click(); });
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 60000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
-  check('RAUM landet im Lauf-Modus', await page.evaluate(() => document.getElementById('engine-frame')?.contentWindow?.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
+  check('RAUM landet im Lauf-Modus', await page.evaluate(() => window.SHADED?.spatial?.viewer?.state?.()?.mode === 'walk'));
 
   const roomState = await page.evaluate(() => {
-    const win = document.getElementById('engine-frame').contentWindow;
-    const mesh = win.SHADED.spatial.voxel.mesh();
-    return { triangles: mesh.indices.length / 3, camera: win.SHADED.spatial.viewer.state().camera };
+    const mesh = window.SHADED.spatial.voxel.mesh();
+    return { triangles: mesh.indices.length / 3, camera: window.SHADED.spatial.viewer.state().camera };
   });
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 

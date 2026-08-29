@@ -69,6 +69,7 @@ export function connectedComponents(image, binary, minArea = 4) {
   const w = image.width, h = image.height;
   const label = new Int32Array(w * h).fill(0);
   const comps = [];
+  const kept = new Set();
   let nextLabel = 1;
   const stack = [];
   for (let y = 0; y < h; y++) {
@@ -93,11 +94,19 @@ export function connectedComponents(image, binary, minArea = 4) {
             }
           }
         }
-        if (comp.pixels >= minArea) comps.push(comp);
+        if (comp.pixels >= minArea) { comps.push(comp); kept.add(nextLabel); }
         nextLabel++;
       }
     }
   }
+  // Pixel->Komponenten-Zuordnung (comp.id, 0 = keiner) als Zusatzfeld auf dem Array — kein
+  // Bruch für bestehende Aufrufer (comps bleibt ein normales Array), aber Aufrufer, die pro
+  // Pixel wissen müssen, zu welcher Komponente er gehört (z. B. SHADEDs depthRegionAt),
+  // müssen die Flood-Fill dafür nicht ein zweites Mal implementieren. Ein einziger
+  // abschließender Durchlauf statt pro verworfener Kleinkomponente neu zu scannen (sonst
+  // O(Pixel × Anzahl_verworfener_Komponenten) statt O(Pixel)).
+  if (kept.size < nextLabel - 1) for (let k = 0; k < label.length; k++) if (label[k] !== 0 && !kept.has(label[k])) label[k] = 0;
+  comps.labelGrid = label;
   return comps;
 }
 

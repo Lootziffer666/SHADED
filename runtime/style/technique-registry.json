@@ -1,0 +1,166 @@
+[
+  {
+    "id": "half-lambert",
+    "family": "lighting",
+    "name": "Half-Lambert Diffuse",
+    "description": "N·L auf [-1,1]→[0,1] gestaucht (statt geclamped) für weichere Schattenübergänge auf Kugeln/Rundungen.",
+    "source": { "name": "Half-Lambert (Valve, Siggraph 2004 Vortragsfolien)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "lighting.rampSoftness", "kind": "continuous" }]
+  },
+  {
+    "id": "banded-ramp",
+    "family": "lighting",
+    "name": "Banded Diffuse Ramp",
+    "description": "N·L wird auf eine feste Bandzahl quantisiert (Toon-Ramp) statt kontinuierlich zu verlaufen.",
+    "source": { "name": "Banded/Toon Diffuse Ramp (klassische NPR-Technik)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "lighting.rampBands", "kind": "continuous" }, { "key": "lighting.rampSoftness", "kind": "continuous" }]
+  },
+  {
+    "id": "hard-cel",
+    "family": "lighting",
+    "name": "Hard Cel Shading",
+    "description": "2-Band-Ramp ohne weiche Kante — klassischer harter Cel-Look.",
+    "source": { "name": "Hard Cel Shading (klassische Toon-Rendering-Technik)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "lighting.rampBands", "kind": "continuous" }]
+  },
+  {
+    "id": "ggx-specular",
+    "family": "specular",
+    "name": "GGX-artiges Material-Specular",
+    "description": "Materialbewusste Microfacet-Näherung (Rauheit/Reflektanz aus MaterialResponse).",
+    "source": { "name": "GGX/Trowbridge-Reitz Microfacet-Verteilung (Walter et al. 2007, veröffentlichte Formel)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE"],
+    "parameters": [{ "key": "specular.intensity", "kind": "continuous" }]
+  },
+  {
+    "id": "banded-specular",
+    "family": "specular",
+    "name": "Banded Specular",
+    "description": "Quantisiertes, hartes Glanzlicht statt kontinuierlichem Speküllar-Falloff — billiger als GGX.",
+    "source": { "name": "Banded/quantisiertes Speküllar-Highlight (klassische Toon-Technik)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "specular.intensity", "kind": "continuous" }]
+  },
+  {
+    "id": "fresnel-rim-soft",
+    "family": "rim",
+    "name": "Weicher Fresnel-Rim",
+    "description": "Schlick-Fresnel-Näherung als weicher, additiver Randschimmer.",
+    "source": { "name": "Schlick-Fresnel-Näherung (Schlick 1994, veröffentlichte Formel)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "rim.width", "kind": "continuous" }, { "key": "rim.hue", "kind": "continuous" }]
+  },
+  {
+    "id": "fresnel-rim-hard",
+    "family": "rim",
+    "name": "Harter farbiger Rim",
+    "description": "Fresnel-Term mit hartem Schwellwert statt weichem Verlauf — deckender Farbrand.",
+    "source": { "name": "Fresnel-Schwellwert-Rim (klassische NPR-Technik, Ableitung aus Schlick-Fresnel)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "rim.width", "kind": "continuous" }, { "key": "rim.hue", "kind": "continuous" }]
+  },
+  {
+    "id": "curvature-normal",
+    "family": "normal",
+    "name": "Krümmungsverstärkte Normalen",
+    "description": "Normalabweichung zu Nachbartexeln hebt Kanten/Vertiefungen hervor (Cavity-artig).",
+    "source": { "name": "Curvature/Cavity-Shading über Normalendivergenz (verbreitete NPR-Technik)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED"],
+    "parameters": [{ "key": "normal.strength", "kind": "continuous" }]
+  },
+  {
+    "id": "faceted-normal",
+    "family": "normal",
+    "name": "Facettierte (Low-Poly) Normalen",
+    "description": "Flache Normalen per Ableitung (dFdx/dFdy) statt interpolierter Glättung — Low-Poly-Look.",
+    "source": { "name": "Flat-Shading via Bildschirmraum-Ableitung (klassische GPU-Technik)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "normal.strength", "kind": "continuous" }]
+  },
+  {
+    "id": "sobel-outline",
+    "family": "outline",
+    "name": "Screen-Space Depth+Normal Outline",
+    "description": "Sobel-Operator auf Tiefe und Normale des G-Buffers erzeugt eine Kontur ohne zweite Geometriepassage.",
+    "source": { "name": "Sobel-Kantenoperator (Sobel/Feldman ~1968, veröffentlichter Operator)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE"],
+    "parameters": [{ "key": "outline.thickness", "kind": "continuous" }]
+  },
+  {
+    "id": "gradient-map-palette",
+    "family": "palette",
+    "name": "Gradient Map",
+    "description": "Luminanz indiziert eine 1D-Farbrampe statt die freie Materialfarbe zu zeigen.",
+    "source": { "name": "Gradient-Map / 1D-LUT-Remap nach Luminanz (verbreitete Technik, u. a. in LYGIA dokumentiert)", "licenseClass": "B", "license": "LYGIA-artig (BSD-ähnlich) — als Konzept referenziert, NICHT als MIT/Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "palette.hue", "kind": "continuous" }]
+  },
+  {
+    "id": "posterize-palette",
+    "family": "palette",
+    "name": "Posterize",
+    "description": "Farbquantisierung auf eine feste Stufenzahl pro Kanal.",
+    "source": { "name": "Posterize / Farbquantisierung (klassische Bildverarbeitungstechnik)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "palette.steps", "kind": "continuous" }]
+  },
+  {
+    "id": "object-space-breakup",
+    "family": "texture",
+    "name": "Objektraum-Breakup (graphic/painterly)",
+    "description": "3D-Rauschen in Objektkoordinaten bricht die Fläche grafisch/malerisch auf — bewusst NICHT an Bildschirm-UV verankert, damit die Kamera bewegt werden kann ohne Schwimmen (Bewegungsstabilität, siehe L-Test 12-Frame-Orbit).",
+    "source": { "name": "Objektraum-verankertes Prozedurrauschen (verbreitete NPR-Technik gegen Screen-Space-Swimming)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED"],
+    "parameters": [{ "key": "texture.strength", "kind": "continuous" }]
+  },
+  {
+    "id": "bloom-grain-post",
+    "family": "post",
+    "name": "Bloom + Grain",
+    "description": "Hellpass-Weichzeichnung (Bloom) additiv über das Bild, plus gehashtes Filmkorn.",
+    "source": { "name": "Bright-Pass-Bloom + Hash-Filmkorn (klassische Post-Processing-Techniken)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE"],
+    "parameters": [{ "key": "post.intensity", "kind": "continuous" }]
+  },
+  {
+    "id": "halftone-post",
+    "family": "post",
+    "name": "Halftone",
+    "description": "Bayer-Dither-Punktraster über die Luminanz statt Bloom/Grain.",
+    "source": { "name": "Bayer-Dither-Matrix (Bayer 1973, veröffentlichter Algorithmus)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "post.intensity", "kind": "continuous" }]
+  },
+  {
+    "id": "shadow-ramp-color",
+    "family": "shadow",
+    "name": "Warm/Kalt-Schattenrampe",
+    "description": "Schattenseite wird statt nur abgedunkelt Richtung warmer oder kalter Tönung verschoben.",
+    "source": { "name": "Gooch-Shading-Konzept (Gooch et al. 1998, veröffentlichtes Paper)", "licenseClass": "A", "license": "veröffentlichte Formel, kein Code übernommen", "usage": "algorithm-reference" },
+    "supportedBudgets": ["FULL", "BALANCED", "MOBILE", "MINIMAL"],
+    "parameters": [{ "key": "shadow.warmth", "kind": "continuous" }]
+  },
+  {
+    "id": "matcap-lookup",
+    "family": "lighting",
+    "name": "Matcap/LitSphere Lookup (Research)",
+    "description": "Beleuchtung per Normalen-Lookup in eine vorgerenderte Sphärentextur. NICHT implementiert — keine Dropdown-Option in der Sandbox.",
+    "source": { "name": "Matcap/LitSphere-Konzept (verbreitet auf Shadertoy/GodotShaders, Konzept-only)", "licenseClass": "C", "license": "Shadertoy/GodotShaders-Klasse — nur Konzept, kein Code referenzierbar", "usage": "research-only" },
+    "supportedBudgets": ["FULL"],
+    "parameters": [],
+    "researchOnly": true
+  },
+  {
+    "id": "subsurface-wrap",
+    "family": "lighting",
+    "name": "Wrap-Lighting für Skin-Subsurface (Research)",
+    "description": "Wrap-Diffuse-Näherung für weiche subsurface-artige Hautbeleuchtung. NICHT implementiert — keine Dropdown-Option in der Sandbox.",
+    "source": { "name": "Wrap-Lighting-Konzept (verbreitet in Shadertoy-Gists, Konzept-only)", "licenseClass": "C", "license": "Shadertoy-Klasse — nur Konzept, kein Code referenzierbar", "usage": "research-only" },
+    "supportedBudgets": ["FULL"],
+    "parameters": [],
+    "researchOnly": true
+  }
+]
