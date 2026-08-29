@@ -193,6 +193,25 @@ nicht-konvexen Gebäude-Clustern Lücken einschließen, die selbst nicht `struct
 außerhalb: 204/255** (deutlich sichtbarer Regen). `npm run check` grün, `tools/verify.js`
 (fünf Szenen, Klassenregression + Screenshots) unverändert grün.
 
+**Nachtrag (nach Exp. 4, echter Bug statt nur Test-Flakiness):** derselbe Test schlug unter
+System-Last (direkt hintereinander mit den anderen Playwright-Verifys im vollen `npm run
+check`) reproduzierbar mit erhöhter Alpha auf `structural`-Pixeln fehl (202/255, 198/255),
+obwohl er isoliert zuverlässig 0/255 zeigte. Statt das als reine Test-Flakiness abzutun, per
+CDP `Emulation.setCPUThrottlingRate` deterministisch reproduziert (rate 20, isometrisches
+Testbild ohne erkannten Himmel) — und damit die tatsächliche Ursache gefunden, keine
+Vermutung: die feste 4-Punkt-Stichprobe (Start/33 %/66 %/Ende) auf der ~20–70px langen
+Regen-Tropfen-Linie ließ eine SEHR dünne `structural`-Kante zwischen zwei Sample-Punkten
+durchrutschen — konkret am oberen Bildrand einer Szene ohne Himmel-Region, wo jede Zeile
+bereits Dach/Gebäude ist. Einzeln pro Tropfen fast nie sichtbar (schwaches Antialiasing),
+aber unter Last, wenn viele Tropfen gleichzeitig nahe ihrer Spawnzone sind, stapelten sich
+genug einzeln blasse Treffer auf demselben Pixel zu klar sichtbarer Deckkraft (bis 204/255,
+reproduzierbar gemessen). Behoben durch `lineOccludedAt(u0,v0,u1,v1)`
+(`runtime/weather-particles.mjs`): adaptive Schrittweite relativ zur v-Spannweite der Linie
+(min. 4, max. 24 Punkte) statt fester Punktzahl — schließt die Lücke unabhängig von der
+Tropfenlänge. Fix zweimal unter denselben Throttling-Bedingungen verifiziert (0/255 statt
+vorher 204/255), danach `npm run check` erneut vollständig grün (inkl. `verify-weather-depth`
+unter realer Last: 0/255 auf `structural`, 224/255 außerhalb).
+
 ## Nicht Teil von Exp. 3
 
 - Kein echtes 3D-Weltvolumen (`weatherVolume.width/depth/height`), keine Kamera-Projektion,

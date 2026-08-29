@@ -207,6 +207,25 @@ function weatherPseudoDepthAt(u,v){
 function weatherOccludedAt(u,v){
   return window.SHADED.depthLayerAt(u,v)==='structural';
 }
+// Exp. 3, Nachtrag: ein fester Satz von 4 Punkten (Anfang/33%/66%/Ende) auf einer ~20-70px
+// langen Regen-Linie ließ eine SEHR duenne structural-Kante (wenige layerGrid-Zellen breit,
+// z.B. am oberen Bildrand einer Szene ohne erkannten Himmel — jede Zeile dort ist bereits
+// Dach/Gebaeude) zwischen zwei Sample-Punkten durchrutschen. Einzeln pro Tropfen fast nie
+// sichtbar, aber unter CPU-Last (viele Tropfen gleichzeitig nahe ihrer Spawnzone, per
+// CDP-Throttling reproduziert statt nur vermutet) stapelten sich genug einzeln blasse
+// Treffer auf demselben Pixel zu klar sichtbarer Deckkraft (bis 204/255, gemessen).
+// Feste Punktzahl ersetzt durch adaptive Schrittweite relativ zur v-Spannweite der Linie —
+// schließt die Lücke unabhängig von der Tropfenlänge, statt nur die Symptomschwelle des
+// Tests zu lockern.
+function lineOccludedAt(u0, v0, u1, v1){
+  const dv = v1 - v0;
+  const steps = Math.max(4, Math.min(24, Math.ceil(Math.abs(dv) / 0.0015)));
+  for(let i=0; i<=steps; i++){
+    const t = i / steps;
+    if(weatherOccludedAt(u0 + (u1 - u0) * t, v0 + (v1 - v0) * t)) return true;
+  }
+  return false;
+}
 
 // --- Schnee-Partikel-System: Tiefenkarte steuert Fall, Temperatur+Material steuern Liegenbleiben ---
 let vortexPhase = 0;  // für weiche positive/negative Wind-Oszillation
@@ -543,15 +562,11 @@ function weatherDrawAfterFire(){
     // Tiefere Tropfen sind länger (Parallax) aber dünner
     const depthMultiplier = 0.8 + r.depth*0.4;
     // Exp. 3: Tropfen verschwindet hinter einer Gebäudesilhouette statt darüber gemalt zu
-    // werden. Ein Tropfen ist eine ~20-70px lange Diagonale, nicht nur sein Startpunkt — nur
-    // Start+Ende zu prüfen ließ eine dünne Dachkante MITTEN auf der Linie durchrutschen
-    // (gefunden via tools/verify-weather-depth.js: schwache, aber echte Treffer bei v≈0).
-    // Vier Punkte entlang der Linie statt zwei schließen diese Lücke praktisch vollständig,
-    // ohne die Linie pixelgenau zu rastern.
+    // werden. Ein Tropfen ist eine ~20-70px lange Diagonale, nicht nur sein Startpunkt —
+    // adaptive Schrittweite (lineOccludedAt) statt fester Punktzahl schließt die Lücke
+    // unabhängig von der Tropfenlänge (siehe Kommentar an lineOccludedAt).
     const endU = r.u + r.length*depthMultiplier, endV = r.v + r.length*2*depthMultiplier;
-    if(weatherOccludedAt(r.u,r.v) || weatherOccludedAt(endU,endV)
-      || weatherOccludedAt(r.u+(endU-r.u)*0.33, r.v+(endV-r.v)*0.33)
-      || weatherOccludedAt(r.u+(endU-r.u)*0.66, r.v+(endV-r.v)*0.66)) return;
+    if(lineOccludedAt(r.u, r.v, endU, endV)) return;
     // Tiefere Tropfen (r.depth ~ 1): schwächer und dünner (Parallax-Effekt)
     const depthAlpha = 0.4 + r.depth*0.6;  // vorne 0.4-1.0, hinten 0.4-0.7
     const lifetime = 8 + r.depth*4;
