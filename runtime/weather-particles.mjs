@@ -313,7 +313,7 @@ function snowTick(dt){
         for(const o of snowflakes){ if(o.settled && Math.hypot(o.u-s.u,o.v-s.v)<0.018) neighbors++; }
         s.settled = true; settledCount++;
         s.layer = Math.min(4, neighbors);
-        s.v -= s.layer*0.003; // Schichten wachsen sichtbar leicht nach oben
+        s.v = Math.max(0.002, s.v - s.layer*0.003); // Schichten wachsen sichtbar leicht nach oben
         s.vv = 0; s.vu = 0;
         continue;
       }
