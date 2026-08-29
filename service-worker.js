@@ -1,11 +1,11 @@
-const CACHE = 'shaded-shell-v16';
+const CACHE = 'shaded-shell-v17';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './runtime/install.js',
+  './runtime/install.js?v=9',
   './runtime/spatial-viewer.js',
-  './runtime/install.js?v=8',
   './runtime/spatial-point-cloud.mjs',
   './runtime/spatial-navigation.mjs',
   './runtime/spatial-reconstruction.mjs',
@@ -16,21 +16,19 @@ const SHELL = [
   './file_00000000974871f49fe71f6b456f9579.png',
   './file_00000000974871f49fe71f6b456f9579_depth.png',
   './file_00000000c84071f4bcd6ff9afdba7246.png',
-  './editor/index.html',
-  './editor/editor.css?v=8',
+  './editor/editor.css?v=9',
   './editor/viewport-first.css?v=8',
   './editor/drawer-handle.css?v=2',
   './editor/world-studio.css?v=1',
   './editor/world-studio-shell.css?v=1',
   './editor/world-studio-imports.css?v=1',
-  './editor/app.js',
-  './editor/ui-shell.js',
-  './editor/app.js?v=8',
-  './editor/ui-shell.js?v=8',
-  './editor/ux-fixes.js?v=8',
-  './editor/world-room-gate.js?v=1',
-  './editor/drawer-handle.js?v=2',
-  './editor/world-studio.js?v=3',
+  './editor/engine-shell.css?v=1',
+  './editor/app.js?v=9',
+  './editor/ui-shell.js?v=9',
+  './editor/ux-fixes.js?v=9',
+  './editor/world-room-gate.js?v=2',
+  './editor/drawer-handle.js?v=3',
+  './editor/world-studio.js?v=4',
   './editor/world-studio-v4.js?v=1',
   './editor/world-studio-bridge-settings.js?v=1',
   './editor/material-preview-live.js?v=1',
@@ -78,7 +76,7 @@ self.addEventListener('fetch', (event) => {
   const isCode = /\.(?:js|mjs|css)$/.test(url.pathname) || url.pathname.startsWith('/editor/');
   if (request.mode === 'navigate' || isCode) {
     event.respondWith(networkFirst(request).catch(async () => {
-      if (request.mode === 'navigate') return (await caches.match(request)) || caches.match('./editor/index.html') || caches.match('./index.html');
+      if (request.mode === 'navigate') return (await caches.match(request)) || caches.match('./index.html');
       return Response.error();
     }));
     return;

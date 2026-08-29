@@ -1,6 +1,5 @@
 // Guaranteed escape hatch for every remaining editor sheet.
 const body = document.body;
-const iframe = document.getElementById('engine-frame');
 
 function closeOuterSheets() {
   body.classList.remove('inspector-open');
@@ -39,8 +38,7 @@ if (!backdrop) {
 }
 
 function installSpatialHandles() {
-  const doc = iframe?.contentDocument;
-  if (!doc?.head) return;
+  const doc = document;
   if (!doc.getElementById('spatial-sheet-handle-style')) {
     const style = doc.createElement('style');
     style.id = 'spatial-sheet-handle-style';
@@ -64,6 +62,5 @@ function installSpatialHandles() {
   }
 }
 
-iframe?.addEventListener('load', installSpatialHandles);
 setInterval(installSpatialHandles, 750);
 installSpatialHandles();

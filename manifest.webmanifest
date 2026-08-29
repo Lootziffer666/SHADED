@@ -4,7 +4,7 @@
   "short_name": "SHADED",
   "description": "Ein installierbarer 2.5D-Welt- und Shader-Editor für einzelne Bilder.",
   "lang": "de",
-  "start_url": "./editor/index.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

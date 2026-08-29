@@ -21,7 +21,7 @@ const server = http.createServer((req, res) => {
   try {
     const data = fs.readFileSync(p);
     const type = p.endsWith('.html') ? 'text/html'
-      : p.endsWith('.js') ? 'text/javascript'
+      : (p.endsWith('.js') || p.endsWith('.mjs')) ? 'text/javascript'
       : p.endsWith('.css') ? 'text/css'
       : p.endsWith('.json') ? 'application/json'
       : 'image/png';
@@ -73,12 +73,13 @@ const dropCompanion404 = (list, count) => {
   page.on('response', (r) => { if (r.status() === 404 && isCompanionProbe(r.url())) benign404++; });
 
   try {
-    await page.goto('http://localhost:8933/editor/index.html', { waitUntil: 'load' });
+    await page.goto('http://localhost:8933/index.html', { waitUntil: 'load' });
 
     check('window.SHADED_ORCHESTRATOR ist vor jedem Laden erreichbar', await page.evaluate(() => typeof window.SHADED_ORCHESTRATOR === 'object'));
 
-    // engineLoaded wird schon true, sobald das Iframe (../index.html) sein Skript ausgeführt
-    // hat (window.SHADED existiert dann) — unabhängig von erstellen(). Nur `ready` hängt an create().
+    // engineLoaded wird schon true, sobald runtime/shaded-engine.mjs im selben
+    // Dokument sein Skript ausgeführt hat (window.SHADED existiert dann) —
+    // unabhängig von erstellen(). Nur `ready` hängt an create().
     const statusBefore = await page.evaluate(() => window.SHADED_ORCHESTRATOR.getRuntimeStatus());
     check(`getRuntimeStatus() vor loadProject: ready=false, actorCount=0 (${JSON.stringify(statusBefore)})`,
       statusBefore.ready === false && statusBefore.actorCount === 0);
@@ -138,10 +139,9 @@ const dropCompanion404 = (list, count) => {
       Math.abs(intr.strength - 1) < 1e-6);
     // Das Feld muss wirklich aus dem Bild stammen, nicht aus dem eingebauten Backend:
     const shadingSpread = await page.evaluate(() => {
-      const win = document.getElementById('engine-frame').contentWindow;
       let mn = 9, mx = -9;
       for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
-        const v = win.SHADED.intrinsic.sample((x + 0.5) / 24, (y + 0.5) / 24);
+        const v = window.SHADED.intrinsic.sample((x + 0.5) / 24, (y + 0.5) / 24);
         mn = Math.min(mn, v); mx = Math.max(mx, v);
       }
       return { mn: +mn.toFixed(3), mx: +mx.toFixed(3) };

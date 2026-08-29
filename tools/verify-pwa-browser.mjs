@@ -41,10 +41,10 @@ try {
   const cacheState = await page.evaluate(async cacheName => {
     const names = await caches.keys(), cache = await caches.open(cacheName);
     const required = [
-      '/index.html', '/editor/index.html', '/runtime/install.js', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
+      '/index.html', '/runtime/install.js', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
       '/runtime/sparse-voxel-world.mjs', '/runtime/surface-world-simulation.mjs',
       '/file_00000000974871f49fe71f6b456f9579.png', '/file_00000000974871f49fe71f6b456f9579_depth.png',
-      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js', '/editor/app.js'
+      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js?v=9', '/editor/app.js?v=9', '/editor/facade.js'
     ];
     const hits = await Promise.all(required.map(async pathname => [pathname, !!(await cache.match(pathname))]));
     return {names, hits};
@@ -52,11 +52,33 @@ try {
   assert(cacheState.names.includes(expectedCache), `Aktiver Service-Worker-Cache ${expectedCache} fehlt`);
   assert(cacheState.hits.every(([, hit]) => hit), `Cache fehlt: ${cacheState.hits.filter(([, hit]) => !hit).map(([name]) => name).join(', ')}`);
 
+  // World Studio gated Rail/Inspector standardmäßig hinter ERWEITERT (siehe
+  // editor/world-studio-shell.css) — #btn-demo/#btn-spatial-view liegen jetzt
+  // im selben Dokument in diesen Panels statt auf der früheren eigenständigen
+  // Legacy-Seite.
+  await page.click('.world-studio-expert');
+  // World Studio's eigenes Panel startet ausgeklappt und überlappt (bewusst,
+  // siehe world-studio-shell.css) in diesem Zustand den ersten Rail-Button
+  // (Quelle) real-pixelgenau — dieselbe Öffnungslogik wie ein Rail-Klick
+  // (siehe editor/ui-shell.js openSection()) direkt anwenden statt einen
+  // Klick auf einen verdeckten Button zu erzwingen.
+  await page.evaluate(() => {
+    document.body.classList.add('inspector-open');
+    document.body.classList.remove('inspector-collapsed');
+    document.querySelectorAll('.inspector-section').forEach((section) => section.classList.toggle('section-collapsed', section.id !== 'panel-source'));
+    document.querySelectorAll('.rail-btn').forEach((button) => button.classList.toggle('active', button.dataset.target === 'panel-source'));
+  });
+  await page.locator('#btn-demo').waitFor({ state: 'visible', timeout: 10000 });
   await page.click('#btn-demo');
   try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent)); }
   catch { throw new Error(`Demo-Laden fehlgeschlagen: ${await page.locator('#status').textContent()} | ${failures.join(' | ')}`); }
-  await page.click('#btn-create');
+  await page.click('#btn-erstellen');
   await page.waitForFunction(() => window.SHADED?.isReady?.());
+  await page.evaluate(() => {
+    document.querySelectorAll('.inspector-section').forEach((section) => section.classList.toggle('section-collapsed', section.id !== 'panel-story'));
+    document.querySelectorAll('.rail-btn').forEach((button) => button.classList.toggle('active', button.dataset.target === 'panel-story'));
+  });
+  await page.locator('#btn-spatial-view').waitFor({ state: 'visible', timeout: 10000 });
   await page.click('#btn-spatial-view');
   await page.waitForFunction(() => !document.getElementById('spatial-viewer').hidden && /RMSE/.test(document.getElementById('spatial-fit-status').textContent));
   const spatial = await page.evaluate(() => {
@@ -76,6 +98,19 @@ try {
     'runtime/spatial-viewer.js', 'runtime/sparse-voxel-world.mjs', 'file_00000000974871f49fe71f6b456f9579.png'
   ].map(async url => ({url, ok: (await fetch(url)).ok}))));
   assert(offlineFetches.every(result => result.ok), 'Offline-Abruf der Runtime oder Demo-Datei ist fehlgeschlagen');
+  await page.click('.world-studio-expert');
+  // World Studio's eigenes Panel startet ausgeklappt und überlappt (bewusst,
+  // siehe world-studio-shell.css) in diesem Zustand den ersten Rail-Button
+  // (Quelle) real-pixelgenau — dieselbe Öffnungslogik wie ein Rail-Klick
+  // (siehe editor/ui-shell.js openSection()) direkt anwenden statt einen
+  // Klick auf einen verdeckten Button zu erzwingen.
+  await page.evaluate(() => {
+    document.body.classList.add('inspector-open');
+    document.body.classList.remove('inspector-collapsed');
+    document.querySelectorAll('.inspector-section').forEach((section) => section.classList.toggle('section-collapsed', section.id !== 'panel-source'));
+    document.querySelectorAll('.rail-btn').forEach((button) => button.classList.toggle('active', button.dataset.target === 'panel-source'));
+  });
+  await page.locator('#btn-demo').waitFor({ state: 'visible', timeout: 10000 });
   await page.click('#btn-demo');
   try { await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent)); }
   catch { throw new Error(`Offline-Demo fehlgeschlagen: ${await page.locator('#status').textContent()} | ${failures.join(' | ')}`); }

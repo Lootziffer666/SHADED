@@ -123,7 +123,7 @@ function fail(code, payload) {
     try {
       const data = fs.readFileSync(filePath);
       const type = filePath.endsWith('.html') ? 'text/html'
-        : filePath.endsWith('.js') ? 'text/javascript'
+        : (filePath.endsWith('.js') || filePath.endsWith('.mjs')) ? 'text/javascript'
         : filePath.endsWith('.css') ? 'text/css'
         : filePath.endsWith('.json') ? 'application/json'
         : 'image/png';
@@ -166,7 +166,7 @@ const dropCompanion404 = (list, count) => {
 
   let result;
   try {
-    await page.goto(`http://localhost:${port}/editor/index.html`, { waitUntil: 'load' });
+    await page.goto(`http://localhost:${port}/index.html`, { waitUntil: 'load' });
     await page.waitForFunction(() => typeof window.SHADED_ORCHESTRATOR === 'object', { timeout: 10000 });
 
     result = await page.evaluate(async ({ sceneRoute, materialRoute, actorRoutes, params, storyboard, shadingRoute, intrinsic }) => {

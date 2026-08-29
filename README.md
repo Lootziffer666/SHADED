@@ -35,10 +35,13 @@ Aktivierung, Offline-Navigation, Demo-Cache und Raumansicht in Chromium; den nat
 Installationsdialog einer konkreten Browser-/OS-Kombination kann dieser Test nicht
 erzwingen.
 
-Die frühere Single-File-Grenze ist aufgehoben: `index.html` bleibt das Rendering-Ziel,
-aber Installation, Offline-Lifecycle und weitere Runtime-Module leben in eigenen
-Dateien unter `runtime/`. Dadurch können räumliche Systeme schrittweise modularisiert
-werden, ohne eine zweite Shader- oder Materialwahrheit einzuführen.
+Die frühere Single-File-Grenze ist aufgehoben: `index.html` ist der eine, einzige
+Einstiegspunkt und trägt sowohl die Engine als auch die Editor-Shell (Topbar/Rail/
+Inspector) im selben Dokument — kein `<iframe>` mehr. Installation, Offline-Lifecycle,
+Editor-Panels und weitere Runtime-Module leben in eigenen Dateien unter `runtime/` und
+`editor/`. Dadurch können räumliche Systeme und die Engine selbst schrittweise nach
+Verantwortlichkeit modularisiert werden, ohne eine zweite Shader- oder
+Materialwahrheit einzuführen.
 Interaktion (Runde 4): `WASD` weckt die Spielfigur (Fußspuren, Trampelpfade, Schneedellen), `Leertaste` Sprint (Laub stiebt, Früchte fallen), `F` bzw. 🔥 Feuer-Tool entzündet Lagerfeuer (Warmlicht, Rauch, Brandspuren; Regen löscht). Ohne Eingabe bleibt SHADED ein reines Ambient-Stück.
 
 **Spatial Export:** Der Button **🌌 PointCloud** exportiert aus Szenenfarbe + geladener Tiefenkarte ein lokales JSON-Point-Cloud-Format (`SHADED.spatial-point-cloud.v1`) mit Position, Farbe, Punktgröße, Alpha und Confidence. Programmatic API: `SHADED.spatial.pointCloud({step,fovDegrees})` und `SHADED.spatial.downloadPointCloud()`. Das übernimmt aus dem Zip nur die funktional nützliche Depth→Point-Cloud-Idee – ohne Android-/Three.js-Runtime und ohne verdeckte Rückseiten vorzutäuschen.

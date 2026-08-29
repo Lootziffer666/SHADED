@@ -12,7 +12,7 @@ const CI_SCENE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAA
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const rel = urlPath === '/' ? 'editor/index.html' : urlPath.replace(/^\//, '');
+  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
   const p = path.join(REPO, rel);
   try {
     const data = fs.readFileSync(p);
@@ -40,21 +40,24 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
   page.on('pageerror', e => { errors.push('PAGEERROR: ' + e.message); console.log('PAGEERROR:', e.message); });
 
   try {
-    await page.goto('http://localhost:8932/editor/index.html', { waitUntil: 'load' });
-    await page.locator('#engine-frame').waitFor({ state: 'attached', timeout: 15000 });
-    await page.waitForFunction(() => document.getElementById('engine-frame')?.contentWindow?.SHADED, { timeout: 15000 });
+    await page.goto('http://localhost:8932/index.html', { waitUntil: 'load' });
+    await page.waitForFunction(() => !!window.SHADED, { timeout: 15000 });
 
     const shell = await page.evaluate(() => ({
       storyButton: !!document.getElementById('tool-story'),
       timelineDock: !!document.getElementById('timeline-dock'),
       worldDemo: !!document.getElementById('world-demo'),
       providerFiles: !!document.getElementById('world-provider-files'),
-      providerFolder: !!document.getElementById('world-provider-folder')
+      providerFolder: !!document.getElementById('world-provider-folder'),
+      linkEditor: !!document.getElementById('link-editor'),
+      engineFrame: !!document.getElementById('engine-frame'),
     }));
     check('Story-Button ist entfernt', !shell.storyButton);
     check('Timeline-Dock ist entfernt', !shell.timelineDock);
     check('World Studio hat direkten Demo-Button', shell.worldDemo);
     check('World Studio kann bestehende DA2/DA3-Dateien laden', shell.providerFiles && shell.providerFolder);
+    check('Kein "Editor öffnen"-Link mehr (SHADED ist der Editor, ein Dokument)', !shell.linkEditor);
+    check('Keine iframe-Engine mehr (Canvas läuft im selben Dokument)', !shell.engineFrame);
 
     await page.locator('#world-demo').click();
     await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 15000 });
@@ -69,20 +72,26 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
     await page.locator('#world-generate').click();
     await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, { timeout: 60000 });
     check('World Studio erzeugt ohne manuelle Depth-Datei eine Welt', true);
-    check('Raumansicht endet direkt im Laufmodus', await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.spatial.viewer.state().mode === 'walk'));
+    check('Raumansicht endet direkt im Laufmodus', await page.evaluate(() => window.SHADED.spatial.viewer.state().mode === 'walk'));
 
-    const before = await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.getParams().storm);
-    // World Studio hides the legacy rail + inspector by default; ERWEITERT reveals them.
+    const before = await page.evaluate(() => window.SHADED.getParams().storm);
+    // World Studio hides Rail + Inspector standardmäßig; ERWEITERT deckt sie auf und
+    // klappt sein eigenes Panel ein — kurz warten, bis das Einklappen abgeschlossen ist,
+    // sonst überlappt der World-Studio-Header noch den ersten Rail-Button.
     await page.locator('.world-studio-expert').click();
+    await page.waitForFunction(() => document.getElementById('world-studio')?.classList.contains('collapsed'), { timeout: 10000 }).catch(() => {});
     await page.locator('.rail-btn[data-target="panel-world"]').waitFor({ state: 'visible', timeout: 10000 });
     await page.locator('.rail-btn[data-target="panel-world"]').click();
     await page.locator('#panel-world').waitFor({ state: 'visible', timeout: 10000 });
-    // Sliders start disabled; enable them once the engine is ready.
-    await page.evaluate(() => { document.querySelectorAll('#sliders input[type=range]').forEach(el => el.disabled = false); });
-    await page.locator('#p-storm').waitFor({ state: 'attached', timeout: 10000 });
-    await page.fill('#p-storm', '0.9');
-    await page.dispatchEvent('#p-storm', 'input');
-    const after = await page.evaluate(() => document.getElementById('engine-frame').contentWindow.SHADED.getParams().storm);
+    // #sliders wird von runtime/shaded-engine.mjs selbst befüllt (s-<key>/v-<key>),
+    // nicht mehr von einer zweiten editor/app.js-Implementierung dupliziert. Die
+    // Engine legt für dieselbe ID zusätzlich einen unsichtbaren Body-Stub an
+    // (ENGINE_STUB_IDS läuft vor dem eigenen Slider-Builder) — auf #sliders
+    // scopen, um den echten, sichtbaren Regler eindeutig zu treffen.
+    await page.locator('#sliders input#s-storm').waitFor({ state: 'attached', timeout: 10000 });
+    await page.fill('#sliders input#s-storm', '90');
+    await page.dispatchEvent('#sliders input#s-storm', 'input');
+    const after = await page.evaluate(() => window.SHADED.getParams().storm);
     check(`Parameter bleibt live verdrahtet (${before} -> ${after})`, Math.abs(after - 0.9) < 1e-6);
 
     await page.screenshot({ path: path.join(OUT, 'editor_world_studio.png') });

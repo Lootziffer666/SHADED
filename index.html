@@ -1,318 +1,305 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b0b12">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
 <meta name="application-name" content="SHADED">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>SHADED – Ein Bild. Erstellen. Lebendig.</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/shaded.svg" type="image/svg+xml">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0b0b12;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;height:100vh;overflow:hidden}
-#sidebar{width:330px;padding:14px;overflow-y:auto;background:#12121f;border-right:1px solid #23233a;flex-shrink:0;transition:margin-left .35s ease}
-body.cinema #sidebar{margin-left:-330px}
-#stage{flex:1;display:flex;align-items:center;justify-content:center;background:#05050a;position:relative;padding:12px}
-#canvas-wrap{position:relative;display:flex;max-width:100%;max-height:100%}
-canvas#gl{max-width:100%;max-height:100%;display:block;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.85)}
-canvas#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:6px}
-canvas#ov.firetool{pointer-events:auto;cursor:crosshair}
-/* Runde 10: Dialog-Box (SCUMM-artige Textbox am unteren Rand) */
-#dialogue-box{position:absolute;left:6%;right:6%;bottom:6%;background:rgba(8,10,16,.86);border:1px solid rgba(255,255,255,.18);
-  border-radius:8px;padding:14px 18px;font-family:'Segoe UI',system-ui,sans-serif;color:#f2f2f5;cursor:pointer;
-  box-shadow:0 8px 30px rgba(0,0,0,.5);backdrop-filter:blur(2px)}
-#dialogue-box.hidden{display:none}
-#dialogue-speaker{font-weight:700;font-size:13px;letter-spacing:.04em;color:#7dd3fc;margin-bottom:4px;min-height:1em}
-#dialogue-speaker.direction{color:#9aa;font-style:italic;font-weight:400}
-#dialogue-text{font-size:15px;line-height:1.5;min-height:1.5em;white-space:pre-wrap}
-#dialogue-hint{margin-top:8px;font-size:11px;color:#8a8f9c;text-align:right}
-#drop-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4b4b6b;font-size:15px;pointer-events:none;gap:8px;text-align:center}
-#drop-hint b{color:#7dd3fc;font-size:22px}
-h1{font-size:17px;letter-spacing:3px;color:#7dd3fc;margin-bottom:2px}
-.sub{font-size:10px;color:#64648a;margin-bottom:12px}
-h2{color:#7dd3fc;margin:14px 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;border-top:1px solid #23233a;padding-top:10px}
-button{background:#1e1e32;color:#cbd5e1;border:1px solid #2e2e4a;padding:7px 10px;cursor:pointer;border-radius:6px;font-size:11px;transition:all .15s}
-button:hover{background:#2a2a44;border-color:#7dd3fc55}
-button.primary{background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;font-weight:700;font-size:14px;width:100%;padding:12px;box-shadow:0 4px 18px rgba(14,165,233,.35)}
-button.primary:hover{filter:brightness(1.15)}
-button.primary:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
-button.active{background:#7dd3fc;color:#0b0b12;font-weight:700}
-input[type=file]{font-size:10px;width:100%;margin:4px 0;background:#181828;padding:6px;border:1px dashed #33334f;border-radius:6px;color:#889}
-.acts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
-.acts button{text-align:left;font-size:10.5px;padding:8px}
-.c{margin:7px 0}
-.c label{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:2px}
-.c .v{color:#7dd3fc;font-weight:600}
-.c input[type=range]{width:100%;accent-color:#7dd3fc}
-#status{background:#181828;border-left:3px solid #7dd3fc;padding:7px 9px;font-size:10px;color:#a9b4c9;border-radius:0 6px 6px 0;margin:10px 0;min-height:30px}
-details{margin-top:8px}
-summary{cursor:pointer;font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;border-top:1px solid #23233a}
-.story-step{background:#181828;border:1px solid #26263e;border-radius:6px;padding:7px;margin:5px 0;font-size:10px}
-.story-step.playing{border-color:#7dd3fc}
-.story-step .row{display:flex;gap:4px;align-items:center;margin-bottom:4px}
-.story-step input[type=text]{flex:1;background:#101020;border:1px solid #2a2a42;color:#cbd5e1;font-size:10px;padding:3px 5px;border-radius:4px}
-.story-step input[type=number]{width:44px;background:#101020;border:1px solid #2a2a42;color:#cbd5e1;font-size:10px;padding:3px;border-radius:4px}
-.story-step .bar{height:3px;background:#101020;border-radius:2px;overflow:hidden;margin-top:5px}
-.story-step .bar div{height:100%;width:0;background:#7dd3fc}
-.btnrow{display:flex;gap:5px;margin:6px 0}
-.btnrow button{flex:1}
-#exit-cinema{position:absolute;top:16px;right:16px;display:none;z-index:10;border-radius:50%;width:38px;height:38px;font-size:15px}
-body.cinema #exit-cinema{display:block}
-#rec{position:absolute;top:16px;left:16px;display:none;background:rgba(239,68,68,.92);color:#fff;padding:5px 12px;border-radius:5px;font-size:10px;font-weight:700;animation:blink 1s infinite;z-index:10}
-#showcase-card{position:absolute;left:24px;bottom:24px;max-width:min(420px,calc(100% - 48px));padding:14px 16px;border:1px solid rgba(125,211,252,.35);
-  border-radius:12px;background:linear-gradient(135deg,rgba(7,10,20,.82),rgba(17,24,39,.62));box-shadow:0 18px 50px rgba(0,0,0,.55);
-  backdrop-filter:blur(4px);opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease;pointer-events:none;z-index:9}
-#showcase-card.show{opacity:1;transform:translateY(0)}
-#showcase-kicker{font-size:10px;color:#7dd3fc;text-transform:uppercase;letter-spacing:2px;margin-bottom:5px}
-#showcase-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:4px}
-#showcase-copy{font-size:12px;line-height:1.45;color:#cbd5e1}
-#spatial-viewer{position:absolute;inset:18px;z-index:30;background:#070912;border:1px solid #334155;border-radius:12px;overflow:hidden;box-shadow:0 24px 80px #000}
-#spatial-viewer[hidden]{display:none}
-#spatial-canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
-#spatial-canvas:active{cursor:grabbing}
-#spatial-help{position:absolute;left:12px;bottom:10px;padding:7px 10px;border-radius:6px;background:#080b12cc;color:#a5b4c7;font-size:10px;pointer-events:none}
-#spatial-close{position:absolute;right:10px;top:10px;z-index:2}
-#spatial-walk{position:absolute;right:112px;top:10px;z-index:2}
-#spatial-map{position:absolute;left:12px;top:12px;width:150px;height:150px;border:1px solid #475569;border-radius:6px;background:#080b12;cursor:crosshair}
-#spatial-map[hidden]{display:none}
-#spatial-pipeline{position:absolute;left:12px;top:12px;width:224px;max-height:calc(100% - 58px);overflow:auto;padding:9px;background:#080b12dd;border:1px solid #334155;border-radius:7px;font-size:10px}
-#spatial-map:not([hidden])~#spatial-pipeline{top:174px;max-height:calc(100% - 220px)}
-#spatial-pipeline-buttons{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:6px 0}
-#spatial-pipeline button{padding:4px 5px;font-size:9px;text-align:left}#spatial-pipeline button.active{border-color:#38bdf8;color:#bae6fd;background:#0c4a6e}
-#spatial-representation{margin-top:5px;padding:5px 6px;border:1px solid #475569;border-radius:4px;background:#111827;color:#facc15;font:600 8px/1.35 ui-monospace,monospace;letter-spacing:.04em}
-#spatial-stage-copy{color:#cbd5e1;line-height:1.35;min-height:42px}
-#spatial-laws{position:absolute;right:12px;bottom:12px;width:260px;max-height:88%;overflow:auto;padding:9px;background:#080b12dd;border:1px solid #334155;border-radius:7px;font-size:10px}
-#spatial-laws label{display:flex;justify-content:space-between;gap:8px;margin:4px 0}#spatial-laws input{width:110px}#spatial-laws select{background:#111827;color:#cbd5e1;border:1px solid #334155}
-#spatial-scene-list{display:grid;gap:3px;margin:5px 0}#spatial-scene-list div{display:flex;justify-content:space-between;background:#111827;padding:3px 5px}#spatial-log{height:82px;overflow:auto;white-space:pre-wrap;background:#030712;color:#93c5fd;padding:5px;margin-top:5px}
-@keyframes blink{50%{opacity:.35}}
-@media(max-width:720px){body{flex-direction:column}#sidebar{width:100%;height:52vh;order:2}#stage{height:48vh;order:1}}
-</style>
+<link rel="stylesheet" href="editor/editor.css?v=9">
+<link rel="stylesheet" href="editor/viewport-first.css?v=8">
+<link rel="stylesheet" href="editor/drawer-handle.css?v=2">
+<link rel="stylesheet" href="editor/world-studio.css?v=1">
+<link rel="stylesheet" href="editor/world-studio-shell.css?v=1">
+<link rel="stylesheet" href="editor/world-studio-imports.css?v=1">
+<link rel="stylesheet" href="editor/engine-shell.css?v=1">
 </head>
 <body>
-<div id="sidebar">
-  <h1>SHADED</h1>
-  <div class="sub">Ein Bild. Shader. Raum-Prototyp.</div>
-  <button id="btn-install" type="button" hidden
-          style="width:100%;margin:4px 0 6px;border-color:#0ea5e9;color:#7dd3fc">
-    ⬇️ SHADED installieren
-  </button>
-  <!-- Der Editor ist ein eigenes Autorenwerkzeug (editor/), das diese Seite
-       unveraendert per iframe einbettet. Ohne diesen Link ist er nur ueber eine
-       manuell getippte URL erreichbar - er sah dadurch aus, als gaebe es ihn nicht. -->
-  <a id="link-editor" href="editor/index.html"
-     style="display:block;margin:6px 0 2px;padding:6px 8px;border:1px solid #2b3550;border-radius:4px;
-            color:#8fb4ff;text-decoration:none;font-size:11px;text-align:center">
-    🎛️ SHADED Editor öffnen
-  </a>
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Parameter-Tuning, Marker malen, Actor-Platzierung, Story-Timeline, Materialschicht.</div>
+<header class="topbar">
+  <div class="brand" aria-label="SHADED">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span>SHADED</span>
+  </div>
+  <div class="engine-state" id="engine-state"><span class="state-dot"></span><span>ENGINE</span></div>
+  <div class="top-actions">
+    <button class="ghost compact" id="btn-install" type="button" hidden title="SHADED als App installieren">INSTALLIEREN</button>
+    <button class="ghost compact" id="btn-room-view" type="button" title="Welt erzeugen/beitreten">RAUM</button>
+    <button class="primary compact" id="btn-erstellen" type="button">ERSTELLEN</button>
+  </div>
+</header>
 
-  <h2>1 · Bild</h2>
-  <input type="file" id="f-scene" accept="image/*" title="Szenenbild laden">
-  <input type="file" id="f-mat" accept="image/*" title="Optional: gemalte Material-Map">
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Zweite Datei optional – zwei Formate: volle Material-Map (kanonische Palette) ODER eine Kopie der Szene, in der nur die Fenster pink (#F972E9) übermalt sind. Ohne Zweitbild analysiert SHADED alles selbst.</div>
-  <input type="file" id="f-depth" accept="image/*" title="Optional: 2.5D-Tiefenkarte (Weiß = nah, Schwarz = fern)">
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Dritte Datei optional: relative Tiefenkarte (Weiß = nah) für 2.5D-Parallaxe. Liegt neben <code>bild.png</code> eine <code>bild_depth.png</code>, wird sie geladen – ebenso eine optionale <code>bild_shading.png</code>. Ohne Tiefenkarte bleibt die Bildwelt 2D; die Raumansicht bricht ab. SHADED erzeugt hier keine Tiefe selbst.</div>
-  <button id="btn-demo" style="width:100%">🖼️ Demo-Dorf laden (aus Repo)</button>
+<main class="editor-shell">
+  <nav class="tool-rail" aria-label="Werkzeuge">
+    <button class="rail-btn" type="button" data-target="panel-source" title="Quelle"><span>◫</span><b>Quelle</b></button>
+    <button class="rail-btn" type="button" data-target="panel-world" title="Welt"><span>◎</span><b>Welt</b></button>
+    <button class="rail-btn" type="button" data-target="panel-worldlaws" title="Weltgesetze &amp; Akte"><span>⚖</span><b>Gesetze</b></button>
+    <button class="rail-btn" type="button" data-target="panel-story" title="Storyboard &amp; Aufnahme"><span>▶</span><b>Story</b></button>
+    <button class="rail-btn" type="button" data-target="panel-paint" title="Material korrigieren"><span>✎</span><b>Korr.</b></button>
+    <button class="rail-btn" type="button" data-target="panel-actors" title="Akteure"><span>♟</span><b>Actor</b></button>
+  </nav>
 
-  <h2>Akteur (SWIFT)</h2>
-  <input type="file" id="f-actor-sheet" accept="image/*" title="Sprite-Sheet PNG (aus SWIFT: python main.py render ... --format sprite_sheet)">
-  <input type="file" id="f-actor-manifest" accept="application/json" title="Zugehöriges Manifest JSON (SWIFT erzeugt es automatisch als <output>_manifest.json)">
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Erst Sprite-Sheet, dann Manifest wählen – fügt einen animierten Akteur aus einem SWIFT-Render zur Szene hinzu.</div>
-
-  <h2>Ökosystem (Runde 7)</h2>
-  <button id="btn-eco-cats" style="width:100%">🐱 Katzen-Schwarm</button>
-  <button id="btn-eco-enemies" style="width:100%">👿 Feinde (Blob, Ratte, Wolf)</button>
-  <button id="btn-eco-npcs" style="width:100%">🧑 NPCs (Bürger, Barkeeper, Kaufmann)</button>
-  <button id="btn-eco-heroes" style="width:100%">⚔️ Helden (Nib, Brugg, Vellum)</button>
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Spawnt mehrere animierte Charaktere mit verschiedenen Tiefenschichten aus GAIME-Assets.</div>
-
-  <h2>Phase B2: Depth-Rendering</h2>
-  <button id="btn-eco-depth-test" style="width:100%">🔍 Depth-Map Test (v1.4.0)</button>
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Zeigt Manifest v1.4.0 mit depthImage + depthFrameRects. 4 Frames: Nah (dunkel/warm) → Fern (hell/cool).</div>
-
-  <h2>2 · Erstellen</h2>
-  <button id="btn-create" class="primary">✨ Erstellen</button>
-  <div id="status">Lade ein Bild und drücke „Erstellen“.</div>
-
-  <h2>Akte</h2>
-  <div class="acts">
-    <button data-act="tag">☀️ Goldener Tag</button>
-    <button data-act="aufzug">🌩️ Sturm zieht auf</button>
-    <button data-act="sturmnacht">⛈️ Sturmnacht</button>
-    <button data-act="morgen">🌫️ Morgengrauen</button>
-    <button data-act="danach">💧 Der Tag danach</button>
-    <button data-act="verfall">🌿 Jahre später</button>
-    <button data-act="fruehling">🌸 Frühlingsmorgen</button>
-    <button data-act="herbst">🍁 Goldener Herbst</button>
-    <button data-act="schnee">❄️ Erster Schnee</button>
-    <button id="btn-showcase">🎪 Showcase (90s)</button>
-    <button id="btn-year">📅 Ein Jahr (Loop)</button>
-    <button id="btn-timelapse">⏳ Zeitraffer-Verfall</button>
-    <button id="btn-drama">⚡ Drama-Spektakel (20s)</button>
-  </div>
-
-  <h2>Interaktion</h2>
-  <div style="font-size:9px;color:#667;line-height:1.5">WASD/Pfeile: Figur (erscheint beim ersten Tastendruck) · Leertaste: Sprint · F: Feuer an der Figur</div>
-  <div class="btnrow">
-    <button id="btn-fire">🔥 Feuer-Tool</button>
-    <button id="btn-clear-world">🧹 Spuren löschen</button>
-  </div>
-
-  <h2>Elemente · visuelle Regeln</h2>
-  <div class="btnrow">
-    <button data-element="fluid">💧 Flüssigkeit</button>
-    <button data-element="steam">♨️ Dampf</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="pressure">🫧 Druck</button>
-    <button data-element="heat">🔥 Hitze</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="mud">🟤 Matsch</button>
-    <button data-element="ice">🧊 Eis</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="snow">❄️ Schnee</button>
-    <button data-element="fire">🔥 Feuer</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="smoke">🌫️ Rauch</button>
-    <button data-element="ember">🪵 Glut</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="lava">🌋 Lava</button>
-    <button data-element="rain">🌧️ Regen</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="hail">🧊 Hagel</button>
-    <button data-element="leaves">🍂 Blätter</button>
-  </div>
-  <div class="btnrow">
-    <button data-element="lightning">⚡ Blitze</button>
-    <button id="btn-elements-clear">🧼 Reset</button>
-  </div>
-  <div style="font-size:9px;color:#556;margin-bottom:4px">Presets sind keine importierten Tool-Kopien: sie treiben SHADEDs eigene Parameter, Trail-Textur, Partikel und World-Law-Uniforms an.</div>
-
-  <h2>Storyboard</h2>
-  <div class="btnrow">
-    <button id="btn-play">▶ Abspielen</button>
-    <button id="btn-add">➕ Schritt</button>
-    <label style="font-size:10px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="cb-loop" checked> Loop</label>
-  </div>
-  <div id="story-list"></div>
-
-  <h2>Aufnahme</h2>
-  <div class="btnrow">
-    <button id="btn-cinema">🎬 Kino (K)</button>
-    <button id="btn-png">📸 PNG</button>
-    <button id="btn-rec">🔴 WebM</button>
-  </div>
-  <div class="btnrow">
-    <button id="btn-json">💾 Parameter (JSON)</button>
-    <button id="btn-pointcloud">🌌 PointCloud</button>
-  </div>
-  <button id="btn-spatial-view" style="width:100%">🧭 POINTS-Raum ansehen</button>
-
-  <details>
-    <summary>Experten-Regler</summary>
-    <div id="sliders"></div>
-  </details>
-</div>
-
-<div id="stage">
-  <div id="rec">🔴 REC</div>
-  <button id="exit-cinema" title="Kino-Modus verlassen">⚙️</button>
-  <div id="showcase-card" aria-live="polite">
-    <div id="showcase-kicker">SHADED Showcase</div>
-    <div id="showcase-title">Ein Bild wird räumlicher Prototyp.</div>
-    <div id="showcase-copy">Bildshader und der getrennte begehbare Raum-Prototyp zeigen ihre erzeugten Anteile offen.</div>
-  </div>
-  <div id="spatial-viewer" hidden aria-label="Freie räumliche Kamera">
-    <canvas id="spatial-canvas"></canvas>
-    <button id="spatial-close" type="button">✕ Schließen</button>
-    <button id="spatial-walk" type="button">🚶 Lauf-Modus</button>
-    <canvas id="spatial-map" width="180" height="180" hidden title="Klicken, um per Dijkstra dorthin zu laufen"></canvas>
-    <div id="spatial-pipeline" aria-label="Sichtbare Stufen der Räumlichkeit">
-      <strong>So entsteht der Raum</strong>
-      <div id="spatial-representation">VIEW POINTS · SCALE RELATIVE · CAMERA UNKNOWN · RELIABILITY UNKNOWN</div>
-      <div id="spatial-pipeline-buttons">
-        <button type="button" data-spatial-stage="input">1 · Bildpunkte</button>
-        <button type="button" data-spatial-stage="depth">2 · Tiefenhinweis</button>
-        <button type="button" data-spatial-stage="normals">3 · Richtungen</button>
-        <button type="button" data-spatial-stage="components">4 · Gruppen</button>
-        <button type="button" data-spatial-stage="primitive">5 · Grobformen</button>
-        <button type="button" data-spatial-stage="mirror">6 · Spiegelhülle</button>
-        <button type="button" data-spatial-stage="voxels">7 · Raumzellen</button>
-        <button type="button" data-spatial-stage="fields">8 · Weltfelder</button>
-        <button type="button" data-spatial-stage="nav">9 · Begehbarkeit</button>
-        <button type="button" data-spatial-stage="boundary">10 · Baumgrenze</button>
-        <button type="button" data-spatial-stage="sky">11 · Himmel</button>
-        <button type="button" data-spatial-stage="final" class="active">12 · Zusammengesetzt</button>
+  <section class="viewport" aria-label="Live Vorschau">
+    <div id="preview-wrap">
+      <div id="stage">
+        <div id="rec">🔴 REC</div>
+        <button id="exit-cinema" type="button" title="Kino-Modus verlassen">⚙️</button>
+        <div id="showcase-card" aria-live="polite">
+          <div id="showcase-kicker">SHADED Showcase</div>
+          <div id="showcase-title">Ein Bild wird räumlicher Prototyp.</div>
+          <div id="showcase-copy">Bildshader und der getrennte begehbare Raum-Prototyp zeigen ihre erzeugten Anteile offen.</div>
+        </div>
+        <div id="spatial-viewer" hidden aria-label="Freie räumliche Kamera">
+          <canvas id="spatial-canvas"></canvas>
+          <button id="spatial-close" type="button">✕ Schließen</button>
+          <button id="spatial-walk" type="button">🚶 Lauf-Modus</button>
+          <canvas id="spatial-map" width="180" height="180" hidden title="Klicken, um per Dijkstra dorthin zu laufen"></canvas>
+          <div id="spatial-pipeline" aria-label="Sichtbare Stufen der Räumlichkeit">
+            <strong>So entsteht der Raum</strong>
+            <div id="spatial-representation">VIEW POINTS · SCALE RELATIVE · CAMERA UNKNOWN · RELIABILITY UNKNOWN</div>
+            <div id="spatial-pipeline-buttons">
+              <button type="button" data-spatial-stage="input">1 · Bildpunkte</button>
+              <button type="button" data-spatial-stage="depth">2 · Tiefenhinweis</button>
+              <button type="button" data-spatial-stage="normals">3 · Richtungen</button>
+              <button type="button" data-spatial-stage="components">4 · Gruppen</button>
+              <button type="button" data-spatial-stage="primitive">5 · Grobformen</button>
+              <button type="button" data-spatial-stage="mirror">6 · Spiegelhülle</button>
+              <button type="button" data-spatial-stage="voxels">7 · Raumzellen</button>
+              <button type="button" data-spatial-stage="fields">8 · Weltfelder</button>
+              <button type="button" data-spatial-stage="nav">9 · Begehbarkeit</button>
+              <button type="button" data-spatial-stage="boundary">10 · Baumgrenze</button>
+              <button type="button" data-spatial-stage="sky">11 · Himmel</button>
+              <button type="button" data-spatial-stage="final" class="active">12 · Zusammengesetzt</button>
+            </div>
+            <div id="spatial-stage-copy">Alle Stufen gemeinsam. Beobachtetes und Erzeugtes bleiben in den Daten getrennt.</div>
+          </div>
+          <div id="spatial-laws">
+            <label><span>Raumgrenze</span><input id="spatial-boundary" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+            <label><span>Form</span><select id="spatial-boundary-form"><option value="trees">Bäume</option><option value="rocks">Felsen</option></select></label>
+            <label><span>Geometrie-Dicke</span><input id="spatial-thickness" type="range" min="0.005" max="0.15" step="0.005" value="0.035"></label>
+            <label><span>Textur-Patchmix</span><input id="spatial-texture-blend" type="range" min="0" max="1" step="0.05" value="0.75"></label>
+            <label><span>Reproduktions-Seed</span><input id="spatial-seed" type="number" min="0" max="4294967295" step="1" value="17"></label>
+            <div id="spatial-fit-status">Geometrie noch nicht gefittet.</div>
+            <div id="spatial-performance">FPS: — · Punkte: —</div>
+            <details><summary>Voxel-Pinsel · Pointer/XP-Pen</summary>
+              <button id="spatial-paint" type="button" style="width:100%">🖊️ Malen aktivieren</button>
+              <label><span>Material</span><select id="spatial-paint-material"><option value="wood">Holz</option><option value="rock">Fels</option><option value="grass">Gras</option><option value="water">Wasser</option><option value="user">Farbe</option><option value="erase">Radieren</option></select></label>
+              <label><span>Radius</span><input id="spatial-paint-radius" type="range" min="0.01" max="0.20" step="0.005" value="0.055"></label>
+              <label><span>Deckkraft</span><input id="spatial-paint-opacity" type="range" min="0.05" max="1" step="0.05" value="0.80"></label>
+              <label><span>Farbe</span><input id="spatial-paint-color" type="color" value="#8b5a2b"></label>
+              <div id="spatial-pressure">Druck: — · Neigung: —</div>
+              <div><button id="spatial-undo" type="button">↶ Undo</button><button id="spatial-redo" type="button">↷ Redo</button></div>
+              <button id="spatial-voxel-export" type="button">Voxel-Projekt exportieren</button>
+              <input id="spatial-voxel-import" type="file" accept="application/json" title="SHADED Sparse-Voxel-Projekt oder Provider-Bundle importieren">
+            </details>
+            <label><span>Vegetation</span><input id="spatial-vegetation" type="range" min="0" max="1" step="0.05" value="0.65"></label>
+            <label><span>Kronenbiegung</span><input id="spatial-canopy-flex" type="range" min="0" max="1" step="0.05" value="0.60"></label>
+            <label><span>Windrichtung °</span><input id="spatial-wind-direction" type="range" min="0" max="359" step="1" value="0"></label>
+            <label><span>Blitzrate</span><input id="spatial-lightning-rate" type="range" min="0" max="1" step="0.05" value="0.15"></label>
+            <label><span>Tier-Urin</span><input id="spatial-urine-rate" type="range" min="0" max="1" step="0.05" value="0.08"></label>
+            <label><span>Blut-Eintrag</span><input id="spatial-blood-rate" type="range" min="0" max="1" step="0.05" value="0"></label>
+            <label><span>Regen löscht</span><input id="spatial-rain-extinguish" type="range" min="0" max="2" step="0.1" value="1"></label>
+            <label><span>Zeitraffer</span><input id="spatial-time-scale" type="range" min="1" max="30" step="1" value="8"></label>
+            <div><button id="spatial-now-lightning">⚡ Jetzt</button><button id="spatial-now-blood">🩸 Jetzt</button><button id="spatial-now-urine">🦌 Jetzt</button></div>
+            <button id="spatial-seasons" type="button" style="width:100%">🌸 Jahreszeiten-Showcase</button>
+            <div id="spatial-season-status">Manuelle Weltzeit</div>
+            <details><summary>Szenen zusammenklicken</summary>
+              <select id="spatial-scene-season"><option>Frühling</option><option>Sommer</option><option>Herbst</option><option>Winter</option><option>Tauwetter</option></select>
+              <select id="spatial-scene-event"><option value="none">nur Saison</option><option value="lightning">Blitz</option><option value="storm">Sturm</option><option value="fire">Feuer</option><option value="blood">Blut</option><option value="urine">Waldtiere/Urin</option><option value="regrow">Zuwachsen</option></select>
+              <input id="spatial-scene-duration" type="number" min="1" max="60" value="6" style="width:48px"><button id="spatial-scene-add">+ Szene</button>
+              <div id="spatial-scene-list"></div>
+              <label><span>Aufnahme (s)</span><input id="spatial-record-duration" type="number" min="5" max="300" value="45"></label>
+              <button id="spatial-record" type="button" style="width:100%">🔴 Showcase aufnehmen</button>
+            </details>
+            <details open><summary>Änderungslog</summary><pre id="spatial-log"></pre></details>
+          </div>
+          <div id="spatial-help">Orbit: Ziehen/Shift+Ziehen/Mausrad · Laufen: WASD + Mausblick · Karte: Dijkstra-Ziel</div>
+        </div>
+        <div id="canvas-wrap">
+          <canvas id="gl" width="16" height="9"></canvas>
+          <canvas id="ov" width="16" height="9"></canvas>
+          <div id="dialogue-box" class="hidden">
+            <div id="dialogue-speaker"></div>
+            <div id="dialogue-text"></div>
+            <div id="dialogue-hint">▶ weiter (Leertaste / Klick)</div>
+          </div>
+        </div>
+        <div id="drop-hint"><b>SHADED</b><span>Bild rechts laden,<br>dann „ERSTELLEN“ drücken.</span></div>
       </div>
-      <div id="spatial-stage-copy">Alle Stufen gemeinsam. Beobachtetes und Erzeugtes bleiben in den Daten getrennt.</div>
+      <div id="actor-overlay"></div>
     </div>
-    <div id="spatial-laws">
-      <label><span>Raumgrenze</span><input id="spatial-boundary" type="range" min="0" max="1" step="0.05" value="0.35"></label>
-      <label><span>Form</span><select id="spatial-boundary-form"><option value="trees">Bäume</option><option value="rocks">Felsen</option></select></label>
-      <label><span>Geometrie-Dicke</span><input id="spatial-thickness" type="range" min="0.005" max="0.15" step="0.005" value="0.035"></label>
-      <label><span>Textur-Patchmix</span><input id="spatial-texture-blend" type="range" min="0" max="1" step="0.05" value="0.75"></label>
-      <label><span>Reproduktions-Seed</span><input id="spatial-seed" type="number" min="0" max="4294967295" step="1" value="17"></label>
-      <div id="spatial-fit-status">Geometrie noch nicht gefittet.</div>
-      <div id="spatial-performance">FPS: — · Punkte: —</div>
-      <details><summary>Voxel-Pinsel · Pointer/XP-Pen</summary>
-        <button id="spatial-paint" type="button" style="width:100%">🖊️ Malen aktivieren</button>
-        <label><span>Material</span><select id="spatial-paint-material"><option value="wood">Holz</option><option value="rock">Fels</option><option value="grass">Gras</option><option value="water">Wasser</option><option value="user">Farbe</option><option value="erase">Radieren</option></select></label>
-        <label><span>Radius</span><input id="spatial-paint-radius" type="range" min="0.01" max="0.20" step="0.005" value="0.055"></label>
-        <label><span>Deckkraft</span><input id="spatial-paint-opacity" type="range" min="0.05" max="1" step="0.05" value="0.80"></label>
-        <label><span>Farbe</span><input id="spatial-paint-color" type="color" value="#8b5a2b"></label>
-        <div id="spatial-pressure">Druck: — · Neigung: —</div>
-        <div><button id="spatial-undo" type="button">↶ Undo</button><button id="spatial-redo" type="button">↷ Redo</button></div>
-        <button id="spatial-voxel-export" type="button">Voxel-Projekt exportieren</button>
-        <input id="spatial-voxel-import" type="file" accept="application/json" title="SHADED Sparse-Voxel-Projekt oder Provider-Bundle importieren">
-      </details>
-      <label><span>Vegetation</span><input id="spatial-vegetation" type="range" min="0" max="1" step="0.05" value="0.65"></label>
-      <label><span>Kronenbiegung</span><input id="spatial-canopy-flex" type="range" min="0" max="1" step="0.05" value="0.60"></label>
-      <label><span>Windrichtung °</span><input id="spatial-wind-direction" type="range" min="0" max="359" step="1" value="0"></label>
-      <label><span>Blitzrate</span><input id="spatial-lightning-rate" type="range" min="0" max="1" step="0.05" value="0.15"></label>
-      <label><span>Tier-Urin</span><input id="spatial-urine-rate" type="range" min="0" max="1" step="0.05" value="0.08"></label>
-      <label><span>Blut-Eintrag</span><input id="spatial-blood-rate" type="range" min="0" max="1" step="0.05" value="0"></label>
-      <label><span>Regen löscht</span><input id="spatial-rain-extinguish" type="range" min="0" max="2" step="0.1" value="1"></label>
-      <label><span>Zeitraffer</span><input id="spatial-time-scale" type="range" min="1" max="30" step="1" value="8"></label>
-      <div><button id="spatial-now-lightning">⚡ Jetzt</button><button id="spatial-now-blood">🩸 Jetzt</button><button id="spatial-now-urine">🦌 Jetzt</button></div>
-      <button id="spatial-seasons" type="button" style="width:100%">🌸 Jahreszeiten-Showcase</button>
-      <div id="spatial-season-status">Manuelle Weltzeit</div>
-      <details><summary>Szenen zusammenklicken</summary>
-        <select id="spatial-scene-season"><option>Frühling</option><option>Sommer</option><option>Herbst</option><option>Winter</option><option>Tauwetter</option></select>
-        <select id="spatial-scene-event"><option value="none">nur Saison</option><option value="lightning">Blitz</option><option value="storm">Sturm</option><option value="fire">Feuer</option><option value="blood">Blut</option><option value="urine">Waldtiere/Urin</option><option value="regrow">Zuwachsen</option></select>
-        <input id="spatial-scene-duration" type="number" min="1" max="60" value="6" style="width:48px"><button id="spatial-scene-add">+ Szene</button>
-        <div id="spatial-scene-list"></div>
-        <label><span>Aufnahme (s)</span><input id="spatial-record-duration" type="number" min="5" max="300" value="45"></label>
-        <button id="spatial-record" type="button" style="width:100%">🔴 Showcase aufnehmen</button>
-      </details>
-      <details open><summary>Änderungslog</summary><pre id="spatial-log"></pre></details>
-      <div>Rückseite: bewusst einfache, dunkel markierte Spiegelhülle (`GENERATED`) · Grobformen: lokale Richtungen + zusammenhängende Formschätzung</div>
+    <div class="viewport-hud hud-left">
+      <span class="hud-kicker">LIVE VIEW</span>
+      <span id="viewport-status">Engine wird geladen …</span>
     </div>
-    <div id="spatial-help">Orbit: Ziehen/Shift+Ziehen/Mausrad · Laufen: WASD + Mausblick · Karte: Dijkstra-Ziel</div>
-  </div>
-  <div id="canvas-wrap">
-    <canvas id="gl" width="16" height="9"></canvas>
-    <canvas id="ov" width="16" height="9"></canvas>
-    <div id="dialogue-box" class="hidden">
-      <div id="dialogue-speaker"></div>
-      <div id="dialogue-text"></div>
-      <div id="dialogue-hint">▶ weiter (Leertaste / Klick)</div>
+    <div class="viewport-hud hud-right">
+      <button id="btn-inspector-mobile" class="hud-button" type="button" aria-expanded="false">PARAMETER</button>
     </div>
-  </div>
-  <div id="drop-hint"><b>SHADED</b><span>Bild hierher ziehen oder links laden,<br>dann „✨ Erstellen“ drücken.</span></div>
-</div>
+  </section>
+
+  <aside class="inspector" id="inspector" aria-label="Inspector">
+    <div class="inspector-head">
+      <div><span class="eyebrow">INSPECTOR</span><strong>Scene / World</strong></div>
+      <button class="inspector-toggle" id="btn-inspector-toggle" type="button" aria-label="Inspector ein-/ausklappen" aria-expanded="false">⌄</button>
+    </div>
+    <div class="inspector-scroll">
+      <section class="inspector-section section-collapsed" id="panel-source">
+        <div class="section-title"><span>01</span><h2>Quelle & Szene</h2></div>
+        <div class="action-grid two">
+          <button id="btn-demo" type="button">Demo laden</button>
+          <label class="file-btn"><span>Bild laden</span><input id="f-scene" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Zweitbild</span><input id="f-mat" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Tiefenkarte</span><input id="f-depth" type="file" accept="image/*"></label>
+        </div>
+        <p class="hint">Zweitbild optional: volle Material-Map oder eine Kopie der Szene mit pink übermalten Fenstern. Tiefenkarte optional: Weiß = nah, für die 2.5D-Parallaxe und den Raummodus. Ohne Tiefenkarte bleibt die Bildwelt 2D; die Raumansicht bricht ab. SHADED erzeugt hier keine Tiefe selbst.</p>
+        <div class="action-grid two secondary-actions">
+          <label class="file-btn"><span>Preset laden</span><input id="f-preset" type="file" accept="application/json"></label>
+          <button id="btn-save-preset" type="button">Preset speichern</button>
+        </div>
+        <div id="status" class="status-line">Lade ein Bild und drücke „Erstellen“.</div>
+        <div id="editor-status" class="status-line subtle"></div>
+      </section>
+
+      <section class="inspector-section section-collapsed" id="panel-world">
+        <div class="section-title"><span>02</span><h2>Weltparameter</h2></div>
+        <div id="sliders" class="param-stack"></div>
+      </section>
+
+      <section class="inspector-section section-collapsed" id="panel-worldlaws">
+        <div class="section-title"><span>03</span><h2>Weltgesetze & Akte</h2></div>
+        <p class="hint">Akte sind kuratierte Parameter-Kombinationen (siehe docs/vision-weltgesetze.md). Elemente lösen einzelne Weltgesetze direkt aus.</p>
+        <div class="acts">
+          <button data-act="tag">☀️ Goldener Tag</button>
+          <button data-act="aufzug">🌩️ Sturm zieht auf</button>
+          <button data-act="sturmnacht">⛈️ Sturmnacht</button>
+          <button data-act="morgen">🌫️ Morgengrauen</button>
+          <button data-act="danach">💧 Der Tag danach</button>
+          <button data-act="verfall">🌿 Jahre später</button>
+          <button data-act="fruehling">🌸 Frühlingsmorgen</button>
+          <button data-act="herbst">🍁 Goldener Herbst</button>
+          <button data-act="schnee">❄️ Erster Schnee</button>
+        </div>
+        <h3 class="hint" style="margin-top:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:9px">Elemente · visuelle Regeln</h3>
+        <div class="eco-grid">
+          <button data-element="fluid">💧 Flüssigkeit</button>
+          <button data-element="steam">♨️ Dampf</button>
+          <button data-element="pressure">🫧 Druck</button>
+          <button data-element="heat">🔥 Hitze</button>
+          <button data-element="mud">🟤 Matsch</button>
+          <button data-element="ice">🧊 Eis</button>
+          <button data-element="snow">❄️ Schnee</button>
+          <button data-element="fire">🔥 Feuer</button>
+          <button data-element="smoke">🌫️ Rauch</button>
+          <button data-element="ember">🪵 Glut</button>
+          <button data-element="lava">🌋 Lava</button>
+          <button data-element="rain">🌧️ Regen</button>
+          <button data-element="hail">🧊 Hagel</button>
+          <button data-element="leaves">🍂 Blätter</button>
+          <button data-element="lightning">⚡ Blitze</button>
+          <button id="btn-elements-clear" type="button">🧼 Reset</button>
+        </div>
+        <h3 class="hint" style="margin-top:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:9px">Interaktion</h3>
+        <p class="hint">WASD/Pfeile: Figur (erscheint beim ersten Tastendruck) · Leertaste: Sprint · F: Feuer an der Figur.</p>
+        <div class="btnrow">
+          <button id="btn-fire" type="button">🔥 Feuer-Tool</button>
+          <button id="btn-clear-world" type="button">🧹 Spuren löschen</button>
+        </div>
+        <h3 class="hint" style="margin-top:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:9px">Ökosystem (Runde 7)</h3>
+        <div class="eco-grid">
+          <button id="btn-eco-cats" type="button">🐱 Katzen-Schwarm</button>
+          <button id="btn-eco-enemies" type="button">👿 Feinde</button>
+          <button id="btn-eco-npcs" type="button">🧑 NPCs</button>
+          <button id="btn-eco-heroes" type="button">⚔️ Helden</button>
+        </div>
+        <button id="btn-eco-depth-test" type="button" class="wide" style="margin-top:6px">🔍 Depth-Map Test (v1.4.0)</button>
+      </section>
+
+      <section class="inspector-section material-section section-collapsed" id="panel-material">
+        <div class="section-title"><span>04</span><h2>Material / Licht</h2></div>
+        <p class="hint">Trennt eingebackenes Licht von Materialwirkung. 0 bleibt der unveränderte Fallback.</p>
+        <div class="material-control">
+          <div class="control-label"><label for="intrinsic-strength">Trennung</label><output id="intrinsic-value">0.00</output></div>
+          <input id="intrinsic-strength" type="range" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="action-grid three">
+          <button id="btn-intrinsic-ab" type="button">A/B</button>
+          <button id="btn-intrinsic-accept" type="button">Bestätigen</button>
+          <button id="btn-intrinsic-reset" type="button">Reset</button>
+        </div>
+        <div id="intrinsic-status" class="status-line subtle">Noch keine Zerlegung.</div>
+      </section>
+
+      <section class="inspector-section section-collapsed" id="panel-paint">
+        <div class="section-title"><span>05</span><h2>Materialkorrektur</h2></div>
+        <p class="hint">Hier markierst du falsch erkannte Materialbereiche. Die aktuelle Szene wird beim Öffnen automatisch übernommen.</p>
+        <div class="action-grid two">
+          <label class="file-btn"><span>Anderes Bild</span><input id="f-paint-source" type="file" accept="image/*"></label>
+          <button id="btn-paint-clear" type="button">Zurücksetzen</button>
+        </div>
+        <div id="palette-buttons"></div>
+        <div class="brush-row"><label for="brush-size">Pinsel</label><input id="brush-size" type="range" min="2" max="60" value="12"></div>
+        <canvas id="paint-canvas" width="640" height="360"></canvas>
+        <div class="action-grid two"><button id="btn-paint-export" type="button">PNG exportieren</button><button class="accent" id="btn-paint-apply" type="button">Auf Szene anwenden</button></div>
+      </section>
+
+      <section class="inspector-section section-collapsed" id="panel-actors">
+        <div class="section-title"><span>06</span><h2>Akteure</h2></div>
+        <div class="action-grid two">
+          <label class="file-btn"><span>Sprite Sheet</span><input id="f-actor-sheet-editor" type="file" accept="image/*"></label>
+          <label class="file-btn"><span>Manifest</span><input id="f-actor-manifest-editor" type="file" accept="application/json"></label>
+        </div>
+        <button class="wide accent" id="btn-actor-add" type="button">Actor hinzufügen</button>
+        <p class="hint">Actor-Marker direkt in der Vorschau ziehen.</p>
+        <div id="actor-list"></div>
+      </section>
+
+      <section class="inspector-section section-collapsed" id="panel-story">
+        <div class="section-title"><span>07</span><h2>Storyboard & Aufnahme</h2></div>
+        <div class="btnrow">
+          <button id="btn-play" type="button">▶ Abspielen</button>
+          <button id="btn-add" type="button">➕ Schritt</button>
+          <label style="font-size:10px;display:flex;align-items:center;gap:4px;color:var(--muted)"><input type="checkbox" id="cb-loop" checked> Loop</label>
+        </div>
+        <div id="story-list"></div>
+        <div class="action-grid two secondary-actions">
+          <button id="btn-showcase" type="button">🎪 Showcase (90s)</button>
+          <button id="btn-year" type="button">📅 Ein Jahr (Loop)</button>
+          <button id="btn-timelapse" type="button">⏳ Zeitraffer-Verfall</button>
+          <button id="btn-drama" type="button">⚡ Drama-Spektakel</button>
+        </div>
+        <h3 class="hint" style="margin-top:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:9px">Aufnahme</h3>
+        <div class="btnrow">
+          <button id="btn-cinema" type="button">🎬 Kino (K)</button>
+          <button id="btn-png" type="button">📸 PNG</button>
+          <button id="btn-rec" type="button">🔴 WebM</button>
+        </div>
+        <div class="btnrow">
+          <button id="btn-json" type="button">💾 Parameter (JSON)</button>
+          <button id="btn-pointcloud" type="button">🌌 PointCloud</button>
+        </div>
+        <button id="btn-spatial-view" type="button" class="wide">🧭 POINTS-Raum ansehen</button>
+      </section>
+    </div>
+  </aside>
+</main>
 
 <script>console.log("[SHADED] index.html loaded");</script>
 <script type="module" src="runtime/shaded-engine.mjs"></script>
 <script type="module" src="runtime/spatial-viewer.js"></script>
-<script type="module" src="runtime/install.js"></script>
+<script type="module" src="runtime/spatial-solid-runtime.js?v=7"></script>
+<script type="module" src="runtime/install.js?v=9"></script>
+<script type="module" src="editor/app.js?v=9"></script>
+<script type="module" src="editor/world-room-gate.js?v=2"></script>
+<script type="module" src="editor/ui-shell.js?v=9"></script>
+<script type="module" src="editor/ux-fixes.js?v=9"></script>
+<script type="module" src="editor/drawer-handle.js?v=3"></script>
+<script type="module" src="editor/world-studio.js?v=4"></script>
+<script type="module" src="editor/world-studio-bridge-settings.js?v=1"></script>
+<script type="module" src="editor/material-preview-live.js?v=1"></script>
+<script type="module" src="editor/world-studio-expert.js?v=2"></script>
 
 </body>
 </html>
