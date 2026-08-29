@@ -199,7 +199,7 @@ function weatherPseudoDepthAt(u,v){
   switch(window.SHADED.depthLayerAt(u,v)){
     case 'near': return 0.85;
     case 'mid': return 0.5;
-    case 'structural': return 0.3;
+    case 'structural': return 0.9; // vor der Wetterebene — dieselbe Annahme, die weatherOccludedAt() trifft
     case 'far': return 0.1;
     default: return 0.5; // 'unknown' bzw. keine Szene geladen — neutral
   }
@@ -332,7 +332,7 @@ function snowTick(dt){
         for(const o of snowflakes){ if(o.settled && Math.hypot(o.u-s.u,o.v-s.v)<0.018) neighbors++; }
         s.settled = true; settledCount++;
         s.layer = Math.min(4, neighbors);
-        s.v -= s.layer*0.003; // Schichten wachsen sichtbar leicht nach oben
+        s.v = Math.max(0.002, s.v - s.layer*0.003); // Schichten wachsen sichtbar leicht nach oben
         s.vv = 0; s.vu = 0;
         continue;
       }
