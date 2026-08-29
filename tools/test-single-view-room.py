@@ -32,6 +32,8 @@ import os
 import sys
 import tempfile
 
+import numpy as np  # noqa: E402
+
 sys.path.insert(0, os.path.dirname(__file__))
 import single_view_room as svr  # noqa: E402
 from PIL import Image  # noqa: E402
@@ -109,6 +111,43 @@ if not crashed:
           raum.get("deckenhoehe") is None, raum.get("deckenhoehe"))
     check("Stuetzenraster wird NICHT als Zahl ausgegeben (UNKNOWN statt geraten)",
           raum.get("stuetzenreihen_abstand") is None, raum.get("stuetzenreihen_abstand"))
+
+print("\nTest 4: Bild ganz ohne Kanten (flaechige Farbe, keinerlei Gradient) -- muss den ECHTEN status=\"declined\"-")
+print("Pfad erreichen (Test 3 oben erreicht nur den Plausibilitaets-Degrade-Pfad, nicht diesen).")
+print("Der Bericht muss trotzdem ALLE erwarteten Top-Level-Felder tragen (wenn auch als None) --")
+print("das ist genau der Vertrag, den die 'IMMER ein strukturierter Bericht'-Zusicherung im")
+print("Docstring verspricht; vor dem Fix war der Bericht im declined-Fall nur {status, grund}.")
+ERWARTETE_FELDER = {
+    "status", "fluchtpunkt", "hauptpunkt", "wand_boden_fuge", "wand_decken_fuge",
+    "deckenhoehe_je_kamerahoehe", "leuchtbaender", "spiegelprobe", "stuetzen",
+    "raster", "bodenraster", "massstab", "raum_je_kamerahoehe", "raum_meter",
+    "nicht_messbar",
+}
+with tempfile.TemporaryDirectory() as td:
+    # WICHTIG: Zufallsrauschen ist HIER die falsche Wahl -- es hat zwar keine echten
+    # Kanten, aber genug zufaellige lokale Gradienten-Variation, dass Hough trotzdem
+    # >=6 "Linien" ueber der Schwelle findet (per Versuch bestaetigt, nicht vermutet:
+    # ein erster Entwurf mit rng.random(...) erreichte status="measured" mit lauter
+    # Zufallstreffern statt "declined"). Eine WIRKLICH flaeche Flaeche (kein Gradient
+    # ueberhaupt) ist der richtige Fall fuer "zu wenige konvergierende Linien".
+    flaeche = np.full((300, 400, 3), 128, dtype=np.uint8)
+    pfad_flaeche = os.path.join(td, "flaeche.png")
+    Image.fromarray(flaeche, mode="RGB").save(pfad_flaeche)
+    try:
+        _, _, bericht4 = svr.vermessen(pfad_flaeche, 0.6)
+        crashed4 = False
+    except Exception as e:  # noqa: BLE001
+        crashed4 = True
+        bericht4 = {}
+        print(f"  Ausnahme: {e}")
+    check("kein Absturz", not crashed4)
+    if not crashed4:
+        check("status == declined (der echte fruehe Ausstieg, nicht nur ein Degrade)",
+              bericht4.get("status") == "declined", bericht4.get("status"))
+        check("grund ist ein nicht-leerer String", bool(bericht4.get("grund")), bericht4.get("grund"))
+        fehlend = ERWARTETE_FELDER - set(bericht4.keys())
+        check("alle erwarteten Top-Level-Felder vorhanden (kein KeyError fuer Aufrufer)",
+              not fehlend, f"fehlend: {fehlend}" if fehlend else "vollstaendig")
 
 print()
 print("❌ test-single-view-room FAILED" if failed else "✅ test-single-view-room PASSED")

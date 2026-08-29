@@ -795,7 +795,20 @@ def vermessen(pfad, anker_fliese_m):
     mag = np.hypot(gx, gy)
     lf = Linienfeld(mag)
 
-    bericht = {}
+    # Immer ALLE Top-Level-Felder vorbesetzen (auf "nichts gemessen"), bevor irgendein
+    # frueher Ausstieg (status="declined") moeglich ist. Ohne das war der Bericht im
+    # abgelehnten Fall nur {"status", "grund"} gross -- ein Verstoss gegen das eigene
+    # Versprechen "vermessen() gibt IMMER einen strukturierten Bericht zurueck" (siehe
+    # Docstring): ein Aufrufer, der z.B. bericht["bodenraster"] liest, ohne zuerst auf
+    # status="declined" zu pruefen, bekaeme einen KeyError statt eines sauberen None.
+    bericht = {
+        "status": "measured", "fluchtpunkt": None, "hauptpunkt": None,
+        "wand_boden_fuge": None, "wand_decken_fuge": None,
+        "deckenhoehe_je_kamerahoehe": None, "leuchtbaender": None,
+        "spiegelprobe": None, "stuetzen": None, "raster": None,
+        "bodenraster": None, "massstab": None, "raum_je_kamerahoehe": None,
+        "raum_meter": None, "nicht_messbar": [],
+    }
 
     # --- Fluchtpunkt --------------------------------------------------------
     kand = []
