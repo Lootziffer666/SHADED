@@ -3,6 +3,28 @@
 SHADED macht aus EINEM 2D-Bild per WebGL-Shader eine lebendige, atmende Szene
 (Environmental Storytelling). Kernversprechen: **Bild laden → „✨ Erstellen” → die Szene lebt.**
 
+## Referenzdokument: `docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md`
+
+Dieses Dokument ist die ausführliche Architektur- und Denkmodell-Referenz für SHADED
+(Kernprinzipien: „One image. One small world.", Reconstruct in dependency order,
+OBSERVED/DERIVED/INFERRED/INVENTED/UNKNOWN, Provider als Werkzeuge statt Autorität,
+Falsifizierbarkeit) und für BEUTELTIER, die davon abgeleitete, separate Erweiterung
+für große raumübergreifende Rekonstruktion aus chaotischem Foto-/Videomaterial (z. B.
+Messehallen) mit vielen Providern. BEUTELTIER ist ein eigenständiges, größeres Problem
+auf derselben epistemischen Grundlage – keine Neudefinition von SHADEDs Kernziel.
+**Das Dokument bestätigt und schärft explizit Entscheidungen, die in diesem Repo
+bereits umgesetzt sind:** Single-SHADED-UI (`index.html` ist der Editor, kein
+Engine-plus-Editor-Zwilling), „eine Wahrheit heißt eine Semantik, nicht eine Datei",
+Legacy-Code als klassifizierter Capability-Donor (A: extrahieren, B: nur bei
+nachweisbarer Überlegenheit, C: nicht migrieren ohne verifizierten Ersatz), inkrementelle
+Extraktion mit Verifikations-Checkpoints statt Big-Bang-Rewrite, und die
+WorldState→Solver→MaterialResponse→StyleProfile→TechniqueRegistry→RenderBudget-Kette
+aus `runtime/style/`. Es hält außerdem ausdrücklich fest: **Projektregeln wie dieses
+Dokument sind abgeleitete Verfassung, keine höherwertige Wahrheit als eine explizite
+neue Architekturentscheidung des Maintainers** – bei Widerspruch wird CLAUDE.md
+korrigiert, nicht die neue Architektur zurückgebogen. Nicht verhandelbar bleiben davon
+unberührt: Kernziel, Provenance-Trennung, Material-Wahrheit, Observability.
+
 ## SWIFT→SHADED Integration
 
 SHADED ist nun das **Rendering-Ziel für procedural generierte Charaktere** aus SWIFT
