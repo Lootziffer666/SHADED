@@ -200,3 +200,93 @@ node tools/verify.js          # Regression: Engine unverändert, Klassen ±10 %
 `tools/verify-editor.js` (HTTP-Server + Playwright/Chromium+SwiftShader,
 PASS/FAIL je Kriterium, Exit-Code ≠ 0 bei FAIL) und prüft zusätzlich einen
 schmalen mobilen Viewport (390×844).
+
+## Produktionsintegration (`runtime/style/production-adapter.js`)
+
+Der Adapter, den dieses Dokument bisher als offenen Punkt führte ("Ein
+späterer Task darf einen Adapter ergänzen, der dasselbe StyleProfile auf den
+Produktionsrenderer anwendet") — jetzt real, für **genau einen** migrierten
+Legacy-Effekt, nicht als Big Bang:
+
+```text
+CUR (SHADEDs Weltzustand)
+  → worldStateForShadedClass() je der 8 SHADED-Klassen (grass/foliage/roof/
+    path/wood/window/water/rock, siehe SHADED_CLASS_TO_MATERIAL_KIND)
+  → deriveMaterialResponse() — ACHT echte, aus CUR abgeleitete Responses
+    (kein Grid, keine Pro-Pixel-Kosten)
+  → styleUniformsForShader(profile, budgetTier, responses)
+  → sieben neue Uniforms im bestehenden Fragmentshader
+    (u_specStyleIntensity/-Mode, u_specWeightRoof/Path/Rock/Wood, u_shadowWarmth)
+```
+
+**Migriert (Migration 1 von vielen — CLAUDE.md Invariante 1: alte Effekte
+werden ersetzt, sobald ein echter, verifizierter Ersatz da ist, nicht
+pauschal):**
+
+- **Specular-Sheen** (`LegacyCompositePass` Schritt 3). Vorher: vier
+  Materialmasken (roof/path/rock/wood) gleich gewichtet, Intensität
+  hartkodiert `0.28 - 0.16*night`. Jetzt: die relative Stärke je Material
+  kommt aus der echten `MaterialResponse.roughness`/`.reflectance` (glatter +
+  reflektiver = stärkerer Glanzpunkt), Kurvenform (`specular.mode`: glatt vs.
+  gebändert) und Gesamtstärke (`specular.intensity`) kommen aus dem
+  StyleProfile, budgetabhängig über `RenderBudget.substitute()` skaliert.
+  Beim Default-Profil (`specular.intensity=0.5`) ergibt sich exakt SHADEDs
+  alter Maximalwert (0.28) — eine nachweisbare Fortsetzung, keine stille
+  Neukalibrierung.
+- **Warm/Kalt-Schattenrampe** (`shadow.warmth`, StyleProfile-
+  Identitätsdimension) — neu in `grade()`, tönt nur dunkle Bildbereiche,
+  bei `warmth=0` (Default) exakt No-Op.
+
+**Beim Pflicht-Verifikationsschritt gefunden, nicht vermutet:** ein
+direkter Vergleich von `shot_sturmnacht.png` gegen das Zielbild
+`file_00000000b27471f4a8aeb27484b46720.png` zeigte, dass roof/path/rock in
+der generischen MaterialKind-Taxonomie alle `STONE` sind — das Zielbild
+zeigt aber glasierte Dachziegel deutlich glänzender als rohes
+Pflaster/Fels. Ohne Korrektur wären Dächer nach der Migration SICHTBARER
+STUMPFER als vorher gewesen (die alte Gleichgewichtung kannte den
+Unterschied zwar auch nicht, deckte roof aber wenigstens gleich stark ab
+wie path/rock). `SPECULAR_SURFACE_FINISH` in `production-adapter.js`
+korrigiert das mit einem dokumentierten, bildkanon-begründeten
+Aufschlag für `roof` — eine Verfeinerung innerhalb der Style-Schicht, keine
+zweite Materialwahrheit (`classGrid` bleibt unberührt).
+
+**`window.SHADED.style`** — macht ein in der Sandbox gefundenes StyleProfile
+auf eine echte geladene Szene anwendbar (genau der Schritt, der Style
+Discovery vom Experiment zum Feature macht):
+
+```js
+window.SHADED.style.get()          // aktuelles Profil (Kopie)
+window.SHADED.style.set(profile)   // vollständiges, valides StyleProfile (kein Teil-Patch)
+window.SHADED.style.getBudget()    // 'FULL' | 'MOBILE'
+window.SHADED.style.setBudget(t)   // RenderBudget.substitute() wird ab da angewandt
+```
+
+**Verifikation:**
+
+```bash
+node tools/test-production-adapter.mjs   # reine Logik: 22 Prüfungen, deterministisch
+node tools/verify-style-adapter.js       # echter Renderer: API-Form, specular.intensity=0
+                                          # entfernt Sheen sichtbar, MOBILE dimmt ihn (nicht 0),
+                                          # shadow.warmth wirkt budget-UNABHÄNGIG identisch
+```
+
+**Bewusst NICHT Teil dieser Migration** (nächste Schritte, einzeln):
+
+- Palette/Bänder/Rim/Outline/Post-Dimensionen hängen noch an keinem
+  Produktionseffekt — nur `specular.*` und `shadow.warmth` wirken bisher.
+- Die Nässe-Abdunklung selbst (`LegacyCompositePass` Schritt 2) ist NICHT
+  migriert — sie ist SHADEDs am stärksten von den Zielbildern abhängige
+  Kernwirkung ("Nässe dunkelt poröse Materialien deutlich ab", siehe
+  `tools/verify.js`-Kriterien); eine Migration braucht eine eigene,
+  sorgfältige Kalibrierung gegen dieselben Zielbilder, kein Nebenprodukt
+  dieser Migration.
+- `deriveProductionMaterialResponses()` berechnet bereits alle acht
+  Kanäle (wetness/char/rust/frost/...), nicht nur die für Specular
+  genutzten `roughness`/`reflectance` — die übrigen Kanäle sind vorbereitet,
+  aber noch an keinen Shader-Pfad angeschlossen.
+- Kein gemeinsamer Lauf mit der Ein-Bild-Rekonstruktionslinie
+  (`docs/first-glimpse-depth-layers.md`, `tools/single_view_room.py`) — die
+  beiden Fortschrittslinien (Weltrekonstruktion aus einem Bild und
+  Stil-Discovery) laufen weiterhin unabhängig; ihr Zusammenführen
+  („1 Bild → Welt → StyleProfile → Renderer → begehbare Szene") ist eine
+  eigene, spätere Aufgabe.
