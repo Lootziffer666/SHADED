@@ -1,5 +1,11 @@
 // SHADED Engine Module — single source of truth for shaders/materials (Invariante 7).
 import {buildRelativePointCloud} from './spatial-point-cloud.mjs';
+// Wiederverwendung statt einer dritten Flood-Fill-Implementierung (Exp. 2, siehe
+// docs/first-glimpse-depth-layers.md): dieselbe getestete 8-Konnektivitäts-Komponentensuche,
+// die runtime/hall-plan/plan-analyzer.mjs für Grundrisse nutzt, ist bild-/domänenunabhängig
+// (arbeitet auf einer reinen 0/255-Maske + {width,height}) und eignet sich unverändert für
+// classGrid-abgeleitete Masken.
+import {connectedComponents} from './hall-plan/plan-analyzer.mjs';
 
 const ENGINE_STUB_IDS=["sliders","s-dayNight","v-dayNight","s-storm","v-storm","s-rain","v-rain","s-wet","v-wet","s-puddle","v-puddle","s-fog","v-fog","s-wind","v-wind","s-glow","v-glow","s-decay","v-decay","s-snow","v-snow","s-snowfall","v-snowfall","s-temperature","v-temperature","s-autumn","v-autumn","s-bloom","v-bloom","s-bleach","v-bleach","btn-create","btn-demo","btn-fire","btn-clear-world","btn-elements-clear","btn-add","btn-cinema","exit-cinema","btn-png","btn-rec","btn-json","btn-pointcloud","btn-showcase","btn-year","btn-timelapse","btn-drama","btn-play","cb-loop","btn-eco-cats","btn-eco-enemies","btn-eco-npcs","btn-eco-heroes","btn-eco-depth-test","f-scene","f-mat","f-depth","f-actor-sheet","f-actor-manifest","gl","ov","rec","showcase-card","showcase-title","showcase-copy","showcase-kicker","dialogue-box","dialogue-speaker","dialogue-text","dialogue-hint","drop-hint","status","stage","story-list","spatial-viewer","spatial-canvas","spatial-close","spatial-walk","spatial-map","spatial-pipeline","spatial-pipeline-buttons","spatial-stage-copy","spatial-laws","spatial-fit-status","spatial-performance","spatial-seasons","spatial-season-status","spatial-scene-season","spatial-scene-event","spatial-scene-duration","spatial-scene-add","spatial-scene-list","spatial-record-duration","spatial-record","spatial-paint","spatial-paint-material","spatial-paint-radius","spatial-paint-opacity","spatial-paint-color","spatial-pressure","spatial-undo","spatial-redo","spatial-voxel-export","spatial-voxel-import","spatial-boundary","spatial-thickness","spatial-texture-blend","spatial-seed","spatial-vegetation","spatial-canopy-flex","spatial-wind-direction","spatial-lightning-rate","spatial-urine-rate","spatial-blood-rate","spatial-rain-extinguish","spatial-time-scale","spatial-now-lightning","spatial-now-blood","spatial-now-urine","spatial-help","spatial-log"];
 function createEngineDOM(){if(document.getElementById("gl")&&document.getElementById("ov"))return;
@@ -1122,6 +1128,11 @@ let skyRegionFound=false;          // true nur, wenn K7 tatsächlich eine Himmel
 const LAYER_NEAR=0, LAYER_MID=1, LAYER_FAR=2, LAYER_STRUCTURAL=3, LAYER_UNKNOWN=4;
 const LAYER_NAMES=['near','mid','far','structural','unknown'];
 let layerGrid=null;
+// Exp. 2: zusammenhängende Regionen INNERHALB jeder Exp.-1-Schicht (statt verstreuter
+// Einzelpixel derselben Schicht) — z. B. "dieses Dach" statt "irgendein STRUCTURAL-Pixel".
+// componentGrid[j] ist 1-basiert (0 = unter minArea gefiltert, kein Rauschfleck erfasst).
+let layerRegions=[];
+let componentGrid=null;
 
 /* --- Materialschicht: Intrinsic Decomposition -----------------------------
    Siehe docs/neuronale-materialien-svbrdf-pbr.md. Das Quellbild enthält
@@ -2092,6 +2103,7 @@ function analyze(){
   uploadTex(7,TEX.zone,AW,AH,tZ);
   uploadMaterialTexture();
   buildLayerGrid();
+  buildLayerRegions();
   ready=true;
   applyPendingShading();   // ueberschreibt das eingebaute Backend, wenn ein Feld daneben lag
 }
@@ -2137,6 +2149,50 @@ function buildLayerGrid(){
       default:                 layerGrid[j]=LAYER_UNKNOWN;
     }
   }
+}
+
+// Exp. 2 (docs/first-glimpse-depth-layers.md): innerhalb jeder Exp.-1-Schicht die
+// tatsächlich zusammenhängenden Regionen finden — "dieses eine Dach", nicht "40000
+// verstreute STRUCTURAL-Pixel". Läuft die bereits getestete Komponentensuche einmal pro
+// Schicht (near/mid/far/structural/unknown), da sie eine binäre 0/255-Maske erwartet.
+// minArea skaliert mit der Bildfläche statt eines festen Pixelwerts (Invariante aus
+// docs/bildkanon.md: nichts an feste Rastergrößen binden), damit dieselbe relative
+// Rausch-Schwelle bei jeder Analyseauflösung gilt.
+function buildLayerRegions(){
+  layerRegions=[];
+  componentGrid=null;
+  if(!layerGrid) return;
+  componentGrid=new Int32Array(AW*AH);
+  const shape={width:AW,height:AH};
+  const minArea=Math.max(16, Math.round(AW*AH*0.0015));
+  const mask=new Uint8Array(AW*AH);
+  let nextId=1;
+  for(let li=0; li<LAYER_NAMES.length; li++){
+    for(let j=0;j<AW*AH;j++) mask[j]=(layerGrid[j]===li)?255:0;
+    const comps=connectedComponents(shape,mask,minArea);
+    const label=comps.labelGrid;
+    // Lokale (pro Schicht) Labels sind nicht global eindeutig -> auf componentGrid mit
+    // fortlaufender globaler ID umschreiben, während wir ohnehin einmal drüberlaufen.
+    const idFor=new Map();
+    for(const c of comps){ idFor.set(c.id, nextId); nextId++; }
+    for(let j=0;j<AW*AH;j++){
+      const localId=label[j];
+      if(!localId) continue;
+      const globalId=idFor.get(localId);
+      if(!globalId) continue; // sollte nicht vorkommen: minArea hat labelGrid selbst schon gefiltert
+      componentGrid[j]=globalId;
+    }
+    for(const c of comps){
+      layerRegions.push({
+        id: idFor.get(c.id),
+        layer: LAYER_NAMES[li],
+        pixels: c.pixels,
+        bbox: { minU:c.minX/AW, minV:c.minY/AH, maxU:(c.maxX+1)/AW, maxV:(c.maxY+1)/AH },
+        centroid: { u:(c.sumX/c.pixels)/AW, v:(c.sumY/c.pixels)/AH }
+      });
+    }
+  }
+  layerRegions.sort((a,b)=>b.pixels-a.pixels);
 }
 
 // =========================== Storyboard ====================
@@ -3245,6 +3301,16 @@ window.SHADED = {
     if(!layerGrid) return out;
     for(let j=0;j<layerGrid.length;j++) out[LAYER_NAMES[layerGrid[j]]]++;
     return out;
+  },
+  // Exp. 2: zusammenhängende Regionen je Schicht — größte zuerst. Kopien statt Referenzen,
+  // damit Aufrufer layerRegions nicht versehentlich mutieren.
+  depthRegions:()=>layerRegions.map(r=>({...r, bbox:{...r.bbox}, centroid:{...r.centroid}})),
+  depthRegionAt:(u,v)=>{
+    if(!componentGrid) return null;
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    const id=componentGrid[y*AW+x];
+    return id ? id : null;
   },
   // 2.5D: Tiefenkarte + Parallaxe (deterministisch für Tests steuerbar)
   parallax:{ set:(x,y)=>{ parallaxTarget.x=x; parallaxTarget.y=y;

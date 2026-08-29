@@ -54,7 +54,7 @@ Vollständiges Audit-Protokoll (drei Recherche-Agenten, Chat-Transkript dieser S
 |---|---|---|
 | 0 | Baseline: `classGrid` + optionale Companion-Tiefenkarte + einzelne Flat-Plane-Parallaxe + Wetter als Screen-Space-Overlay mit binärer Landeprüfung | Heutiger Stand vor dieser Datei, per `tools/verify.js` gemessen |
 | **1** | **Grobe `NEAR/MID/FAR/STRUCTURAL/UNKNOWN`-Schicht, DERIVED aus `classGrid`/`zoneGrid`/`skyGrid` — keine neue Erkennung** | **✅ Umgesetzt, siehe unten** |
-| 2 | Zusammenhängende Occlusion-/Tiefen-Layer (Connected Components über der Exp.-1-Schicht statt verstreuter Einzelpixel) | Geplant, noch nicht begonnen |
+| **2** | **Zusammenhängende Occlusion-/Tiefen-Layer (Connected Components über der Exp.-1-Schicht statt verstreuter Einzelpixel)** | **✅ Umgesetzt, siehe unten** |
 | 3 | Wetterpartikel bekommen `worldZ` aus der Exp.-2-Schicht statt Screen-Space-Bewegung (Aufgabe 2 des Maintainer-Briefings) | Geplant, noch nicht begonnen |
 | 4 | Generalisierter (nicht `messehalle.png`-fest verdrahteter) Fluchtpunkt-Detektor, nur falls Exp. 1–3 nicht reichen und das Bild echte Zentralperspektive zeigt | Zurückgestellt, niedrige erwartete Wirkung für SHADEDs isometrische Testbilder |
 
@@ -99,3 +99,52 @@ liest, nie schreibt.
 - Kein neuer Fluchtpunkt-/Hough-Code (Exp. 4, niedrige Priorität für SHADEDs Bildstil).
 - Keine der als BROKEN/Stub befundenen Provider wurden repariert — sie werden erst
   angefasst, wenn eine spätere Stufe sie tatsächlich braucht.
+
+## Exp. 2 — Umsetzung
+
+Statt einer dritten Flood-Fill-Implementierung: Wiederverwendung der bereits getesteten
+8-Konnektivitäts-Komponentensuche aus `runtime/hall-plan/plan-analyzer.mjs:connectedComponents`
+(bisheriger einziger Aufrufer: `PlanAnalyzer.analyze()` für Grundrisse — bild-/domänenunabhängig,
+arbeitet nur auf einer 0/255-Maske + `{width,height}`). Erweiterung dort nicht-brechend: die
+Funktion hängt jetzt zusätzlich `comps.labelGrid` (das interne Pixel→Komponenten-Label-Array)
+an das zurückgegebene Array an, damit Aufrufer, die pro Pixel wissen müssen, zu welcher
+Komponente er gehört, die Flood-Fill nicht ein zweites Mal schreiben müssen. Dabei wurde eine
+O(Pixel × Anzahl_verworfener_Kleinkomponenten)-Falle vermieden (erster Entwurf scannte bei jeder
+unter `minArea` verworfenen Komponente das gesamte Bild neu) — die finale Fassung sammelt
+akzeptierte Label in einem `Set` und bereinigt verworfene in einem einzigen abschließenden
+O(Pixel)-Durchlauf. `tests/hall-plan-tests.mjs` (34/34) bestätigt: keine Verhaltensänderung für
+den bestehenden Aufrufer.
+
+`buildLayerRegions()` (`runtime/shaded-engine.mjs`, läuft direkt nach `buildLayerGrid()`) ruft
+`connectedComponents()` einmal pro Exp.-1-Schicht auf (5 Aufrufe, da die Funktion eine binäre
+Maske erwartet), sammelt alle Komponenten über alle Schichten in einer global eindeutig
+ID-nummerierten Liste (`layerRegions`, größte zuerst) und schreibt die Pixel→Region-Zuordnung in
+`componentGrid`. `minArea` skaliert mit der Bildfläche (0,15 % der Pixelzahl, mindestens 16) statt
+eines festen Werts — dieselbe relative Rausch-Schwelle bei jeder Analyseauflösung.
+
+**Öffentliches API:** `window.SHADED.depthRegions()` (Kopie der Regionsliste: `{id, layer, pixels,
+bbox:{minU,minV,maxU,maxV}, centroid:{u,v}}`, absteigend nach Pixelzahl) und
+`window.SHADED.depthRegionAt(u,v)` (Region-ID an einer UV-Position, `null` ohne Szene oder
+außerhalb jeder Region).
+
+**Beweis:** `node tools/verify-depth-layers.js`, sieben neue Prüfungen (sichere Defaults vor
+`erstellen()`, ≥3 Regionen im himmel-losen Testbild, absteigende Sortierung, bbox/centroid-
+Plausibilität, Pixelsumme ≤ Gesamtpixelzahl, `depthRegionAt()` am Schwerpunkt der größten Region
+liefert deren eigene ID und stimmt mit `depthLayerAt()` überein, eindeutige IDs) — alle bestanden,
+zusammen mit den neun Exp.-1-Prüfungen. `tools/verify.js` unverändert grün (fünf Szenen, keine
+Konsolenfehler).
+
+**Reale Messung** (Testbild ohne Himmel, `768×432` Analyseauflösung, 331.776 Pixel): 23 Regionen
+gefunden, 318.333 der 331.776 Pixel einer Region zugeordnet (Rest unter `minArea`-Schwelle als
+Rauschen verworfen). Größte Region: 93.039 Pixel, Schicht `near`, Bounding-Box deckt fast das
+gesamte Bild ab (`minU=0.07…maxU=0.96`, `minV=0.20…maxV=0.97`).
+
+**Bekannte Schwäche dieser Stufe (Kandidat für eine spätere Verfeinerung, nicht für Exp. 3):**
+Exp. 1 fasst Pfad, Gras und Wasser alle in EINE `near`-Schicht zusammen; da diese drei Materialien
+in der Praxis meist zusammenhängend sind, wird daraus im Testbild EINE große Region, die fast das
+ganze Bild überspannt — Connected Components liefert damit hier weniger zusätzliche Struktur, als
+die Zahl "23 Regionen" suggeriert (die meisten kleineren Regionen stammen aus `mid`/`structural`,
+wo Gebäude/Vegetation tatsächlich in separate Klumpen zerfallen). Für Exp. 3 ausreichend (jedes
+Wetterpartikel braucht nur EINEN Landepunkt, keine feingranulare Bodensegmentierung); für eine
+belastbarere Occlusion-Hierarchie müsste `near` in Exp. 1 feiner unterteilt werden (z. B. Wasser
+separat, da es sich anders verhält als begehbarer Boden).

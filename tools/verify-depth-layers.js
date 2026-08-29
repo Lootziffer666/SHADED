@@ -1,6 +1,7 @@
-// SHADED First-Glimpse-Tiefenschicht Verifikation (Exp. 1, docs/first-glimpse-depth-layers.md).
-// Prüft window.SHADED.depthLayerAt()/depthLayers(): eine grobe NEAR/MID/FAR/STRUCTURAL-
-// Ordnung, DERIVED aus classGrid/zoneGrid/skyGrid — keine neue Klassifikation, keine
+// SHADED First-Glimpse-Tiefenschicht Verifikation (Exp. 1+2, docs/first-glimpse-depth-layers.md).
+// Prüft window.SHADED.depthLayerAt()/depthLayers() (Exp. 1: grobe NEAR/MID/FAR/STRUCTURAL-
+// Ordnung, DERIVED aus classGrid/zoneGrid/skyGrid) und depthRegions()/depthRegionAt()
+// (Exp. 2: zusammenhängende Regionen je Schicht) — keine neue Klassifikation, keine
 // zweite Material-Wahrheit (Invariante 2). Nutzung: node tools/verify-depth-layers.js
 const { chromium } = require('playwright');
 const http = require('http');
@@ -32,20 +33,24 @@ const server = http.createServer((req, res) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 
-  console.log('=== SHADED First-Glimpse-Tiefenschicht Verifikation (Exp. 1) ===\n');
+  console.log('=== SHADED First-Glimpse-Tiefenschicht Verifikation (Exp. 1+2) ===\n');
   let failed = false;
   function check(name, ok, detail) { console.log(`  ${ok ? '✓ PASS' : '✗ FAIL'}: ${name}${detail ? ' — ' + detail : ''}`); if (!ok) failed = true; }
 
   await page.goto('http://localhost:8937/index.html');
   await page.evaluate(() => { const el = document.getElementById('world-studio'); if (el) el.style.display = 'none'; });
 
-  console.log('Test 1: Vor erstellen() liefert depthLayerAt() den sicheren Default');
+  console.log('Test 1: Vor erstellen() liefert depthLayerAt()/depthRegions() den sicheren Default');
   const beforeReady = await page.evaluate(() => ({
     layer: window.SHADED.depthLayerAt(0.5, 0.5),
     counts: window.SHADED.depthLayers(),
+    regions: window.SHADED.depthRegions(),
+    regionAt: window.SHADED.depthRegionAt(0.5, 0.5),
   }));
   check('depthLayerAt() == "unknown" ohne Szene', beforeReady.layer === 'unknown', beforeReady.layer);
   check('depthLayers() zählt nichts ohne Szene', Object.values(beforeReady.counts).every(v => v === 0), JSON.stringify(beforeReady.counts));
+  check('depthRegions() == [] ohne Szene', Array.isArray(beforeReady.regions) && beforeReady.regions.length === 0, JSON.stringify(beforeReady.regions));
+  check('depthRegionAt() == null ohne Szene', beforeReady.regionAt === null, beforeReady.regionAt);
 
   console.log('\nTest 2: Szene OHNE Himmel im Bild (BASE_IMG) — near/mid/structural nicht-trivial, far == 0');
   await page.setInputFiles('#f-scene', BASE_IMG);
@@ -79,6 +84,32 @@ const server = http.createServer((req, res) => {
     if (expect && p.layer !== expect) { mismatch = { reason: `mat=${p.mat} expected ${expect}`, p }; break; }
   }
   check('Stichprobe (400 Punkte) konsistent mit der dokumentierten Prioritätsregel', !mismatch, mismatch ? JSON.stringify(mismatch) : '');
+
+  console.log('\nTest 3b (Exp. 2): depthRegions()/depthRegionAt() — zusammenhängende Regionen je Schicht');
+  const regionCheck = await page.evaluate(() => {
+    const regions = window.SHADED.depthRegions();
+    const counts = window.SHADED.depthLayers();
+    const totalPixels = Object.values(counts).reduce((a, b) => a + b, 0);
+    const regionPixels = regions.reduce((a, r) => a + r.pixels, 0);
+    const sorted = regions.every((r, i) => i === 0 || regions[i - 1].pixels >= r.pixels);
+    const bboxSane = regions.every(r => r.bbox.minU >= 0 && r.bbox.maxU <= 1 && r.bbox.minV >= 0 && r.bbox.maxV <= 1
+      && r.bbox.minU < r.bbox.maxU && r.bbox.minV < r.bbox.maxV
+      && r.centroid.u >= r.bbox.minU && r.centroid.u <= r.bbox.maxU
+      && r.centroid.v >= r.bbox.minV && r.centroid.v <= r.bbox.maxV);
+    const largest = regions[0];
+    const idAtCentroid = largest ? window.SHADED.depthRegionAt(largest.centroid.u, largest.centroid.v) : null;
+    const layerAtCentroid = largest ? window.SHADED.depthLayerAt(largest.centroid.u, largest.centroid.v) : null;
+    const idsUnique = new Set(regions.map(r => r.id)).size === regions.length;
+    return { count: regions.length, totalPixels, regionPixels, sorted, bboxSane, largest, idAtCentroid, layerAtCentroid, idsUnique };
+  });
+  console.log('  Regionen gefunden:', regionCheck.count, '| größte:', JSON.stringify(regionCheck.largest));
+  check('mindestens eine Region pro erwarteter Schicht (near/mid/structural, kein Himmel in diesem Bild)', regionCheck.count >= 3, regionCheck.count);
+  check('Regionen sind absteigend nach Pixelzahl sortiert (größte zuerst)', regionCheck.sorted);
+  check('bbox/centroid liegen alle in [0,1] und centroid liegt in der eigenen bbox', regionCheck.bboxSane);
+  check('Region-Pixelsumme <= Gesamtpixelzahl (minArea filtert nur, erfindet nichts)', regionCheck.regionPixels <= regionCheck.totalPixels, `${regionCheck.regionPixels}/${regionCheck.totalPixels}`);
+  check('depthRegionAt() am Schwerpunkt der größten Region liefert deren eigene ID', regionCheck.idAtCentroid === regionCheck.largest.id, JSON.stringify(regionCheck));
+  check('depthLayerAt() am selben Punkt stimmt mit der Schicht der größten Region überein', regionCheck.layerAtCentroid === regionCheck.largest.layer, JSON.stringify(regionCheck));
+  check('alle Region-IDs sind eindeutig (keine Kollision über Schichtgrenzen hinweg)', regionCheck.idsUnique);
 
   console.log('\nTest 4: Szene MIT Himmel im Bild — far > 0, hasSkyRegion() == true');
   await page.setInputFiles('#f-scene', SKY_IMG);
