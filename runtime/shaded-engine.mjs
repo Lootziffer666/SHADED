@@ -1113,6 +1113,16 @@ let skyRegionFound=false;          // true nur, wenn K7 tatsächlich eine Himmel
                                     // "immer 0" und darf NICHT als "hier ist kein Himmel" gelesen
                                     // werden (z. B. bedeckte/dunkle Quellbilder ohne blauen Himmel).
 
+// --- First-Glimpse-Tiefenschicht (Exp. 1, siehe docs/first-glimpse-depth-layers.md) ---
+// Eine grobe NEAR/MID/FAR/STRUCTURAL/UNKNOWN-Ordnung, DERIVED aus classGrid/zoneGrid/
+// skyGrid — keine neue Klassifikation (Invariante 2 bleibt unberührt: layerGrid liest
+// nur, was analyze() bereits als Material-Wahrheit festgelegt hat). Absichtlich keine
+// eigene Texture-Unit/kein Shader-Kanal: bleibt vorerst reine CPU-Abfrage für Systeme
+// wie Wetterpartikel, die eine grobe Tiefenordnung brauchen, aber keine dichte Depth-Map.
+const LAYER_NEAR=0, LAYER_MID=1, LAYER_FAR=2, LAYER_STRUCTURAL=3, LAYER_UNKNOWN=4;
+const LAYER_NAMES=['near','mid','far','structural','unknown'];
+let layerGrid=null;
+
 /* --- Materialschicht: Intrinsic Decomposition -----------------------------
    Siehe docs/neuronale-materialien-svbrdf-pbr.md. Das Quellbild enthält
    eingebackenes Licht; ohne Trennung multipliziert jedes Weltgesetz darauf.
@@ -2081,6 +2091,7 @@ function analyze(){
   uploadTex(4,TEX.emis,AW,AH,tE);
   uploadTex(7,TEX.zone,AW,AH,tZ);
   uploadMaterialTexture();
+  buildLayerGrid();
   ready=true;
   applyPendingShading();   // ueberschreibt das eingebaute Backend, wenn ein Feld daneben lag
 }
@@ -2105,6 +2116,27 @@ function findSpawnPoint(){
     if(d<best){best=d;bu=x/AW;bv=y/AH;}
   }
   return {u:bu,v:bv};
+}
+
+// Grobe Tiefenschicht aus bereits vorhandenen Ergebnissen ableiten (Exp. 1) — keine
+// neue Erkennung, nur eine Prioritätsliste über classGrid/zoneGrid/skyGrid. Absichtlich
+// simpel gehalten (kein Adjazenz-/Konnektivitäts-Aufwand): Holz gilt immer als Struktur
+// (Fachwerk/Zaun/Träger), Fels als Mittelgrund — beide Annahmen sind die bewusst
+// schwächsten dieser ersten Stufe und Kandidaten für eine spätere Verfeinerung
+// (docs/first-glimpse-depth-layers.md, Exp. 2), nicht für diese.
+function buildLayerGrid(){
+  if(!classGrid) return;
+  layerGrid=new Uint8Array(AW*AH);
+  for(let j=0;j<AW*AH;j++){
+    if(skyGrid&&skyGrid[j]){ layerGrid[j]=LAYER_FAR; continue; }
+    if(zoneGrid&&zoneGrid[j]){ layerGrid[j]=LAYER_STRUCTURAL; continue; }
+    switch(classGrid[j]){
+      case R: case N: case W: layerGrid[j]=LAYER_STRUCTURAL; break;
+      case F: case K:         layerGrid[j]=LAYER_MID; break;
+      case P: case G: case A: layerGrid[j]=LAYER_NEAR; break;
+      default:                 layerGrid[j]=LAYER_UNKNOWN;
+    }
+  }
 }
 
 // =========================== Storyboard ====================
@@ -3199,6 +3231,21 @@ window.SHADED = {
   // Erkennung nicht angeschlagen hat (bedecktes/dunkles Quellbild) — Aufrufer, die
   // skyAt() zur Landung/Occlusion nutzen, müssen das getrennt prüfen.
   hasSkyRegion:()=>skyRegionFound,
+  // First-Glimpse-Tiefenschicht (Exp. 1, docs/first-glimpse-depth-layers.md): grobe
+  // NEAR/MID/FAR/STRUCTURAL/UNKNOWN-Ordnung, DERIVED aus classGrid/zoneGrid/skyGrid —
+  // keine Detektion, keine zweite Material-Wahrheit (Invariante 2).
+  depthLayerAt:(u,v)=>{
+    if(!layerGrid) return 'unknown';
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    return LAYER_NAMES[layerGrid[y*AW+x]];
+  },
+  depthLayers:()=>{   // Diagnose: Pixelzahl je Schicht (für Verify/Debug)
+    const out={near:0,mid:0,far:0,structural:0,unknown:0};
+    if(!layerGrid) return out;
+    for(let j=0;j<layerGrid.length;j++) out[LAYER_NAMES[layerGrid[j]]]++;
+    return out;
+  },
   // 2.5D: Tiefenkarte + Parallaxe (deterministisch für Tests steuerbar)
   parallax:{ set:(x,y)=>{ parallaxTarget.x=x; parallaxTarget.y=y;
                           parallaxCurrent.x=x; parallaxCurrent.y=y; },
