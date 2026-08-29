@@ -56,7 +56,7 @@ Vollständiges Audit-Protokoll (drei Recherche-Agenten, Chat-Transkript dieser S
 | **1** | **Grobe `NEAR/MID/FAR/STRUCTURAL/UNKNOWN`-Schicht, DERIVED aus `classGrid`/`zoneGrid`/`skyGrid` — keine neue Erkennung** | **✅ Umgesetzt, siehe unten** |
 | **2** | **Zusammenhängende Occlusion-/Tiefen-Layer (Connected Components über der Exp.-1-Schicht statt verstreuter Einzelpixel)** | **✅ Umgesetzt, siehe unten** |
 | **3** | **Wetterpartikel occluded hinter STRUCTURAL-Regionen statt darüber gemalt; Tiefen-Fallback aus depthLayerAt() statt Math.random() (Aufgabe 2 des Maintainer-Briefings)** | **✅ Umgesetzt, siehe unten** |
-| 4 | Generalisierter (nicht `messehalle.png`-fest verdrahteter) Fluchtpunkt-Detektor, nur falls Exp. 1–3 nicht reichen und das Bild echte Zentralperspektive zeigt | Zurückgestellt, niedrige erwartete Wirkung für SHADEDs isometrische Testbilder |
+| **4** | **Generalisierter (nicht `messehalle.png`-fest verdrahteter) Fluchtpunkt-/Raummess-Detektor in `tools/single_view_room.py` — bild-relative Suchfenster statt hart verdrahteter Pixelwerte, resolutionsskalierte Bodenraster-Schwellen, nie-abstürzende Degradation auf UNKNOWN** | **✅ Umgesetzt, siehe unten — angestoßen, weil künftige Bilder echte Fotos sind, nicht nur SHADEDs isometrische Testbilder** |
 
 ## Exp. 1 — Umsetzung
 
@@ -205,3 +205,120 @@ außerhalb: 204/255** (deutlich sichtbarer Regen). `npm run check` grün, `tools
 - Kein Fix für den Umstand, dass `elements.trigger('rain')` weiterhin Hagel mit auslöst — das ist
   bestehendes, unverändertes Verhalten (Aufgabe des Elements-Systems, nicht dieser Experimentreihe);
   nur das TEST-Skript umgeht es gezielt, um Exp. 3 isoliert zu messen.
+
+## Exp. 4 — Umsetzung
+
+Anlass: nicht mehr "niedrige erwartete Wirkung", wie in der ursprünglichen Tabellenzeile
+vermerkt — der Maintainer stellte fest, dass künftige Bilder echte Fotos sind, nicht nur
+SHADEDs eigene isometrische Testbilder. `tools/single_view_room.py` (der klassische,
+nicht-ML-basierte `SingleViewRoomProvider` aus
+`docs/reconstruction-provider-und-world-surface-graph.md`) existierte bereits als
+funktionierende Hough-/RANSAC-Fluchtpunkt- und Manhattan-Raummessung — aber Version 1.0.0
+hatte jedes Such-Suchfenster (welche Bildzeilen/-spalten nach der Wand-Boden-Fuge, der
+Wand-Decken-Fuge, den Leuchtbändern, den Stützen gesucht wird) als absoluten Pixelwert
+für GENAU `content/raum/messehalle.png` (1103×1426) hart verdrahtet — lauffähig nur auf
+diesem einen Bild. Das ist keine neue Pipeline (Aufgabe 12: "keine große
+Kombinationspipeline auf einmal bauen"), sondern die Generalisierung einer bereits
+vorhandenen, bereits funktionierenden Fähigkeit — genau die im Maintainer-Briefing
+geforderte Priorität "vorhandene Fähigkeit wiederverwenden/verallgemeinern vor neuer
+Pipeline erfinden".
+
+**Was gemacht wurde:**
+
+1. **Bild-relative Suchfenster.** Jede vormals absolute Pixelgrenze ist jetzt ein
+   Bruchteil von `H`/`W`, kalibriert exakt an `_REF_W, _REF_H = 1103.0, 1426.0` (den
+   Referenzbild-Maßen) über eine neue `deklinieren(H, W)`-Funktion. Für `H == _REF_H`
+   reproduziert `round(BRUCHTEIL * H)` exakt die alten Version-1.0.0-Werte — bewiesen,
+   nicht nur behauptet, siehe `tools/test-single-view-room.py` Test 1 (Fluchtpunkt,
+   Deckenhöhe, Bodenraster-Brennweite, Stützenzahl — alle auf 1e-6 relative Toleranz
+   bit-identisch zur alten Implementierung).
+2. **Nie-abstürzende Degradation statt `SystemExit`.** `vermessen()` gibt jetzt IMMER
+   einen strukturierten `bericht`-Dict zurück. `status="declined"` nur, wenn nicht
+   einmal ein Fluchtpunkt gefunden wird (< 6 konvergierende Linien — das Bild zeigt
+   vermutlich keine Manhattan-Zentralperspektive, z. B. eine isometrische Illustration
+   statt eines Fotos). Einzelne optionale Teilmessungen (Deckenhöhe, Leuchtbänder,
+   Stützenraster, Bodenraster/Brennweite), deren jeweilige Strukturannahme ein
+   konkretes Bild nicht erfüllt, degradieren UNABHÄNGIG voneinander zu `UNKNOWN`
+   (mit `"grund"`-Begründung), statt das gesamte Programm abzubrechen — Aufgabe 12
+   des Maintainer-Briefings ("Richtig geraten ist nicht gemessen") gilt jetzt auch
+   für "lieber abbrechen als raten".
+3. **Plausibilitätsguard auf die gemessene Deckenhöhe (`0 < hc_h < 20`).** Gefunden
+   beim Testen mit SHADEDs eigenem isometrischen Testbild
+   (`file_00000000974871f49fe71f6b456f9579.png`): die ursprüngliche Schwäche-Schwelle
+   (`len(kand) < 6`) ließ dieses NICHT-Manhattan-Bild durchrutschen (11 Linien
+   gefunden), und die Wand-Decken-Fugen-Rechnung lieferte eine physikalisch
+   unsinnige NEGATIVE Deckenhöhe (`hc = -0.6183h`), die trotzdem als `MEASURED`
+   ausgegeben wurde. Der Guard wirft jetzt `ValueError`, wenn die gemessene Höhe
+   nicht plausibel ist; die umgebende `try/except`-Kapselung degradiert das Feld
+   dann korrekt zu `UNKNOWN`.
+4. **Bugfix währenddessen: Python rollt lokale Variablenzuweisungen in einem
+   `try`-Block bei einer Exception NICHT zurück.** Nach dem Einbau des Guards zeigte
+   derselbe isometrische Testlauf die negative Deckenhöhe TROTZDEM noch an — Ursache:
+   `hc_h` behielt seinen schlechten Wert aus dem `try`-Block auch im `except`-Handler,
+   und der nachgelagerte `if hc_h is not None:`-Gate für Leuchtbänder/Stützen hielt
+   ihn fälschlich für gültig. Fix: `hc_h = None` als erste Zeile im `except`-Block.
+5. **Resolutionsabhängige Bodenraster-Schwellen — zunächst bewusst NICHT skaliert,
+   dann empirisch als nötig erwiesen.** `bodenraster()`s interne Autokorrelations-/
+   FFT-Konstanten (`db`, `kanten`, `erlaubt`-Frequenzband) sollten zunächst absichtlich
+   unangetastet bleiben (Kommentar im Code: sie seien "empirisch an genau dieses eine
+   gekachelte Boden-Foto justiert", ungetestetes Hochrechnen wäre selbst das verbotene
+   Raten). Ein 2×-Resize-Test von `messehalle.png` (per PIL/LANCZOS) bewies dann
+   empirisch das Gegenteil: OHNE Skalierung fand die Autokorrelation im 2×-Bild die
+   FALSCHE Periode — Brennweite 1119 px statt der erwarteten ~1936 px (2× von 967,77 px
+   im Original). Erst dieser konkrete Beweis rechtfertigte die Skalierung: `db`/`kanten`
+   skalieren mit `1/skala_h`, das `erlaubt`-Frequenzband mit `skala_h`, wobei
+   `skala_h = H / _REF_H`. Nach dem Fix: 2×-Resize liefert `f_px = 1959` px (1,2 % Abweichung
+   von den erwarteten ~1936 px) statt der vorher falschen 1119 px — siehe
+   `tools/test-single-view-room.py` Test 2, das diesen Regressionsfall dauerhaft festhält.
+
+**Gemessene Werte (alle drei Testfälle, `tools/test-single-view-room.py`, 11 Prüfungen, grün):**
+
+```text
+messehalle.png (Referenz, skala_h=1):
+  Fluchtpunkt        (665.91, 464.82) aus 31/50 Linien, Restfehler 5.05 px
+  Deckenhöhe/h        0.2759 (Spiegelprobe bestätigt: 5.4 % / 5.8 % Abweichung)
+  Bodenraster f_px    967.77 px
+  Stützen             9 gefunden
+
+messehalle_2x.png (2× LANCZOS-Resize, skala_h=2, NICHT committet — im Test on-the-fly erzeugt):
+  Fluchtpunkt         (1325.86, 930.28) aus 26/50 Linien
+  Deckenhöhe/h        0.2562 (Spiegelprobe: 1.4 % / 0.7 % Abweichung)
+  Bodenraster f_px    1959 px  (erwartet ~1936 px, 1.2 % Abweichung)
+
+file_00000000974871f49fe71f6b456f9579.png (SHADEDs isometrisches Testbild, kein Manhattan-Foto):
+  Fluchtpunkt         (972.05, 169.20) aus 11/50 Linien — status bleibt "measured"
+  Deckenhöhe          UNKNOWN (Plausibilitätsguard: negativer Rohwert verworfen)
+  Stützenraster       UNKNOWN ("nicht bestimmbar (zu wenige/kein erkennbares Raster)")
+  kein Absturz
+```
+
+**Beweis:** `python3 tools/test-single-view-room.py` (11 Prüfungen, neu erstellt, jetzt Teil
+von `npm run check`), zusätzlich `python3 -c "import ast; ast.parse(...)"` für beide
+`.py`-Dateien. `content/raum/messehalle.room.json` (bereits committeter Beweis-Snapshot)
+bleibt nach dem Fix bit-identisch bis auf `version` (1.0.0→1.1.0) und ein neues
+`status`-Feld — geprüft per Feld-für-Feld-JSON-Diff. `npm run check` (bestehende
+JS/Node-Suite, `tools/verify.js`) unverändert grün, da Exp. 4 ausschließlich
+`tools/single_view_room.py` betrifft und keinerlei Berührung mit `runtime/`,
+`index.html` oder dem Shader hat.
+
+## Nicht Teil von Exp. 4
+
+- Kein allgemeiner "ist das überhaupt ein Manhattan-Foto?"-Klassifikator über die
+  Fluchtpunkt-Linienzahl und die einzelnen Feld-Plausibilitätsguards hinaus — ein Bild
+  mit z. B. 7 zufällig konvergierenden Kanten (Rauschen) könnte den `len(kand) >= 6`-Gate
+  passieren, ohne dass die Szene tatsächlich Zentralperspektive zeigt; die einzelnen
+  Folgeschritte (Wand-Boden-Fuge, Deckenhöhe, Bodenraster) haben zwar jeweils eigene
+  Plausibilitäts-/Konvergenzprüfungen, aber es gibt keine EINE vorgeschaltete
+  Ja/Nein-Klassifikation "Manhattan-Zentralperspektive vorhanden".
+- Kein Ausbau der `deklinieren()`-Fenster über die bereits vorhandenen Fugen-/Leuchtband-/
+  Stützen-/Bodenraster-Suchbereiche hinaus, und keine Änderung der eigentlichen
+  Mess-Algorithmen (Hough, RANSAC, TLS-Verfeinerung, Autokorrelation selbst) — nur ihre
+  Suchfenster und internen Skalen wurden generalisiert.
+- Keine Anbindung von `single_view_room.py`s Ausgabe an SHADEDs Laufzeit
+  (`depthLayerAt`/`u_parallax`/Companion-Tiefenkarte) — der Provider bleibt ein
+  eigenständiges CLI-Werkzeug (`GuidedMetricDepthProvider`-Vertrag), keine automatische
+  Erzeugung einer `_depth.png`-Companion-Datei aus seinem Ergebnis. Das wäre ein
+  eigener, separater Integrationsschritt.
+- Kein zweites Referenzfoto zum Kalibrieren/Verifizieren der Bodenraster-Skalierung —
+  der 2×-Resize-Test beweist Resolutionsunabhängigkeit an EINEM realen Foto in zwei
+  Auflösungen, nicht Generalisierung über verschiedene Bodenfliesen-Muster/-Größen hinweg.
