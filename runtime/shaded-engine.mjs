@@ -1102,6 +1102,16 @@ let sceneImg=null, sceneSource={kind:'UNKNOWN',label:null}, matImg=null, ready=f
 let classGrid=null, AW=0, AH=0;   // CPU-Wahrheit für Materialabfragen (Runde 2–4)
 let structDiag=null;              // Runde 5: Diagnose des Struktur-Passes
 let zoneGrid=null;                // K1: Gebäudezonen (1 = Fachwerk-Gebäude)
+let skyGrid=null;                  // K7: Himmel-Flood-Ergebnis (1 = Himmel, inert; sonst 0)
+                                    // klassifiziert selbst NICHT — die Pixel sind im classGrid
+                                    // längst als K (Fels) verewigt; dies ist nur die Herkunfts-
+                                    // markierung, damit z.B. Wetterpartikel echten Fels von
+                                    // Himmel-als-Fels unterscheiden können, ohne ein zweites
+                                    // Klassifikationssystem zu erfinden (Invariante 2).
+let skyRegionFound=false;          // true nur, wenn K7 tatsächlich eine Himmel-Region bestätigt
+                                    // hat (Größe/Farbtor erfüllt) — sonst ist skyGrid nutzlos
+                                    // "immer 0" und darf NICHT als "hier ist kein Himmel" gelesen
+                                    // werden (z. B. bedeckte/dunkle Quellbilder ohne blauen Himmel).
 
 /* --- Materialschicht: Intrinsic Decomposition -----------------------------
    Siehe docs/neuronale-materialien-svbrdf-pbr.md. Das Quellbild enthält
@@ -1545,10 +1555,12 @@ function analyze(){
         if(y>0&&skyC(classGrid[j-AW])&&!inSky[j-AW]){inSky[j-AW]=1;stH.push(j-AW);}
         if(y<AH-1&&skyC(classGrid[j+AW])&&!inSky[j+AW]){inSky[j+AW]=1;stH.push(j+AW);}
       }
+      skyGrid=new Uint8Array(AW*AH);
+      skyRegionFound=false;
       if(region.length>AW*AH*0.02){
         sr/=region.length; sg/=region.length; sb/=region.length;
         const lum=(sr*0.299+sg*0.587+sb*0.114);
-        if(sb>sr && lum>110) region.forEach(j=>classGrid[j]=K);
+        if(sb>sr && lum>110){ region.forEach(j=>{classGrid[j]=K; skyGrid[j]=1;}); skyRegionFound=true; }
       }
     }
 
@@ -3343,6 +3355,21 @@ window.SHADED = {
     const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
     return zoneGrid[y*AW+x];
   },
+  // K7: war diese UV-Position Teil der Himmel-Flood aus analyze() (0|1)? Kein zweites
+  // Klassifikationssystem — nur die Herkunftsmarkierung für Pixel, die classGrid
+  // bereits als K (Fels) trägt, damit z.B. Wetterpartikel echten Fels von
+  // Himmel-als-Fels unterscheiden können (Invariante 2).
+  skyAt:(u,v)=>{
+    if(!skyGrid) return 0;
+    const x=Math.max(0,Math.min(AW-1,Math.floor(u*AW)));
+    const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
+    return skyGrid[y*AW+x];
+  },
+  // Wurde bei diesem Bild überhaupt eine Himmel-Region gefunden? Ohne dieses Signal
+  // ist skyAt() überall "0" nicht, weil es dort echten Boden gäbe, sondern weil die
+  // Erkennung nicht angeschlagen hat (bedecktes/dunkles Quellbild) — Aufrufer, die
+  // skyAt() zur Landung/Occlusion nutzen, müssen das getrennt prüfen.
+  hasSkyRegion:()=>skyRegionFound,
   // 2.5D: Tiefenkarte + Parallaxe (deterministisch für Tests steuerbar)
   parallax:{ set:(x,y)=>{ parallaxTarget.x=x; parallaxTarget.y=y;
                           parallaxCurrent.x=x; parallaxCurrent.y=y; },

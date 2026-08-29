@@ -252,23 +252,33 @@ function snowTick(dt){
 
     if(s.u<-0.05) s.u+=1.05; if(s.u>1.05) s.u-=1.05;
 
-    // Liegenbleiben: NUR wenn kalt genug. Reihenfolge nach Oberfläche -
-    // erhöhte/exponierte Flächen (Dach, Laub) sammeln zuerst, Boden erst wenn die
-    // Flocke fast unten ist. Wasser/Fenster nehmen keinen Schnee an.
+    // Liegenbleiben: NUR wenn kalt genug, UND nur auf echten Oberflächen — nicht auf
+    // Himmel (K7-Flood, sonst würde die Szene irgendwo "in der Luft" Schnee ansetzen,
+    // weil classGrid Himmel als Fels führt, siehe window.SHADED.skyAt). Anders als in
+    // einer Seitenansicht liegt der Boden in dieser isometrischen Perspektive NICHT nur
+    // am unteren Bildrand, sondern über weite Teile des Bilds verteilt — ein fester
+    // v>0.90-Bodentest ließ Schnee auf Gras/Pfad de facto nie liegen bleiben. Erhöhte/
+    // exponierte Flächen (Dach, Laub) sammeln etwas schneller als ebener Boden, aber
+    // beide setzen genau dort an, wo die Materialkarte sie tatsächlich zeigt.
     if(cold && s.v>=0 && settledCount<SNOW_SETTLE_MAX){
       const mat = ready ? window.SHADED.getMaterialTypeAt(s.u,s.v) : null;
       const elevated = mat==='roof' || mat==='foliage';
-      const groundReady = s.v > 0.90;
+      // !skyAt(): landbar ist alles, was K7 NICHT als Himmel bestätigt hat. Szenen ohne
+      // jede erkannte Himmel-Region (z.B. dichte Baumkronen-Draufsichten ohne
+      // Horizontlinie — hasSkyRegion()==false) melden skyAt() dann konsequent "0" für
+      // das ganze Bild: korrekt, denn dort IST kein sichtbarer Himmel, durch den Schnee
+      // erst fallen könnte, bevor er die Kronen/Dächer erreicht.
+      const landable = mat && !window.SHADED.skyAt(s.u,s.v) && mat!=='water' && mat!=='window';
       // Zeitabhängige Klebechance statt Pro-Frame-Münzwurf, sonst friert die Szene
       // quasi sofort ein statt Schnee sichtbar über Sekunden aufzubauen.
       const stickChance = 1 - Math.pow(1 - (elevated?0.7:0.5), dt);
-      if(mat && mat!=='water' && mat!=='window' && (elevated || groundReady) && Math.random()<stickChance){
+      if(landable && Math.random()<stickChance){
         // Schichten: je mehr bereits liegender Schnee in der Nähe, desto höher die Lage
         let neighbors=0;
         for(const o of snowflakes){ if(o.settled && Math.hypot(o.u-s.u,o.v-s.v)<0.018) neighbors++; }
         s.settled = true; settledCount++;
         s.layer = Math.min(4, neighbors);
-        s.v = elevated ? s.v : Math.min(0.985, 0.90 + Math.random()*0.06) - s.layer*0.003;
+        s.v -= s.layer*0.003; // Schichten wachsen sichtbar leicht nach oben
         s.vv = 0; s.vu = 0;
         continue;
       }
@@ -292,7 +302,12 @@ function rainTick(dt){
     const windAngle = CUR.wind * 0.5;
     const vortexMod = 1 + Math.sin(vortexPhase) * CUR.storm * 0.3;
     const length = 0.015 + Math.random()*0.008;
-    const u = -length + Math.random(), v = -0.05 + Math.random()*0.1;
+    // Spawn deutlich oberhalb des sichtbaren Bilds (wie Schnee/Hagel) statt knapp
+    // darüber: Tropfen brauchen sichtbare Fallstrecke durch den impliziten Himmel
+    // ÜBER dem Bild, bevor sie am oberen Rand auf echtes Material treffen können —
+    // sonst würden sie in Szenen ohne Sky-Lücke (z.B. Baumkronen-Draufsichten, siehe
+    // Landungs-Kommentar unten) quasi am Spawnpunkt sofort wieder verschwinden.
+    const u = -length + Math.random(), v = -0.35 + Math.random()*0.25;
 
     // Regen-Tropfen haben Tiefe: echte Tiefenkarte wenn vorhanden (0=vorne/schnell,
     // 1=hinten/langsam - invers zu getDepthAt, wo 1=nah), sonst Pseudo-Tiefe.
@@ -330,6 +345,20 @@ function rainTick(dt){
     // wrapping
     if(r.u > 1) r.u = -r.length;
 
+    // Landung: ein Tropfen, der eine echte Oberfläche trifft (nicht Himmel, siehe
+    // window.SHADED.skyAt — classGrid führt Himmel als Fels), verschwindet dort statt
+    // ungehindert bis zum unteren Bildrand durchzufallen. Das eigentliche Abfließen/
+    // Sammeln übernimmt weiterhin das Rinnsal-/Pfützen-Feld im Shader (phys-Textur,
+    // docs/rendergraph-lastverteilung.md) — dieser Tropfen ist nur der fallende Teil.
+    // Szenen ganz ohne erkannte Himmel-Region (hasSkyRegion()==false, z.B. dichte
+    // Baumkronen-Draufsichten ohne Horizontlinie) melden skyAt() konsequent "0" fürs
+    // ganze Bild — korrekt, denn dort ist tatsächlich kein Himmel, durch den der
+    // Tropfen erst fallen müsste, bevor er Kronen/Dächer erreicht.
+    if(r.v>=0 && r.v<=1 && window.SHADED.isReady()){
+      const mat = window.SHADED.getMaterialTypeAt(r.u,r.v);
+      if(mat && !window.SHADED.skyAt(r.u,r.v)){ raindrops.splice(i,1); continue; }
+    }
+
     // ausspawn (tiefere Tropfen bleiben länger sichtbar)
     const lifetime = 8 + r.depth*4;
     if(r.v>1.1 || r.age>lifetime) raindrops.splice(i,1);
@@ -340,6 +369,7 @@ function hailTick(dt){
   const hasDepth=window.SHADED.parallax.hasDepth();
   const targetHail = Math.ceil(Math.max(0, CUR.storm*CUR.rain - 0.35) * 70);
   while(hailstones.length < targetHail && Math.random()<0.45) spawnElementParticles('hail',0.5,0,1);
+  const ready = window.SHADED.isReady();
   for(let i=hailstones.length-1;i>=0;i--){
     const h=hailstones[i];
     h.life-=dt*0.08;
@@ -347,13 +377,19 @@ function hailTick(dt){
     h.v+=h.vv*dt;
     h.u+=h.vu*dt;
     if(hasDepth){ const d=window.SHADED.parallax.sampleDepth(h.u,h.v); if(d!==null) h.depth=1-d; }
-    if(h.v>0.92 && h.bounce>0){
-      h.v=0.92+Math.random()*0.06;
+    // Aufprall an der echten Oberfläche (nicht Himmel, siehe skyAt) statt an einer
+    // festen Bildschirmkante v>0.92 — Boden/Dach liegen in dieser isometrischen
+    // Perspektive über weite Teile des Bilds verteilt, nicht nur am unteren Rand.
+    const grounded = ready && h.v>=0 && h.v<=1
+      && !!window.SHADED.getMaterialTypeAt(h.u,h.v) && !window.SHADED.skyAt(h.u,h.v);
+    if(grounded && h.bounce>0){
       h.vv=-h.vv*(0.20+Math.random()*0.18);
       h.vu+=(Math.random()-0.5)*0.08;
       h.bounce--;
       pressureBursts.push({u:h.u,v:h.v,r:0.006,life:0.45,seed:Math.random()*6.28});
       window.SHADED.trail.stamp(h.u,h.v,0.009,0,0.35);
+    } else if(grounded){
+      hailstones.splice(i,1); continue; // zweiter Aufprall: liegen geblieben
     }
     if(h.u<-0.1||h.u>1.1||h.v>1.15||h.life<=0) hailstones.splice(i,1);
   }
