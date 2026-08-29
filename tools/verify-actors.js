@@ -23,8 +23,11 @@ const server = http.createServer((req, res) => {
   if (p === REPO + '/' || p === REPO) p = path.join(REPO, 'index.html');
   try {
     const data = fs.readFileSync(p);
-    let ct = 'text/html';
-    if (p.endsWith('.json')) ct = 'application/json';
+    let ct = 'application/octet-stream';
+    if (p.endsWith('.html')) ct = 'text/html; charset=utf-8';
+    else if (p.endsWith('.js') || p.endsWith('.mjs')) ct = 'text/javascript; charset=utf-8';
+    else if (p.endsWith('.css')) ct = 'text/css; charset=utf-8';
+    else if (p.endsWith('.json')) ct = 'application/json';
     else if (p.endsWith('.png')) ct = 'image/png';
     else if (p.endsWith('.jpg')) ct = 'image/jpeg';
     res.writeHead(200, { 'Content-Type': ct });
@@ -65,14 +68,17 @@ const server = http.createServer((req, res) => {
 
   // Szene laden
   await page.goto('http://localhost:8932/index.html');
+  // World Studios Onboarding-Panel (editor/world-studio.js) hijackt #btn-erstellen per
+  // Capture-Listener - direkter API-Aufruf umgeht das, gleiches Muster wie tools/verify.js.
+  await page.evaluate(() => { const el = document.getElementById('world-studio'); if (el) el.style.display = 'none'; });
   await page.setInputFiles('#f-scene', BASE_IMG);
   // Auto-Depth-Loader überschreibt den Status sofort mit "Tiefenkarte geladen" –
   // beides bestätigt, dass sceneImg gesetzt ist (gleicher Fix wie in verify.js).
-  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent));
+  await page.waitForFunction(() => /Szene geladen|Tiefenkarte geladen/.test(document.getElementById('status').textContent), { timeout: 30000 });
   await page.setInputFiles('#f-mat', MARKER_IMG);
-  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'));
-  await page.click('#btn-create');
-  await page.waitForFunction(() => window.SHADED.isReady());
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('Material-Map geladen'), { timeout: 30000 });
+  await page.evaluate(() => window.SHADED.erstellen());
+  await page.waitForFunction(() => window.SHADED.isReady(), { timeout: 30000 });
   await page.waitForTimeout(400);
 
   // Akt einrichten
