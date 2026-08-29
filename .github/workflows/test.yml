@@ -34,6 +34,14 @@ jobs:
       run: |
         npm run check
 
+    - name: Verify viewport-first shader sandbox in Chromium
+      run: |
+        node --check editor/sandbox-ui-fixes.js
+        node --check editor/sandbox-granular.js
+        node --check editor/sandbox-coast.js
+        node --check tools/verify-sandbox-browser.mjs
+        node tools/verify-sandbox-browser.mjs
+
     - name: Verify viewport-first mobile editor, closing, correction and room entry
       run: |
         npm run verify:mobile-editor
