@@ -199,7 +199,7 @@ function weatherPseudoDepthAt(u,v){
   switch(window.SHADED.depthLayerAt(u,v)){
     case 'near': return 0.85;
     case 'mid': return 0.5;
-    case 'structural': return 0.3;
+    case 'structural': return 0.9; // vor der Wetterebene — dieselbe Annahme, die weatherOccludedAt() trifft
     case 'far': return 0.1;
     default: return 0.5; // 'unknown' bzw. keine Szene geladen — neutral
   }
