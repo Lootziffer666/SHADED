@@ -2092,6 +2092,20 @@ function getMaterialTypeAt(u,v){
   const y=Math.max(0,Math.min(AH-1,Math.floor(v*AH)));
   return CLASSES[classGrid[y*AW+x]];
 }
+// Nächstes Pfad-Pixel zur Bildmitte – für runtime/player-fire.mjs (spawnPlayer). Bleibt hier
+// statt classGrid roh zu exportieren: Invariante 2 gilt für den Inhalt, nicht die Datei, aber
+// eine rohe Array-Freigabe würde ein zweites Modul an die interne classGrid-Repräsentation
+// binden statt an eine Verhaltens-Schnittstelle wie getMaterialTypeAt.
+function findSpawnPoint(){
+  if(!classGrid) return null;
+  let best=1e9,bu=0.5,bv=0.6;
+  for(let y=0;y<AH;y+=2)for(let x=0;x<AW;x+=2){
+    if(classGrid[y*AW+x]!==P)continue;
+    const du=x/AW-0.5, dv=y/AH-0.55, d=du*du+dv*dv;
+    if(d<best){best=d;bu=x/AW;bv=y/AH;}
+  }
+  return {u:bu,v:bv};
+}
 
 // =========================== Storyboard ====================
 let storyboard=[], playing=false, stepIdx=0, stepT=0, blendFrom=null;
@@ -2252,137 +2266,17 @@ function tickLightning(t){
 }
 
 // =========================== Runde 4: Spieler, Feuer, Ökosystem ====================
+// Spieler & Lagerfeuer sind nach runtime/player-fire.mjs extrahiert (eigenes ESM-Modul,
+// hängt window.SHADED.player/window.SHADED.fire sowie window.SHADED_ENGINE_INTERNAL.
+// {player,fires,playerFireTick,drawPlayer} nach dem Laden dieser Datei an). fireUniforms()
+// bleibt hier zurück, weil es direkt GL-Uniforms schreibt (Kopplung an den WebGL-Kern) —
+// es liest den geteilten `fires`-Zustand nur über die Bridge.
 const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
 
-const player={active:false,u:0.5,v:0.6,vu:0,vv:0,exert:0,wet:0,age:0,
-               breathT:0,stampAcc:0,dashT:0,dashCd:0,lookX:0,lookY:0,
-               carryMud:0,carryAsh:0};
-const keys={};
-const MAT_SPEED={path:1.0,grass:0.75,rock:0.85,wood:0.9,foliage:0.6,water:0.45,window:0.9,roof:0.9};
-
-function spawnPlayer(){
-  if(player.active||!ready)return;
-  // nächstes Pfad-Pixel zur Bildmitte suchen
-  let best=1e9,bu=0.5,bv=0.6;
-  for(let y=0;y<AH;y+=2)for(let x=0;x<AW;x+=2){
-    if(classGrid[y*AW+x]!==P)continue;
-    const du=x/AW-0.5, dv=y/AH-0.55, d=du*du+dv*dv;
-    if(d<best){best=d;bu=x/AW;bv=y/AH;}
-  }
-  player.u=bu; player.v=bv; player.active=true;
-  setStatus('🚶 Figur erwacht. WASD laufen · Leertaste Sprint · F Feuer.');
-}
-function dash(){
-  if(!player.active||player.dashCd>0)return;
-  player.dashT=0.25; player.dashCd=1.1; player.exert=Math.min(1,player.exert+0.5);
-  trailStamp(player.u,player.v,0.05,1,0.9);           // Impuls: Laub & Vegetation stieben
-  window.SHADED_ENGINE_INTERNAL.stirLeavesNear?.(player.u,player.v,0.09,0.06);
-  // Früchte fallen von nahen Kronen
-  for(let tries=0,drops=0;tries<24&&drops<2;tries++){
-    const ru=player.u+(Math.random()-0.5)*0.12, rv=player.v+(Math.random()-0.5)*0.12;
-    if(getMaterialTypeAt(ru,rv)==='foliage'){
-      window.SHADED_ENGINE_INTERNAL.spawnFruit?.(ru,rv);
-      drops++;
-    }
-  }
-}
-function playerTick(dt){
-  if(!player.active)return;
-  let mu=0,mv=0;
-  if(keys.w||keys.arrowup)mv-=1;
-  if(keys.s||keys.arrowdown)mv+=1;
-  if(keys.a||keys.arrowleft)mu-=1;
-  if(keys.d||keys.arrowright)mu+=1;
-  const mat=getMaterialTypeAt(player.u,player.v)||'path';
-  const tempC=CUR.temperature*50-20;
-  const slippery = tempC<0 && (mat==='water'||mat==='path'||mat==='rock');
-  const moving = (mu||mv);
-  let speed=0.085*(MAT_SPEED[mat]||1)*(1-CUR.snow*0.45);
-  if(player.dashT>0){speed*=3.4;player.dashT-=dt;}
-  if(player.dashCd>0)player.dashCd-=dt;
-  if(moving){
-    const len=Math.hypot(mu,mv), tu=mu/len*speed, tv=mv/len*speed;
-    if(slippery){ player.vu+=(tu-player.vu)*1.6*dt; player.vv+=(tv-player.vv)*1.6*dt; }
-    else{ player.vu=tu; player.vv=tv; }
-    player.exert=Math.min(1,player.exert+dt*(player.dashT>0?0.6:0.18));
-    player.lookX=Math.sign(mu); player.lookY=Math.sign(mv);
-  }else if(slippery){ player.vu*=Math.pow(0.5,dt/1.2); player.vv*=Math.pow(0.5,dt/1.2); }
-  else{ player.vu=0; player.vv=0; }
-  player.exert=Math.max(0,player.exert-dt*0.10);
-  const du=player.vu*dt, dv=player.vv*dt;
-  player.u=Math.max(0.01,Math.min(0.99,player.u+du));
-  player.v=Math.max(0.01,Math.min(0.99,player.v+dv));
-  // Fußspuren: oberflächenspezifisch, lesbar & konsequent (Weltgesetz #2)
-  player.stampAcc+=Math.hypot(du,dv);
-  if(player.stampAcc>0.014){
-    player.stampAcc=0;
-    const mat=getMaterialTypeAt(player.u,player.v)||'path';
-    const onSnow = CUR.snow>0.05 && (mat==='grass'||mat==='foliage'||mat==='roof'||mat==='rock'||mat==='path');
-    const onAsh  = trailSample(player.u,player.v).a>0.15;        // steht auf Brand/Asche
-    const wet = CUR.wet>0.4 || mat==='water';
-    // Kontamination an den Schuhen: Schlamm aus Nässe, Asche von Brandstellen
-    if(wet && (mat==='path'||mat==='grass'||mat==='water')) player.mud=Math.min(1,player.mud+0.25);
-    else player.mud=Math.max(0,player.mud-dt*0.4);
-    player.ash = onAsh?1:Math.max(0,player.ash-dt*0.6);
-    // (R) frische Delle – tief auf Schnee, leicht auf Stein/Holz
-    let rStr=0.7, rRad=0.007;
-    if(onSnow){ rStr=1.0; rRad=0.010; }
-    else if(mat==='rock'||mat==='wood'){ rStr=0.4; rRad=0.006; }
-    trailStamp(player.u,player.v+0.006,rRad,0,rStr);
-    // (B) permanenter Trampelpfad – Basis wie Runde 4 (sichtbar & beständig)
-    trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
-    // #2 Übertragung: Schuhe nehmen Schlamm/Asche auf und tragen sie weiter
-    if(player.carryMud>0.05){
-      trailStamp(player.u,player.v+0.006,0.010,2,0.05*player.carryMud,235); // braune Lehmbahn
-      player.carryMud=Math.max(0,player.carryMud-0.35);
-    }
-    if(player.carryAsh>0.05){
-      trailStamp(player.u,player.v+0.006,0.011,3,0.10*player.carryAsh);    // schwarze Asche-Schleppspur
-      player.carryAsh=Math.max(0,player.carryAsh-0.30);
-    }
-  }
-  // #2 Aufnahme: nasser Boden -> Schlamm an den Schuhen; verkohlter Boden -> Asche
-  if(CUR.wet>0.25 && (mat==='grass'||mat==='foliage'||mat==='path'))
-    player.carryMud=Math.min(1,player.carryMud+dt*0.5*CUR.wet*(moving?1:0.2));
-  const localChar=trailSample(player.u,player.v).a;
-  if(localChar>0.18) player.carryAsh=Math.min(1,player.carryAsh+dt*0.7);
-  // Nässe der Figur
-  if(CUR.rain>0.1) player.wet=Math.min(1,player.wet+CUR.rain*dt*0.25);
-  let nearFire=fires.some(f=>Math.hypot(f.u-player.u,f.v-player.v)<0.09);
-  player.wet=Math.max(0,player.wet-dt*(nearFire?0.35:0.02));
-}
-
-// --- Lagerfeuer ---
-const fires=[];
-let fireToolActive=false;
-function igniteFire(u,v,wild){
-  if(!ready)return false;
-  if(wild){ const m=getMaterialTypeAt(u,v); if(m!=='wood'&&m!=='roof'&&m!=='foliage')return false; }
-  if(fires.length>=8)return false;
-  if(fires.some(f=>Math.hypot(f.u-u,f.v-v)<0.025))return false;
-  fires.push({u,v,fuel:22+Math.random()*10,max:30,size:0.020+Math.random()*0.008,wild:!!wild,seed:Math.random()*7});
-  return true;
-}
-function fireTick(dt){
-  for(let i=fires.length-1;i>=0;i--){
-    const f=fires[i];
-    const douse=1 + CUR.rain*2.5 + Math.max(0,CUR.wet-0.4)*2.0;
-    f.fuel-=dt*douse;
-    // Brandspur + Schneeschmelze in den A-Kanal brennen
-    trailStamp(f.u,f.v,f.size*(0.8+0.4*(1-f.fuel/f.max)),3,0.55*dt);
-    // Rauch & Funken
-    if(Math.random()<0.5) window.SHADED_ENGINE_INTERNAL.spawnFireSmoke?.(f.u,f.v);
-    if(Math.random()<0.4) window.SHADED_ENGINE_INTERNAL.spawnFireSpark?.(f.u,f.v);
-    // Ausbreitung: nur trocken, windgetrieben
-    if(f.fuel>6 && CUR.wet<0.3 && CUR.rain<0.35 && Math.random()<dt*1.2){
-      igniteFire(f.u+(Math.random()-0.35+CUR.wind*0.4)*0.05, f.v+(Math.random()-0.5)*0.04, true);
-    }
-    if(f.fuel<=0) fires.splice(i,1);
-  }
-}
 const fireArr=new Float32Array(32);
 function fireUniforms(){
+  const fires=window.SHADED_ENGINE_INTERNAL.fires;
   fireArr.fill(0);
   fires.forEach((f,i)=>{
     const p=Math.min(1,f.fuel/f.max);
@@ -2409,7 +2303,7 @@ function drawOverlay(dt){
   // runtime/weather-particles.mjs zeichnet Laub/Früchte VOR den Flammen — Reihenfolge
   // muss für identisches Layering erhalten bleiben (siehe Kommentar dort).
   window.SHADED_ENGINE_INTERNAL.weatherDrawBeforeFire?.();
-  fires.forEach(f=>{
+  window.SHADED_ENGINE_INTERNAL.fires.forEach(f=>{
     const p=Math.min(1,f.fuel/f.max), fx=f.u*W, fy=f.v*H;
     for(let k=0;k<5;k++){
       const hgt=(16+Math.sin(time*11+f.seed+k*2.2)*6)*S*p;
@@ -2425,45 +2319,11 @@ function drawOverlay(dt){
   });
   window.SHADED_ENGINE_INTERNAL.weatherDrawAfterFire?.();
   ovx.globalAlpha=1;
-  if(player.active) drawPlayer(W,H,S,dt);
+  window.SHADED_ENGINE_INTERNAL.drawPlayer?.(W,H,S,dt);
   // SWIFT-Actor-Bridge (runtime/actor-bridge.mjs) registriert diesen Hook nach dem Laden;
   // guard nötig, weil drawOverlay theoretisch vor dem ersten rAF nie ohne geladenes Modul
   // läuft, aber der Zugriff soll trotzdem nie hart gegen ein fehlendes Modul knallen.
   window.SHADED_ENGINE_INTERNAL.drawActors?.(dt);
-}
-function drawPlayer(W,H,S,dt){
-  const tempC=CUR.temperature*50-20;
-  player.breathT+=dt*(1.7+player.exert*4.0);
-  const br=Math.sin(player.breathT)*(1+player.exert*1.6);
-  // Frost-Atem in Ausatemphase
-  const cyc=player.breathT%6.283;
-  if(tempC<5 && cyc>2.8 && cyc<4.6 && Math.random()<0.2)
-    window.SHADED_ENGINE_INTERNAL.spawnBreath?.({u:player.u+0.004*(player.lookX||1),v:player.v-0.012,
-      vu:0.003*(player.lookX||1)+CUR.wind*0.006,vv:-0.002,r:0.0015,life:1});
-  const px=player.u*W, py=player.v*H;
-  const shiver=(tempC<0&&!player.dashT)?Math.sin(time*46)*Math.min(3,-tempC*0.2)*S:0;
-  ovx.save(); ovx.translate(px+shiver,py);
-  ovx.fillStyle='rgba(0,0,0,0.35)';
-  ovx.beginPath(); ovx.ellipse(0,4*S,10*S,4*S,0,0,6.283); ovx.fill();
-  // Körper (atmet)
-  let coat=player.wet>0.4?'#2c3e57':'#3b3b5c';
-  ovx.fillStyle=coat;
-  ovx.beginPath(); ovx.ellipse(0,-4*S,(8+br*0.5)*S,(9+br*0.7)*S,0,0,6.283); ovx.fill();
-  if(player.wet>0.15){ ovx.globalAlpha=Math.min(0.5,player.wet*0.5);
-    ovx.fillStyle='#48627f'; ovx.beginPath();
-    ovx.ellipse(0,(-1+br*0.2)*S,(8+br*0.5)*S,(5)*S,0,0,6.283); ovx.fill(); ovx.globalAlpha=1; }
-  // Kopf
-  ovx.fillStyle='#f3c99a';
-  ovx.beginPath(); ovx.arc(0,(-16+br*0.25)*S,6*S,0,6.283); ovx.fill();
-  // Haar (ergraut mit age)
-  const g=Math.round(30+player.age*180);
-  ovx.fillStyle=`rgb(${g},${g},${Math.round(40+player.age*175)})`;
-  ovx.beginPath(); ovx.arc(0,(-18.5+br*0.25)*S,6*S,Math.PI,6.283); ovx.fill();
-  // Augen (Blickrichtung)
-  ovx.fillStyle='#141414';
-  const lx=player.lookX*1.6*S, ly=(-16+br*0.25)*S+player.lookY*1.0*S;
-  ovx.beginPath(); ovx.arc(-2*S+lx,ly,1.3*S,0,6.283); ovx.arc(2*S+lx,ly,1.3*S,0,6.283); ovx.fill();
-  ovx.restore();
 }
 
 // === SWIFT-Actor-Bridge — extrahiert nach runtime/actor-bridge.mjs ===
@@ -2610,18 +2470,8 @@ async function spawnEcosystem(type){
   }
 }
 
-// --- Eingaben (Runde 4) ---
-window.addEventListener('keydown',e=>{
-  const k=e.key.toLowerCase();
-  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){
-    keys[k]=true;
-    if(!player.active&&ready) spawnPlayer();
-    if(player.active) e.preventDefault();
-  }
-  if(k===' '&&player.active&&!window.SHADED.dialogue.isPlaying()){ e.preventDefault(); dash(); }
-  if(k==='f'&&player.active){ igniteFire(player.u+0.012*(player.lookX||1), player.v); }
-});
-window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+// --- Eingaben (Runde 4) — WASD/Dash/F(euer) sind nach runtime/player-fire.mjs extrahiert,
+// siehe dort für die keydown/keyup-Listener und die #btn-fire/#ov-Klick-Verdrahtung. ---
 
 // --- Runde 8: Wally-Monokel — Tasten 1..5 schalten die Inspektions-Linsen (Klak.) ---
 window.addEventListener('keydown',e=>{
@@ -2631,21 +2481,8 @@ window.addEventListener('keydown',e=>{
   }
 });
 
-document.getElementById('btn-fire').onclick=()=>{
-  fireToolActive=!fireToolActive;
-  ov.classList.toggle('firetool',fireToolActive);
-  const b=document.getElementById('btn-fire');
-  b.classList.toggle('active',fireToolActive);
-  b.textContent=fireToolActive?'🔥 Klicke in die Szene':'🔥 Feuer-Tool';
-};
-ov.addEventListener('click',e=>{
-  if(!fireToolActive||!ready)return;
-  const r=ov.getBoundingClientRect();       // CSS-Box -> UV (Prototyp-Bug Nr. 8!)
-  const u=(e.clientX-r.left)/r.width, v=(e.clientY-r.top)/r.height;
-  if(igniteFire(u,v)) setStatus('🔥 Feuer entzündet ('+(getMaterialTypeAt(u,v)||'?')+').');
-});
 document.getElementById('btn-clear-world').onclick=()=>{
-  trailClear(); fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
+  trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
   Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧹 Spuren, Matsch und Brandflecken entfernt.');
 };
@@ -2659,7 +2496,8 @@ function elementPreset(kind){
   if(!ensureElementScene()) return;
   const apply=p=>{ Object.assign(PARAMS,{...PARAMS,...p}); Object.assign(CUR,{...CUR,...p}); syncSliders(); };
   const burst=p=>Object.assign(elementBurst,{...elementBurst,...p});
-  const center={u:player.active?player.u:0.5, v:player.active?player.v:0.62};
+  const pPos=window.SHADED.player.pos();
+  const center={u:pPos.active?pPos.u:0.5, v:pPos.active?pPos.v:0.62};
   if(kind==='fluid'){
     burst({wet:1,pressure:0.45});
     apply({rain:0.72, wet:1, puddle:0.96, fog:0.20, storm:0.55, wind:0.45, temperature:0.58});
@@ -2670,7 +2508,7 @@ function elementPreset(kind){
     burst({wet:0.45,heat:0.85});
     apply({rain:0.05, wet:0.55, puddle:0.45, fog:0.46, wind:0.35, temperature:0.94, glow:0.45});
     window.SHADED_ENGINE_INTERNAL.spawnElementParticles('steam',center.u,center.v,28);
-    igniteFire(center.u,center.v);
+    window.SHADED.fire.ignite(center.u,center.v);
     setStatus('♨️ Dampf: heiße nasse Oberfläche erzeugt aufsteigende, windgetriebene Nebelpuffs.');
   } else if(kind==='pressure'){
     burst({pressure:1,wet:0.35});
@@ -2681,14 +2519,14 @@ function elementPreset(kind){
   } else if(kind==='heat'){
     burst({heat:1,ash:0.35});
     apply({temperature:1, wet:0.18, rain:0, fog:0.16, glow:0.75, storm:0.08, wind:0.28});
-    igniteFire(center.u,center.v);
+    window.SHADED.fire.ignite(center.u,center.v);
     window.SHADED_ENGINE_INTERNAL.spawnElementParticles('steam',center.u,center.v,8);
     setStatus('🔥 Hitze: Feuerlicht, Wärmeflimmern, Trocknung und Funken.');
   } else if(kind==='mud'){
     burst({wet:0.8,pressure:0.35});
     apply({rain:0.28, wet:0.92, puddle:0.68, fog:0.16, wind:0.20, temperature:0.55});
     for(let i=0;i<38;i++) trailStamp(0.16+Math.random()*0.68,0.58+Math.random()*0.34,0.018,2,0.15,235);
-    if(!player.active) spawnPlayer();
+    if(!window.SHADED.player.pos().active) window.SHADED.player.enable();
     setStatus('🟤 Matsch: permanente Trampelpfad-/Schlammspur im Trail-Kanal, durch Regen glänzend.');
   } else if(kind==='ice'){
     burst({wet:0.65,hail:0.35,pressure:0.25});
@@ -2702,7 +2540,7 @@ function elementPreset(kind){
   } else if(kind==='fire'){
     burst({heat:1,ash:0.7});
     apply({temperature:0.88, rain:0, wet:0.12, fog:0.14, wind:0.35, glow:0.95, dayNight:0.72});
-    for(let i=0;i<4;i++) igniteFire(center.u+(Math.random()-0.5)*0.12,center.v+(Math.random()-0.5)*0.08);
+    for(let i=0;i<4;i++) window.SHADED.fire.ignite(center.u+(Math.random()-0.5)*0.12,center.v+(Math.random()-0.5)*0.08);
     setStatus('🔥 Feuer: Brennstoff, Brandspur, Funken, Rauch und Wet-Dousing laufen zusammen.');
   } else if(kind==='smoke'){
     burst({ash:0.7,heat:0.25});
@@ -2746,7 +2584,7 @@ function elementPreset(kind){
 document.querySelectorAll('[data-element]').forEach(b=>b.onclick=()=>elementPreset(b.dataset.element));
 document.getElementById('btn-elements-clear').onclick=()=>{
   if(!ready) return;
-  trailClear(); fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
+  trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
   Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧼 Element-Partikel, Druckringe, Lava, Hagel, Feuer und Spuren zurückgesetzt.');
 };
@@ -2858,8 +2696,8 @@ async function startShowcase(){
     showcaseStoryboard();
     playStory();
     spawnEcosystem('gaime_npcs');
-    if(!player.active) spawnPlayer();
-    igniteFire(0.58,0.62);
+    if(!window.SHADED.player.pos().active) window.SHADED.player.enable();
+    window.SHADED.fire.ignite(0.58,0.62);
     soundStamp(0.50,0.58,1);
     showcase={t:0, beat:-1};
     setShowcaseCaption(SHOWCASE_BEATS[0].title,SHOWCASE_BEATS[0].copy);
@@ -3033,7 +2871,7 @@ function erstellen(){
   if(!sceneImg){ setStatus('⚠️ Zuerst ein Bild laden!'); return false; }
   setStatus('🧠 Analysiere Materialien, Senken, Flussfeld, Lichtquellen …');
   mossBoost=0;
-  trailClear(); fires.length=0; player.active=false;
+  trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.player.active=false;
   analyze();
   window.SHADED_ENGINE_INTERNAL.initEco?.();
   defaultStoryboard();
@@ -3149,11 +2987,12 @@ function tickWorld(dt){
     // Phase C: World Laws Extension
     dryPhase+=dt*Math.max(0, 0.8-CUR.wet);
     rustAccum+=dt*Math.max(0, CUR.wet-0.3)*0.15;
-    heatWarp=CUR.temperature*fires.length;
-    smokeAmount=CUR.fog*(CUR.storm+fires.length*0.5);
+    const fireCount=window.SHADED_ENGINE_INTERNAL.fires.length;
+    heatWarp=CUR.temperature*fireCount;
+    smokeAmount=CUR.fog*(CUR.storm+fireCount*0.5);
     // Phase C+
     breathAmount+=dt*(CUR.temperature<0.3?0.3:0)*(1-CUR.wet*0.5);
-    pressureDim=fires.length*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
+    pressureDim=fireCount*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
     pollutionGlow=CUR.glow*0.5+CUR.wind*0.1;
     moonBright=(1-CUR.dayNight)*0.6+CUR.bloom*0.1;
     shelfShadow=CUR.storm*0.3+Math.max(0,CUR.rain-0.5)*0.2;
@@ -3164,7 +3003,7 @@ function tickWorld(dt){
     runeGlow=CUR.fog*0.3+CUR.bloom*0.1;
     // Finale Sprint-Welt-Gesetze
     shadowAge+=dt*Math.max(0, 0.5-CUR.glow)*0.4; // Schatten verlangsamen Verfall
-    smellDrift+=dt*(CUR.decay*0.6+fires.length*0.2); // Verfall + Feuer → Geruch
+    smellDrift+=dt*(CUR.decay*0.6+fireCount*0.2); // Verfall + Feuer → Geruch
     touchWear+=dt*0.05; // konstantes Abnutzen
     repairMark=CUR.glow*0.3+CUR.wind*0.1; // neue/reparierte Holzstellen glänzen
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3; // Bloom=Segen, Decay=Fluch
@@ -3203,10 +3042,10 @@ function tickWorld(dt){
     if(ready){
       // Feuchte-Patina: lange Nässe lässt Moos schneller kommen (persistiert über Akte)
       mossBoost = Math.min(1, mossBoost + dt*Math.max(0, CUR.wet-0.5)*0.02);
+      const player=window.SHADED_ENGINE_INTERNAL.player;
       bloodStain = Math.min(1, player.blood);   // Blut-Transfer auf Schuhen (#2)
       mudStain = Math.min(1, player.mud);       // Schlamm-Transfer auf Schuhen (#2)
-      playerTick(dt);
-    fireTick(dt);
+      window.SHADED_ENGINE_INTERNAL.playerFireTick?.(dt);
     window.SHADED_ENGINE_INTERNAL.weatherTick?.(dt);
     trailTick(dt);
     soundTick(dt);
@@ -3296,13 +3135,14 @@ window.SHADED = {
   setParams:(p)=>{ stopStory(); Object.assign(PARAMS,p); Object.assign(CUR,p); syncSliders(); },
   getParams:()=>({...CUR}),
   setTime:(t,freeze)=>{ time=t; timeFrozen=!!freeze;     // freeze=true: deterministische Frames
+    const fireCount=window.SHADED_ENGINE_INTERNAL.fires.length;
     rainPhase=t*(1.0+CUR.wind*0.4); windDrift=t*CUR.wind;
     dryPhase=t*Math.max(0, 0.8-CUR.wet);
     rustAccum=t*Math.max(0, CUR.wet-0.3)*0.15;
-    heatWarp=CUR.temperature*fires.length;
-    smokeAmount=CUR.fog*(CUR.storm+fires.length*0.5);
+    heatWarp=CUR.temperature*fireCount;
+    smokeAmount=CUR.fog*(CUR.storm+fireCount*0.5);
     breathAmount=t*(CUR.temperature<0.3?0.3:0)*(1-CUR.wet*0.5);
-    pressureDim=fires.length*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
+    pressureDim=fireCount*0.2+Math.max(0,0.5-CUR.puddle)*0.1;
     pollutionGlow=CUR.glow*0.5+CUR.wind*0.1;
     moonBright=(1-CUR.dayNight)*0.6+CUR.bloom*0.1;
     shelfShadow=CUR.storm*0.3+Math.max(0,CUR.rain-0.5)*0.2;
@@ -3312,7 +3152,7 @@ window.SHADED = {
     forbiddenCold=CUR.storm*0.2;
     runeGlow=CUR.fog*0.3+CUR.bloom*0.1;
     shadowAge=t*Math.max(0, 0.5-CUR.glow)*0.4;
-    smellDrift=t*(CUR.decay*0.6+fires.length*0.2);
+    smellDrift=t*(CUR.decay*0.6+fireCount*0.2);
     touchWear=t*0.05;
     repairMark=CUR.glow*0.3+CUR.wind*0.1;
     blessCurse=CUR.bloom*0.5+CUR.decay*-0.3;
@@ -3324,26 +3164,15 @@ window.SHADED = {
   elements:{ trigger:elementPreset, clear:()=>document.getElementById('btn-elements-clear').click() },
   // Räumliche Runtime-Module lesen dieselben transienten Weltgesetze, statt
   // parallel eigene UI-Schalter oder eine zweite Simulationswahrheit zu erfinden.
-  worldState:()=>({params:{...CUR},elements:{...elementBurst},fireCount:fires.length,
+  worldState:()=>{ const player=window.SHADED_ENGINE_INTERNAL.player;
+                   return {params:{...CUR},elements:{...elementBurst},fireCount:window.SHADED_ENGINE_INTERNAL.fires.length,
                    player:{active:player.active,blood:player.blood||0,mud:player.mud||0},
-                   phases:{dry:dryPhase,rust:rustAccum,smoke:smokeAmount,heat:heatWarp}}),
+                   phases:{dry:dryPhase,rust:rustAccum,smoke:smokeAmount,heat:heatWarp}}; },
   spatial:{ pointCloud:buildSpatialPointCloud, downloadPointCloud:downloadSpatialPointCloud },
   loadDemo:loadDemoScene,
   loadImageFile,
-  // Runde 4
-  player:{ enable:spawnPlayer, pos:()=>({u:player.u,v:player.v,active:player.active,wet:player.wet}),
-           setAge:(a)=>{player.age=Math.max(0,Math.min(1,a));},
-           move:(du,dv)=>{                       // direkter Schritt inkl. Fußspuren (Tests/Agenten)
-             if(!player.active) spawnPlayer();
-             const steps=Math.max(1,Math.ceil(Math.hypot(du,dv)/0.012));
-             for(let s2=0;s2<steps;s2++){
-               player.u=Math.max(0.01,Math.min(0.99,player.u+du/steps));
-               player.v=Math.max(0.01,Math.min(0.99,player.v+dv/steps));
-               trailStamp(player.u,player.v+0.006,0.007,0,0.7);
-               trailStamp(player.u,player.v+0.006,0.009,2,0.045,235);
-             }
-           } },
-  fire:{ ignite:igniteFire, list:()=>fires.map(f=>({u:f.u,v:f.v,fuel:f.fuel})) },
+  // Runde 4: window.SHADED.player/window.SHADED.fire werden von runtime/player-fire.mjs
+  // angehängt, nachdem dieses Modul geladen ist (siehe dort).
   // stamp: bis Stufe 2 der Engine-Aufteilung rein intern (docs/engine-decomposition-plan.md) —
   // öffentlich gemacht, damit runtime/actor-bridge.mjs Fußspuren über das Vertrags-API setzt,
   // statt Engine-Interna zu importieren (Invariante 5: nur erweitern).
@@ -3463,6 +3292,6 @@ window.SHADED = {
 // verwenden; nur von Modulen, die shaded-engine.mjs selbst aufgeteilt hat.
 // time/heatWarp sind Getter (kein Snapshot), weil beide `let`-Variablen sind, die jeden Frame
 // neu berechnet werden — eine Kopie zum Bridge-Aufbauzeitpunkt wäre sofort veraltet.
-window.SHADED_ENGINE_INTERNAL = { PARAMS, CUR, get time(){return time;}, get heatWarp(){return heatWarp;} };
+window.SHADED_ENGINE_INTERNAL = { PARAMS, CUR, get time(){return time;}, get heatWarp(){return heatWarp;}, findSpawnPoint };
 
 export default window.SHADED;
