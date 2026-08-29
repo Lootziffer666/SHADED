@@ -55,7 +55,7 @@ Vollständiges Audit-Protokoll (drei Recherche-Agenten, Chat-Transkript dieser S
 | 0 | Baseline: `classGrid` + optionale Companion-Tiefenkarte + einzelne Flat-Plane-Parallaxe + Wetter als Screen-Space-Overlay mit binärer Landeprüfung | Heutiger Stand vor dieser Datei, per `tools/verify.js` gemessen |
 | **1** | **Grobe `NEAR/MID/FAR/STRUCTURAL/UNKNOWN`-Schicht, DERIVED aus `classGrid`/`zoneGrid`/`skyGrid` — keine neue Erkennung** | **✅ Umgesetzt, siehe unten** |
 | **2** | **Zusammenhängende Occlusion-/Tiefen-Layer (Connected Components über der Exp.-1-Schicht statt verstreuter Einzelpixel)** | **✅ Umgesetzt, siehe unten** |
-| 3 | Wetterpartikel bekommen `worldZ` aus der Exp.-2-Schicht statt Screen-Space-Bewegung (Aufgabe 2 des Maintainer-Briefings) | Geplant, noch nicht begonnen |
+| **3** | **Wetterpartikel occluded hinter STRUCTURAL-Regionen statt darüber gemalt; Tiefen-Fallback aus depthLayerAt() statt Math.random() (Aufgabe 2 des Maintainer-Briefings)** | **✅ Umgesetzt, siehe unten** |
 | 4 | Generalisierter (nicht `messehalle.png`-fest verdrahteter) Fluchtpunkt-Detektor, nur falls Exp. 1–3 nicht reichen und das Bild echte Zentralperspektive zeigt | Zurückgestellt, niedrige erwartete Wirkung für SHADEDs isometrische Testbilder |
 
 ## Exp. 1 — Umsetzung
@@ -148,3 +148,60 @@ wo Gebäude/Vegetation tatsächlich in separate Klumpen zerfallen). Für Exp. 3 
 Wetterpartikel braucht nur EINEN Landepunkt, keine feingranulare Bodensegmentierung); für eine
 belastbarere Occlusion-Hierarchie müsste `near` in Exp. 1 feiner unterteilt werden (z. B. Wasser
 separat, da es sich anders verhält als begehbarer Boden).
+
+## Exp. 3 — Umsetzung
+
+Zwei Bausteine in `runtime/weather-particles.mjs`, beide reine Weiterverwendung von Exp. 1/2 —
+kein neues 3D-Weltvolumen, keine Kamera-Projektion (das wäre kein "kleinster nächster Schritt"
+mehr, siehe Antwort an den Maintainer zu Registrierung/Point-Clouds-als-Sensoren weiter oben):
+
+1. **`weatherPseudoDepthAt(u,v)`:** wenn KEINE echte Companion-Tiefenkarte geladen ist (der
+   Regelfall für SHADEDs Testbilder), war die Tiefe von Regen/Schnee/Hagel bisher schlicht
+   `Math.random()` — reines Rauschen, kein Szenenbezug. Ersetzt durch einen aus `depthLayerAt()`
+   abgeleiteten Wert (near=0.85 am nächsten, far=0.1 am fernsten). Betrifft Spawn UND die
+   Pro-Frame-Nachführung aller drei Partikelsysteme (vorher hatte Hagel z. B. gar keine
+   Pro-Frame-Nachführung ohne echte Karte — `h.depth` blieb für die gesamte Lebensdauer des
+   Korns beim Spawn-Zufallswert eingefroren).
+2. **`weatherOccludedAt(u,v)`:** eine `structural`-Region (Gebäude/Dach) gilt als näher als die
+   angenommene Wetterebene — fallende Partikel werden dort nicht gezeichnet, verschwinden also
+   hinter der Silhouette statt darüber gemalt zu werden. Nur für NICHT-liegenden/liegenden-
+   Zustand relevant: liegender Schnee bleibt auf einem Dach sichtbar (er sitzt AUF der Struktur,
+   nicht dahinter), genau wie zuvor schon bei Fels/Wald.
+
+**Randfall, gefunden beim Verifizieren, nicht vorher erkennbar:** Regen ist eine ~20–70px lange
+Diagonale, Hagel/Schnee sind kleine Kreise — nicht nur ihr Ursprungspunkt zählt. Einen einzelnen
+Punkt pro Partikel zu prüfen ließ eine dünne Dachkante mitten auf der Linie bzw. am Kreisrand
+durchrutschen (schwaches Antialiasing-Bluten, keine sichtbar falsche Darstellung, aber messbar).
+Behoben durch Mehrpunkt-Occlusion: vier Punkte entlang der Regen-Linie (0/33/66/100 %), fünf
+Punkte auf dem Hagel-/Schnee-Kreisrand (Mitte + vier Himmelsrichtungen).
+
+**Zweiter, wichtigerer Fund beim Verifizieren:** `elements.trigger('rain')` erhöht sowohl `rain`
+als auch `storm` — und `storm*rain` überschreitet `hailTick`s Spawn-Schwelle, sodass das
+Regen-Preset NEBENBEI auch Hagel auslöst. Hagel-Aufprall-„Bounces" erzeugen `pressureBursts`
+(Druckringe) — ein laut `weather-particles.mjs`s eigenem Kommentar ausdrücklich zum „Element-Labs"-
+System gehörendes, NICHT zum Wettersystem gehörendes Feature, das nie für eine Occlusion-Prüfung
+vorgesehen war (ein Aufprallring gehört semantisch AUF die getroffene Fläche, wie liegender
+Schnee, nicht dahinter). Das ursprüngliche Verify-Skript nutzte `elements.trigger('rain')` als
+Testauslöser und maß deshalb fälschlich eine "Occlusion-Verletzung", die tatsächlich ein
+unverwandtes System war. Behoben, indem der Test Regen direkt per `setParams({rain:1, storm:0})`
+isoliert, statt über das Preset (das auch andere Systeme mit anstößt).
+
+**Beweis:** `node tools/verify-weather-depth.js` — heftiger Regen über ~2,4 s (40 Frames),
+gemessen an der tatsächlichen `depthLayerAt()`-Pixelmaske (nicht an Bounding-Boxen, die bei
+nicht-konvexen Gebäude-Clustern Lücken einschließen, die selbst nicht `structural` sind):
+**maximale Alpha auf `structural`-Pixeln über den gesamten Testlauf: 0/255. Maximale Alpha
+außerhalb: 204/255** (deutlich sichtbarer Regen). `npm run check` grün, `tools/verify.js`
+(fünf Szenen, Klassenregression + Screenshots) unverändert grün.
+
+## Nicht Teil von Exp. 3
+
+- Kein echtes 3D-Weltvolumen (`weatherVolume.width/depth/height`), keine Kamera-Projektion,
+  keine `worldPosition(x,y,z)`-Partikel — das wäre eine eigene, größere Architekturentscheidung
+  (neuer Renderpfad für den gesamten Partikel-/Kamera-Stack), kein inkrementeller Schritt auf
+  Exp. 1/2 auf. Die aktuelle Lösung erreicht denselben AUSSENWIRKUNG (Wetter wirkt räumlich
+  verankert, nicht als Overlay) rein durch Occlusion + abgeleitete Pseudo-Tiefe.
+- Keine Occlusion durch `mid` (Laub/Fels) — nur `structural` blockt. Kandidat für eine spätere
+  Stufe, falls sich zeigt, dass große Baumkronen ebenfalls sichtbar "durchregnet" werden sollten.
+- Kein Fix für den Umstand, dass `elements.trigger('rain')` weiterhin Hagel mit auslöst — das ist
+  bestehendes, unverändertes Verhalten (Aufgabe des Elements-Systems, nicht dieser Experimentreihe);
+  nur das TEST-Skript umgeht es gezielt, um Exp. 3 isoliert zu messen.

@@ -27,9 +27,16 @@ function spawnElementParticles(kind,u=0.5,v=0.62,count=1){
     vu:(Math.random()-0.5)*0.010+CUR.wind*0.014,vv:-0.028-Math.random()*0.018,r:0.006+Math.random()*0.010,life:1});
   if(kind==='pressure') for(let i=0;i<count;i++) pressureBursts.push({u:u+(Math.random()-0.5)*0.08,v:v+(Math.random()-0.5)*0.05,
     r:0.008+Math.random()*0.014,life:1,seed:Math.random()*6.28});
-  if(kind==='hail') for(let i=0;i<count;i++) hailstones.push({u:Math.random(),v:-0.1-Math.random()*0.25,
-    vu:CUR.wind*0.22+(Math.random()-0.5)*0.08,vv:0.75+Math.random()*0.45,r:0.003+Math.random()*0.004,
-    bounce:1,life:1,depth:Math.random()});
+  if(kind==='hail') for(let i=0;i<count;i++){
+    const hu=Math.random();
+    // Exp. 3: gleiche invertierte Tiefe wie in hailTicks Pro-Frame-Nachführung
+    // (1-nah-Konvention) — szenenabgeleitet statt Zufall, wenn keine echte Karte vorliegt.
+    const hasDepth=window.SHADED.parallax.hasDepth();
+    const depth=hasDepth ? 1-window.SHADED.parallax.sampleDepth(hu,0) : 1-weatherPseudoDepthAt(hu,0);
+    hailstones.push({u:hu,v:-0.1-Math.random()*0.25,
+      vu:CUR.wind*0.22+(Math.random()-0.5)*0.08,vv:0.75+Math.random()*0.45,r:0.003+Math.random()*0.004,
+      bounce:1,life:1,depth});
+  }
   if(kind==='lava') for(let i=0;i<count;i++){
     const a=(Math.random()*6.283), d=Math.random()*0.055;
     lavaFlows.push({u:u+Math.cos(a)*d,v:v+Math.sin(a)*d*0.7,vu:Math.cos(a)*0.010+CUR.wind*0.006,
@@ -173,12 +180,41 @@ function ecoTick(dt){
   }
 }
 
+// --- Exp. 3 (docs/first-glimpse-depth-layers.md): Wetter existiert IN der Szene, nicht als
+// Screen-Space-Overlay. Zwei Bausteine, beide reine Weiterverwendung von Exp. 1/2 — kein
+// neues 3D-Weltvolumen, keine Kamera-Projektion (das wäre ein eigener, größerer Schritt,
+// keine "kleinste sinnvolle Erweiterung"):
+// 1) weatherPseudoDepthAt(): wenn KEINE echte Companion-Tiefenkarte geladen ist (der Regelfall
+//    für SHADEDs Testbilder), war die Tiefe bisher schlicht Math.random() — reines Rauschen,
+//    kein Szenenbezug. Ersetzt das durch einen aus depthLayerAt() abgeleiteten Wert (near am
+//    nächsten, far am fernsten) — SHADEDs eigene billige Hypothese statt Zufall, exakt im
+//    Sinn von Aufgabe 1 ("kann SHADED das selbst ableiten, bevor geraten wird").
+// 2) weatherOccludedAt(): eine STRUCTURAL-Region (Gebäude/Dach) gilt als näher als die
+//    angenommene Wetterebene — fallende Partikel werden dort nicht gezeichnet (verschwinden
+//    hinter der Silhouette), statt ungehindert über Dächer hinweg gemalt zu werden. Bewusst
+//    NUR structural, nicht mid (Laub/Fels) — kleinster Schritt zuerst, siehe Doku für den
+//    Kompromiss. Betrifft nur fallende/nicht-liegende Partikel: liegender Schnee auf einem
+//    Dach SOLL sichtbar bleiben, er sitzt AUF der Struktur, nicht dahinter.
+function weatherPseudoDepthAt(u,v){
+  switch(window.SHADED.depthLayerAt(u,v)){
+    case 'near': return 0.85;
+    case 'mid': return 0.5;
+    case 'structural': return 0.3;
+    case 'far': return 0.1;
+    default: return 0.5; // 'unknown' bzw. keine Szene geladen — neutral
+  }
+}
+function weatherOccludedAt(u,v){
+  return window.SHADED.depthLayerAt(u,v)==='structural';
+}
+
 // --- Schnee-Partikel-System: Tiefenkarte steuert Fall, Temperatur+Material steuern Liegenbleiben ---
 let vortexPhase = 0;  // für weiche positive/negative Wind-Oszillation
 const SNOW_SETTLE_MAX=260; // Deckel gegen unbegrenztes Wachstum bei Dauerschnee
 function snowDepthAt(s){
-  // Echte Tiefenkarte wenn vorhanden (1=nah/weiß, 0=fern/schwarz), sonst die alte Pseudo-Tiefe
-  return window.SHADED.parallax.hasDepth() ? window.SHADED.parallax.sampleDepth(s.u,s.v) : s.pseudoDepth;
+  // Echte Tiefenkarte wenn vorhanden (1=nah/weiß, 0=fern/schwarz), sonst Exp. 3s
+  // szenenabgeleitete Tiefe statt des früheren Zufallswerts.
+  return window.SHADED.parallax.hasDepth() ? window.SHADED.parallax.sampleDepth(s.u,s.v) : weatherPseudoDepthAt(s.u,s.v);
 }
 function snowTick(dt){
   const player=window.SHADED.player.pos();
@@ -196,7 +232,6 @@ function snowTick(dt){
       u: Math.random(),
       v: -0.15,  // KONSISTENT von oben, nicht zufällig
       z: 0,
-      pseudoDepth: -0.5 + Math.random(),  // Fallback ohne Tiefenkarte
       size: 0.6 + Math.random()*0.5,      // startet als kleines Flöckchen
       vu: (Math.random()-0.5)*0.01,
       vv: 0.08 + Math.random()*0.04 + CUR.snowfall*0.12,
@@ -310,9 +345,10 @@ function rainTick(dt){
     const u = -length + Math.random(), v = -0.35 + Math.random()*0.25;
 
     // Regen-Tropfen haben Tiefe: echte Tiefenkarte wenn vorhanden (0=vorne/schnell,
-    // 1=hinten/langsam - invers zu getDepthAt, wo 1=nah), sonst Pseudo-Tiefe.
+    // 1=hinten/langsam - invers zu getDepthAt, wo 1=nah), sonst Exp. 3s szenenabgeleitete
+    // Tiefe (gleiche Inversion) statt des früheren Zufallswerts.
     const realD = hasDepth ? window.SHADED.parallax.sampleDepth(u,v) : null;
-    const depth = realD!==null ? 1-realD : Math.random();
+    const depth = realD!==null ? 1-realD : 1-weatherPseudoDepthAt(u,v);
     const depthMultiplier = 0.6 + depth*0.4;  // 0.6x bis 1.0x
 
     raindrops.push({
@@ -339,8 +375,9 @@ function rainTick(dt){
     r.v += r.vy * dt;
     r.u += r.vx * dt;
 
-    // Tiefe pro Frame nachführen (echte Karte reagiert auf Position, nicht nur Spawn-Punkt)
+    // Tiefe pro Frame nachführen (reagiert auf Position, nicht nur den Spawn-Punkt)
     if(hasDepth){ const d=window.SHADED.parallax.sampleDepth(r.u,r.v); if(d!==null) r.depth = 1-d; }
+    else r.depth = 1-weatherPseudoDepthAt(r.u,r.v);
 
     // wrapping
     if(r.u > 1) r.u = -r.length;
@@ -377,6 +414,7 @@ function hailTick(dt){
     h.v+=h.vv*dt;
     h.u+=h.vu*dt;
     if(hasDepth){ const d=window.SHADED.parallax.sampleDepth(h.u,h.v); if(d!==null) h.depth=1-d; }
+    else h.depth=1-weatherPseudoDepthAt(h.u,h.v);
     // Aufprall an der echten Oberfläche (nicht Himmel, siehe skyAt) statt an einer
     // festen Bildschirmkante v>0.92 — Boden/Dach liegen in dieser isometrischen
     // Perspektive über weite Teile des Bilds verteilt, nicht nur am unteren Rand.
@@ -479,8 +517,16 @@ function weatherDrawAfterFire(){
     const depthMultiplier = 0.6 + d*0.6;   // fern 0.6x .. nah 1.2x
     const depthAlpha = 0.5 + d*0.5;        // fern schwächer, nah kräftiger
     const layerBoost = sn.settled ? (1 + sn.layer*0.22) : 1; // Schichten wachsen sichtbar
-
     const maxAge = sn.settled ? 40 : 25;
+    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier * layerBoost;
+    // Exp. 3: nur NICHT-liegender Schnee kann hinter einer Gebäudesilhouette verschwinden —
+    // liegender Schnee sitzt bewusst AUF der Struktur (z.B. Dach), nicht dahinter. Ober-/
+    // Unterkante des kleinen Kreises mitprüfen (siehe Hagel-Fix: derselbe Randfall, wenn
+    // eine dünne Dachkante nur den Kreisrand schneidet).
+    if(!sn.settled){
+      const sr=pixelSize/H;
+      if(weatherOccludedAt(sn.u,sn.v) || weatherOccludedAt(sn.u,sn.v-sr) || weatherOccludedAt(sn.u,sn.v+sr)) return;
+    }
     ovx.globalAlpha = Math.min(0.95, (1-sn.age/maxAge)*0.6 + CUR.snowfall*0.3) * depthAlpha;
 
     const fadeNight = night>0.6 ? (0.4+night*0.3) : 1.0;
@@ -488,13 +534,24 @@ function weatherDrawAfterFire(){
     const blueShift = Math.max(0, (1-d)*20)|0;
     ovx.fillStyle = `rgba(${Math.max(180, 220*fadeNight-blueShift)|0},${230*fadeNight|0},${255*fadeNight|0},1)`;
 
-    const pixelSize = sn.size * S * Math.pow(sn.age/maxAge + 0.1, 0.3) * depthMultiplier * layerBoost;
     ovx.beginPath();
     ovx.arc(sn.u*W, sn.v*H, Math.max(0.3, pixelSize), 0, 6.283);
     ovx.fill();
   });
   // Regen-Tropfen: Tiefenvarianz (vordere Tropfen sichtbar, hintere subtil)
   raindrops.forEach(r=>{
+    // Tiefere Tropfen sind länger (Parallax) aber dünner
+    const depthMultiplier = 0.8 + r.depth*0.4;
+    // Exp. 3: Tropfen verschwindet hinter einer Gebäudesilhouette statt darüber gemalt zu
+    // werden. Ein Tropfen ist eine ~20-70px lange Diagonale, nicht nur sein Startpunkt — nur
+    // Start+Ende zu prüfen ließ eine dünne Dachkante MITTEN auf der Linie durchrutschen
+    // (gefunden via tools/verify-weather-depth.js: schwache, aber echte Treffer bei v≈0).
+    // Vier Punkte entlang der Linie statt zwei schließen diese Lücke praktisch vollständig,
+    // ohne die Linie pixelgenau zu rastern.
+    const endU = r.u + r.length*depthMultiplier, endV = r.v + r.length*2*depthMultiplier;
+    if(weatherOccludedAt(r.u,r.v) || weatherOccludedAt(endU,endV)
+      || weatherOccludedAt(r.u+(endU-r.u)*0.33, r.v+(endV-r.v)*0.33)
+      || weatherOccludedAt(r.u+(endU-r.u)*0.66, r.v+(endV-r.v)*0.66)) return;
     // Tiefere Tropfen (r.depth ~ 1): schwächer und dünner (Parallax-Effekt)
     const depthAlpha = 0.4 + r.depth*0.6;  // vorne 0.4-1.0, hinten 0.4-0.7
     const lifetime = 8 + r.depth*4;
@@ -504,20 +561,26 @@ function weatherDrawAfterFire(){
     // Tiefere Tropfen leicht blauer (Luftperspektive)
     const blueShift = r.depth*20|0;
     ovx.strokeStyle = `rgba(${Math.max(0,180*depthFade-blueShift)|0},${200*depthFade|0},${255*depthFade|0},1)`;
-
-    // Tiefere Tropfen sind länger (Parallax) aber dünner
-    const depthMultiplier = 0.8 + r.depth*0.4;
     ovx.lineWidth = Math.max(0.3, (1.5 - r.v)*depthMultiplier);
 
     ovx.beginPath();
     const x1 = r.u*W, y1 = r.v*H;
-    const x2 = x1 + r.length*W*depthMultiplier, y2 = y1 + r.length*H*2*depthMultiplier;
+    const x2 = endU*W, y2 = endV*H;
     ovx.moveTo(x1, y1);
     ovx.lineTo(x2, y2);
     ovx.stroke();
   });
   hailstones.forEach(h=>{
+    // Exp. 3: Hagelkorn verschwindet hinter einer Gebäudesilhouette statt darüber gemalt zu
+    // werden. Nur Mittelpunkt+Unterkante zu prüfen (erster Entwurf) ließ die OBERE Kante des
+    // Kreises durchrutschen — gefunden via tools/verify-weather-depth.js: schwache, aber
+    // echte Treffer, wenn eine dünne Dachkante genau die obere Kante des kleinen Kreises
+    // schneidet, ohne Mittelpunkt oder Unterkante zu berühren. Alle vier Himmelsrichtungen
+    // des Kreisrands prüfen schließt das.
     const depthScale=0.65+h.depth*0.55;
+    const hr=h.r*depthScale;
+    if(weatherOccludedAt(h.u,h.v) || weatherOccludedAt(h.u,h.v-hr) || weatherOccludedAt(h.u,h.v+hr)
+      || weatherOccludedAt(h.u-hr,h.v) || weatherOccludedAt(h.u+hr,h.v)) return;
     ovx.globalAlpha=0.45+0.45*h.life;
     ovx.fillStyle='rgba(225,240,255,1)';
     ovx.strokeStyle='rgba(90,140,180,.65)';
