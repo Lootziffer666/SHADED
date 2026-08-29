@@ -3140,6 +3140,22 @@ function tickWorld(dt){
   }
 }
 function frame(now){
+  // requestAnimationFrame(frame) stand bisher als letzte Anweisung IM Funktionskoerper --
+  // jede unbehandelte Ausnahme irgendwo im Frame (tickWorld, drawOverlay, ein einzelner
+  // gl.uniform-Aufruf, ...) hat den gesamten Render-/Simulationsloop damit STILLSCHWEIGEND
+  // und DAUERHAFT eingefroren (kein Absturz, keine sichtbare Fehlermeldung -- nur ein
+  // reglosen Bild ab diesem Zeitpunkt). try/finally stellt sicher, dass der Loop nach EINEM
+  // fehlerhaften Frame weiterlaeuft statt fuer den Rest der Sitzung zu sterben; der Fehler
+  // bleibt trotzdem sichtbar (console.error mit Stacktrace), er verschwindet nicht.
+  try {
+    frameBody(now);
+  } catch(e) {
+    console.error('SHADED: unbehandelter Fehler im Render-Loop (Frame übersprungen, Loop läuft weiter):', e);
+  } finally {
+    requestAnimationFrame(frame);
+  }
+}
+function frameBody(now){
   let acc=Math.min(1.0,(now-lastT)/1000||0); lastT=now;
   const frameDt=acc;
   while(acc>0){ const s=Math.min(0.05,acc); tickWorld(s); acc-=s; }
@@ -3206,7 +3222,6 @@ function frame(now){
     // CSS-Transforms landen nicht in der Aufnahme -> Versatz als Pixel-Offset
     if(recorder&&recCtx){ recCtx.drawImage(canvas,0,0); recCtx.drawImage(ov,fx*canvas.width,fy*canvas.height); }
   }
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
