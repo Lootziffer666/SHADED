@@ -1,6 +1,6 @@
 ---
 name: shaded-reconstruction
-description: Verbindliche Architektur für SHADED-Rekonstruktion aus Bildern, Depth, Height, Normals, Point Clouds, Meshes, SDFs und externen Providern. Nutzen vor Änderungen an Depth-Import, 2.5D, Point-Cloud-Ableitung, Materialkarten, Multi-View, Kontakt-Simulation oder World Surface Graph.
+description: Verbindliche Architektur für SHADED-Rekonstruktion aus Bildern, Depth, Height, Normals, Point Clouds, Meshes, SDFs und externen Providern. Nutzen vor Änderungen an Depth-Import, 2.5D, Point-Cloud-Ableitung, Materialkarten, Multi-View, Kontakt-Simulation oder World Surface Graph. Enthaelt auch das Research-Radar-Pruefraster gegen veraltete Technologieentscheidungen -- vor Donor-Auswahl oder Standardbackend-Festlegung nutzen.
 ---
 
 # SHADED-Rekonstruktion
@@ -64,8 +64,18 @@ Echte Depth / Mesh / SDF vorhanden?
 Verlässliche Point Cloud oder Multiview vorhanden?
   → PointCloudProvider / ReconstructionProvider
 
-Nur RGB-Einzelbild?
-  → MonocularDepthProvider
+Einzelbild MIT messbaren Strukturkanten (echte, getracte Ecken/Konturen,
+Fluchtpunkte, Manhattan-World-Annahme aus rechtwinkligen Kanten)?
+  → klassische Single-View-Metrologie (Eckpunkt + zwei gemessene
+    Kantenvektoren u/v algebraisch zu Volumen konstruieren, siehe
+    `tools/scratch-manhattan-box.mjs`-Familie). Provenienz MEASURED, nicht
+    INFERRED -- das ist gemessene Geometrie aus echten Bildkanten, kein
+    geschätztes Tiefenfeld. Rangiert in der Prioritätsliste unten VOR
+    MonocularDepthProvider, nicht danach.
+
+Nur RGB-Einzelbild OHNE belastbare Strukturkanten (keine tracebare Kontur,
+keine verlässlichen Eckpunkte)?
+  → MonocularDepthProvider (letzter Ausweg, nicht erster Griff)
 
 Video?
   → TemporalDepthProvider
@@ -73,6 +83,15 @@ Video?
 RGB plus metrische Tiefenanker?
   → GuidedMetricDepthProvider
 ```
+
+**Warum diese Reihenfolge nicht optional ist:** Die Prioritätsliste unten sagt
+bereits "gemessen > ... > monokular geschätzt" -- der alte Entscheidungsbaum
+hatte dafür aber keinen Zweig zwischen "Multiview vorhanden" und "nur
+RGB → MonocularDepthProvider". Ein Einzelbild mit echten, nachprüfbaren
+Konturen (Dachpolygon, Wegnetz, Gebäudeecken über `getMaterialTypeAt()` +
+Contour-Trace + Douglas-Peucker) liefert MESSBARE Geometrie aus einer
+einzigen Aufnahme -- das ist kein Sonderfall von "nur RGB", sondern eine
+eigene, höherwertige Kategorie, die vor der geschätzten Variante gehört.
 
 ## SHADED-Bausteine
 
@@ -181,6 +200,27 @@ Azimut statt über eine Normale parametrisiert wird.
 
 **Eingangsbedingung:** ohne `MetricPointMapProvider` ist Schritt 1 nicht ehrlich baubar.
 ICP wird erst mit mehreren Ansichten fällig. Der Solver (`dykstraProject`) steht schon.
+
+## Research Radar (aufgenommen aus dem ehemals eigenen Skill)
+
+Vollständige Themenliste: [`docs/research-radar-themen.md`](../../../docs/research-radar-themen.md)
+(deckt neben Rekonstruktion auch Materialien, Physik und Backend-Themen ab --
+gilt nicht nur hier, aber Donor-/Provider-Auswahl wie oben ist der häufigste
+Auslöser).
+
+Vor einer größeren Architekturentscheidung (Donor-Auswahl, Standardbackend):
+
+1. aktuelle Modell- und Repräsentationsklasse recherchieren,
+2. stabile ältere Baseline benennen,
+3. echte Ablösung von bloßer Ergänzung trennen,
+4. Output-Typen statt Produktnamen vergleichen,
+5. Lizenz, VRAM, Laufzeit, Export und Wartbarkeit prüfen,
+6. mindestens einen aktuellen Gegenkandidaten benchmarken,
+7. Provider-Vertrag neutral benennen,
+8. Produkt- oder Repositorynamen nur als austauschbare Backends führen.
+
+Keine Entscheidung allein aus vorhandenen Stars, alten Donor-Listen oder
+bereits bekannten Repositories ableiten.
 
 ## Vor jedem Rekonstruktions-Commit prüfen
 

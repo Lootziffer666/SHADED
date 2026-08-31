@@ -1,0 +1,237 @@
+<!doctype html>
+<!--
+  SCRATCH interactive tool -- NOT part of the verify suite, NOT meant to be
+  committed. Direct implementation of the maintainer's request: not an
+  automated solver, but a tiny manual editor. Core operations only:
+  orbit (view), pivot placement, duplicate+rotate-180-around-Y (live), and
+  reading the result to see whether the volume closes.
+
+  Open this file directly in a browser (file://...) -- no server needed.
+
+  Workflow this implements:
+    visible faces (hard-coded starting shapes below, matching the
+    front-wall/side-wall/gable-triangle/roof-slope decomposition already
+    discussed) -> drag the pivot marker (top-down mini-map, bottom-left) ->
+    mirrored copies recompute live via an exact 180-degree rotation around Y
+    through the pivot (x' = 2*px - x, z' = 2*pz - z, y unchanged -- no
+    solver, just the rotation) -> orbit the 3D view (drag) to judge whether
+    the result reads as one closed, plausible body.
+
+  "Weld/Close" is deliberately not automated: if the pivot is in the right
+  place, the mirrored copy's shared edge coincides with the original's
+  exactly, by construction of the 180-degree rotation. If it doesn't line
+  up, that itself is the signal the pivot is wrong -- drag it and watch live.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Face Mirror Editor</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #1a2230; color: #eee; font: 13px sans-serif; height: 100%; }
+  #layout { display: flex; height: 100%; }
+  #viewport { flex: 1; position: relative; }
+  #viewCanvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  #viewCanvas.dragging { cursor: grabbing; }
+  #sidebar { width: 300px; padding: 14px; box-sizing: border-box; background: #10151f; overflow-y: auto; }
+  #sidebar h1 { font-size: 15px; margin: 0 0 10px; }
+  #sidebar p { color: #9aa; line-height: 1.5; }
+  .row { margin: 10px 0; }
+  .row label { display: block; margin-bottom: 3px; color: #ccd; }
+  .row input[type=range] { width: 100%; }
+  .row .val { color: #6cf; font-variant-numeric: tabular-nums; }
+  #topmap { background: #0c1018; border: 1px solid #333; margin-top: 8px; cursor: crosshair; }
+  .hint { font-size: 11px; color: #778; margin-top: 4px; }
+  .legend { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  #stats { margin-top: 12px; padding: 8px; background: #0c1018; border-radius: 4px; font-size: 12px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="layout">
+  <div id="viewport">
+    <canvas id="viewCanvas"></canvas>
+  </div>
+  <div id="sidebar">
+    <h1>Face-Mirror-Editor</h1>
+    <p>Kein Solver. Die drei hellen Flächen sind fest vorgegeben (Frontwand/Hauptdachfläche/Seitenwand), Frontwand als ein spitz zulaufendes Fünfeck statt Rechteck+Dreieck. Bewege den Pivot -- die dunklen, gespiegelten Gegenflächen werden live per exakter 180°-Drehung um die Hochachse neu berechnet.</p>
+
+    <div class="row">
+      <label>Pivot X <span class="val" id="pivotXVal"></span></label>
+      <input type="range" id="pivotX" min="-1.2" max="1.2" step="0.01" value="0">
+    </div>
+    <div class="row">
+      <label>Pivot Z <span class="val" id="pivotZVal"></span></label>
+      <input type="range" id="pivotZ" min="-1.6" max="1.6" step="0.01" value="0">
+    </div>
+    <canvas id="topmap" width="272" height="220"></canvas>
+    <div class="hint">Draufsicht (X/Z). Grauer Punkt = Pivot -- auch direkt hier anklickbar/ziehbar. Helle Linien = reale Flächen von oben, dunkle = Spiegelung.</div>
+
+    <div class="row" style="margin-top:16px;">
+      <label><input type="checkbox" id="showMirror" checked> Spiegelung anzeigen</label>
+    </div>
+
+    <div class="legend"><span class="swatch" style="background:#d4af37"></span> gelb = Frontwand, spitz zulaufend (real)</div>
+    <div class="legend"><span class="swatch" style="background:#c43c30"></span> rot = Hauptdachfläche (real)</div>
+    <div class="legend"><span class="swatch" style="background:#3a5ca8"></span> blau = Seitenwand (real)</div>
+    <div class="hint">Kleine Hüft-Dachfläche am Kamin (im Referenzbild sichtbar) noch nicht modelliert.</div>
+    <div class="hint">dunklere Töne = gespiegelt/generiert</div>
+
+    <div id="stats"></div>
+    <div class="hint" style="margin-top:10px;">Ansicht: Ziehen = Orbit. Rad/Pinch nicht nötig -- feste Distanz.</div>
+  </div>
+</div>
+
+<script>
+// --- Starting real faces: three, per the maintainer's precise trace on the
+// 3D low-poly reference (red=roof, yellow=front wall, blue=side wall) --
+// not four. Yellow is ONE pentagon following the actual roofline at its top
+// (base rectangle + peak at the ridge point), not a rectangle plus a
+// separate triangle -- that was the earlier mismatch. Honest gap: the
+// reference's roof shows a small hip-cap facet near the chimney (two
+// internal lines) that this single-slope red quad does not yet model.
+const W = 1.4, D = 2.1, H_wall = 0.85, H_roof = 0.72;
+const FL = [-W/2,0,D/2], FR=[W/2,0,D/2];
+const FLe=[-W/2,H_wall,D/2], FRe=[W/2,H_wall,D/2], BLe=[-W/2,H_wall,-D/2];
+const RF=[0,H_wall+H_roof,D/2], RB=[0,H_wall+H_roof,-D/2];
+const realFaces = [
+  { name: 'yellow (front wall, peaked)', color: [212,175,55], corners: [FL,FR,FRe,RF,FLe] },
+  { name: 'red (main roof slope)',       color: [196,60,48],  corners: [RF,RB,BLe,FLe] },
+  { name: 'blue (side wall)',            color: [58,92,168],  corners: [FLe,BLe,[-W/2,0,-D/2],FL] },
+];
+
+function rotate180Y(p, pivot) { return [2*pivot.x - p[0], p[1], 2*pivot.z - p[2]]; }
+function dim(c) { return c.map(v => Math.round(v*0.5)); }
+
+// --- Camera (same hand-rolled perspective projector used throughout this session) ---
+const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const norm3=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];};
+function makeCamera(target,distance,yaw,pitch,fovDeg,width,height){
+  const eye=[target[0]+distance*Math.cos(pitch)*Math.sin(yaw), target[1]+distance*Math.sin(pitch), target[2]+distance*Math.cos(pitch)*Math.cos(yaw)];
+  const forward=norm3(sub3(target,eye)), right=norm3(cross3(forward,[0,1,0])), up=cross3(right,forward);
+  const fov=fovDeg*Math.PI/180;
+  return {eye,forward,right,up,f:1/Math.tan(fov/2),aspect:width/height,width,height};
+}
+function projectPoint(p,cam){
+  const rel=sub3(p,cam.eye), x=dot3(rel,cam.right), y=dot3(rel,cam.up), z=dot3(rel,cam.forward);
+  if (z<=0.01) return null;
+  const ndcX=(x/z)*cam.f/cam.aspect, ndcY=(y/z)*cam.f;
+  return [(ndcX*0.5+0.5)*cam.width, (1-(ndcY*0.5+0.5))*cam.height, z];
+}
+
+let yaw = 35*Math.PI/180, pitch = 22*Math.PI/180;
+let pivot = { x: 0, z: 0 };
+
+const viewCanvas = document.getElementById('viewCanvas');
+const vctx = viewCanvas.getContext('2d');
+function resizeCanvas(){ const r=viewCanvas.parentElement.getBoundingClientRect(); viewCanvas.width=r.width; viewCanvas.height=r.height; }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+function currentFaces(){
+  const faces = realFaces.map(f => ({...f, mirrored:false}));
+  if (document.getElementById('showMirror').checked) {
+    for (const f of realFaces) faces.push({ name: f.name+"'", color: dim(f.color), corners: f.corners.map(p=>rotate180Y(p,pivot)).reverse(), mirrored:true });
+  }
+  return faces;
+}
+
+function drawView(){
+  const w=viewCanvas.width, h=viewCanvas.height;
+  vctx.fillStyle='#1a2230'; vctx.fillRect(0,0,w,h);
+  const cam = makeCamera([0,0.55,0], 4.3, yaw, pitch, 44, w, h);
+  const faces = currentFaces();
+  const drawable = faces.map(face=>{
+    const projected = face.corners.map(p=>projectPoint(p,cam));
+    if (projected.some(p=>!p)) return null;
+    const avgZ = projected.reduce((s,p)=>s+p[2],0)/projected.length;
+    return {face, projected, avgZ};
+  }).filter(Boolean);
+  drawable.sort((a,b)=>b.avgZ-a.avgZ);
+  for (const {face, projected} of drawable){
+    vctx.fillStyle = `rgb(${face.color[0]},${face.color[1]},${face.color[2]})`;
+    vctx.beginPath(); vctx.moveTo(projected[0][0],projected[0][1]);
+    for (let i=1;i<projected.length;i++) vctx.lineTo(projected[i][0],projected[i][1]);
+    vctx.closePath(); vctx.fill();
+    vctx.strokeStyle='rgba(0,0,0,0.35)'; vctx.lineWidth=1.5; vctx.stroke();
+  }
+}
+
+function drawTopMap(){
+  const c = document.getElementById('topmap'), ctx = c.getContext('2d');
+  const w=c.width, h=c.height, scale=70, ox=w/2, oy=h/2;
+  const toScreen = (x,z) => [ox + x*scale, oy + z*scale];
+  ctx.fillStyle='#0c1018'; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='#223'; ctx.beginPath(); ctx.moveTo(ox,0); ctx.lineTo(ox,h); ctx.moveTo(0,oy); ctx.lineTo(w,oy); ctx.stroke();
+  function drawPoly(corners, color){
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+    corners.forEach((p,i)=>{ const [sx,sy]=toScreen(p[0],p[2]); if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy); });
+    ctx.closePath(); ctx.stroke();
+  }
+  for (const f of realFaces) drawPoly(f.corners, `rgb(${f.color[0]},${f.color[1]},${f.color[2]})`);
+  if (document.getElementById('showMirror').checked) for (const f of realFaces) drawPoly(f.corners.map(p=>rotate180Y(p,pivot)), `rgb(${dim(f.color).join(',')})`);
+  const [px,py] = toScreen(pivot.x, pivot.z);
+  ctx.fillStyle = '#aab'; ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function updateStats(){
+  // Rough closure check: for each real face's shared-edge vertex pairs with
+  // its own mirror, report the max gap -- a direct, honest number for "does
+  // it actually close", not just a visual impression.
+  let maxGap = 0;
+  for (const f of realFaces) {
+    for (const p of f.corners) {
+      const mp = rotate180Y(p, pivot);
+      // distance from mirrored point back to the nearest real-face vertex
+      let best = Infinity;
+      for (const f2 of realFaces) for (const p2 of f2.corners) {
+        const d = Math.hypot(mp[0]-p2[0], mp[1]-p2[1], mp[2]-p2[2]);
+        if (d < best) best = d;
+      }
+      if (best < 0.35 && best > maxGap) maxGap = best; // only count "near matches", ignore far vertices
+    }
+  }
+  document.getElementById('stats').innerHTML =
+    `Pivot: x=${pivot.x.toFixed(2)}, z=${pivot.z.toFixed(2)}<br>` +
+    `Größte Lücke an einer nahen Kanten-Passung: ${maxGap.toFixed(3)} Welteinheiten<br>` +
+    `(0.000 = exakt geschlossen an dieser Kante)`;
+}
+
+function render(){ drawView(); drawTopMap(); updateStats(); }
+
+// --- Interaction: orbit the 3D view by dragging; drag the pivot dot on the top-map ---
+let dragging = null;
+viewCanvas.addEventListener('pointerdown', e => { dragging = 'orbit'; viewCanvas.classList.add('dragging'); viewCanvas.setPointerCapture(e.pointerId); lastX=e.clientX; lastY=e.clientY; });
+let lastX=0,lastY=0;
+viewCanvas.addEventListener('pointermove', e => {
+  if (dragging !== 'orbit') return;
+  yaw += (e.clientX-lastX)*0.008; pitch = Math.max(-1.4, Math.min(1.4, pitch + (e.clientY-lastY)*0.008));
+  lastX=e.clientX; lastY=e.clientY; render();
+});
+viewCanvas.addEventListener('pointerup', () => { dragging=null; viewCanvas.classList.remove('dragging'); });
+
+const topmap = document.getElementById('topmap');
+function pivotFromEvent(e){
+  const r = topmap.getBoundingClientRect(), scale=70, ox=topmap.width/2, oy=topmap.height/2;
+  const x = (e.clientX - r.left - ox)/scale, z = (e.clientY - r.top - oy)/scale;
+  pivot.x = Math.max(-1.2, Math.min(1.2, x)); pivot.z = Math.max(-1.6, Math.min(1.6, z));
+  document.getElementById('pivotX').value = pivot.x; document.getElementById('pivotZ').value = pivot.z;
+  syncPivotLabels(); render();
+}
+topmap.addEventListener('pointerdown', e => { topmap.setPointerCapture(e.pointerId); pivotFromEvent(e); topmap.onpointermove = pivotFromEvent; });
+topmap.addEventListener('pointerup', () => { topmap.onpointermove = null; });
+
+function syncPivotLabels(){
+  document.getElementById('pivotXVal').textContent = pivot.x.toFixed(2);
+  document.getElementById('pivotZVal').textContent = pivot.z.toFixed(2);
+}
+document.getElementById('pivotX').addEventListener('input', e => { pivot.x = parseFloat(e.target.value); syncPivotLabels(); render(); });
+document.getElementById('pivotZ').addEventListener('input', e => { pivot.z = parseFloat(e.target.value); syncPivotLabels(); render(); });
+document.getElementById('showMirror').addEventListener('change', render);
+
+syncPivotLabels();
+render();
+</script>
+</body>
+</html>
