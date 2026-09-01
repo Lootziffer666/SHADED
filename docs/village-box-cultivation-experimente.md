@@ -6,14 +6,15 @@
 > `runtime/shaded-engine.mjs`, `analyze()`, `classGrid` oder `runtime/spatial-kernel/` —
 > nur `reconstruction.js`s exportierte, reine Hilfsfunktionen werden gelesen, nie verändert.
 >
-> **Wichtige Einschränkung (s. §4g): ALLE Prozentzahlen in diesem Dokument stammen aus
+> **Wichtige Einschränkung (s. §4g, §4h): ALLE Prozentzahlen in diesem Dokument stammen aus
 > EINEM einzigen Quellbild** (der VLG-02-„6-Häuser-Dorf"-Fixture, `file_
 > 000000006d188210a9bb1129089a7b29.png`). Die Zahlen sind reale Messungen an dieser einen
 > Fixture, keine allgemeingültigen Aussagen über LBP/Gabor/Autokorrelation/VP als Operatoren.
 > §4g zeigt eine Holdout-Kreuzvalidierung, die zumindest die Zirkularität der
-> Schwellenwertwahl entschärft (Schwellen aus 3 Häusern gelernt, Reinheit an den anderen 3
-> gemessen: 43,8 % vs. 38,6 %, moderater statt kollabierender Rückgang) — aber keine
-> zweite, unabhängige Bildquelle ersetzt.
+> Schwellenwertwahl entschärft (43,8 % vs. 38,6 %, moderater Rückgang). §4h zeigt den
+> ungeschönten, fairen Test an einem echten zweiten Bild — die unveränderte Original-Palette
+> liefert dort **null** verwertbare Häuser (0 `wallLight`-Treffer im ganzen Bild). Alle
+> Prozentzahlen hier sind also Aussagen über EIN Bild, nicht über die Methode allgemein.
 
 ## 0. Ausgangsfrage
 
@@ -262,6 +263,59 @@ noch funktioniert. Das bleibt ungeprüft, bis eine zweite, unabhängig kalibrier
 existiert (VLG-01/04/05 sind laut `fixture-taxonomie.md` die nächstliegenden Kandidaten,
 noch nicht extrahiert).
 
+## 4h. Runde 13: echter Versuch eines zweiten Bildes — und warum er hier abgebrochen wird
+
+Direkte Folge von §4g: der Maintainer-Einwand verlangt eine zweite, unabhängig kalibrierte
+Bildquelle, nicht nur eine Holdout-Aufteilung innerhalb eines Bildes. Kandidat: VLG-04
+„Kirschblüten-Dorf" (`file_0000000029f871f4bc597d92064d2e97.png`) — laut
+`fixture-taxonomie.md` derselbe Struktur-Signatur-Typ (SC-2, `polyedrisch-N`), gleicher
+Zeichenstil, aber ein anderes Bild mit anderer Verdeckung (Blütenbäume) und
+randbeschnittenen Häusern.
+
+`tools/scratch-sample-colors-vlg04.mjs` — statt Farben blind an geschätzten Koordinaten
+abzutasten (erster Versuch, siehe Commit-Historie: traf wiederholt Fenster/Schatten/
+Fachwerk statt Dach/Wand), Farb-Histogramm über das GESAMTE Bild.
+
+> **Korrektur einer methodischen Selbsttäuschung (Maintainer-Einwand, direkt zutreffend):**
+> die erste Fassung dieses Abschnitts filterte nach „orange-artigen" Clustern und meldete
+> dann überrascht, dass sich ein orangener Cluster nahe am bekannten Dachton fand. Das ist
+> zirkulär — der Filter WAR auf Orange zugeschnitten, weil bereits bekannt war, dass Dächer
+> orange sind (aus dem Originalbild, aus der Original-Palette). Ein Treffer beweist dabei
+> nichts über Übertragbarkeit, nur dass die Suche das fand, wonach sie suchte. Der faire
+> Test unten ersetzt das: die UNVERÄNDERTE Original-Palette (keine Anpassung, keine nach
+> VLG-04 geschaute Farbwahl) direkt gegen VLG-04 laufen lassen und ungeschönt berichten.
+
+**Fairer Test:** `tools/scratch-village-extract-vlg04-blind.mjs` — exakt dieselben drei
+`MATERIALS`-Werte aus `scratch-village-extract-v2.mjs` (`roof: [225,126,69] tol 35`,
+`wallLight: [198,166,109] tol 22`, `wallDark: [141,125,81] tol 22`), Byte für Byte kopiert,
+null Anpassung, gegen VLG-04 statt VLG-02 laufen gelassen — keine einzige Zahl wurde
+angeschaut, bevor sie gewählt wurde.
+
+**Ungeschöntes Ergebnis: vollständiges Scheitern.**
+
+| Material | Gefundene Komponenten | Erwartung (VLG-02-Maßstab) |
+|---|---|---|
+| `roof` | 120 (Größen 300–1200px) | ~9 Häuser, deutlich größere Flächen |
+| `wallLight` | **0** | ~9 |
+| `wallDark` | 1 (355px) | ~9 |
+
+120 winzige „Dach"-Fragmente statt ~9 echter Dachflächen — vermutlich einzelne
+Ziegel-Glanzlichter oder zufällig ins Toleranzband fallende Blütenfarbtöne (VLG-04 hat viel
+Kirschblüten-Vegetation, die VLG-02 nicht hat), keine echten Häuser. `wallLight` findet
+buchstäblich NICHTS im gesamten Bild. Kein einziges Haus wird mit allen drei Teilen
+zusammengesetzt — die nachgelagerte `findAttachedWall`/Sechseck-Rekonstruktion hat schlicht
+nichts, worauf sie aufbauen könnte.
+
+**Das ist die eigentliche, unbequeme Antwort auf den Einwand vom Sessionbeginn:** nicht "die
+Zahlen sind ein bisschen anders", sondern die komplette Pipeline (Extraktor UND alles
+danach) ist auf VLG-02 zugeschnitten und liefert auf einem strukturell ähnlichen, aber
+visuell anderen Bild **null verwertbare Häuser** — nicht 73 % Reinheit, nicht 28,6 %, NULL,
+weil die Vorstufe (Extraktion) schon nichts liefert, das die spätere Fusions-Pipeline
+überhaupt erreichen könnte. Jede Zahl in §1–§4g ist real gemessen, aber sie ist eine Aussage
+über EIN Bild, nicht über die Methode allgemein — der Maintainer-Einwand war von Anfang an
+richtig, und die erste (verworfene) Version dieses Abschnitts hat das mit einer zirkulären
+Suche verschleiert, statt es zu zeigen.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -335,12 +389,16 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
   unterschiedliche Texturen) — bräuchte eine eigens präparierte Testszene.
 - Gewichtete Score-Fusion (statt binärem UND) ist nicht getestet — alle Kombinationen hier
   sind harte Konjunktionen.
-- **Teilweise adressiert (§4g):** Alle Zahlen gelten weiterhin für GENAU EIN Quellbild.
-  Eine Holdout-Kreuzvalidierung INNERHALB dieses Bildes (Schwellen aus 3 Häusern gelernt,
-  Reinheit an den anderen 3 gemessen: 43,8 % vs. 38,6 %) zeigt zumindest, dass die
-  Schwellenwerte nicht auf einzelne Häuser überangepasst sind. Eine echte zweite,
-  unabhängig kalibrierte Bildquelle fehlt weiterhin — kein Anti-Overfit-Benchmark-Lauf
-  (Stufe A–K aus `material-geometrie-ohne-farbe.md` §3) über mehrere Bilder wurde
-  durchgeführt.
+- **Teilweise adressiert (§4g), ehrlich gescheitert (§4h):** Alle Zahlen gelten weiterhin für
+  GENAU EIN Quellbild. Eine Holdout-Kreuzvalidierung INNERHALB dieses Bildes (§4g: 43,8 %
+  vs. 38,6 %) zeigt zumindest, dass die Schwellenwerte nicht auf einzelne Häuser
+  überangepasst sind. Der faire Test an einem echten zweiten Bild (§4h, VLG-04, unveränderte
+  Original-Palette) liefert dagegen NULL verwertbare Häuser — 0 `wallLight`-Treffer im
+  gesamten Bild. Die komplette Pipeline (Extraktor + alles danach) ist auf VLG-02
+  zugeschnitten und überträgt sich nicht automatisch. Eine erste, verworfene Fassung dieses
+  Abschnitts verschleierte das mit einer zirkulären Farbsuche (nach „orange" gefiltert, weil
+  bereits bekannt war, dass Dächer orange sind) — korrigiert, s. §4h. Kein
+  Anti-Overfit-Benchmark-Lauf über mehrere Bilder mit tatsächlich erfolgreicher Extraktion
+  wurde durchgeführt.
 - Kein Code in `runtime/spatial-kernel/` oder `runtime/shaded-engine.mjs` geändert — alles
   bleibt in `tools/scratch-*`.
