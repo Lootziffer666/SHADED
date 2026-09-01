@@ -731,16 +731,29 @@ Punkt–Ebene) pro Punkt berechnet.
 | house5 | 17.497px | 1,0000 | 0,06 / 0,05 / 0,10 / 0,26 |
 | house6 | 29.820px | 1,0000 | 0,02 / 0,02 / 0,05 / 0,19 |
 
-**Auffällig sauber — verdächtig sauber.** Bei einer Box mit echter Dach/Wand-Faltung
-(90°+ Winkel zwischen zwei Flächen) sollte eine Region, die BEIDE Flächen enthält, KEINE
-so nahezu perfekte Einzelebene fitten (hohe Residuen, bimodale Verteilung wären zu
-erwarten). Die tatsächlich gemessene Fast-Perfektion spricht dafür, dass die in Runde 18/23
-„gematchten" Regionen (deren Bounding-Box zufällig das Haus-Zentrum enthält) überwiegend
-NUR die Dachfläche selbst erfassen — die Wand darunter wäre eine eigene, bisher nicht
-separat gefundene Region, keine mit der Dachfläche verschmolzene. Das ist eine echte,
-neue Erkenntnis, die reine 2D-Bounding-Box/Pixelzahl-Betrachtung nicht liefern konnte:
-„gematcht" bedeutete bisher nur „Zentrum liegt in der Bounding-Box", nicht „erfasst das
-ganze Haus".
+**Auffällig sauber — und das war zunächst nur eine Vermutung, keine Prüfung.** Die erste
+Fassung dieses Abschnitts leitete aus der Fast-Perfektion der Ebenen-Fits her, die Region
+erfasse „vermutlich" nur das Dach — Maintainer-Einwand zu Recht: „Eine Vermutung ist kein
+Beweis." Nachgeholt in Runde 25.
+
+**Runde 25 — direkt gegen echten Ground Truth geprüft, nicht mehr aus der Planarität
+geraten.** `tools/scratch-verify-region-roof-or-wall.mjs`: die ORIGINAL-Farbmasken-Extraktion
+(`scratch-village-extract-v2.mjs`, echte, verifizierte Material-Pixel, keine Ableitung) liefert
+für house4 die tatsächlichen Dach- (51.205px) und Wand-Pixelmengen (wallLight 22.660px +
+wallDark 32.528px). Jeder Pixel der Runde-23/24-Region wurde direkt gegen diese echten Mengen
+klassifiziert:
+
+| | Pixelanteil |
+|---|---|
+| Dach | **98,5 %** |
+| Wand | **0,0 %** |
+| weder/noch (Rand, Kante, Antialiasing) | 1,5 % |
+
+**Jetzt bestätigt, nicht mehr vermutet:** die Region erfasst tatsächlich (nahezu) exklusiv
+das Dach, keinen einzigen Wandpixel. Die frühere Schlussfolgerung war in der Sache richtig,
+aber falsch begründet — aus einem Planaritäts-Wert hergeleitet statt direkt gemessen. Das
+ist der Unterschied zwischen einer plausiblen Vermutung und einem geprüften Befund, und der
+Maintainer-Einwand war berechtigt, unabhängig davon, dass die Vermutung sich bestätigte.
 
 **Ausdrücklich offen — der Rest der spezifizierten Pipeline ist NICHT umgesetzt:**
 Laplacian/lokale Varianz als Zusatzkanal zur `DepthBoundaryMap` (bisher nur Sobel-Gradient),
