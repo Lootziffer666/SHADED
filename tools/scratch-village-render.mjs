@@ -11,9 +11,10 @@
 // be (NOT always (0,0,1) -- that was true for the earlier cube dataset's
 // specific family pattern, not a general rule), so the (0,0,0) corner is
 // recovered by subtracting exactly that offset before building the full
-// 8-corner box. Lx/Ly/Lz (found ~1.0/1.0/1.0 by the joint anisotropic
-// solve -- these are genuine cubes, not the wider-than-tall boxes they
-// looked like under this camera angle) scale each axis independently.
+// 8-corner box. Lx/Ly/Lz are now PER-HOUSE (E1 fix in
+// scratch-village-reconstruct-v2.mjs -- a shared scale forced every house
+// to be exactly the same 3D size, which was the actual cause of the wild
+// arrangement; each house keeps its own JSON `scale[name]` entry instead).
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
@@ -22,15 +23,16 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, 'verify-out');
 const data = JSON.parse(fs.readFileSync(path.join(OUT, 'village-reconstructed-v2.json'), 'utf8'));
-const { R: axes, T, W: imgW, H: imgH, f, Lx, Ly, Lz, localCoords } = data;
+const { R: axes, T, W: imgW, H: imgH, f, scale: perHouseScale, localCoords } = data;
 
 function dot3(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
 function sub3(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
 function worldFromCam(vCam) { return [dot3(axes[0], vCam), dot3(axes[1], vCam), dot3(axes[2], vCam)]; }
-const scale = [Lx, Ly, Lz];
 
 const cubesWorld = {};
 for (const [name, Tcam] of Object.entries(T)) {
+  const { Lx, Ly, Lz } = perHouseScale[name];
+  const scale = [Lx, Ly, Lz];
   const [a0, b0, c0] = localCoords[name][0]; // whatever corner T is anchored at for this house
   const origin000cam = [
     Tcam[0] - a0 * scale[0] * axes[0][0] - b0 * scale[1] * axes[1][0] - c0 * scale[2] * axes[2][0],
@@ -42,8 +44,8 @@ for (const [name, Tcam] of Object.entries(T)) {
   for (let a = 0; a <= 1; a++) for (let b = 0; b <= 1; b++) for (let c = 0; c <= 1; c++) corners.push([originWorld[0] + a * scale[0], originWorld[1] + b * scale[1], originWorld[2] + c * scale[2]]);
   cubesWorld[name] = { origin: originWorld, corners };
 }
-console.log('World-space house origins (real units, Lx=' + Lx.toFixed(3) + ' Ly=' + Ly.toFixed(3) + ' Lz=' + Lz + '):');
-for (const [name, c] of Object.entries(cubesWorld)) console.log(' ', name, c.origin.map(v => v.toFixed(3)));
+console.log('World-space house origins (real units, per-house Lx/Ly/Lz):');
+for (const [name, c] of Object.entries(cubesWorld)) console.log(' ', name, c.origin.map(v => v.toFixed(3)), 'scale=', perHouseScale[name]);
 
 const origCam = { pos: [0, 0, 0], right: worldFromCam([1, 0, 0]), up: worldFromCam([0, 1, 0]), forward: worldFromCam([0, 0, 1]) };
 

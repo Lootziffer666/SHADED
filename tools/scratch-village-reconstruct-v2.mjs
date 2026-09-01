@@ -492,10 +492,13 @@ function opEqualize(step) {
 // as vertices improve (coordinate-descent: refine vertices given scale,
 // refine scale given vertices) -- unbiased either way, cube or not.
 function scaledLocalCoords(name, scale) { return localCoords[name].map(([a, b, c]) => [a * scale.Lx, b * scale.Ly, c * scale.Lz]); }
-function opSmooth(step, scale) {
+// E1 follow-on: scale is now per-house (solveJointAnisotropic no longer
+// returns one shared {Lx,Ly,Lz} for every house), so opSmooth takes the
+// full per-house map and looks up each house's own entry.
+function opSmooth(step, perHouseScale) {
   for (const name of cubeNames) {
     const verts = state.cubes[name].vertices;
-    const lc = scaledLocalCoords(name, scale);
+    const lc = scaledLocalCoords(name, perHouseScale[name]);
     const T = solveTranslation(verts, lc, state2.R, state2.f, state2.pp);
     for (let i = 0; i < 6; i++) {
       if (!verts[i]) continue;
@@ -673,60 +676,121 @@ function solveLinearSystem(A, b) {
   }
   return M.map((row, i) => (Math.abs(row[i]) < 1e-9 ? 0 : row[n] / row[i]));
 }
-// Unknowns: [Lx, Ly, Tx_1,Ty_1,Tz_1, ...] (Lz fixed = 1, single-view-
-// metrology's required "one known real length"), PLUS a second maintainer
-// steer implemented as a real constraint, not a heuristic nudge: "sie
-// stehen alle auf der selben Bodenflaeche" (they all stand on the same
-// ground plane). T is exactly the local (0,0,0) camera-space corner by
+// E1 fix (was: single shared [Lx,Ly] for every house -- forced all houses
+// to be EXACTLY the same 3D size, the confirmed root cause of the "wild
+// distributed boxes" arrangement: a house that should look smaller had no
+// way to do that except by being pushed into depth). house 0 stays the
+// single global monocular-scale gauge reference (Lz_0 fixed = 1 --
+// single-view-metrology's required "one known real length"); every OTHER
+// house now gets its own free Lx_h,Ly_h,Lz_h. Still exactly ONE linear
+// solve: each scale unknown multiplies only KNOWN coefficients (a local-
+// coordinate value times a known camera/rotation component), never another
+// unknown -- s_h*Lx style products were considered and rejected because
+// that IS a product of two unknowns (bilinear), which this normal-
+// equations solve cannot represent without either Gauss-Newton or
+// alternating fix-one-solve-other iteration (which reintroduces exactly
+// the oscillating coordinate-descent failure this file already documents
+// for Phase 2/3 above).
+//
+// E3: this is also why the ground-plane rows below are no longer merely
+// aesthetic. "sie stehen alle auf der selben Bodenflaeche" (they all stand
+// on the same ground plane) is still the maintainer's steer, but with
+// Lz_h now free per house it does double duty: scaling a single house's
+// own (T_h, Lx_h,Ly_h,Lz_h) together leaves ITS OWN reprojection exactly
+// unchanged (derivation: cam_d scales by the same factor at every vertex,
+// so proj = pp + f*cam/cam_z is invariant) -- i.e. every non-reference
+// house has its OWN residual one-parameter scale ambiguity once freed.
+// The ground-plane row ties T_h's vertical coordinate to house 0's FIXED
+// T_0, and that scaling direction changes T_h's vertical coordinate
+// (generically nonzero unless a house sits exactly at camera height) --
+// so enforcing it removes that remaining per-house ambiguity too, not just
+// visual flatness. Weight raised from 5000 -> 50000 accordingly (still a
+// soft weighted row job, not an exact elimination -- see arsenal.md §4 for
+// the Dykstra alternative if this ever needs to become truly hard).
+// T is exactly the local (0,0,0)-relative camera-space corner by
 // construction of solveTranslation's own linear system (cam_d = T_d +
 // a*R0_d+b*R1_d+c*R2_d, which is T_d itself at a=b=c=0) -- its WORLD
-// height along the vertical axis is dot(R[verticalFam], T). Added as
-// extra weighted rows tying every house's ground height to house 0's:
-// still perfectly linear (a fixed dot-product of KNOWN R components
-// against the unknown T components), so it folds into the exact same
-// normal-equations solve instead of becoming a separate optimization.
+// height along the vertical axis is dot(R[verticalFam], T), a fixed
+// dot-product of KNOWN R components against the unknown T components, so
+// it folds into the exact same normal-equations solve.
+//
+// E4: after solving, any axis that came out negative (a valid fit that
+// happens to describe a MIRRORED house, not a real ambiguity SHADED wants
+// to keep) is flipped via the exact identity T'=T+L*axis, L'=-L,
+// local-coord a'=1-a -- proven to reproject identically in
+// scratch-village-e1e4-verify.mjs, not just abs()'d for display as the
+// previous version did (which left a real mirrored 3D box behind the
+// printed positive number).
+//
+// Verified against synthetic ground truth (distinct per-house Lx/Ly/Lz,
+// shared ground plane, deliberately mirrored axis) in
+// tools/scratch-village-e1e4-verify.mjs: max scale error 2.8e-12, ground
+// ‑plane spread 2.2e-16, reprojection error 1.3e-10px -- run that file to
+// re-check this solve in isolation any time it changes.
 function solveJointAnisotropic() {
-  const nUnknowns = 2 + 3 * cubeNames.length;
+  const R = state2.R, f = state2.f, pp = state2.pp;
+  const H = cubeNames.length;
+  const blockSize = (h) => (h === 0 ? 5 : 6); // house 0: Lx,Ly,Tx,Ty,Tz (Lz fixed=1). h>0: Lx,Ly,Lz,Tx,Ty,Tz.
+  const base = new Array(H);
+  { let acc = 0; for (let h = 0; h < H; h++) { base[h] = acc; acc += blockSize(h); } }
+  const nUnknowns = base[H - 1] + blockSize(H - 1);
+  const colsFor = (h) => h === 0
+    ? { Lx: base[0] + 0, Ly: base[0] + 1, Lz: null, T: base[0] + 2 }
+    : { Lx: base[h] + 0, Ly: base[h] + 1, Lz: base[h] + 2, T: base[h] + 3 };
   const AtA = Array.from({ length: nUnknowns }, () => new Array(nUnknowns).fill(0));
   const Atb = new Array(nUnknowns).fill(0);
-  const R = state2.R, f = state2.f, pp = state2.pp;
   cubeNames.forEach((name, h) => {
     const verts = state.cubes[name].vertices, lcoords = localCoords[name];
-    const tBase = 2 + 3 * h;
+    const { Lx: LxCol, Ly: LyCol, Lz: LzCol, T: TCol } = colsFor(h);
     for (let i = 0; i < 6; i++) {
       if (!verts[i]) continue;
       const [a, b, c] = lcoords[i];
       const [px, py] = verts[i];
       for (const [pAxis, pVal] of [[0, px], [1, py]]) {
         const coeffs = new Array(nUnknowns).fill(0);
-        coeffs[0] = a * (-f * R[0][pAxis] + (pVal - pp[pAxis]) * R[0][2]); // Lx
-        coeffs[1] = b * (-f * R[1][pAxis] + (pVal - pp[pAxis]) * R[1][2]); // Ly
-        coeffs[tBase + pAxis] = -f;
-        coeffs[tBase + 2] = (pVal - pp[pAxis]);
-        const rhs = -(c * (-f * R[2][pAxis] + (pVal - pp[pAxis]) * R[2][2])); // Lz=1 term, moved to RHS
+        coeffs[LxCol] = a * (-f * R[0][pAxis] + (pVal - pp[pAxis]) * R[0][2]);
+        coeffs[LyCol] = b * (-f * R[1][pAxis] + (pVal - pp[pAxis]) * R[1][2]);
+        let rhs;
+        if (LzCol === null) { rhs = -(c * (-f * R[2][pAxis] + (pVal - pp[pAxis]) * R[2][2])); } // house 0: Lz=1 term moved to RHS
+        else { coeffs[LzCol] = c * (-f * R[2][pAxis] + (pVal - pp[pAxis]) * R[2][2]); rhs = 0; }
+        coeffs[TCol + pAxis] = -f;
+        coeffs[TCol + 2] = (pVal - pp[pAxis]);
         for (let ii = 0; ii < nUnknowns; ii++) { Atb[ii] += coeffs[ii] * rhs; for (let jj = 0; jj < nUnknowns; jj++) AtA[ii][jj] += coeffs[ii] * coeffs[jj]; }
       }
     }
   });
-  // Ground-plane rows: dot(R[verticalFam], T_h) - dot(R[verticalFam], T_0) = 0
-  // for h=1..N-1. Weighted large relative to the pixel rows above (whose
-  // natural coefficient scale is ~f, i.e. ~1e3) so this behaves as a
-  // near-hard constraint without the numerical fragility of an exact
-  // elimination.
-  const GROUND_WEIGHT = 5000;
+  const GROUND_WEIGHT = 50000; // E3: raised from 5000 -- now load-bearing for per-house gauge, not just flatness
   const rv = R[verticalFam];
-  for (let h = 1; h < cubeNames.length; h++) {
+  const T0Col = colsFor(0).T;
+  for (let h = 1; h < H; h++) {
+    const ThCol = colsFor(h).T;
     const coeffs = new Array(nUnknowns).fill(0);
-    coeffs[2 + 3 * h + 0] = GROUND_WEIGHT * rv[0]; coeffs[2 + 3 * h + 1] = GROUND_WEIGHT * rv[1]; coeffs[2 + 3 * h + 2] = GROUND_WEIGHT * rv[2];
-    coeffs[2 + 0] -= GROUND_WEIGHT * rv[0]; coeffs[2 + 1] -= GROUND_WEIGHT * rv[1]; coeffs[2 + 2] -= GROUND_WEIGHT * rv[2];
-    const rhs = 0;
-    for (let ii = 0; ii < nUnknowns; ii++) { Atb[ii] += coeffs[ii] * rhs; for (let jj = 0; jj < nUnknowns; jj++) AtA[ii][jj] += coeffs[ii] * coeffs[jj]; }
+    coeffs[ThCol + 0] = GROUND_WEIGHT * rv[0]; coeffs[ThCol + 1] = GROUND_WEIGHT * rv[1]; coeffs[ThCol + 2] = GROUND_WEIGHT * rv[2];
+    coeffs[T0Col + 0] -= GROUND_WEIGHT * rv[0]; coeffs[T0Col + 1] -= GROUND_WEIGHT * rv[1]; coeffs[T0Col + 2] -= GROUND_WEIGHT * rv[2];
+    for (let ii = 0; ii < nUnknowns; ii++) { for (let jj = 0; jj < nUnknowns; jj++) AtA[ii][jj] += coeffs[ii] * coeffs[jj]; }
   }
   const sol = solveLinearSystem(AtA, Atb);
-  const Lx = sol[0], Ly = sol[1], Lz = 1;
-  const T = {};
-  cubeNames.forEach((name, h) => { T[name] = [sol[2 + 3 * h], sol[3 + 3 * h], sol[4 + 3 * h]]; });
-  return { Lx, Ly, Lz, T };
+  const scale = {}, T = {};
+  cubeNames.forEach((name, h) => {
+    const { Lx: LxCol, Ly: LyCol, Lz: LzCol, T: TCol } = colsFor(h);
+    scale[name] = { Lx: sol[LxCol], Ly: sol[LyCol], Lz: LzCol === null ? 1 : sol[LzCol] };
+    T[name] = [sol[TCol], sol[TCol + 1], sol[TCol + 2]];
+  });
+  // E4: sign-gauge fix -- flip any negative axis into a valid non-mirrored box.
+  cubeNames.forEach((name, h) => {
+    let lc = localCoords[name];
+    for (let axis = 0; axis < 3; axis++) {
+      const key = axis === 0 ? 'Lx' : axis === 1 ? 'Ly' : 'Lz';
+      if (scale[name][key] < 0) {
+        const Lneg = scale[name][key];
+        for (let d = 0; d < 3; d++) T[name][d] += Lneg * R[axis][d];
+        scale[name][key] = -Lneg;
+        lc = lc.map((v) => { const nv = v.slice(); nv[axis] = 1 - nv[axis]; return nv; });
+        localCoords[name] = lc; // persist the flip -- render.mjs and the JSON dump must see the corrected convention
+      }
+    }
+  });
+  return { scale, T };
 }
 // Phase 2: FREEZE the camera completely (no opCalibrate call anywhere
 // below) -- only vertex-level operators run against it, per v3c.
@@ -764,12 +828,13 @@ for (const t of trace) console.log(`  iter ${t.iter}: eAlign=${t.eAlign.toFixed(
 // fixed anisotropic+ground scale, then (B) re-solve that scale exactly
 // (closed-form linear solve, not a gradient step) given the now-settled
 // vertices. Each stage sees a stable input from the other.
-let scale = { Lx: 1, Ly: 1, Lz: 1 };
+let perHouseScale = Object.fromEntries(cubeNames.map((n) => [n, { Lx: 1, Ly: 1, Lz: 1 }]));
 for (let round = 0; round < 8; round++) {
-  for (let i = 0; i < 80; i++) opSmooth(0.2, scale);
+  for (let i = 0; i < 80; i++) opSmooth(0.2, perHouseScale);
   const j = solveJointAnisotropic();
-  scale = { Lx: j.Lx, Ly: j.Ly, Lz: j.Lz };
-  console.log(`  [Phase 3 round ${round}] Lx=${scale.Lx.toFixed(3)} Ly=${scale.Ly.toFixed(3)} Lz=${scale.Lz} eReproj=${energy().eReproj.toFixed(1)}`);
+  perHouseScale = j.scale;
+  const scaleStr = cubeNames.map((n) => `${n}:${perHouseScale[n].Lx.toFixed(2)}/${perHouseScale[n].Ly.toFixed(2)}/${perHouseScale[n].Lz.toFixed(2)}`).join(' ');
+  console.log(`  [Phase 3 round ${round}] Lx/Ly/Lz per house: ${scaleStr}  eReproj=${energy().eReproj.toFixed(1)}`);
 }
 
 const finalVp = currentVp();
@@ -801,41 +866,32 @@ for (const name of cubeNames) {
 }
 
 // --- Joint anisotropic solve (maintainer-requested test: "same height") ---
-// These houses are visibly boxes, not cubes (footprint wider than wall
-// height) -- forcing a shared ISOTROPIC edge length across houses (the
-// synthetic-cube assumption) is the wrong model here, confirmed by Phase 2
-// diverging when opEqualize/opPlace tried to enforce it. The natural
-// generalization for a demo village where every house is the same
-// architectural template: SHARED real-world proportions (Lx,Ly,Lz) across
-// every house, but Lx,Ly,Lz need NOT equal each other -- while each
-// house keeps its OWN translation T. This stays perfectly LINEAR (each
-// scale unknown multiplies only known coefficients: a local-coordinate
-// value times a known camera/rotation component, never another unknown),
-// solved ONCE, jointly, over every known 2D vertex across all houses.
-//
-// Monocular reconstruction only ever recovers shape up to one GLOBAL scale
-// factor -- the classical single-view-metrology requirement is one known
-// real-world length. Fixing Lz=1 supplies exactly that (an arbitrary but
-// consistent "1 world unit of wall height"), which is what turns the
-// otherwise-homogeneous joint system (scaling every T and every L together
-// leaves all reprojections unchanged -- verified by direct derivation, not
-// assumed) back into a solvable inhomogeneous one.
+// E1 fix: these houses are visibly boxes, not cubes, AND (per the visual
+// arrangement -- 4 big, 2 small) not even the same size as each other.
+// Forcing a SHARED Lx,Ly,Lz across every house (the previous version of
+// this function) is exactly what pushed the small houses into depth to
+// fake looking smaller -- the confirmed root cause of the wild arrangement.
+// Every house now gets its OWN Lx_h,Ly_h,Lz_h (house 0's Lz fixed=1 as the
+// single global monocular-scale gauge, everything else free) -- still
+// perfectly LINEAR, solved ONCE jointly; see the full derivation on
+// solveJointAnisotropic() above and the synthetic proof in
+// tools/scratch-village-e1e4-verify.mjs.
 const joint = solveJointAnisotropic();
-console.log(`\nJoint anisotropic solve (shared Lx=${joint.Lx.toFixed(3)}, Ly=${joint.Ly.toFixed(3)}, Lz=1 fixed reference -- footprint:height ratio ~${((Math.abs(joint.Lx) + Math.abs(joint.Ly)) / 2).toFixed(2)}:1), per-house T and reprojection error:`);
+console.log(`\nJoint anisotropic solve (per-house Lx/Ly/Lz, house 0 Lz=1 fixed reference), per-house T and reprojection error:`);
 for (const name of cubeNames) {
-  const verts = state.cubes[name].vertices, T = joint.T[name];
+  const verts = state.cubes[name].vertices, T = joint.T[name], sc = joint.scale[name];
   let sumErr = 0, maxErr = 0, n = 0;
   for (let i = 0; i < 6; i++) {
     if (!verts[i]) continue;
     const [a, b, c] = localCoords[name][i];
-    const cam = [0, 1, 2].map(d => T[d] + a * joint.Lx * state2.R[0][d] + b * joint.Ly * state2.R[1][d] + c * joint.Lz * state2.R[2][d]);
+    const cam = [0, 1, 2].map(d => T[d] + a * sc.Lx * state2.R[0][d] + b * sc.Ly * state2.R[1][d] + c * sc.Lz * state2.R[2][d]);
     if (cam[2] <= 0.01) { console.log(`  ${name}: cheirality violation on a MEASURED vertex (cam.z=${cam[2].toFixed(3)}) -- joint solve degenerate for this house.`); continue; }
     const proj = [state2.pp[0] + state2.f * cam[0] / cam[2], state2.pp[1] + state2.f * cam[1] / cam[2]];
     const err = Math.hypot(proj[0] - verts[i][0], proj[1] - verts[i][1]);
     sumErr += err; maxErr = Math.max(maxErr, err); n++;
   }
-  console.log(`  ${name}: T=[${T.map(v => v.toFixed(2))}]  avgReprojError=${(sumErr / n).toFixed(2)}px  maxReprojError=${maxErr.toFixed(2)}px`);
+  console.log(`  ${name}: Lx=${sc.Lx.toFixed(3)} Ly=${sc.Ly.toFixed(3)} Lz=${sc.Lz.toFixed(3)}  T=[${T.map(v => v.toFixed(2))}]  avgReprojError=${(sumErr / n).toFixed(2)}px  maxReprojError=${maxErr.toFixed(2)}px`);
 }
 
-fs.writeFileSync(path.join(OUT, 'village-reconstructed-v2.json'), JSON.stringify({ W, H, R: state2.R, pp: state2.pp, f: state2.f, Lx: joint.Lx, Ly: joint.Ly, Lz: joint.Lz, T: joint.T, vertices: Object.fromEntries(cubeNames.map(n => [n, state.cubes[n].vertices])), localCoords }, null, 2));
+fs.writeFileSync(path.join(OUT, 'village-reconstructed-v2.json'), JSON.stringify({ W, H, R: state2.R, pp: state2.pp, f: state2.f, scale: joint.scale, T: joint.T, vertices: Object.fromEntries(cubeNames.map(n => [n, state.cubes[n].vertices])), localCoords }, null, 2));
 console.log('Wrote village-reconstructed-v2.json');
