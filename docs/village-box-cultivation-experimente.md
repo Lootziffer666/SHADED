@@ -359,6 +359,28 @@ Vegetation), die die Douglas-Peucker-Vereinfachung zufällig auf wenige Kanten r
 Die geometrische Signatur allein ist ohne Größenfilter zu lasch — ein ehrliches, eigenes
 Ergebnis, keine vollständige Cultivation-Lösung.
 
+## 4j. Runde 15: die eine gefundene Region ist vermutlich kein einzelnes Haus
+
+Direkte Folge von §4i. `tools/scratch-vlg04-attach-structure.mjs` — sucht zur gefundenen
+14.702px-Region eine strukturell plausible „Wand" darunter, rein über Position
+(x-Überlappung, unterhalb, Nähe — dieselbe Logik wie `findAttachedWall` im
+Original-Extraktor), ohne jede Farbannahme.
+
+**Ergebnis: kein plausibler Treffer.** Die zwei räumlich passendsten Kandidaten sind beide
+grünlich (Vegetationsfarbton, `rgb(114,145,28)`/`rgb(91,124,29)`) und winzig gegen die
+Dachregion (682px/487px gegen 14.702px). Das spricht dafür, dass die in §4i gefundene
+„eine Region" vermutlich KEIN einzelnes Hausdach ist, sondern mehrere benachbarte
+Dach-Glanzlicht-Flächen, die die grobe Farb-Quantisierung (`STEP=20`) über kleine Lücken
+hinweg fälschlich zu einer einzigen Komponente verschmolzen hat — ein bekanntes
+Fehlerbild grober Quantisierung, nicht widerlegt, nur jetzt konkret belegt.
+
+**Einordnung:** §4i bleibt in dem, was es tatsächlich zeigt (Größe+Geometrie ohne
+Farbvorwissen findet etwas Reales und Großes), aber die Interpretation „das ist ein
+einzelnes Haus" war zu optimistisch. Ein echter nächster Schritt bräuchte eine feinere
+Quantisierung oder einen zusätzlichen Trennschritt (z. B. lokale Farbvarianz innerhalb der
+großen Region prüfen, ob sie in Wirklichkeit mehrere leicht unterschiedlich schattierte
+Teilflächen enthält) — nicht in dieser Runde umgesetzt.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |

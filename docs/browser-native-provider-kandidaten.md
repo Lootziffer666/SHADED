@@ -66,11 +66,26 @@ Web + WebGPU existieren laut externer Recherche real.
   3D-Geometrie". Kein SHADED-spezifischer Code, aber ein konkretes, nachvollziehbares
   Muster statt einer vagen Absicht.
 
-### Depth Anything V2 — technisch verfügbar, aber gegen die eigene Priorisierung
+### Depth Anything V2 — jetzt tatsächlich BEWIESEN lauffähig, nicht mehr nur behauptet
+
+**Update (2026-09-01):** `tools/scratch-test-transformersjs-depth.mjs` — `npm install
+@huggingface/transformers` (Node 22, keine GPU, kein CUDA, kein Torch), echte Inferenz mit
+`onnx-community/depth-anything-v2-small` auf der village-cube-Fixture:
+Pipeline-Ladezeit 368 ms, Inferenz 1466 ms auf 1536×1024, CPU/WASM-Backend. Die Ausgabe ist
+visuell geprüft korrekt (Tiefenkarte zeigt die 6 Häuser mit richtiger Tiefenordnung,
+näher = heller, sauber abgegrenzte Würfelkanten, auch kleine Büsche/Steine korrekt erfasst)
+— kein Blindflug, echtes Bild verifiziert. Das widerlegt direkt die bisherige Annahme in
+`docs/shaded-faehigkeiten.md` und dieser Datei, dass Depth-Anything-Inferenz zwingend
+CUDA/Torch braucht: **ein reiner CPU/WASM-Pfad über `@huggingface/transformers` (npm) läuft
+in Sekunden, ganz ohne GPU.** Getrennt davon bleibt der (nie fertiggestellte)
+`webgpu-depth-anything/`-Spike in diesem Repo weiterhin unfertig (kein Emscripten, keine
+kompilierte `.wasm`-Datei, Modell-Lade-Code im TypeScript auskommentiert) — das ist NICHT
+derselbe Pfad wie der jetzt bewiesene; `@huggingface/transformers` ist ein fertiges,
+externes npm-Paket, keine hier gebaute Eigenentwicklung.
 
 Ein browser-nativer DA2-Pfad (Transformers.js + ONNX + WebGPU, teils sogar in Echtzeit
-auf Kamera-Streams) ist real und würde funktionieren. Aber: `shaded-reconstruction`s
-eigene Provider-Entscheidungsbaum sagt ausdrücklich:
+auf Kamera-Streams) ist real und würde funktionieren — jetzt nicht mehr nur „würde", sondern
+gemessen. Aber: `shaded-reconstruction`s eigene Provider-Entscheidungsbaum sagt ausdrücklich:
 
 > gemessen > multiview-rekonstruiert > engine-bekannt > geführt geschätzt > **monokular
 > geschätzt**
@@ -122,8 +137,11 @@ Achse, kein Ersatz für die anderen zwei.
 - **Weiterhin offen:** kein neues `masks`/`segmentation`-Fähigkeits-Tag eingeführt
   (registry-weite Vokabular-Lücke, betrifft mehrere Einträge, keine Ad-hoc-Erweiterung
   für nur diesen einen).
-- Kein browser-nativer SAM2/DA2-Pfad tatsächlich implementiert oder getestet — nur
-  Quellen dokumentiert.
+- **Erledigt für DA2:** ein browser-nativer/CPU-nativer DA2-Pfad ist jetzt tatsächlich
+  getestet, siehe oben — `@huggingface/transformers` + `onnx-community/depth-anything-v2-small`,
+  echte Inferenz in <2s ohne GPU, visuell verifiziert. Kein SHADED-Produktionscode
+  geändert — reines `tools/scratch-*`-Experiment, keine Integration in `runtime/`.
+  SAM2 bleibt ungetestet.
 - Keine vollständige Browser-nativ-Prüfung der übrigen ~119 Provider — das wäre ein
   eigenes, großes Vorhaben nach dem `research-radar-themen.md`-Prüfraster, nicht Teil
   dieser Notiz.
