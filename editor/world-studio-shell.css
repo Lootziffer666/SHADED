@@ -1,29 +1,203 @@
-/* World Studio owns the default UX. The old toolbox survives only behind ERWEITERT. */
-body:has(#world-studio):not(.world-expert-open) .tool-rail,
-body:has(#world-studio):not(.world-expert-open) .inspector,
-body:has(#world-studio):not(.world-expert-open) .timeline-dock,
-body:has(#world-studio):not(.world-expert-open) .viewport-hud.hud-right{
-  display:none!important;
+/* SHADED Workspace Shell
+   Visual shell based on the supplied workspace prototype. The renderer remains
+   the permanent background; controls float above it and keep existing IDs/API. */
+:root{
+  --top:28px;
+  --rail:54px;
+  --inspector:320px;
+  --ws-bg:#141516;
+  --ws-panel:rgba(28,29,30,.82);
+  --ws-panel-strong:rgba(25,26,27,.94);
+  --ws-line:rgba(255,255,255,.10);
+  --ws-line-strong:rgba(255,255,255,.17);
+  --ws-text:#eeeae5;
+  --ws-muted:#9b9996;
+  --ws-dim:#6f6e6b;
+  --ws-accent:#82aee0;
+  --ws-accent-soft:rgba(130,174,224,.14);
+  --ws-ok:#79c9a1;
+  --ws-warn:#d5b070;
 }
-body:has(#world-studio):not(.world-expert-open) .viewport-hud.hud-left{
-  left:12px!important;
+
+body{background:var(--ws-bg)!important;color:var(--ws-text)}
+
+/* The new workspace shell replaces the old World Studio overlay, but not its
+   runtime/bridge logic. The old DOM may keep existing for compatibility. */
+#world-studio{display:none!important}
+body:has(#world-studio) .tool-rail,
+body:has(#world-studio) .inspector,
+body:has(#world-studio) .viewport-hud.hud-right{display:flex!important}
+body:has(#world-studio) .viewport-hud.hud-left{display:flex!important}
+
+.topbar{
+  height:28px!important;
+  grid-template-columns:1fr auto 1fr!important;
+  padding:0 10px!important;
+  background:rgba(5,5,5,.60)!important;
+  border-bottom:1px solid var(--ws-line)!important;
+  backdrop-filter:blur(12px)!important;
+  -webkit-backdrop-filter:blur(12px)!important;
 }
-.world-studio-expert{
-  flex:0 0 auto;
-  height:34px;
-  padding:0 10px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:10px;
-  background:#11131a;
-  color:#8f99ab;
-  font:700 9px/1 ui-monospace,monospace;
-  letter-spacing:.08em;
-  cursor:pointer;
+.brand{font-size:10px!important;letter-spacing:.11em!important;color:var(--ws-accent)}
+.brand-mark{width:6px!important;height:6px!important;border-width:1px!important;border-color:var(--ws-accent)!important;box-shadow:0 0 8px rgba(130,174,224,.45)!important}
+.engine-state{font-size:9px!important;color:var(--ws-muted)!important}
+.top-actions{gap:5px!important}
+.top-actions button{min-height:20px!important;height:20px!important;padding:0 8px!important;border-radius:3px!important;font-size:9px!important}
+
+.editor-shell{position:fixed!important;inset:28px 0 0!important;background:transparent!important;overflow:hidden!important}
+.viewport{position:absolute!important;inset:0!important;z-index:0!important;background:#000!important;transition:none!important}
+#preview-wrap,#stage,#canvas-wrap{position:absolute!important;inset:0!important}
+
+/* Floating workspace rail. */
+.tool-rail{
+  position:fixed!important;
+  left:10px!important;top:38px!important;bottom:10px!important;
+  width:52px!important;height:auto!important;
+  z-index:70!important;
+  padding:7px 6px!important;
+  gap:2px!important;
+  border:1px solid var(--ws-line)!important;
+  border-radius:10px!important;
+  background:var(--ws-panel)!important;
+  backdrop-filter:blur(20px)!important;
+  -webkit-backdrop-filter:blur(20px)!important;
+  box-shadow:0 12px 36px rgba(0,0,0,.42)!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+  align-items:stretch!important;
+  transition:width .18s ease!important;
+  scrollbar-width:none;
 }
-.world-studio-expert.active{border-color:#60a5fa;color:#fff;background:#17233a}
-body.world-expert-open #world-studio{opacity:.94}
-@media(max-width:860px){
-  body:has(#world-studio):not(.world-expert-open) #world-studio{bottom:8px;max-height:min(72dvh,650px)}
-  body:has(#world-studio):not(.world-expert-open) .viewport-hud.hud-left{display:none!important}
-  .world-studio-expert{padding:0 7px;font-size:8px}
+.tool-rail::-webkit-scrollbar{display:none}
+.tool-rail:hover,.tool-rail:focus-within{width:174px!important}
+.rail-btn{
+  width:100%!important;min-width:38px!important;max-width:none!important;
+  height:38px!important;min-height:38px!important;
+  padding:0 8px!important;
+  display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;
+  gap:10px!important;border:none!important;border-radius:6px!important;background:transparent!important;color:var(--ws-muted)!important;
+  overflow:hidden!important;white-space:nowrap!important;flex:0 0 38px!important;
 }
+.rail-btn:hover{background:rgba(255,255,255,.06)!important;color:var(--ws-text)!important}
+.rail-btn.active{background:var(--ws-accent-soft)!important;color:#cfe1f5!important;box-shadow:inset 2px 0 0 var(--ws-accent)!important}
+.rail-btn span{width:22px!important;min-width:22px!important;text-align:center!important;font-size:16px!important;line-height:1!important}
+.rail-btn b{display:block!important;opacity:0!important;transform:translateX(-4px);transition:opacity .12s,transform .12s;font:500 11px/1.1 Inter,system-ui,sans-serif!important;letter-spacing:.01em!important}
+.tool-rail:hover .rail-btn b,.tool-rail:focus-within .rail-btn b{opacity:1!important;transform:none}
+
+/* Floating inspector, closed until a workspace is selected. */
+.inspector{
+  position:fixed!important;
+  right:10px!important;top:48px!important;bottom:128px!important;
+  width:320px!important;height:auto!important;
+  z-index:68!important;
+  border:1px solid var(--ws-line)!important;border-radius:10px!important;
+  background:var(--ws-panel)!important;
+  backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;
+  box-shadow:0 12px 36px rgba(0,0,0,.44)!important;
+  overflow:hidden!important;
+  transform:translateX(calc(100% + 22px))!important;
+  transition:transform .18s ease!important;
+}
+body.inspector-open .inspector{transform:translateX(0)!important}
+body.inspector-collapsed .inspector{transform:translateX(calc(100% + 22px))!important}
+body.inspector-collapsed .viewport{right:0!important}
+.inspector-head{
+  height:40px!important;flex:0 0 40px!important;padding:6px 10px 6px 12px!important;
+  background:rgba(255,255,255,.025)!important;border-bottom:1px solid var(--ws-line)!important;
+}
+.inspector-head strong{font-size:11px!important;font-weight:600!important;color:var(--ws-text)!important}
+.eyebrow{font-size:8px!important;color:var(--ws-dim)!important;letter-spacing:.13em!important}
+.inspector-toggle{width:28px!important;min-width:28px!important;height:26px!important;min-height:26px!important;background:transparent!important;border-color:transparent!important;color:var(--ws-muted)!important}
+.inspector-scroll{padding:0 11px 18px!important;scrollbar-color:#444 transparent!important}
+.inspector-section{padding:10px 0 12px!important;border-bottom:1px solid var(--ws-line)!important}
+.section-title{margin-bottom:8px!important;cursor:pointer}
+.section-title>span{color:var(--ws-accent)!important}
+.section-title h2{font-size:9px!important;color:#d9d6d1!important}
+.status-line{border-left-color:var(--ws-accent)!important;background:rgba(130,174,224,.05)!important}
+button.primary,.accent{background:#587fa8!important;color:#fff!important}
+button.primary:hover,.accent:hover{background:#648bb4!important}
+
+/* Compact viewport status chip. */
+.viewport-hud.hud-left{
+  position:fixed!important;left:76px!important;top:38px!important;z-index:66!important;
+  padding:5px 8px!important;border-radius:7px!important;background:rgba(20,21,22,.70)!important;border:1px solid var(--ws-line)!important;
+  backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;
+}
+.viewport-hud.hud-right{position:fixed!important;right:10px!important;top:38px!important;z-index:66!important}
+.hud-kicker{color:var(--ws-accent)!important}
+
+/* Top-center workspace view controls, injected by ui-shell.js. */
+#workspace-view-toolbar{
+  position:fixed;top:38px;left:50%;transform:translateX(-50%);z-index:69;
+  display:flex;align-items:center;gap:4px;padding:4px;
+  border:1px solid var(--ws-line);border-radius:9px;background:var(--ws-panel);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 24px rgba(0,0,0,.34)
+}
+#workspace-view-toolbar button{
+  min-height:26px;height:26px;padding:0 9px;border:0;border-radius:5px;background:transparent;color:var(--ws-muted);
+  font:600 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.05em
+}
+#workspace-view-toolbar button:hover{background:rgba(255,255,255,.06);color:var(--ws-text)}
+#workspace-view-toolbar button.active{background:var(--ws-accent-soft);color:#d4e5f7}
+#workspace-view-toolbar .workspace-sep{width:1px;height:16px;background:var(--ws-line);margin:0 2px}
+
+/* Bottom evidence/output dock. */
+#workspace-bottom-dock{
+  position:fixed;left:76px;right:10px;bottom:10px;height:108px;z-index:67;
+  display:flex;flex-direction:column;overflow:hidden;
+  border:1px solid var(--ws-line);border-radius:10px;background:rgba(24,25,26,.84);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 12px 36px rgba(0,0,0,.40);
+  transition:height .16s ease
+}
+#workspace-bottom-dock.collapsed{height:31px}
+.workspace-dock-head{height:30px;flex:0 0 30px;display:flex;align-items:center;border-bottom:1px solid var(--ws-line);padding:0 5px}
+.workspace-dock-tab{min-height:24px!important;height:24px!important;padding:0 10px!important;border:0!important;border-radius:4px!important;background:transparent!important;color:var(--ws-dim)!important;font:600 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace!important;letter-spacing:.06em!important}
+.workspace-dock-tab.active{color:#d7e7f8!important;background:var(--ws-accent-soft)!important}
+.workspace-dock-toggle{margin-left:auto!important;width:28px!important;min-width:28px!important;min-height:24px!important;height:24px!important;padding:0!important;border:0!important;background:transparent!important;color:var(--ws-muted)!important}
+.workspace-dock-body{flex:1;min-height:0;padding:9px 11px;overflow:auto;color:var(--ws-muted);font:10px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+.workspace-dock-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.workspace-dock-card{min-width:0;padding-right:10px;border-right:1px solid var(--ws-line)}
+.workspace-dock-card:last-child{border-right:0}
+.workspace-dock-label{display:block;color:var(--ws-dim);font-size:8px;letter-spacing:.08em;margin-bottom:3px}
+.workspace-dock-value{color:#d3d0cb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.workspace-dock-log{margin:0;white-space:pre-wrap;color:#c8c5c0}
+
+/* Dynamically injected workspace panels. */
+.workspace-proxy-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.workspace-proxy-grid button{min-height:31px;font-size:10px}
+.workspace-live-stack{display:grid;gap:6px;margin-top:8px}
+.workspace-live-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:7px;padding:6px 7px;border:1px solid var(--ws-line);border-radius:5px;background:rgba(255,255,255,.025);font-size:10px}
+.workspace-live-row span:first-child{color:var(--ws-dim)}
+.workspace-live-row span:last-child{color:#d5d2cd;overflow-wrap:anywhere}
+
+@media (max-width:860px){
+  :root{--top:34px;--rail:56px;--inspector:100%}
+  .topbar{height:34px!important;grid-template-columns:1fr auto!important;padding:0 8px!important}
+  .engine-state{display:none!important}
+  .editor-shell{inset:34px 0 0!important}
+  .viewport{inset:0 0 56px!important}
+  .tool-rail{
+    left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;height:56px!important;
+    padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px))!important;border:0!important;border-top:1px solid var(--ws-line)!important;border-radius:0!important;
+    flex-direction:row!important;overflow-x:auto!important;overflow-y:hidden!important;background:rgba(12,12,13,.94)!important;box-shadow:none!important
+  }
+  .tool-rail:hover,.tool-rail:focus-within{width:auto!important}
+  .rail-btn{min-width:58px!important;width:58px!important;height:44px!important;min-height:44px!important;flex:0 0 58px!important;padding:3px!important;flex-direction:column!important;justify-content:center!important;gap:2px!important}
+  .rail-btn span{width:auto!important;min-width:0!important;font-size:14px!important}
+  .rail-btn b,.tool-rail:hover .rail-btn b,.tool-rail:focus-within .rail-btn b{display:block!important;opacity:1!important;transform:none!important;font-size:7px!important}
+  .inspector{left:7px!important;right:7px!important;top:auto!important;bottom:63px!important;width:auto!important;height:min(54dvh,520px)!important;border-radius:12px!important;transform:translateY(calc(100% + 14px))!important}
+  body.inspector-open .inspector{transform:translateY(0)!important}
+  body.inspector-collapsed .inspector{transform:translateY(calc(100% + 14px))!important}
+  .viewport-hud.hud-left{left:8px!important;top:8px!important;max-width:calc(100% - 116px)!important}
+  .viewport-hud.hud-right{right:8px!important;top:8px!important}
+  #workspace-view-toolbar{top:8px;left:auto;right:8px;transform:none;max-width:calc(100% - 16px);overflow-x:auto}
+  #workspace-view-toolbar button{padding:0 7px;white-space:nowrap}
+  #workspace-bottom-dock{display:none}
+}
+
+@media (max-width:520px){
+  #workspace-view-toolbar button[data-workspace-view="geometry"],
+  #workspace-view-toolbar button[data-workspace-view="voxels"]{display:none}
+  .viewport-hud.hud-left{display:none!important}
+}
+
+@media (prefers-reduced-motion:reduce){.tool-rail,.inspector,#workspace-bottom-dock{transition:none!important}}
