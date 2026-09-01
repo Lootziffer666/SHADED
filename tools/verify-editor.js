@@ -48,6 +48,8 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
       project: !!document.getElementById('panel-project'),
       toolbar: !!document.getElementById('workspace-view-toolbar'),
       bottomDock: !!document.getElementById('workspace-bottom-dock'),
+      themeButton: !!document.getElementById('workspace-theme-button'),
+      rootTheme: document.documentElement.dataset.workspaceTheme,
       railButtons: document.querySelectorAll('.tool-rail .rail-btn[data-target]').length,
       engineFrame: !!document.getElementById('engine-frame'),
       worldDemo: !!document.getElementById('world-demo'),
@@ -58,8 +60,19 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
     check('Workspace-Shell hat Reconstruct/Debug/Project', shell.reconstruct && shell.debug && shell.project);
     check('Viewport-Toolbar und Bottom-Dock existieren', shell.toolbar && shell.bottomDock);
     check(`Workspace-Rail ist vollständig (${shell.railButtons} Bereiche)`, shell.railButtons >= 10);
+    check('Theme-Picker ist vorhanden und startet in Carbonight', shell.themeButton && shell.rootTheme === 'carbonight');
     check('World-Studio Runtime bleibt als unsichtbare Bridge vorhanden', shell.worldDemo && shell.providerFiles && shell.providerFolder);
     check('Keine iframe-Engine mehr (Canvas läuft im selben Dokument)', !shell.engineFrame);
+
+    await page.locator('#workspace-theme-button').click();
+    await page.locator('[data-workspace-theme-option="earthsong"]').click();
+    const themeState = await page.evaluate(() => ({
+      id: document.documentElement.dataset.workspaceTheme,
+      stored: localStorage.getItem('shaded.workspace-theme'),
+      accent: getComputedStyle(document.documentElement).getPropertyValue('--ws-accent').trim().toUpperCase(),
+    }));
+    check('Theme-Wechsel setzt Earthsong sofort', themeState.id === 'earthsong' && themeState.accent === '#95CC5E');
+    check('Theme-Auswahl wird persistent gespeichert', themeState.stored === 'earthsong');
 
     // Trigger the hidden compatibility bridge directly; the visible shell no longer exposes the old onboarding overlay.
     await page.evaluate(() => document.getElementById('world-demo')?.click());
@@ -97,6 +110,7 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
       world: window.SHADEDWorldStudio?.state?.() || null,
       status: document.getElementById('world-status')?.textContent || '',
       inspector: document.body.classList.contains('inspector-open'),
+      theme: document.documentElement.dataset.workspaceTheme,
     })).catch(() => null);
     check(`Unerwarteter Fehler: ${error.message}${diagnostic ? ` | ${JSON.stringify(diagnostic)}` : ''}`, false);
     console.log('All errors:', errors.slice(0, 10));
