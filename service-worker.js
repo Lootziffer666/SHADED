@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v23';
+const CACHE = 'shaded-shell-v24';
 const SHELL = [
   './',
   './index.html',
@@ -21,6 +21,7 @@ const SHELL = [
   './editor/drawer-handle.css?v=2',
   './editor/world-studio.css?v=1',
   './editor/world-studio-shell.css?v=1',
+  './editor/workspace-extra-themes.css?v=1',
   './editor/world-studio-imports.css?v=1',
   './editor/engine-shell.css?v=1',
   './editor/app.js?v=9',
