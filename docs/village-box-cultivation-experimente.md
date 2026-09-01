@@ -765,6 +765,99 @@ Kanten=Nachbarschaft/Faltung/Öffnung) als strukturierte Ausgabe. Diese Runde li
 erste funktionierende Instanz der EINEN fehlenden Kernstufe (Rückprojektion→Ebenen-Fit→
 Residuum), nicht die vollständige spezifizierte Kette.
 
+## 4v. Runde 26: Bodenebene — Ausrichtung/Neigung, plus Wand-via-Differenz mit Vegetations-Ausschluss
+
+Direkte Anfrage des Maintainers: „Versuche als nächstes bitte die Bodenfläche, ihre
+Ausrichtung und ihre mögliche Neigung zu ermitteln. Im Idealfall lassen sich die Kanten der
+Hauswände aus der Differenz aus Dachmaske und Bodenmaske ziehen. Vegetation muss dabei
+ignoriert werden. Büsche oder andere Verdeckende Objekte dürfen nicht die angenommene
+Flächenbegrenzung beeinflussen." Zwei Teilaufgaben, `tools/scratch-ground-plane-and-walls.mjs`
+(LOD0, gleiches Pinhole-Rückprojektionsmodell wie Runde 24, gleicher `fitPlane`-PCA-Code).
+
+**Vegetations-Ausschluss (Vorstufe für beide Teilaufgaben).** Gras-Referenzfarbe direkt aus
+dem Bild gesampelt (`rgb(101,136,48)` bei 50%/85% Bildposition). Büsche NICHT angenommen,
+sondern gemessen: Farbproben in einem Ring um jeden Haus-Mittelpunkt, gefiltert auf
+grün-dominant UND farblich von Gras unterscheidbar (`rgbDist` 15–90), gemittelt zu
+`rgb(134,165,61)`. Damit per Flood-Fill 4 echte Busch-Komponenten gefunden und aus Boden- UND
+Wand-Kandidatenmengen ausgeschlossen (gleiche Methode wie die Farbmasken-Extraktion selbst,
+keine geratenen Werte).
+
+**Bodenebene: gefittet, nicht angenommen.** 20.455 grasfarbene Pixel (Dach/Busch
+ausgeschlossen), 5.114 für den Ebenen-Fit gesampelt, per Pinhole-Modell nach 3D
+rückprojiziert, PCA-Ebenen-Fit:
+
+| Größe | Wert |
+|---|---|
+| Planarität | 1,0000 |
+| Residuum (Mittel/Median/p90/Max) | 0,21 / 0,14 / 0,39 / 2,09 (Weltmodell-Einheiten) |
+| Gefittete Normale | `[0.0003, 0.0194, -0.9998]` |
+| Analytisch vorhergesagte Normale | `[0, 1, 0]` |
+| Winkel gefittet↔vorhergesagt | **88,89°** |
+
+Die gesampelten Bodenpixel bilden im Rückprojektionsraum selbst eine fast perfekt ebene
+Fläche (Planarität 1,0000, Residuen klein gegenüber dem 200–900-Einheiten-Tiefenbereich) —
+**das ist ein echter, gemessener Befund**: der Boden ist in dieser Rückprojektion tatsächlich
+eben, keine sichtbare Welligkeit.
+
+**Aber die Ausrichtungs-Vorhersage ist damit widerlegt, nicht bestätigt.** Die analytische
+Vorhersage stammte aus einer Annahme dieser Runde: die Familienrichtung des affinen Solvers,
+die auf dem Bildschirm am nächsten an 90° liegt (`familyAnglesDeg[1]=90,1°`), sei die
+„Höhen"-Achse, und deren Weltrichtung entspreche direkt der Kamera-Y-Achse `[0,1,0]` im
+Pinhole-Rückprojektionsraum. Gemessen kommt stattdessen eine Normale heraus, die fast
+vollständig in der Kamera-Z-Richtung liegt (Blickrichtung/Tiefe), 88,89° von der Vorhersage
+entfernt — praktisch orthogonal, keine kleine Neigung. **Das ist kein Beleg für eine reale
+Boden-Neigung von ~89°** (das wäre eine absurde, im Bild nicht sichtbare Kippung) — es zeigt,
+dass die Vorhersage-Methode selbst nicht funktioniert: der affine Solver arbeitet in seinem
+eigenen, aus Box-`T`/`scale`-Daten gefitteten abstrakten Weltkoordinatensystem, das nie gegen
+die Kamerakonvention des Pinhole-Rückprojektionsmodells (Bildschirm-X, Bildschirm-Y-als-oben,
+Z-als-Tiefe) kalibriert wurde. Eine Familienachse als „näher an 90° auf dem Bildschirm" zu
+benennen sagt nichts darüber, wie die zugehörige 3D-Weltrichtung in einem UNABHÄNGIG
+gewählten Kamera-Raum orientiert ist — zwei verschiedene Koordinatensysteme, naiv
+gleichgesetzt. **Unbewiesene Zusatzhypothese, nicht getestet:** die schmale, überwiegend in
+der Bildtiefe verteilte Streuung der Grasproben (viele Pixel bei ähnlicher Bildschirmposition,
+aber unterschiedlicher DA2-Tiefenschätzung durch Textur-/Rauschartefakte) könnte den Fit
+zusätzlich in Richtung einer tiefenlastigen Scheinebene ziehen. Nicht geprüft — nur genannt,
+damit sie nicht stillschweigend als Erklärung durchgeht.
+
+**Ergebnis dieser Teilaufgabe: die Ebenenmessung selbst ist erfolgreich (echte Ebene, echtes
+Residuum), die Neigungsaussage ist NICHT möglich**, weil die Vergleichsgrundlage (analytische
+Vorhersage) methodisch ungeklärt ist. Eine echte Tilt-Aussage bräuchte einen direkten Vergleich
+mit einer bereits bekannten Weltgröße (z. B. den echten Haus-`T`/`scale`-Bodenkanten aus dem
+affinen Solver selbst, im SELBEN Koordinatensystem wie die Häuser, statt einer neu erfundenen
+Kamera-Konvention) — nicht in dieser Runde umgesetzt.
+
+**Wand-via-Differenz (Dach-Maske minus Boden-Maske, Vegetation ausgeschlossen).** Pro Haus:
+Kandidatenspalte unterhalb der Dach-Bounding-Box (gleiche Spaltenbreite wie das Dach, Höhe =
+Dachhöhe), abzüglich Dach-, Boden- und Busch-Pixel. Direkt gegen die echten
+`wallLight`+`wallDark`-Ground-Truth-Pixel (Runde 25s Farbmasken-Extraktion) geprüft:
+
+| Haus | Kandidatengröße | echte Wandpixel | Treffer | Precision | Recall |
+|---|---|---|---|---|---|
+| house1 | 41.689 | 23.052 | 17.074 | 41,0 % | 74,1 % |
+| house2 | 60.763 | 33.777 | 24.036 | 39,6 % | 71,2 % |
+| house3 | 41.548 | 33.923 | 25.574 | 61,6 % | 75,4 % |
+| house4 | 78.120 | 55.188 | 36.975 | 47,3 % | 67,0 % |
+| house5 | 25.441 | 23.049 | 18.391 | 72,3 % | 79,8 % |
+| house6 | 11.521 | 25.789 | 9.263 | 80,4 % | 35,9 % |
+
+**Echter Teilerfolg, kein sauberes Wand-Extraktionsverfahren.** Für 5 von 6 Häusern werden
+67–80 % der echten Wandpixel gefunden (Recall) — die Grundidee (Wand liegt zwischen Dach und
+Boden) trägt. Aber Precision liegt bei nur 40–80 %: die simple „Spalte unter der Dach-Bbox"-
+Heuristik fasst deutlich mehr Fläche als die echte Wand (Schatten, perspektivisch verzerrter
+Boden vor dem Haus, angrenzende Nachbarflächen landen mit in der Kandidatenmenge). house6
+fällt mit 35,9 % Recall deutlich ab (kleinstes/am stärksten verdecktes Haus der Szene). Keine
+Kantenverfeinerung (z. B. Tiefenkanten-Grenze statt Bounding-Box-Spalte) wurde in dieser Runde
+ergänzt — das wäre der naheliegende nächste Schritt, aber nicht Teil dieser Anfrage.
+
+**Ausdrücklich offen:**
+- Die Boden-Neigungsfrage bleibt unbeantwortet; die hier verwendete Vergleichsmethode
+  (Familien-Achse → geratene Kamera-Y-Achse) ist als ungültig erkannt, nicht durch eine
+  bessere ersetzt.
+- Der Busch-Ausschluss wurde nicht unabhängig gegen eine echte Busch-Ground-Truth geprüft (es
+  gibt keine) — nur visuell/farblich plausibel, nicht pixelgenau verifiziert.
+- Wand-Kandidaten sind grob (Bounding-Box-Spalte), keine Kantenverfeinerung; Precision bleibt
+  in 5/6 Fällen unter 75 %.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -852,3 +945,11 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
   Rekonstruktion wurde durchgeführt.
 - Kein Code in `runtime/spatial-kernel/` oder `runtime/shaded-engine.mjs` geändert — alles
   bleibt in `tools/scratch-*`.
+- **Neu seit §4v:** Boden-Neigung ist weiterhin unbeantwortet — die in Runde 26 verwendete
+  Vergleichsmethode (affine-Solver-Familienachse → angenommene Kamera-Y-Achse) ist widerlegt
+  (88,89° statt einer kleinen Neigung), nicht durch eine funktionierende Methode ersetzt. Eine
+  echte Tilt-Aussage bräuchte einen Vergleich im SELBEN Koordinatensystem wie die
+  Haus-Rekonstruktion selbst (`T`/`scale`), nicht eine neu erfundene Kamerakonvention. Die
+  Wand-via-Differenz-Heuristik (Dach-Bbox-Spalte minus Boden/Busch) liefert brauchbaren Recall
+  (67–80 % bei 5/6 Häusern), aber schwache Precision (40–80 %) — keine Kantenverfeinerung
+  versucht.
