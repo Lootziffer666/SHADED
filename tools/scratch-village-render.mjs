@@ -21,7 +21,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, 'verify-out');
-const data = JSON.parse(fs.readFileSync('/tmp/claude-0/-home-user-SHADED/28c78061-b0e0-5f7f-bdfd-27d37e45d96b/scratchpad/village-reconstructed-v2.json', 'utf8'));
+const data = JSON.parse(fs.readFileSync(path.join(OUT, 'village-reconstructed-v2.json'), 'utf8'));
 const { R: axes, T, W: imgW, H: imgH, f, Lx, Ly, Lz, localCoords } = data;
 
 function dot3(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }

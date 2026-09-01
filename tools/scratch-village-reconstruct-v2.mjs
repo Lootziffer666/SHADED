@@ -38,8 +38,15 @@
 // played in every synthetic test, just genuinely noisy this time instead
 // of synthetically injected.
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const raw = JSON.parse(fs.readFileSync('/tmp/claude-0/-home-user-SHADED/28c78061-b0e0-5f7f-bdfd-27d37e45d96b/scratchpad/village-raw2d-v2.json', 'utf8'));
+// Repo-relative path, not the /tmp session scratchpad this script
+// originally used -- reads the fixture that scratch-village-extract-v2.mjs
+// writes to tools/verify-out/ (run that script first).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const OUT = path.join(__dirname, 'verify-out');
+const raw = JSON.parse(fs.readFileSync(path.join(OUT, 'village-raw2d-v2.json'), 'utf8'));
 const { W, H, cubes: rawCubes } = raw;
 const cubeNames = Object.keys(rawCubes);
 const famAssignment = Object.fromEntries(cubeNames.map(n => [n, rawCubes[n].famAssignment]));
@@ -830,5 +837,5 @@ for (const name of cubeNames) {
   console.log(`  ${name}: T=[${T.map(v => v.toFixed(2))}]  avgReprojError=${(sumErr / n).toFixed(2)}px  maxReprojError=${maxErr.toFixed(2)}px`);
 }
 
-fs.writeFileSync('/tmp/claude-0/-home-user-SHADED/28c78061-b0e0-5f7f-bdfd-27d37e45d96b/scratchpad/village-reconstructed-v2.json', JSON.stringify({ W, H, R: state2.R, pp: state2.pp, f: state2.f, Lx: joint.Lx, Ly: joint.Ly, Lz: joint.Lz, T: joint.T, vertices: Object.fromEntries(cubeNames.map(n => [n, state.cubes[n].vertices])), localCoords }, null, 2));
+fs.writeFileSync(path.join(OUT, 'village-reconstructed-v2.json'), JSON.stringify({ W, H, R: state2.R, pp: state2.pp, f: state2.f, Lx: joint.Lx, Ly: joint.Ly, Lz: joint.Lz, T: joint.T, vertices: Object.fromEntries(cubeNames.map(n => [n, state.cubes[n].vertices])), localCoords }, null, 2));
 console.log('Wrote village-reconstructed-v2.json');

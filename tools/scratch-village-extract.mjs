@@ -33,9 +33,17 @@
 //     correction on an already-good hexagon, not a rebuild from noise.
 import { chromium } from 'playwright';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const IMG = '/tmp/claude-0/-home-user-SHADED/28c78061-b0e0-5f7f-bdfd-27d37e45d96b/scratchpad/village-b29.png';
-const OUT = '/home/user/SHADED/tools/verify-out';
+// Repo-relative paths -- NOT the /tmp session scratchpad these scripts
+// originally used (that only ever existed inside one live agent session
+// and does not travel with the repo/branch/PR). The source image is
+// committed as a repo fixture; outputs go to tools/verify-out/ like every
+// other verify script in this repo.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const IMG = path.join(__dirname, '..', 'file_000000006d188210a9bb1129089a7b29.png');
+const OUT = path.join(__dirname, 'verify-out');
 
 // Real demo-village test (flat-roof simplification, 1536x1024), 6 houses --
 // unlike the gray cubes (one material, 3 different SHADES by face
@@ -561,7 +569,7 @@ const CUBES = {
     W: result.W, H: result.H,
     cubes: Object.fromEntries(Object.entries(result.out).filter(([, r]) => r.ok).map(([name, r]) => [name, { rawPoly: r.rawPoly, famAssignment: r.famAssignment }])),
   };
-  fs.writeFileSync('/tmp/claude-0/-home-user-SHADED/28c78061-b0e0-5f7f-bdfd-27d37e45d96b/scratchpad/village-raw2d.json', JSON.stringify(dump, null, 2));
+  fs.writeFileSync(path.join(OUT, 'village-raw2d.json'), JSON.stringify(dump, null, 2));
   console.log('Wrote village-raw2d.json');
   await browser.close();
 })();
