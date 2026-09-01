@@ -84,7 +84,10 @@ try {
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 
   // Paint workspace remains directly reachable from the horizontal rail.
-  if (!document.getElementById('spatial-viewer')?.hidden) await page.evaluate(() => document.getElementById('spatial-close')?.click());
+  await page.evaluate(() => {
+    const viewer = document.getElementById('spatial-viewer');
+    if (viewer && !viewer.hidden) document.getElementById('spatial-close')?.click();
+  });
   const paintButton = page.locator('.rail-btn[data-target="panel-paint"]');
   await paintButton.waitFor({ state: 'visible', timeout: 10000 });
   await paintButton.click({ timeout: 10000 });
