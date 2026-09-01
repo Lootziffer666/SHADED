@@ -19,6 +19,18 @@ const WORKSPACE_THEMES = [
   { id: 'legacy', label: 'Tron Legacy', colors: ['#14191F', '#267FB5', '#FFB20D', '#FF410D', '#C7F026'] },
   { id: 'glowfish', label: 'Glowfish', colors: ['#191F13', '#95CC5E', '#DB784D', '#F8BB39'] },
   { id: 'neutral', label: 'SHADED Neutral', colors: ['#141516', '#82AEE0', '#79C9A1', '#D5B070'] },
+  { id: 'history-icons', label: 'History of Icons', colors: ['#501F3A', '#CB2D6F', '#CCCCCC', '#14A098', '#0F292F'] },
+  { id: 'electric-violet', label: 'Electric Violet', colors: ['#D83F87', '#2A1B3D', '#44318D', '#E98074', '#A4B3B6'] },
+  { id: 'sleek-futuristic', label: 'Sleek & Futuristic', colors: ['#2C3531', '#116466', '#D9B08C', '#FFCB9A', '#D1E8E2'] },
+  { id: 'red-lively', label: 'Red & Lively', colors: ['#5D001E', '#E3E2DF', '#E3AFBC', '#9A1750', '#EE4C7C'] },
+  { id: 'cool-collected', label: 'Cool & Collected', colors: ['#003135', '#024950', '#964734', '#0FA4AF', '#AFDDE5'] },
+  { id: 'deep-vintage', label: 'Deep Vintage Mood', colors: ['#244855', '#E64833', '#874F41', '#90AEAD', '#FBE9D0'] },
+  { id: 'elegant-approachable', label: 'Elegant & Approachable', colors: ['#EDC7B7', '#EEE2DC', '#BAB2B5', '#123C69', '#AC3B61'] },
+  { id: 'soft-digital', label: 'Soft Digital', colors: ['#5680E9', '#84CEEB', '#5AB9EA', '#C1C8E4', '#8860D0'] },
+  { id: 'love-notes', label: 'Love Notes', colors: ['#A1C3D1', '#B39BC8', '#F0EBF4', '#F172A1', '#E64398'] },
+  { id: 'unique-combination', label: 'Unique Combination', colors: ['#59253A', '#78244C', '#895061', '#0677A1', '#2D4159'] },
+  { id: 'citrus-energy', label: 'Citrus Energy', colors: ['#1F2605', '#1F6521', '#53900F', '#A4A71E', '#D6CE15'] },
+  { id: 'vivid-blue-orange', label: 'Vivid Blues & Orange', colors: ['#10E7DC', '#0074E1', '#1B9CE5', '#6CDAEE', '#F79E02'] },
 ];
 
 if (!document.querySelector('link[data-viewport-first]')) {
@@ -26,6 +38,14 @@ if (!document.querySelector('link[data-viewport-first]')) {
   link.rel = 'stylesheet';
   link.href = '/editor/viewport-first.css';
   link.dataset.viewportFirst = '1';
+  document.head.appendChild(link);
+}
+
+if (!document.querySelector('link[data-workspace-extra-themes]')) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = '/editor/workspace-extra-themes.css';
+  link.dataset.workspaceExtraThemes = '1';
   document.head.appendChild(link);
 }
 
@@ -94,7 +114,7 @@ function ensureThemePicker() {
         <b>${theme.label}</b>
       </button>`).join('')}
     </div>
-    <div class="workspace-theme-credit">Palette adaptations · Dayle Rees · MIT</div>`;
+    <div class="workspace-theme-credit">Dayle Rees palettes + supplied palette studies</div>`;
   document.body.appendChild(menu);
 
   button.addEventListener('click', (event) => {
