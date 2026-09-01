@@ -611,38 +611,114 @@ console.log('\nPhase 1 (calibration-only, ' + candidates.length + '-start, ' + P
 // village data: even 75 random restarts never found a candidate with 0%
 // cheirality violation (a real, structural floor for this scene, not a
 // restart-count problem), so ties among the low-but-nonzero cheiralityBad
-// candidates matter a lot, and scaleBad picked one that silently wrecked
-// specific houses' isotropic reprojection (1900-9000px average) while
-// looking fine in scaleBad terms. Direct verification catches that:
-// among candidates within 2% of the best cheiralityBad, re-rank by the
-// actual thing we're trying to get right -- summed isotropic reprojection
-// error across every house (same solveTranslation used everywhere else),
-// heavily penalizing NaN/degenerate houses instead of averaging past them.
-function totalIsotropicReprojError(cand) {
+// candidates matter a lot.
+//
+// CORRECTED (was totalIsotropicReprojError): the original tie-break scored
+// each candidate camera by reprojection error UNDER AN ASSUMED UNIT CUBE
+// (localCoords used unscaled -- implicitly Lx=Ly=Lz=1 for every house).
+// That doesn't just fail to help once houses have free per-house scale
+// (E1) -- it actively selects the camera that makes the data LOOK most
+// cube-like, and Phase 2's opAlign/opSnap then forcibly reshape every
+// house's hexagon toward THAT camera's vanishing points, baking the cube
+// assumption in two stages before the joint anisotropic solve ever runs.
+// Confirmed directly: house3's raw extracted vertices solve to
+// Lx=-0.90,Ly=0.61 (genuinely anisotropic) under the isotropic-selected
+// camera, but that SAME camera's Phase-2-cleaned vertices solve to
+// Lx=Ly=Lz=0.99999998 (isotropic to 8 digits) -- the corruption happens
+// upstream of the joint solve, not inside it (tools/scratch-village-
+// face-quads-verify.mjs proves the joint solve itself correctly recovers a
+// known 2.4x1.3x1.0 cuboid's true ratios from the SAME camera, hexagon-only,
+// under realistic pixel noise -- so more measurements per house would not
+// have fixed this). Fixed by scoring candidates with a per-house FREE
+// Lx,Ly,Lz solve (house 0 reference, Lz=1 gauge; h>0 fully free, exactly
+// solveJointAnisotropic's own parameterization, minus the ground-plane row
+// since verticalFam isn't known yet at this point in Phase 1 -- a rank-
+// deficient homogeneous direction changes a house's gauge, not the
+// achieved residual, so it doesn't bias this score) -- letting each
+// candidate camera be judged by how well SOME box (of whatever proportions
+// the data implies) explains it, never assuming which proportions in
+// advance.
+function totalAnisotropicReprojError(cand) {
+  const { R, f, pp } = cand;
+  const numHouses = cubeNames.length; // NOT named H -- that shadows the outer image-height `H` used below for imgCenter
+  const blockSize = (h) => (h === 0 ? 5 : 6);
+  const base = new Array(numHouses);
+  { let acc = 0; for (let h = 0; h < numHouses; h++) { base[h] = acc; acc += blockSize(h); } }
+  const nUnknowns = base[numHouses - 1] + blockSize(numHouses - 1);
+  const colsFor = (h) => h === 0
+    ? { Lx: base[0] + 0, Ly: base[0] + 1, Lz: null, T: base[0] + 2 }
+    : { Lx: base[h] + 0, Ly: base[h] + 1, Lz: base[h] + 2, T: base[h] + 3 };
+  const AtA = Array.from({ length: nUnknowns }, () => new Array(nUnknowns).fill(0));
+  const Atb = new Array(nUnknowns).fill(0);
+  cubeNames.forEach((name, h) => {
+    const verts = state.cubes[name].vertices, lcoords = localCoords[name];
+    const { Lx: LxCol, Ly: LyCol, Lz: LzCol, T: TCol } = colsFor(h);
+    for (let i = 0; i < 6; i++) {
+      if (!verts[i]) continue;
+      const [a, b, c] = lcoords[i];
+      const [px, py] = verts[i];
+      for (const [pAxis, pVal] of [[0, px], [1, py]]) {
+        const coeffs = new Array(nUnknowns).fill(0);
+        coeffs[LxCol] = a * (-f * R[0][pAxis] + (pVal - pp[pAxis]) * R[0][2]);
+        coeffs[LyCol] = b * (-f * R[1][pAxis] + (pVal - pp[pAxis]) * R[1][2]);
+        let rhs;
+        if (LzCol === null) { rhs = -(c * (-f * R[2][pAxis] + (pVal - pp[pAxis]) * R[2][2])); }
+        else { coeffs[LzCol] = c * (-f * R[2][pAxis] + (pVal - pp[pAxis]) * R[2][2]); rhs = 0; }
+        coeffs[TCol + pAxis] = -f;
+        coeffs[TCol + 2] = (pVal - pp[pAxis]);
+        for (let ii = 0; ii < nUnknowns; ii++) { Atb[ii] += coeffs[ii] * rhs; for (let jj = 0; jj < nUnknowns; jj++) AtA[ii][jj] += coeffs[ii] * coeffs[jj]; }
+      }
+    }
+  });
+  // Without a ground-plane row, every h>0 house is individually rank-
+  // deficient (the (T_h,Lx_h,Ly_h,Lz_h) homogeneous scaling direction --
+  // same derivation as solveJointAnisotropic's own comment) and
+  // solveLinearSystem's near-zero-pivot fallback does NOT land on a
+  // sane particular solution for it, it lands on nonsense (confirmed:
+  // every candidate scored ~500000, i.e. every house's houses landing
+  // behind the camera). verticalFam itself isn't known yet this early in
+  // Phase 1, so it's derived HERE, per-candidate, the same way it's later
+  // derived for the frozen winner (farthest-VP axis) -- self-contained,
+  // not shared state.
+  const candVp = [0, 1, 2].map((k) => vpOfAxis(R[k], pp, f));
+  const imgCenter = [W / 2, H / 2];
+  const candVerticalFam = candVp.map((vp, i) => ({ i, d: vp ? Math.hypot(vp[0] - imgCenter[0], vp[1] - imgCenter[1]) : 0 })).sort((a, b) => b.d - a.d)[0].i;
+  const GROUND_WEIGHT = 50000;
+  const rv = R[candVerticalFam];
+  const T0Col = colsFor(0).T;
+  for (let h = 1; h < numHouses; h++) {
+    const ThCol = colsFor(h).T;
+    const coeffs = new Array(nUnknowns).fill(0);
+    coeffs[ThCol + 0] = GROUND_WEIGHT * rv[0]; coeffs[ThCol + 1] = GROUND_WEIGHT * rv[1]; coeffs[ThCol + 2] = GROUND_WEIGHT * rv[2];
+    coeffs[T0Col + 0] -= GROUND_WEIGHT * rv[0]; coeffs[T0Col + 1] -= GROUND_WEIGHT * rv[1]; coeffs[T0Col + 2] -= GROUND_WEIGHT * rv[2];
+    for (let ii = 0; ii < nUnknowns; ii++) { for (let jj = 0; jj < nUnknowns; jj++) AtA[ii][jj] += coeffs[ii] * coeffs[jj]; }
+  }
+  const sol = solveLinearSystem(AtA, Atb);
   let total = 0;
-  for (const name of cubeNames) {
-    const verts = state.cubes[name].vertices;
-    const T = solveTranslation(verts, localCoords[name], cand.R, cand.f, cand.pp);
+  cubeNames.forEach((name, h) => {
+    const verts = state.cubes[name].vertices, lcoords = localCoords[name];
+    const { Lx: LxCol, Ly: LyCol, Lz: LzCol, T: TCol } = colsFor(h);
+    const scale = { Lx: sol[LxCol], Ly: sol[LyCol], Lz: LzCol === null ? 1 : sol[LzCol] };
+    const T = [sol[TCol], sol[TCol + 1], sol[TCol + 2]];
     let sum = 0, n = 0;
     for (let i = 0; i < 6; i++) {
       if (!verts[i]) continue;
-      const [a, b, c] = localCoords[name][i];
-      const cam = [0, 1, 2].map(d => T[d] + a * cand.R[0][d] + b * cand.R[1][d] + c * cand.R[2][d]);
+      const cam = [0, 1, 2].map(d => T[d] + lcoords[i][0] * scale.Lx * R[0][d] + lcoords[i][1] * scale.Ly * R[1][d] + lcoords[i][2] * scale.Lz * R[2][d]);
       if (cam[2] <= 0.3) { sum += 1e5; n++; continue; }
-      const proj = [cand.pp[0] + cand.f * cam[0] / cam[2], cand.pp[1] + cand.f * cam[1] / cam[2]];
+      const proj = [pp[0] + f * cam[0] / cam[2], pp[1] + f * cam[1] / cam[2]];
       const err = Math.hypot(proj[0] - verts[i][0], proj[1] - verts[i][1]);
       sum += Number.isFinite(err) ? err : 1e5; n++;
     }
     total += n ? sum / n : 1e5;
-  }
+  });
   return total;
 }
 calibrated.sort((a, b) => a.cheiralityBad - b.cheiralityBad || a.scaleBad - b.scaleBad || a.e - b.e);
 const bestCheirality = calibrated[0].cheiralityBad;
 const finalists = calibrated.filter(c => c.cheiralityBad <= bestCheirality + 0.02);
-finalists.forEach(c => { c.reprojSum = totalIsotropicReprojError(c); });
+finalists.forEach(c => { c.reprojSum = totalAnisotropicReprojError(c); });
 finalists.sort((a, b) => a.reprojSum - b.reprojSum);
-console.log(`\n${finalists.length} finalist(s) within 2% of best cheiralityBad (${(bestCheirality * 100).toFixed(0)}%), re-ranked by direct isotropic reprojection:`, finalists.map(c => c.reprojSum.toFixed(1)).join(', '));
+console.log(`\n${finalists.length} finalist(s) within 2% of best cheiralityBad (${(bestCheirality * 100).toFixed(0)}%), re-ranked by per-house FREE-scale reprojection (not isotropic):`, finalists.map(c => c.reprojSum.toFixed(1)).join(', '));
 const winner = finalists[0];
 state2.R = winner.R; state2.pp = winner.pp; state2.f = winner.f;
 console.log('Phase 1 winner (cheirality-first, then direct reprojection): f=' + state2.f.toFixed(1) + ' pp=[' + state2.pp.map(v => v.toFixed(1)) + ']  cheiralityBad=' + (winner.cheiralityBad * 100).toFixed(0) + '%  reprojSum=' + winner.reprojSum.toFixed(1));
@@ -794,7 +870,22 @@ function solveJointAnisotropic() {
 }
 // Phase 2: FREEZE the camera completely (no opCalibrate call anywhere
 // below) -- only vertex-level operators run against it, per v3c.
-const ITERS = 300;
+//
+// SKIP_PHASE2=1 disables this stage entirely. Not a debug hack: the
+// ground-truth harness (tools/scratch-village-pipeline-harness.mjs) shows
+// Phase 2 moves NOISELESS, perfectly-consistent input vertices by 73px
+// under strong perspective and by 887px under weak perspective -- input it
+// should not move at all -- and that the whole pipeline returns
+// Lx/Lz=Ly/Lz=1.00 (perfect cubes) for every scenario regardless of the
+// true 2.40/1.30-style ratios. This switch is how that claim is tested
+// rather than argued about.
+// DEFAULT FLIPPED TO OFF, on measured evidence: across all 6 harness
+// scenarios, disabling Phase 2 was equal or better on recovered shape, and
+// strictly better in the weak-perspective cases (4070% -> 854% error). It
+// moves noiseless, perfectly self-consistent vertices by 73-887px -- input
+// it should not move at all. Set SKIP_PHASE2=0 to restore the old behavior.
+const SKIP_PHASE2 = process.env.SKIP_PHASE2 !== '0';
+const ITERS = SKIP_PHASE2 ? 0 : 300;
 const trace = [];
 for (let iter = 0; iter < ITERS; iter++) {
   const decay = Math.pow(0.99, iter);
@@ -828,8 +919,28 @@ for (const t of trace) console.log(`  iter ${t.iter}: eAlign=${t.eAlign.toFixed(
 // fixed anisotropic+ground scale, then (B) re-solve that scale exactly
 // (closed-form linear solve, not a gradient step) given the now-settled
 // vertices. Each stage sees a stable input from the other.
-let perHouseScale = Object.fromEntries(cubeNames.map((n) => [n, { Lx: 1, Ly: 1, Lz: 1 }]));
-for (let round = 0; round < 8; round++) {
+// STRUCTURAL FIX (found by tools/scratch-village-pipeline-harness.mjs, not
+// by staring at one photo): this used to start at {Lx:1,Ly:1,Lz:1} -- a
+// perfect unit CUBE -- and then run 80 opSmooth iterations BEFORE the first
+// solve. opSmooth pulls every vertex toward the reprojection of the current
+// scale hypothesis, so those 80 iterations dragged the real measurements
+// onto the cube hypothesis, and the solve that followed then "confirmed"
+// Lx=Ly=Lz. Self-confirming prior -- the exact failure this file's own
+// opSmooth comment warns about ("the model was confirming its own prior").
+// The harness measured it: every scenario returned Lx/Lz=Ly/Lz=1.00 against
+// true ratios of 2.40/1.30, even with NOISELESS input under strong
+// perspective, and vertices moved 73-887px when they should not have moved
+// at all. Fix: seed from an actual solve on the measurements themselves.
+// Never introduce a shape prior here -- if the data cannot determine the
+// shape, that must show up as a measured failure, not be papered over.
+let perHouseScale = solveJointAnisotropic().scale;
+// DEFAULT 0, on the same measured evidence as SKIP_PHASE2: opSmooth drags
+// vertices toward the reprojection of the CURRENT scale hypothesis, which
+// makes the estimate confirm itself. With it off, drift is 0.0px and
+// recovered shape is equal or better in every harness scenario. Set
+// PHASE3_ROUNDS=8 to restore the old iterative behavior.
+const PHASE3_ROUNDS = process.env.PHASE3_ROUNDS !== undefined ? Number(process.env.PHASE3_ROUNDS) : 0;
+for (let round = 0; round < PHASE3_ROUNDS; round++) {
   for (let i = 0; i < 80; i++) opSmooth(0.2, perHouseScale);
   const j = solveJointAnisotropic();
   perHouseScale = j.scale;
