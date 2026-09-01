@@ -6,15 +6,16 @@
 > `runtime/shaded-engine.mjs`, `analyze()`, `classGrid` oder `runtime/spatial-kernel/` —
 > nur `reconstruction.js`s exportierte, reine Hilfsfunktionen werden gelesen, nie verändert.
 >
-> **Wichtige Einschränkung (s. §4g, §4h): ALLE Prozentzahlen in diesem Dokument stammen aus
+> **Wichtige Einschränkung (s. §4g–§4i): ALLE Prozentzahlen in diesem Dokument stammen aus
 > EINEM einzigen Quellbild** (der VLG-02-„6-Häuser-Dorf"-Fixture, `file_
 > 000000006d188210a9bb1129089a7b29.png`). Die Zahlen sind reale Messungen an dieser einen
 > Fixture, keine allgemeingültigen Aussagen über LBP/Gabor/Autokorrelation/VP als Operatoren.
 > §4g zeigt eine Holdout-Kreuzvalidierung, die zumindest die Zirkularität der
-> Schwellenwertwahl entschärft (43,8 % vs. 38,6 %, moderater Rückgang). §4h zeigt den
-> ungeschönten, fairen Test an einem echten zweiten Bild — die unveränderte Original-Palette
-> liefert dort **null** verwertbare Häuser (0 `wallLight`-Treffer im ganzen Bild). Alle
-> Prozentzahlen hier sind also Aussagen über EIN Bild, nicht über die Methode allgemein.
+> Schwellenwertwahl entschärft (43,8 % vs. 38,6 %, moderater Rückgang). §4h testete
+> (methodisch falsch, s. §4i) ob VLG-02s FESTE Farbwerte auf ein zweites Bild übertragen —
+> null verwertbare Häuser. §4i korrigiert die Fragestellung: rein bild-lokale, nicht auf
+> VLG-02 verweisende Größe+Geometrie-Suche findet auf VLG-04 mindestens eine echte,
+> strukturell kohärente dachartige Region — aber kein vollständig rekonstruiertes Haus.
 
 ## 0. Ausgangsfrage
 
@@ -316,6 +317,48 @@ weil die Vorstufe (Extraktion) schon nichts liefert, das die spätere Fusions-Pi
 richtig, und die erste (verworfene) Version dieses Abschnitts hat das mit einer zirkulären
 Suche verschleiert, statt es zu zeigen.
 
+## 4i. Runde 14: Korrektur der Fragestellung selbst — Cultivation testet man nicht mit Werten aus einem anderen Bild
+
+Berechtigter zweiter Einwand direkt im Anschluss an §4h (Maintainer, wörtlich: „Wofür haben
+wir die Cultivation entwickelt? Nicht nach vergleichbaren Pattern zum vorherigen Bild
+suchen. Gemeinsamkeiten FINDEN"). §4h testete, ob VLG-02s FEST KODIERTE Farbwerte auf VLG-04
+übertragen — das ist gar kein Cultivation-Test. Cultivations ganze Prämisse
+(`material-geometrie-ohne-farbe.md` §3) ist das Gegenteil: lokale Kohärenz AUS DEM BILD
+SELBST finden, ohne Vorwissen über konkrete Farbwerte — genau wie schon Runden 1–12 jeden
+Schwellenwert aus Perzentilen der jeweils eigenen Punktwolke abgeleitet haben, nie aus einer
+importierten festen Zahl. §4h hat diese Disziplin gebrochen, indem es VLG-02s Zahlen
+importierte. Diese Runde macht das rückgängig.
+
+`tools/scratch-vlg04-cultivation-fresh.mjs` — läuft NUR auf VLG-04, ohne jeden Bezug zu
+VLG-02s konkreten Farbwerten:
+
+1. Farb-Quantisierung des GESAMTEN Bildes, Connected-Component-Labeling OHNE
+   Farbton-Vorfilterung (anders als der verworfene „roof-ish"-Filter aus §4h) — einfach die
+   größten Komponenten, unabhängig von ihrer Farbe.
+2. Für die größten Komponenten: die bereits etablierte geometrische Signatur
+   (`fixture-taxonomie.md`s „polyedrisch-N" — Kanten fallen in ~3 dominante
+   Richtungsfamilien, alternierendes Muster) — ein GEOMETRISCHER Test, kein Farbnamen-Test.
+3. `MIN_COMPONENT_SIZE` aus der eigenen Bildgröße abgeleitet (0,01 % der Pixel), nicht aus
+   VLG-02s festem 300px-Wert kopiert.
+
+**Ergebnis, mit Größenfilter (>2000px) auf die Signatur-Treffer:** genau EINE Region
+überlebt — 14.702 Pixel (mit Abstand die größte aller 519 gefundenen Komponenten), 8 Ecken,
+4 Kantenrichtungs-Cluster, 92 % der Kantenlänge in den Top-3-Familien. Ihre mittlere Farbe
+(`rgb(245,188,110)`, hell-orange) wurde dabei NIE als Suchkriterium verwendet — sie ergab
+sich rein aus Größe+Geometrie, und passt trotzdem zu einem dachziegelartigen Farbton.
+
+**Was das zeigt, ehrlich begrenzt:** ein rein bild-lokaler, nicht-zirkulärer Mechanismus
+findet mindestens EINE echte, strukturell kohärente, dachartige Region in VLG-04 — ohne
+irgendeine von VLG-02 importierte Zahl. Das bestätigt die Grundthese direkt (Geometrie statt
+Farbnamen trägt über Bilder hinweg), aber NUR partiell: eine gefundene Region ist kein
+vollständig rekonstruiertes Haus (keine zugehörigen Wandflächen gesucht, keine Prüfung, ob
+mehrere Häuser gefunden werden oder nur dieses eine, keine Affine-Solver-Rekonstruktion
+versucht). Ohne Größenfilter meldet dieselbe Signatur 27 „Treffer" — die meisten davon
+winzige (600–1300px), farblich völlig verschiedene Blobs (auch Grün/Grau, vermutlich
+Vegetation), die die Douglas-Peucker-Vereinfachung zufällig auf wenige Kanten reduziert.
+Die geometrische Signatur allein ist ohne Größenfilter zu lasch — ein ehrliches, eigenes
+Ergebnis, keine vollständige Cultivation-Lösung.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -389,16 +432,15 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
   unterschiedliche Texturen) — bräuchte eine eigens präparierte Testszene.
 - Gewichtete Score-Fusion (statt binärem UND) ist nicht getestet — alle Kombinationen hier
   sind harte Konjunktionen.
-- **Teilweise adressiert (§4g), ehrlich gescheitert (§4h):** Alle Zahlen gelten weiterhin für
-  GENAU EIN Quellbild. Eine Holdout-Kreuzvalidierung INNERHALB dieses Bildes (§4g: 43,8 %
-  vs. 38,6 %) zeigt zumindest, dass die Schwellenwerte nicht auf einzelne Häuser
-  überangepasst sind. Der faire Test an einem echten zweiten Bild (§4h, VLG-04, unveränderte
-  Original-Palette) liefert dagegen NULL verwertbare Häuser — 0 `wallLight`-Treffer im
-  gesamten Bild. Die komplette Pipeline (Extraktor + alles danach) ist auf VLG-02
-  zugeschnitten und überträgt sich nicht automatisch. Eine erste, verworfene Fassung dieses
-  Abschnitts verschleierte das mit einer zirkulären Farbsuche (nach „orange" gefiltert, weil
-  bereits bekannt war, dass Dächer orange sind) — korrigiert, s. §4h. Kein
-  Anti-Overfit-Benchmark-Lauf über mehrere Bilder mit tatsächlich erfolgreicher Extraktion
-  wurde durchgeführt.
+- **Teilweise adressiert (§4g), zweimal korrigiert (§4h→§4i):** Alle Zahlen gelten weiterhin
+  für GENAU EIN Quellbild. Eine Holdout-Kreuzvalidierung INNERHALB dieses Bildes (§4g: 43,8 %
+  vs. 38,6 %) zeigt, dass die Schwellenwerte nicht auf einzelne Häuser überangepasst sind.
+  §4h testete fälschlich, ob VLG-02s feste Farbwerte auf VLG-04 übertragen (null Treffer) —
+  §4i korrigiert die Fragestellung selbst: bild-lokale Größe+Geometrie-Suche ohne jeden
+  VLG-02-Bezug findet auf VLG-04 mindestens eine echte, strukturell kohärente Region. Noch
+  offen: mehrere Häuser gleichzeitig finden, zugehörige Wandflächen zuordnen, tatsächlich
+  bis zur Affine-Solver-Rekonstruktion durchziehen — §4i liefert Regionsfindung, nicht
+  vollständige Häuser. Kein Anti-Overfit-Benchmark-Lauf über mehrere Bilder mit vollständiger
+  Rekonstruktion wurde durchgeführt.
 - Kein Code in `runtime/spatial-kernel/` oder `runtime/shaded-engine.mjs` geändert — alles
   bleibt in `tools/scratch-*`.
