@@ -331,14 +331,21 @@ ist eine eigene Entscheidung — nicht Teil dieser Taxonomie-Korrektur.
 ## Hinweis: Bilder noch nicht auf diesem Branch
 
 Die 12 Fixtures liegen auf `main` (Commits `c5d47da`..`690b9ae`), nicht auf
-`claude/village-cube-reconstruction-review`. `main` hat sich seit dem gemeinsamen
-Vorfahren (`e27558c`) unabhängig weiterentwickelt und dabei u. a. `docs/synthetic-visual-
-reverse-engineering.md`, `runtime/spatial-kernel/cellular-geometry-solver.js`,
-`runtime/style/production-adapter.js` und die `shaded-spatial-primitive-solver`-Skill
-entfernt sowie `CLAUDE.md` und `runtime/shaded-engine.mjs` geändert — Änderungen, die
-dieser Branch nicht hat und die hier nicht automatisch übernommen wurden (kein Merge
-durchgeführt). Wer mit den Bilddateien selbst arbeiten will, braucht vorerst `main` oder
-`git show origin/main:<Dateiname>`.
+`claude/village-cube-reconstruction-review`.
+
+**Korrektur einer früheren Fehleinschätzung in dieser Zeile:** hier stand vorher, `main`
+habe u. a. `docs/synthetic-visual-reverse-engineering.md`,
+`runtime/spatial-kernel/cellular-geometry-solver.js`, `runtime/style/production-adapter.js`
+und die `shaded-spatial-primitive-solver`-Skill "entfernt". Das war falsch — forensisch
+geprüft (`git merge-base --is-ancestor`, Existenzprüfung an `e27558c`): keine dieser
+Dateien existierte jemals auf `main`s eigener Linie. Alle wurden erst NACH dem
+gemeinsamen Vorfahren `e27558c` erzeugt, und zwar ausschließlich auf diesem
+Branch (Commit `227bf4b` für `production-adapter.js`/die Skill/`CLAUDE.md`/
+`runtime/shaded-engine.mjs`, `bc5d36d` für `cellular-geometry-solver.js`, `825b808` für
+das Dokument) — `main` hat sie nie erhalten, weil dieser Branch nie zurückgemerged wurde,
+nicht weil sie dort gelöscht wurden. Nichts davon ist verloren; alles steht unverändert
+auf diesem Branch. Wer mit den Bilddateien selbst arbeiten will, braucht vorerst `main`
+oder `git show origin/main:<Dateiname>`.
 
 Die 5 Fixtures `RUI-01`/`VLG-06`/`ENC-02`/`VRT-01`/`CAV-02` liegen bislang **nirgends** im
 Repo — sie wurden nur im Chat gezeigt, ihre Einträge oben beruhen auf visueller Prüfung

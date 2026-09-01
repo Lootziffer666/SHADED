@@ -160,15 +160,22 @@ Regelwerk: den `shaded-sdf`-Skill ("Vor jeder Änderung an impliziter Geometrie.
 Mesh-Konvertierung verwenden"). Vor jeder tatsächlichen Implementierung dieses Teils
 müsste dieser Skill zuerst geladen werden — hier nur vorgemerkt, nicht schon geprüft.
 
-**Die zwei bereits gestellten offenen Fragen bleiben unverändert offen, wiegen jetzt aber
-schwerer:**
+**Eine der zwei bereits gestellten offenen Fragen ist geklärt, die andere bleibt offen:**
 
-- `runtime/spatial-kernel/cellular-geometry-solver.js` (GROW/ERODE/SMOOTH-Agenten auf
-  einem Höhenfeld, "proof-of-concept, not yet wired") ist der genaue Vorläufer-Code für
-  GENAU diese generischere Fassung (Feld-lesende, Feld-schreibende lokale Agenten) — näher
-  dran als an der ursprünglichen Baumgenerator-Idee. Dieser Branch hat unabhängig
-  festgestellt, dass `main` diese Datei entfernt hat, Grund unbekannt. Das bleibt zu
-  klären, bevor neuer Code in dieselbe Richtung entsteht.
+- **Geklärt, und die vorige Fassung dieses Dokuments lag falsch:** `runtime/spatial-
+  kernel/cellular-geometry-solver.js` (GROW/ERODE/SMOOTH-Agenten auf einem Höhenfeld,
+  "proof-of-concept, not yet wired") wurde NICHT von `main` entfernt. Forensisch geprüft
+  (`git merge-base --is-ancestor bc5d36d origin/main` → `NO`; die Datei existierte auch
+  am gemeinsamen Vorfahren `e27558c` noch nicht): sie wurde erst nach dem Split
+  ausschließlich auf diesem Branch erzeugt (Commit `bc5d36d`) und nie nach `main`
+  gemerged — `main` hat sie also nie besessen, folglich auch nie gelöscht. Sie ist der
+  genaue Vorläufer-Code für GENAU diese generischere Fassung (Feld-lesende, Feld-
+  schreibende lokale Agenten), näher dran als an der ursprünglichen Baumgenerator-Idee,
+  und steht unverändert auf diesem Branch zur Verfügung. Der Maintainer berichtet
+  unabhängig von einem tatsächlichen Löschvorfall durch ChatGPT (Fehlinterpretation von
+  "nicht semantisch nach Dorf suchen" als "alles mit semantischer Bezeichnung löschen",
+  teilweise wiederhergestellt) — der aber, soweit hier prüfbar, nicht diese Datei bzw.
+  nicht dieses Repository betraf.
 - Die gelieferte `VegetationKernel.kt` bleibt unzugänglich (Sandbox-Link einer fremden
   KI-Umgebung, kein erreichbarer Pfad) — **und wird jetzt auch inhaltlich von der zweiten
   Referenz selbst verworfen** ("den Kotlin-MVP würde ich ebenfalls verwerfen. SHADED
@@ -182,7 +189,9 @@ schwerer:**
 
 - Kein Code geändert. Kein Extraktor umgebaut. Kein Growth-Kernel angelegt.
 - Keine empirische Prüfung der Mikrotextur-Hypothese an echten SHADED-Fixtures.
-- Keine Klärung, warum `main` `cellular-geometry-solver.js` entfernt hat.
+- Geklärt: `main` hat `cellular-geometry-solver.js` nie besessen, also auch nie
+  entfernt — s. §4. Weiterhin offen: wo genau der vom Maintainer berichtete
+  ChatGPT-Löschvorfall stattfand, wenn nicht an dieser Datei/diesem Repository.
 - `shaded-sdf`-Skill noch nicht geladen — Pflicht vor jeder SDF-Implementierung dieses
   Themas, nicht vor dieser Dokumentation.
 - Der Benchmark-Ladder A–K ist definiert, aber nicht durchgeführt — auch nicht Stufe B
