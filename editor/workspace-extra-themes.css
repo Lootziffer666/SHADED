@@ -1,0 +1,153 @@
+/* Additional SHADED workspace palettes supplied by the user from visual palette references.
+   These are palette-value adaptations only; no source-site code or assets are included. */
+
+:root[data-workspace-theme="history-icons"]{
+  --ws-bg:#0F292F;
+  --ws-text:#CCCCCC;
+  --ws-accent:#14A098;
+  --ws-accent-2:#CB2D6F;
+  --ws-ok:#14A098;
+  --ws-warn:#CB2D6F;
+  --ws-danger:#CB2D6F;
+  --ws-comment:#501F3A;
+  --ws-highlight:#501F3A;
+}
+
+:root[data-workspace-theme="electric-violet"]{
+  --ws-bg:#2A1B3D;
+  --ws-text:#A4B3B6;
+  --ws-accent:#D83F87;
+  --ws-accent-2:#44318D;
+  --ws-ok:#A4B3B6;
+  --ws-warn:#E98074;
+  --ws-danger:#D83F87;
+  --ws-comment:#44318D;
+  --ws-highlight:#44318D;
+}
+
+:root[data-workspace-theme="sleek-futuristic"]{
+  --ws-bg:#2C3531;
+  --ws-text:#D1E8E2;
+  --ws-accent:#116466;
+  --ws-accent-2:#FFCB9A;
+  --ws-ok:#D1E8E2;
+  --ws-warn:#D9B08C;
+  --ws-danger:#D9B08C;
+  --ws-comment:#116466;
+  --ws-highlight:#116466;
+}
+
+:root[data-workspace-theme="red-lively"]{
+  --ws-bg:#E3E2DF;
+  --ws-text:#5D001E;
+  --ws-accent:#9A1750;
+  --ws-accent-2:#EE4C7C;
+  --ws-ok:#E3AFBC;
+  --ws-warn:#EE4C7C;
+  --ws-danger:#5D001E;
+  --ws-comment:#E3AFBC;
+  --ws-highlight:#E3AFBC;
+  --ws-shadow:rgba(93,0,30,.22);
+}
+
+:root[data-workspace-theme="cool-collected"]{
+  --ws-bg:#003135;
+  --ws-text:#AFDDE5;
+  --ws-accent:#0FA4AF;
+  --ws-accent-2:#964734;
+  --ws-ok:#0FA4AF;
+  --ws-warn:#964734;
+  --ws-danger:#964734;
+  --ws-comment:#024950;
+  --ws-highlight:#024950;
+}
+
+:root[data-workspace-theme="deep-vintage"]{
+  --ws-bg:#244855;
+  --ws-text:#FBE9D0;
+  --ws-accent:#E64833;
+  --ws-accent-2:#90AEAD;
+  --ws-ok:#90AEAD;
+  --ws-warn:#FBE9D0;
+  --ws-danger:#E64833;
+  --ws-comment:#874F41;
+  --ws-highlight:#874F41;
+}
+
+:root[data-workspace-theme="elegant-approachable"]{
+  --ws-bg:#EEE2DC;
+  --ws-text:#123C69;
+  --ws-accent:#AC3B61;
+  --ws-accent-2:#123C69;
+  --ws-ok:#BAB2B5;
+  --ws-warn:#EDC7B7;
+  --ws-danger:#AC3B61;
+  --ws-comment:#BAB2B5;
+  --ws-highlight:#EDC7B7;
+  --ws-shadow:rgba(18,60,105,.18);
+}
+
+:root[data-workspace-theme="soft-digital"]{
+  --ws-bg:#44318D;
+  --ws-text:#C1C8E4;
+  --ws-accent:#84CEEB;
+  --ws-accent-2:#8860D0;
+  --ws-ok:#5AB9EA;
+  --ws-warn:#C1C8E4;
+  --ws-danger:#8860D0;
+  --ws-comment:#5680E9;
+  --ws-highlight:#5680E9;
+}
+
+:root[data-workspace-theme="love-notes"]{
+  --ws-bg:#F0EBF4;
+  --ws-text:#6D4C73;
+  --ws-accent:#E64398;
+  --ws-accent-2:#F172A1;
+  --ws-ok:#A1C3D1;
+  --ws-warn:#F172A1;
+  --ws-danger:#E64398;
+  --ws-comment:#B39BC8;
+  --ws-highlight:#B39BC8;
+  --ws-shadow:rgba(112,71,118,.18);
+}
+
+:root[data-workspace-theme="unique-combination"]{
+  --ws-bg:#2D4159;
+  --ws-text:#E7DDE1;
+  --ws-accent:#0677A1;
+  --ws-accent-2:#78244C;
+  --ws-ok:#0677A1;
+  --ws-warn:#895061;
+  --ws-danger:#78244C;
+  --ws-comment:#59253A;
+  --ws-highlight:#59253A;
+}
+
+:root[data-workspace-theme="citrus-energy"]{
+  --ws-bg:#1F2605;
+  --ws-text:#D6CE15;
+  --ws-accent:#53900F;
+  --ws-accent-2:#A4A71E;
+  --ws-ok:#1F6521;
+  --ws-warn:#D6CE15;
+  --ws-danger:#A4A71E;
+  --ws-comment:#1F6521;
+  --ws-highlight:#1F6521;
+}
+
+:root[data-workspace-theme="vivid-blue-orange"]{
+  --ws-bg:#6CDAEE;
+  --ws-text:#0058A8;
+  --ws-accent:#0074E1;
+  --ws-accent-2:#F79E02;
+  --ws-ok:#10E7DC;
+  --ws-warn:#F79E02;
+  --ws-danger:#F79E02;
+  --ws-comment:#1B9CE5;
+  --ws-highlight:#10E7DC;
+  --ws-shadow:rgba(0,88,168,.18);
+}
+
+/* The extended picker is intentionally scrollable rather than becoming a second settings screen. */
+#workspace-theme-menu{max-height:min(78vh,680px);overflow:auto;overscroll-behavior:contain}
