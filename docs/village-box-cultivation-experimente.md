@@ -6,13 +6,15 @@
 > `runtime/shaded-engine.mjs`, `analyze()`, `classGrid` oder `runtime/spatial-kernel/` —
 > nur `reconstruction.js`s exportierte, reine Hilfsfunktionen werden gelesen, nie verändert.
 >
-> **Wichtige Einschränkung (s. §4g–§4i): ALLE Prozentzahlen in diesem Dokument stammen aus
-> EINEM einzigen Quellbild** (der VLG-02-„6-Häuser-Dorf"-Fixture, `file_
-> 000000006d188210a9bb1129089a7b29.png`). Die Zahlen sind reale Messungen an dieser einen
-> Fixture, keine allgemeingültigen Aussagen über LBP/Gabor/Autokorrelation/VP als Operatoren.
-> §4g zeigt eine Holdout-Kreuzvalidierung, die zumindest die Zirkularität der
-> Schwellenwertwahl entschärft (43,8 % vs. 38,6 %, moderater Rückgang). §4h testete
-> (methodisch falsch, s. §4i) ob VLG-02s FESTE Farbwerte auf ein zweites Bild übertragen —
+> **Wichtige Einschränkung, jetzt teilweise aufgelöst (s. §4g–§4i, §4t): die meisten
+> Prozentzahlen (§1–§4s) stammen aus EINEM Quellbild** (LOD0, `file_
+> 000000006d188210a9bb1129089a7b29.png`), keine allgemeingültigen Aussagen über
+> LBP/Gabor/Autokorrelation/VP als Operatoren. §4t liefert den ersten methodisch sauberen
+> Kreuz-Beleg: derselbe, aus LOD0 gemessene VP-Fit erreicht auf LOD1 (strukturell anderes
+> Bild, Giebeldächer statt Flachdach) 6/6 korrekt getrennte Häuser. §4g zeigt zusätzlich eine
+> Holdout-Kreuzvalidierung, die die Zirkularität der Schwellenwertwahl entschärft (43,8 % vs.
+> 38,6 %). §4h testete (methodisch falsch, s. §4i) ob VLG-02s FESTE Farbwerte auf ein zweites
+> Bild übertragen —
 > null verwertbare Häuser. §4i korrigiert die Fragestellung: rein bild-lokale, nicht auf
 > VLG-02 verweisende Größe+Geometrie-Suche findet auf VLG-04 mindestens eine echte,
 > strukturell kohärente dachartige Region — aber kein vollständig rekonstruiertes Haus.
@@ -618,19 +620,137 @@ trotz insgesamt fast doppelt so vieler Komponenten — die zusätzlichen SHADED-
 sind größtenteils verteiltes Rauschen im Baumkronen-Hintergrund, kein zusätzliches echtes
 Signal. Keine der beiden Quellen segmentiert die Häuser dieses Bildes sauber und vollständig.
 
-## 4r. Runde 20c: die 4 LOD-Stufen des Demo-Dorfs — Bildzuordnung noch ungeklärt
+## 4r. Runde 20c: die LOD-Stufen des Demo-Dorfs — Bildzuordnung zunächst ungeklärt
 
-Der Maintainer bestätigte: es gibt 4 LOD-Stufen (Detailgrad-Stufen) DERSELBEN Dorf-Szene im
-Repo. **Meine Zuordnung, welche konkreten Dateien das sind, war falsch** (Maintainer:
-„Das ist das falsche Dorf" — bezogen auf die in §4o–§4q verwendete gemalte
-Giebeldach-Kreuzungsversion, `file_00000000c40471f4859a10d6bf3ac39b.png`). VLG-02
-(`file_000000006d188210a9bb1129089a7b29.png`) bleibt vermutlich eine der 4 Stufen (visuell
-identisch mit dem vom Maintainer zuerst gezeigten Bild), aber welche Dateien die anderen 3
-Stufen tatsächlich sind, ist NICHT geklärt — §4o–§4q liefen versehentlich gegen ein anderes,
-nur oberflächlich ähnliches Giebeldach-Dorf. Die dortigen Befunde (Fragmentierung, SHADED-
-vs-DA2-Vergleich, Tron-Tracer-Teilerfolg) bleiben als Methodik-Beweis gültig, sagen aber
-nichts über echte LOD-Übertragbarkeit aus, bis die richtigen Dateien identifiziert sind.
-Absichtlich nicht weiter geraten — direkte Rückfrage an den Maintainer nötig.
+Der Maintainer bestätigte: es gibt mehrere LOD-Stufen (Detailgrad-Stufen) DERSELBEN
+Dorf-Szene im Repo. **Meine erste Zuordnung, welche konkreten Dateien das sind, war falsch**
+(Maintainer: „Das ist das falsche Dorf" — bezogen auf die in §4o–§4q verwendete gemalte
+Giebeldach-Kreuzungsversion, `file_00000000c40471f4859a10d6bf3ac39b.png`). Die §4o–§4q-Befunde
+(Fragmentierung, SHADED-vs-DA2-Vergleich, Tron-Tracer-Teilerfolg) bleiben als Methodik-Beweis
+gültig, sagen aber nichts über echte LOD-Übertragbarkeit aus — sie liefen versehentlich gegen
+ein anderes, nur oberflächlich ähnliches Giebeldach-Dorf.
+
+**Aufgelöst in §4t:** der Maintainer lieferte die exakte, verifizierte Dateizuordnung für
+5 LOD-Stufen (0–4, LOD3/4 mit mehreren Stil-/Wettervarianten). Zwei der Dateien
+(LOD1/LOD2) lagen zunächst nicht im lokalen Checkout, nur auf `origin/main` — per
+`git checkout origin/main -- <Dateien>` nachgeholt. Der damit mögliche, methodisch saubere
+Test steht in §4t.
+
+## 4s. Runde 22: Kreuzungsregel nach Masse statt Kantenstütze (Tron-Tracer-Verbesserung)
+
+Direkte Umsetzung einer Präzisierung aus `docs/billige-raumhypothesen-tiefengrenzen.md`
+(„Tron-Bike / Boundary Tracing", Schritt 5): an Kreuzungen soll der Tracer nicht irgendeiner
+Richtung mit ein paar Kantenpixeln voraus folgen (Runde 20bs Regel), sondern der Seite,
+deren lokale Fläche die stärkste zusammenhängende KOMPATIBLE Masse trägt.
+`tools/scratch-tron-tracer-mass-rule.mjs` — für jeden Richtungskandidaten an einer
+Stockung wird ein begrenzter Flood-Fill auf der Innenseite ausgeführt (Tiefen-Toleranzband,
+gedeckelter Radius), die Richtung mit der größten erreichbaren Masse gewinnt, statt nur
+„hat 2 von 3 Schritten Kantenstütze". Getestet auf VLG-02, gleicher Startpunkt wie Runde 20b.
+
+**Ergebnis: kein Fortschritt gegenüber Runde 20b, sondern eine neue, andere Fehlerart.**
+Statt früh abzubrechen (Runde 20bs Problem), pendelt der Tracer jetzt endlos zwischen genau
+zwei Positionen hin und her (8-mal abgebogen, exakt alternierend zwischen `(27,303)` und
+`(153,234)`, immer dieselbe Masse=120 auf beiden Seiten) — ein Oszillations-Fallstrick: an
+diesem Punktepaar bewertet die Massenregel beide Richtungen als gleich gut, sodass der
+Tracer ewig zwischen ihnen pendelt statt fortzuschreiten. Ehrlich ungelöst, nicht in dieser
+Runde behoben — bräuchte eine Tie-Breaking-Regel oder ein Besucht-Gedächtnis, das ein
+erneutes Abbiegen an einem bereits besuchten Punkt verbietet.
+
+## 4t. Runde 23: die echte LOD-Leiter — 6/6 mit echtem VP-Fit auf einem anderen Bild
+
+**Korrektur der Bildzuordnung** (Maintainer, nach mehreren Fehlversuchen in §4o–§4r): es
+gibt 5 LOD-Stufen derselben Dorf-Szene im Repo, exakt identifiziert:
+- **LOD0** `file_000000006d188210a9bb1129089a7b29.png` — die durchgehend in §1–§4s
+  verwendete Fixture (flache Box-Dächer), 1536×1024.
+- **LOD1** `file_00000000e96c8243b8a6e17ae2ac3bf2.png` — Low-Poly-Giebeldächer, 1536×1024.
+- **LOD2** `file_000000008390820abdec286d1496006f.png` — Low-Poly mit mehr Detail (Fenster,
+  Türen, Kamin), 1536×1024.
+- **LOD3** (3 Stilvarianten, 1672×941): Demobild `file_00000000974871f49fe71f6b456f9579.png`,
+  Frühling `file_0000000029f871f4bc597d92064d2e97.png` (fälschlich als „VLG-04" behandelt in
+  §4h–§4j — es ist keine andere Szene, sondern dieselbe Szene in einer Jahreszeiten-Variante),
+  Überwuchert `1782826101420.png`.
+- **LOD4** (2 Wetter-Varianten, 1672×941): Nach dem Sturm
+  `file_00000000b27471f4a8aeb27484b46720.png`, Nasser Morgen
+  `file_00000000fbc472438dcc92aff24bed6e.png`.
+
+LOD1/LOD2 lagen zunächst nicht im lokalen Checkout (nur auf `origin/main`, dort im selben
+Upload-Commit wie LOD0 hinzugefügt) — per `git checkout origin/main -- <Dateien>` geholt,
+nichts Bestehendes verändert.
+
+**Der eigentlich saubere Test, den diese Session seit Runde 13 gesucht hat:** LOD0/1/2 haben
+exakt dieselbe Auflösung UND exakt dieselbe Kamera-/Objektanordnung — also gilt der ECHTE,
+aus LOD0 gemessene `dirF`-Fit (Fluchtpunktrichtungen) und die echten Hauszentren-Koordinaten
+UNVERÄNDERT auch für LOD1/2. Kein genereller Winkel-Rateversuch mehr (Runde 20a/20c), keine
+falsch zugeordnete zweite Szene (Runde 13, 20a–21) — ein echter, gemessener Fit auf einem
+strukturell ANDEREN Bild (Giebeldächer statt Flachbox-Dächer) derselben Szene.
+`tools/scratch-lod-crosslevel-gapclose.mjs` — Runde 18s Depth-Edge+VP-Lückenschluss-Pipeline,
+unverändert, gegen LOD0/1/2.
+
+| LOD | Ohne Lückenschluss | gapLength=8px | gapLength=15px |
+|---|---|---|---|
+| LOD0 (Baseline, Flachdach) | 3/6 | 5/6 | 5/6 |
+| **LOD1 (Low-Poly-Giebeldach)** | 2/6 | 4/6 | **6/6** |
+| LOD2 (Low-Poly, mehr Detail) | 3/6 | 5/6 | 5/6 |
+
+**LOD1 erreicht 6/6 — perfekte Trennung aller sechs Häuser**, mit einem VP-Fit, der nicht
+für dieses Bild, sondern für ein STRUKTURELL ANDERES Bild derselben Szene gemessen wurde.
+LOD0 reproduziert exakt den bekannten 3/6→5/6-Wert aus Runde 18 (Methodik stabil). LOD2
+liegt nah an LOD0 (3/6→5/6). Das ist der methodisch sauberste und stärkste
+Generalisierungsbeleg dieser gesamten Session — kein geratenes zweites Bild, kein
+Farbwert-Transfer, sondern ein echter geometrischer Fit, der über Detailstufen hinweg trägt,
+weil er auf Kamera-/Szenengeometrie beruht, nicht auf Farbe oder Renderstil.
+
+**Ausdrücklich offen:** LOD3/LOD4 haben eine andere Auflösung (1672×941) und vermutlich
+einen anderen Bildausschnitt — der direkte Fit-Transfer wie bei LOD1/2 funktioniert dort
+nicht ohne Umrechnung (Skalierung/Neuzentrierung), nicht in dieser Runde versucht. Der
+Lückenschluss mit der neuen Massen-Kreuzungsregel (§4s) wurde noch nicht mit diesem
+LOD-Kreuztest kombiniert.
+
+## 4u. Runde 24: echte 3D-Ebenen-Fits statt 2D-Pixel-Heuristik — die fehlende Stufe
+
+Direkte Reaktion auf eine detaillierte Pipeline-Spezifikation des Maintainers
+(„Rohbild → Depth-Sobel+Laplacian+Varianz → DepthBoundaryMap → ... → Region Growing im
+Bildraum → **RANSAC-/Least-Squares-Plane-Fit im rückprojizierten Raum** → **Plane Residual
+Map** → Split/Merge/Expand → Flächengraph → ...", mit dem expliziten Kommentar: „So ist das
+nicht mehr das, was wir erarbeitet haben. Das hier sollte viel genauer und
+informationsreicher sein."). Berechtigt: alles in §1–§4t blieb im 2D-Pixelraum
+(Kantenmasken, Flood-Fill-Blobs, Bounding-Boxen) — keine der bisherigen „gefundenen
+Regionen" wurde je tatsächlich nach 3D rückprojiziert und geometrisch geprüft.
+
+`tools/scratch-plane-residual-fit.mjs` — für jede der in Runde 23 gegen echten Ground Truth
+gematchten Hausregionen (LOD0): Pixel per Pinhole-Modell nach 3D rückprojiziert (gleiches
+Modell wie die Rotationsgrenzen-Untersuchung), Ebene per PCA/Least-Squares gefittet
+(kleinster Eigenwert der Kovarianzmatrix als Normale), Residuum (senkrechter Abstand
+Punkt–Ebene) pro Punkt berechnet.
+
+| Haus | Regionsgröße | Planarität | Residuum (Mittel/Median/p90/Max) |
+|---|---|---|---|
+| house2 | 24.186px | 0,9999 | 0,34 / 0,29 / 0,70 / 1,46 |
+| house3 | 20.895px | 0,9999 | 0,38 / 0,32 / 0,75 / 1,84 |
+| house4 | 39.242px | 1,0000 | 0,02 / 0,01 / 0,03 / 0,45 |
+| house5 | 17.497px | 1,0000 | 0,06 / 0,05 / 0,10 / 0,26 |
+| house6 | 29.820px | 1,0000 | 0,02 / 0,02 / 0,05 / 0,19 |
+
+**Auffällig sauber — verdächtig sauber.** Bei einer Box mit echter Dach/Wand-Faltung
+(90°+ Winkel zwischen zwei Flächen) sollte eine Region, die BEIDE Flächen enthält, KEINE
+so nahezu perfekte Einzelebene fitten (hohe Residuen, bimodale Verteilung wären zu
+erwarten). Die tatsächlich gemessene Fast-Perfektion spricht dafür, dass die in Runde 18/23
+„gematchten" Regionen (deren Bounding-Box zufällig das Haus-Zentrum enthält) überwiegend
+NUR die Dachfläche selbst erfassen — die Wand darunter wäre eine eigene, bisher nicht
+separat gefundene Region, keine mit der Dachfläche verschmolzene. Das ist eine echte,
+neue Erkenntnis, die reine 2D-Bounding-Box/Pixelzahl-Betrachtung nicht liefern konnte:
+„gematcht" bedeutete bisher nur „Zentrum liegt in der Bounding-Box", nicht „erfasst das
+ganze Haus".
+
+**Ausdrücklich offen — der Rest der spezifizierten Pipeline ist NICHT umgesetzt:**
+Laplacian/lokale Varianz als Zusatzkanal zur `DepthBoundaryMap` (bisher nur Sobel-Gradient),
+VP-/Linienfamilien in homogenen Koordinaten (bisher einfache Winkel-Familien), Seed-Regionen
+aus Varianz+VP-Kompatibilität statt „größte Restregion", Split/Merge/Expand basierend auf
+der Residuen-Karte (bisher keine Rückkopplung — die Regionen aus Runde 18/23 wurden nicht
+anhand ihres Residuums weiter geteilt), und der eigentliche Flächengraph (Knoten=Ebenen,
+Kanten=Nachbarschaft/Faltung/Öffnung) als strukturierte Ausgabe. Diese Runde liefert die
+erste funktionierende Instanz der EINEN fehlenden Kernstufe (Rückprojektion→Ebenen-Fit→
+Residuum), nicht die vollständige spezifizierte Kette.
 
 ## 5. Synthese — der eigentliche Befund
 
