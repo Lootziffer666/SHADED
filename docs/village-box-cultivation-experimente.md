@@ -416,6 +416,56 @@ gemessen, weil alle 6 Häuser in der village-cube-Fixture ähnlich weit von der 
 entfernt sind. Ein Test mit tatsächlich unterschiedlich weit entfernten Objekten
 (Vordergrund/Hintergrund) würde vermutlich ein anderes Bild zeigen — nicht durchgeführt.
 
+## 4l. Runde 17: Pipeline-Umsortierung — Tiefenkanten statt Farbmasken, dann VP
+
+Direkter Vorschlag des Maintainers: „Die Depthmap können wir anstelle der color masks zur
+direkten Kantenfindung nutzen. Darauf können wir die VP legen. Innerhalb dieser Constraints
+lassen wir die Operatoren los... Dann hätten wir immer noch mindestens Geometrie und Farbe
+als möglichen Folgeschritt." Anders als Runde 16 (Tiefe als schwacher Zusatzfilter auf
+bereits vorhandenen Punkten) ersetzt das den farbmasken-basierten ersten Schritt komplett —
+genau die in `fixture-taxonomie.md` §6 als tiefste Schwäche geflaggte
+Szenen-/Palettenspezifität des Extraktors.
+
+**Erster Versuch (`tools/scratch-depth-edge-pipeline.mjs`) scheitert ehrlich:** Sobel-Gradient
+auf der DISPLAY-quantisierten Tiefenkarte (0–255), Schwellenwert + Flood-Fill. Größte
+gefundene Region: 78–98 % des gesamten Bildes, je nach Schwellenwert/Dilation — keine
+brauchbare Trennung. Visuelle Diagnose (`depth-edge-visual-diagnostic.png`) zeigt die Ursache:
+**Quantisierungs-Banding**. Der glatt abfallende Bodenverlauf erzeugt beim Runden auf 256
+Stufen Tausende dünner Konturlinien-Kanten mit ähnlicher Gradientenstärke wie die echten
+Haussilhouetten — ein reiner Schwellenwert kann beides nicht unterscheiden.
+
+**Fix, real und einfach:** die transformers.js-Pipeline liefert neben der
+Display-quantisierten `depth` auch den unquantisierten `predicted_depth`-Tensor (Float32,
+kontinuierlich, geprüft in `tools/scratch-depth-edge-raw-check.mjs`). Mit diesem statt der
+quantisierten Version (`tools/scratch-depth-edge-raw-visualize.mjs`) verschwindet das Banding
+komplett (`depth-edge-raw-diagnostic.png`) — mehrere Häuser werden jetzt sauber als eigene,
+farbunabhängige Regionen erkannt (5 von ~9 sichtbaren Objekten im geprüften Bildausschnitt),
+andere bleiben mit dem Boden verschmolzen, weil ihre Silhouettenkante an einer Stelle zu
+schwach/lückig ist, um den Flood-Fill zu stoppen.
+
+**VP-Ausrichtungs-Prüfung, bevor der volle Lückenschluss gebaut wird**
+(`tools/scratch-depth-edge-vp-alignment.mjs`) — testet direkt die Prämisse hinter dem
+nächsten Vorschlag des Maintainers („erst Fluchtpunkte, dann flood fill... die Grenzen den
+Operatoren bewusst machen, oder wir schneiden da sauber ab"): stimmen die Kanten der bereits
+sauber gefundenen Tiefenregionen überhaupt mit den 3 bekannten VP-Richtungen überein (aus
+`dirF`, demselben affinen Solver)?
+
+**Ja, deutlich:** durchschnittliche gewichtete Winkelabweichung zwischen den gefundenen
+Kanten und der jeweils nächsten der 3 bekannten Fluchtpunkt-Richtungen: **9,1°** (Bereich
+3,3°–15,0° über 7 geprüfte Regionen) — bei zufälligen, unabhängigen Kanten wäre eher ~45 %
+des maximal möglichen Fehlers (≈22,5° bei 3 gleichverteilten Familien) zu erwarten. Die
+Tiefenkanten-Silhouetten fallen also real in dieselben 3 Richtungsfamilien, die der affine
+Solver längst aus den Farbmasken-Vertices kennt — das rechtfertigt den vorgeschlagenen
+nächsten Schritt (VP-Linien zum Schließen der Silhouetten-Lücken nutzen), ist aber noch keine
+Umsetzung davon.
+
+**Noch nicht gebaut:** das eigentliche Lückenschluss-Verfahren (offene Tiefenkanten-Konturen
+mit Liniensegmenten in den 3 bekannten Richtungen verbinden, dann neu flood-fillen) — ein
+eigener, größerer nächster Schritt, hier nur durch die Ausrichtungs-Prüfung vorbereitet und
+gerechtfertigt, nicht implementiert. Ebenso nicht gebaut: die Operatoren (LBP/Gabor/
+Autokorrelation) innerhalb der so gefundenen Grenzen laufen zu lassen, wie vom Maintainer
+vorgeschlagen.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
