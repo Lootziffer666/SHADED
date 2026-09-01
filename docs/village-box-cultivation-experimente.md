@@ -122,6 +122,28 @@ Kandidaten werden gegen diesen fixen Anker geprüft statt gegen ein driftendes M
   schnell eingefrorener Anker schützt vor genau der Selbstverstärkung, die eine
   fortlaufend aktualisierte Region-Hypothese anfällig macht.
 
+## 4c. Runde 7–8: eingefrorener Anker auch für VP, dann kombiniert
+
+`tools/scratch-village-fake-lidar-segment-frozen-vp.mjs`,
+`tools/scratch-village-fake-lidar-segment-combined-frozen.mjs`. Überträgt das
+Anker-Prinzip aus §4b auf den VP-Kanal: statt jeden Punkt einzeln auf die nächste
+Kardinalachse einzurasten (Runde 3, dort messbar SCHLECHTER als Geometrie allein), wird die
+Achse einmal aus einem kleinen geometrie+farb-vertrauten Kern gemittelt, dann eingefroren;
+weitere Kandidaten werden per Skalarprodukt gegen diese EINE feste Achse geprüft (kontinuierlich,
+nicht kategorisch neu entschieden).
+
+- **VP mit eingefrorenem Anker: 39,4 % rein** (`anchorSize=5`, 28°-Marge) — besser als der
+  alte Wert ohne Anker (33,7 % in Fusion mit Geometrie+Farbe), aber weit unter LBPs Sprung
+  auf 73,0 %. Das Anker-Prinzip hilft in die richtige RICHTUNG bei jedem bisher getesteten
+  Kanal, aber nicht in gleichem AUSMASS — VPs strukturelles Problem (90°-breite Zellen)
+  bleibt ein Nachteil, den Einfrieren allein nicht auflöst.
+- Ohne Farbe (nur Geometrie+eingefrorener VP): 8,3 % — kaum besser als Geometrie allein
+  (6,3 %). Der Anker-Kern selbst ist ohne Farbunterstützung zu oft schon kontaminiert.
+- **Kombiniert (Geometrie+Farbe+eingefrorener-VP+eingefrorenes-LBP): 74,5 % rein** — das
+  beste Ergebnis der gesamten Serie, aber nur +1,5 Prozentpunkte über LBP-Anker allein
+  (73,0 %). VP trägt einen kleinen zusätzlichen Beitrag, holt aber kaum mehr heraus, weil
+  LBP-mit-Anker bereits den Großteil des hier erreichbaren Signals zieht.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -135,7 +157,9 @@ Kandidaten werden gegen diesen fixen Anker geprüft statt gegen ein driftendes M
 | Geometrie + Farbe + VP | 33,7 % |
 | Geometrie + Farbe + Textur (Punktpaar) | 35,4 % |
 | Geometrie + Farbe + Textur (laufender Mittelwert) | 33,4 % |
-| **Geometrie + Farbe + Textur (eingefrorener Anker, size=5)** | **73,0 %** |
+| Geometrie + Farbe + VP (eingefrorener Anker) | 39,4 % |
+| Geometrie + Farbe + Textur (eingefrorener Anker, size=5) | 73,0 % |
+| **Geometrie + Farbe + Textur + VP (beide eingefrorene Anker)** | **74,5 %** |
 
 Kein einzelner Kanal ist für sich brauchbar (0–6 %); zwei der drei Zusatzkanäle sind sogar
 für sich SCHLECHTER als der Geometrie-Baseline (VP: 1,6 %, Textur: 0,0 %). Trotzdem verbessert
@@ -173,14 +197,18 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
   eingefrorener Anker (73,0 % rein, bestes Ergebnis der Session). `anchorSize`/
   `textureThreshold` sind nur grob gerastert (5/20/50 × 0,9/1,1/1,265) durchsucht, keine
   systematische Optimierung.
-- Analoges „eingefrorener Anker"-Prinzip für VP-Snap (Kardinalachse aus einem kleinen
-  vertrauenswürdigen Kern bestimmen) ist noch nicht getestet — direkte Folgefrage aus §4b.
-- Margin-bewusstes VP-Snapping (Punkte nahe einer Zellgrenze als ambig markieren) ist nicht
-  implementiert.
-- Warum der eingefrorene Anker so stark wirkt, ist mechanistisch plausibel erklärt (§4b), aber
-  nicht durch einen direkten Kontaminations-Zähler (wie oft ist der gefrorene Anker selbst
-  schon über eine Kante gewachsen?) verifiziert — nur die Ankergrößen-Trend-Konsistenz spricht
-  dafür.
+- **Erledigt:** eingefrorener Anker für VP-Snap getestet (§4c) — hilft (33,7 %→39,4 % in
+  Fusion), aber deutlich schwächer als bei LBP. Kombination beider eingefrorener Anker
+  (§4c) erreicht 74,5 %, das beste Ergebnis der Serie.
+- Warum der eingefrorene Anker bei LBP so viel stärker wirkt als bei VP, ist nur qualitativ
+  erklärt (VPs 90°-Zellen bleiben grob, auch wenn die Achse nur einmal statt pro Punkt
+  bestimmt wird) — keine direkte Kontaminations-Zähler-Messung (wie oft ist der gefrorene
+  Anker selbst schon über eine Kante gewachsen?) für beide Kanäle durchgeführt.
+- Gabor und 2D-Autokorrelation weiterhin ungetestet — mit dem jetzt etablierten
+  Anker-Rezept (kleiner geometrie+farb-Kern, dann einfrieren) wäre ein fairer erster Test
+  jeweils direkt möglich, ohne die Punktpaar-Sackgasse aus Runde 4 zu wiederholen.
+- Kein Anti-Overfit-Benchmark (Stufe A–K) — alle Zahlen bleiben auf eine synthetische
+  Punktwolke aus 6 Häusern beschränkt.
 - Gewichtete Score-Fusion (statt binärem UND) ist nicht getestet — alle Kombinationen hier
   sind harte Konjunktionen.
 - Alle Zahlen gelten für GENAU diese eine synthetische Punktwolke aus 6 Häusern; kein
