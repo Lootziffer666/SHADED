@@ -505,6 +505,44 @@ wert). Die Operatoren (LBP/Gabor/Autokorrelation) innerhalb der jetzt gefundenen
 laufen zu lassen — der ursprünglich vorgeschlagene dritte Schritt — ist noch nicht
 umgesetzt.
 
+## 4n. Runde 19: Operatoren innerhalb der gefundenen Grenzen — Fortschritt, kein sauberer Erfolg
+
+Direkte Umsetzung des dritten, ursprünglich vorgeschlagenen Schritts: LBP (der stärkste
+Operator aus §4b/§4f) innerhalb einer der in Runde 18 gefundenen Grenzen (house4, robust in
+allen Konfigurationen getroffen) laufen lassen, um Dach von Wand zu trennen — diesmal direkt
+auf 2D-Bildpixeln statt auf der synthetischen 3D-Punktwolke aus §1–§4c.
+`tools/scratch-depth-vp-lbp-fine-segment.mjs`.
+
+**Zwei echte Implementierungsfehler unterwegs gefunden und korrigiert, kein
+LBP-Versagen:**
+
+1. Erstes Sampling filterte „jeden 9. Punkt" nach LISTENINDEX der DFS-Besuchsreihenfolge
+   der Flood-Fill, nicht nach räumlicher Position — ergab kein echtes Gitter, sondern
+   zufällig verteilte Lücken. Ergebnis: 755 Sub-Komponenten bei nur 4361 Punkten.
+   Korrigiert auf echtes räumliches Rastern → kaum Besserung (743 Komponenten) — zeigte,
+   dass das nicht die Hauptursache war.
+2. **Der eigentliche Fehler:** der LBP-Schwellenwert (0,9) wurde blind aus Runde 6
+   übernommen — dort aber für eine völlig andere Abtastskala kalibriert (Punkte auf der
+   synthetischen 3D-Boxwolke, Dutzende Pixel auseinander, nicht 3–14 Pixel wie hier). Genau
+   die Anti-Overfit-Regel, die diese Session selbst mehrfach befolgt hat („Schwellenwert aus
+   der eigenen Verteilung, nicht importiert"), wurde hier zunächst verletzt. Korrektur:
+   Schwellenwert aus dem 40.-Perzentil der Zufallspaar-Verteilung INNERHALB von house4
+   selbst berechnet (wie überall sonst in dieser Session).
+
+**Nach beiden Korrekturen: 10 Sub-Komponenten statt 743/41** — deutlicher Fortschritt, aber
+noch kein sauberer Erfolg. Die größte Komponente (117 von 202 Punkten, 58 %) ist eindeutig
+das Dach, mehrere kleinere, farblich fast identische Fragmente (28, 17, 13, 8, 7, 2 Punkte)
+hätten mit ihr verschmelzen sollen, taten es aber nicht vollständig. Genau EINE Komponente
+(8 Punkte, `rgb(179,102,53)`, deutlich anderer Ton) sieht nach einer echten, separaten
+Wandfläche aus — aber winzig gegen die Dach-Region, kein sauberer 2–3-Flächen-Split.
+
+**Ehrlich offen:** die Fine-Segmentierung innerhalb bekannter Grenzen funktioniert damit
+prinzipiell besser als vorher, ist aber noch nicht so weit wie die 73–74,5%-Ergebnisse der
+3D-Punktwolken-Fusion aus §4b–§4c. Naheliegende nächste Schritte (nicht umgesetzt): Ankergröße
+und Rasterabstand systematisch statt einmalig durchsuchen, oder — konsistent mit dem Rest
+dieser Session — Farbe als zusätzlichen Kanal neben LBP hinzunehmen, statt LBP allein
+arbeiten zu lassen.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
