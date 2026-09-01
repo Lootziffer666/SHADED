@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v21';
+const CACHE = 'shaded-shell-v22';
 const SHELL = [
   './',
   './index.html',
