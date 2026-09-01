@@ -216,8 +216,14 @@ const OUT = path.join(__dirname, 'verify-out');
     // by the frame boundary produces a vertex sitting exactly on it) --
     // this must happen before the global family fit below, otherwise a
     // clipped house's garbage boundary edge pollutes the shared
-    // vanishing-point fit for every other house too.
-    for (const r of Object.values(out)) { if (r.ok) r.clipped = r.rawPoly.some(([x]) => x >= W - 2); }
+    // vanishing-point fit for every other house too. All FOUR frame edges,
+    // not just the right one: house5 is clipped on the right (x>=W-2), but
+    // house6 -- whose bbox bottom sits at y=1023 in a 1024px-tall image --
+    // is clipped on the BOTTOM the same way, and the original x-only check
+    // silently fed that truncated corner into the family fit as if it were
+    // a real, fully-observed vertex.
+    const isFrameClipped = ([x, y]) => x >= W - 2 || x <= 1 || y >= H - 2 || y <= 1;
+    for (const r of Object.values(out)) { if (r.ok) r.clipped = r.rawPoly.some(isFrameClipped); }
 
     // DEBUG visualization: color each material's components directly (no
     // seeds/bboxes exist anymore to draw).
@@ -330,24 +336,25 @@ const OUT = path.join(__dirname, 'verify-out');
       r.famAssignment = [0, 1, 2, 3, 4, 5].map(i => famOf.get(name + '#' + i));
     }
 
-    // --- Image-edge clipping (e.g. house5, nearest the right border): a
-    // wall component truncated by the frame boundary produces one or more
-    // vertices sitting exactly ON that boundary (x>=W-2) -- these are
-    // clipping ARTIFACTS, not real corners, regardless of whether the
-    // house otherwise looked "complete" (found all 3 parts) or not. Per
-    // the maintainer's steer: don't fake a 2D position for what's missing
-    // -- drop every clipped vertex, keep only the edges that were
-    // originally adjacent in the hexagon AND have neither endpoint
-    // clipped, and hand the 3D solver `null` for every dropped corner so
-    // it gets reconstructed from the box's own rigid structure instead
-    // (its projection can legitimately land beyond the frame, x>W).
+    // --- Image-edge clipping (e.g. house5 on the right, house6 on the
+    // bottom): a roof/wall component truncated by ANY frame boundary
+    // produces one or more vertices sitting exactly ON that boundary --
+    // these are clipping ARTIFACTS, not real corners, regardless of
+    // whether the house otherwise looked "complete" (found all 3 parts)
+    // or not. Per the maintainer's steer: don't fake a 2D position for
+    // what's missing -- drop every clipped vertex, keep only the edges
+    // that were originally adjacent in the hexagon AND have neither
+    // endpoint clipped, and hand the 3D solver `null` for every dropped
+    // corner so it gets reconstructed from the box's own rigid structure
+    // instead (its projection can legitimately land beyond the frame).
     // Works uniformly whether 1 vertex is clipped (a corner sits exactly
-    // at the boundary) or 2 adjacent ones are (a whole edge does).
+    // at a boundary) or 2 adjacent ones are (a whole edge does), and
+    // uniformly across all four edges of the frame (isFrameClipped above).
     for (const [name, r] of Object.entries(out)) {
       if (!r.ok) continue;
       const poly = r.rawPoly;
       const n = poly.length;
-      const clipped = poly.map(([x]) => x >= W - 2);
+      const clipped = poly.map(isFrameClipped);
       if (!clipped.some(Boolean)) { r.vertices = poly; continue; } // nothing clipped -- use as-is
       if (n !== 6) { r.ok = false; r.reason = `clipped vertex on a non-hexagon (${n} vertices) -- not handled`; continue; }
       const edgeAngleOf = (a, b) => angleMod180(b[0] - a[0], b[1] - a[1]);
