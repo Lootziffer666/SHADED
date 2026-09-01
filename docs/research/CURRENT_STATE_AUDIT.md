@@ -16,7 +16,13 @@ The repository contains **two coexisting systems** under a single roof:
 
 Both are **live and tested**. The spatial-kernel is the research/experimentation layer; `index.html` is the delivery engine. They coexist without duplicating shader or classification logic (no second `classGrid`, no second shader source).
 
-**10 of 11 node test suites pass.** The one failure (`test-hybrid-world.mjs`) imports three symbols that were committed before implementation.
+**11 of 11 node test suites pass.** §3.1's original claim that `test-hybrid-world.mjs` imports
+three unimplemented symbols is **stale** — it was true at this audit's own commit
+(`b341f7f`) but was fixed same-day by `0d8a13f` ("feat(spatial-kernel): add kernel
+bootstrapping and hybrid world recipe"), which landed immediately after this audit was
+written. `HybridLittleWorld`, `createDefaultKernel`, `installKernel` are real, exported
+from `runtime/spatial-kernel/index.js`, and `node tools/test-hybrid-world.mjs` passes
+(7/7 assertions) as of 2026-09-01. See the correction note in §3.1 below.
 
 The full `npm run check` passes. Browser-based visual verify scripts mostly work; some fail in headless Chromium due to WebGL limitations, not code defects.
 
@@ -244,7 +250,16 @@ blessCurse (49)`
 
 ## 3. Incomplete / Broken Claims
 
-### 3.1 `test-hybrid-world.mjs` (BLOCKING — test cannot run)
+### 3.1 `test-hybrid-world.mjs` — **RESOLVED, was stale as of 2026-08-20**
+
+> **Correction (2026-09-01):** Everything below described the state at this audit's own
+> commit (`b341f7f`). It was fixed same-day by `0d8a13f` ("feat(spatial-kernel): add
+> kernel bootstrapping and hybrid world recipe"), which this document was never updated
+> to reflect. `HybridLittleWorld`, `createDefaultKernel`, `installKernel` are implemented
+> in `runtime/spatial-kernel/bootstrap.js` and `runtime/spatial-kernel/recipes/
+> hybrid-little-world.js`, exported from `index.js`, and `node tools/test-hybrid-world.mjs`
+> passes (7/7 assertions). The narrative below is kept for historical trace, not as a
+> current blocker — see §6 and §7 for the corrected status.
 
 **Commit:** `8e424c8` (2026-08-19) — "test(tools): add integration test for hybrid world and kernel bootstrap"
 
@@ -480,7 +495,7 @@ Per CLAUDE.md §"Weltgesetze-Katalog":
 
 | # | Claim | Location | Status |
 |---|---|---|---|
-| 1 | `HybridLittleWorld`, `createDefaultKernel`, `installKernel` exported from kernel | `test-hybrid-world.mjs` | **BROKEN** — symbols not implemented |
+| 1 | `HybridLittleWorld`, `createDefaultKernel`, `installKernel` exported from kernel | `test-hybrid-world.mjs` | **RESOLVED** (2026-09-01) — fixed same-day as this audit by `0d8a13f`, doc was stale |
 | 2 | `npm run check` passes | `package.json` | **PASS** after `npm ci` |
 | 3 | All 8 world-law rounds (1–10 minus 6/7) complete | CLAUDE.md | **Verified** — rounds 2,3,4,5,8,9,10 complete |
 | 4 | 31/60 world laws in shader | CLAUDE.md | **Verified** — 11 (R1-4) + 20 (Phase C) |
@@ -497,9 +512,8 @@ Per CLAUDE.md §"Weltgesetze-Katalog":
 
 Only blocking fixes (per task §1.6):
 
-1. **`test-hybrid-world.mjs`**: Implement `HybridLittleWorld`, `createDefaultKernel`, `installKernel`
-   in `runtime/spatial-kernel/index.js`, OR mark the test as skipped. Without this,
-   the GOLD test suite has a known failure.
+1. ~~**`test-hybrid-world.mjs`**: Implement `HybridLittleWorld`, `createDefaultKernel`, `installKernel`~~
+   — **done, same-day as this audit** (`0d8a13f`). Confirmed passing 2026-09-01.
 
 2. **Document the `npm ci` requirement** in the reproduction recipe — already captured
    in `GOLD_FREEZE.md` §10.
@@ -515,7 +529,7 @@ Only blocking fixes (per task §1.6):
 |---|---|
 | **Foundation (implementable now)** | Run IDs, experiment metadata, operator toggles, provenance, content-addressed artifact cache, evaluation packet schema, canonical probe cameras, retention policy classes, scene descriptor schema |
 | **Research/experiment (Modal ablation)** | DepthAnything v2/v3 comparison, MoGe-3 neighbourhood, TRELLIS/Zero123+ completion, GSNSR hybrid, GS-2M, silhouette-aware warping, 3DGS compression, learned residual specialists |
-| **Implementation gaps** | `HybridLittleWorld` recipe, `createDefaultKernel`/`installKernel` wiring, `ManualCameraRecipe`, `PlanConstraintRecipe`, kernel↔`index.html` integration |
+| **Implementation gaps** | ~~`HybridLittleWorld` recipe, `createDefaultKernel`/`installKernel` wiring~~ (done, `0d8a13f`), `ManualCameraRecipe`, `PlanConstraintRecipe`, kernel↔`index.html` integration |
 
 ---
 
