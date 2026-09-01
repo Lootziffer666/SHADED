@@ -466,6 +466,45 @@ gerechtfertigt, nicht implementiert. Ebenso nicht gebaut: die Operatoren (LBP/Ga
 Autokorrelation) innerhalb der so gefundenen Grenzen laufen zu lassen, wie vom Maintainer
 vorgeschlagen.
 
+## 4m. Runde 18: das Lückenschluss-Verfahren selbst — 5/6 Häuser korrekt getrennt
+
+Direkte Umsetzung des in §4l vorbereiteten nächsten Schritts.
+`tools/scratch-depth-edge-vp-gapclose.mjs` — **gerichtetes morphologisches Schließen**
+statt isotroper Dilation (die in Runde 17 entweder zu wenig brachte oder wieder Rauschen
+einführte): für jede der 3 bekannten VP-Richtungen wird durch jeden vorhandenen Kantenpixel
+ein kurzes Liniensegment in genau dieser Richtung gezogen (Länge gedeckelt auf
+`gapLength`). Das überbrückt echte Lücken entlang einer bekannten Wandrichtung, ohne
+Kanten in unbeteiligten Richtungen zu verschmieren — die geometrische Vorwissen-Grenze wird
+den Operatoren „bewusst gemacht", statt sie aus verrauschten Pixeldaten neu zu erraten.
+
+**Validiert gegen echten Ground Truth** (nicht nur Komponentenzahl): die 6 Hauszentren
+werden exakt aus der affinen Rekonstruktion zurückgerechnet (Box-Mittelpunkt, lokal
+(0,5, 0,5, 0,5) — NICHT `T` selbst, das ist die lokal (0,0,0)-Ecke, laut den eigenen
+Session-Notizen die vollständig verdeckte Ecke; deren Projektion fiel fälschlich außerhalb
+jeder sichtbaren Haussilhouette und hätte 0/6 Treffer vorgetäuscht, bis korrigiert).
+
+| Konfiguration | Getrennte Häuser (von 6) |
+|---|---|
+| Ohne Lückenschluss (Runde 17, `p90/dilate=1`) | 3/6 (house4, 5, 6) |
+| **Gerichtetes Schließen, `gapLength=8px`** | **5/6** (alle außer house1) |
+| Gerichtetes Schließen, `gapLength=15px` | 5/6 (dieselben 5) |
+| Gerichtetes Schließen, `gapLength=25px` | 3/6 (Rückgang — Über-Schließen) |
+| Gerichtetes Schließen, `gapLength=40px` | 0/6 (kompletter Kollaps) |
+
+**Echter, quantifizierter Erfolg:** von 3/6 auf 5/6 korrekt getrennte Häuser, komplett
+farbunabhängig (keine Farbmaske, keine Objektbezeichnung, nur Tiefenkante + die 3 bereits
+aus der affinen Rekonstruktion bekannten Richtungen). Es gibt ein klares Optimum
+(8–15px) — zu kurz hilft nicht genug, zu lang verbindet falsch benachbarte Strukturen und
+lässt das Ergebnis wieder kollabieren (0/6 bei 40px). Das bestätigt: Lückenschluss ist
+wirksam, aber nicht beliebig aggressiv anwendbar — die Lückengröße muss zur tatsächlichen
+Objektgröße passen (hier ~8–15px bei Häusern von ~150–400px Breite).
+
+**Offen:** house1 trennt sich bei KEINER getesteten Einstellung — nicht untersucht, warum
+(schwache Tiefendifferenz zum Boden an dieser Stelle? Randlage? eine eigene, spätere Prüfung
+wert). Die Operatoren (LBP/Gabor/Autokorrelation) innerhalb der jetzt gefundenen 5 Grenzen
+laufen zu lassen — der ursprünglich vorgeschlagene dritte Schritt — ist noch nicht
+umgesetzt.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
