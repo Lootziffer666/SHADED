@@ -144,6 +144,30 @@ nicht kategorisch neu entschieden).
   (73,0 %). VP trägt einen kleinen zusätzlichen Beitrag, holt aber kaum mehr heraus, weil
   LBP-mit-Anker bereits den Großteil des hier erreichbaren Signals zieht.
 
+## 4d. Runde 9: Benchmark-Ladder Stufe B (Graustufen)
+
+`tools/scratch-village-fake-lidar-segment-combined-frozen.mjs` (Erweiterung). Beantwortet
+zum ersten Mal die seit `material-geometrie-ohne-farbe.md`s erster Fassung offene Frage aus
+dem Benchmark-Ladder §3 dort: „Stufe B — Dieselbe Szene, Graustufen. Überlebt Cultivation
+ohne Objektfarbe?" Farbe wird auf Luminanz reduziert (`r=g=b=Helligkeit`), Geometrie und LBP
+(bereits Graustufen-basiert per Konstruktion) bleiben unverändert.
+
+| Konfiguration | Farbig (§4c) | Graustufen | Verlust |
+|---|---|---|---|
+| Geometrie + Farbe allein | 28,6 % | 11,2 % | −17,4pp (fast Kollaps) |
+| + Textur-Anker | 73,0 % | 63,8 % | −9,2pp (moderat) |
+| + VP-Anker | 39,4 % | 19,1 % | −20,3pp |
+| + beide Anker | 74,5 % | 63,9 % | −10,6pp |
+
+**Antwort: ja, mit Einschränkung.** Die Kombination übersteht Graustufen ohne Kollaps
+(73,0 %→63,8 % mit Textur-Anker) — aber NICHT, weil Geometrie allein genug trägt, sondern
+weil der Textur-Anker (LBP, selbst schon Graustufen-basiert) den Verlust der Chrominanz
+auffängt. Reine Farbe ohne Textur bricht dagegen fast zusammen (28,6 %→11,2 %, nahe am
+Geometrie-Baseline von 6,3 %). Der VP-Anker verliert in Graustufen fast seinen ganzen
+Fusionsbeitrag (63,8 %→63,9 % mit vs. ohne VP, praktisch kein Unterschied mehr) — sein
+Anker-Kern wird durch die geschwächte Farbprüfung selbst öfter kontaminiert, bevor er
+einfriert.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -207,8 +231,13 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
 - Gabor und 2D-Autokorrelation weiterhin ungetestet — mit dem jetzt etablierten
   Anker-Rezept (kleiner geometrie+farb-Kern, dann einfrieren) wäre ein fairer erster Test
   jeweils direkt möglich, ohne die Punktpaar-Sackgasse aus Runde 4 zu wiederholen.
-- Kein Anti-Overfit-Benchmark (Stufe A–K) — alle Zahlen bleiben auf eine synthetische
-  Punktwolke aus 6 Häusern beschränkt.
+- **Stufe B ist jetzt beantwortet** (§4d, erstmals empirisch statt nur als offene Frage im
+  Benchmark-Ladder): Cultivation übersteht Graustufen moderat (−9,2pp mit Textur-Anker),
+  aber nur weil Textur den Farbverlust auffängt, nicht weil Geometrie allein reicht.
+- Stufen C–K des Benchmark-Ladders bleiben ungetestet. Stufe C (Graustufen, unterschiedliche
+  Mikrotexturen) wäre der nächste logische Schritt nach B, mit dieser Fixture aber nicht
+  direkt prüfbar (alle Häuserflächen stammen aus demselben Quellbild ohne gezielt
+  unterschiedliche Texturen) — bräuchte eine eigens präparierte Testszene.
 - Gewichtete Score-Fusion (statt binärem UND) ist nicht getestet — alle Kombinationen hier
   sind harte Konjunktionen.
 - Alle Zahlen gelten für GENAU diese eine synthetische Punktwolke aus 6 Häusern; kein

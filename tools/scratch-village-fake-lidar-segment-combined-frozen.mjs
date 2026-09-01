@@ -167,4 +167,29 @@ const GRID = 14, PATCH = 9;
     const comps = segmentCombinedFrozen(points, { anchorSize: 5, vpCos: Math.cos(28 * Math.PI / 180), textureThreshold: 0.9, ...opts });
     console.log(`  ${label}:`, purityWeighted(comps, points));
   }
+
+  // --- Round 9: Benchmark-Ladder Stufe B (material-geometrie-ohne-farbe.md
+  // SS3/SS5 -- "Graustufen. Ueberlebt Cultivation ohne Objektfarbe?"), the
+  // cheapest still-undone anti-overfit step named there. Does NOT resample
+  // -- forces r=g=b=luminance on the already-sampled points in place, so
+  // color carries zero chrominance/hue information, only brightness. LBP
+  // is already luminance-only by construction (built from gray()), so this
+  // isolates exactly the color channel's chrominance contribution.
+  console.log('\n=== Stufe B: grayscale ablation (color reduced to luminance only) ===');
+  const grayPoints = points.map((p) => {
+    const lum = 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
+    return { ...p, r: lum, g: lum, b: lum };
+  });
+  // Re-run distance/normal setup is unnecessary (geometry unaffected); reuse
+  // normals/distanceLimit computed above, just re-run segmentation on grayPoints.
+  function segmentCombinedFrozenOn(pts, opts) { return segmentCombinedFrozen(pts, opts); }
+  for (const [label, opts] of [
+    ['grayscale: geometry+color only (no anchor channels)', { useVp: false, useTexture: false }],
+    ['grayscale: + texture anchor', { useVp: false, useTexture: true }],
+    ['grayscale: + vp anchor', { useVp: true, useTexture: false }],
+    ['grayscale: + both anchors', { useVp: true, useTexture: true }],
+  ]) {
+    const comps = segmentCombinedFrozenOn(grayPoints, { anchorSize: 5, vpCos: Math.cos(28 * Math.PI / 180), textureThreshold: 0.9, ...opts });
+    console.log(`  ${label}:`, purityWeighted(comps, grayPoints));
+  }
 })();

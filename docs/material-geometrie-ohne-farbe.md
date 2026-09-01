@@ -203,6 +203,8 @@ müsste dieser Skill zuerst geladen werden — hier nur vorgemerkt, nicht schon 
   ChatGPT-Löschvorfall stattfand, wenn nicht an dieser Datei/diesem Repository.
 - `shaded-sdf`-Skill noch nicht geladen — Pflicht vor jeder SDF-Implementierung dieses
   Themas, nicht vor dieser Dokumentation.
-- Der Benchmark-Ladder A–K ist definiert, aber nicht durchgeführt — auch nicht Stufe B
-  (Graustufen-Test der bereits funktionierenden village-Cube-Fixture), die der billigste
-  nächste Schritt wäre, um die Kernthese überhaupt zu prüfen.
+- Der Benchmark-Ladder A–K ist weiterhin größtenteils nicht durchgeführt. **Stufe B ist
+  jetzt beantwortet** (`docs/village-box-cultivation-experimente.md` §4d): Cultivation
+  übersteht Graustufen moderat (73,0 %→63,8 % reine Punkte mit Textur-Anker), aber nur weil
+  der Textur-Kanal (LBP) den Farbverlust auffängt — reine Farbe ohne Textur bricht dagegen
+  fast zusammen (28,6 %→11,2 %). Stufen C–K bleiben offen.
