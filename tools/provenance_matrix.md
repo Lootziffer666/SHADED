@@ -307,6 +307,28 @@ These 49 providers have `source` URLs that exactly match a starred repository:
 - `world_stereo` — `https://github.com/FuchengSu/WorldStereo`
 - `zero123plus` — `https://github.com/SUDO-AI-3D/zero123plus`
 
+## Post-Audit Correction (maintainer-confirmed sources, not from the starred-repo scrape)
+
+Two entries were classified `MISSING` above ("no source claimed, no match in starred
+repos (internal/baseline/paper/etc.)"). `MISSING` here means exactly that — not found in
+the 991-repo starred-repo scrape this audit ran against — and does not mean no real
+source exists. The maintainer directly provided the real, canonical sources:
+
+| Provider | Source | Note |
+|---|---|---|
+| `sam_segmentation` | `https://github.com/facebookresearch/sam2` | Meta's official SAM2 repo — a well-known baseline, exactly the "internal/baseline/paper" case the MISSING category already anticipates. Also provided: `https://github.com/isl-org/Open3D/issues/4929`, an integration recipe (RGB + depth + 2D mask -> filtered point cloud -> bounding box) — not a provider source, but the concrete link showing how this provider's masks combine with a depth provider's output into 3D geometry. |
+| `depth_anything_v2` | `https://github.com/DepthAnything/Depth-Anything-V2` | Official repo. Predecessor also provided for lineage: `https://github.com/LiheYoung/Depth-Anything` (v1). |
+
+**Methodological note:** the audit's own four-category schema (VERIFIED / PARTIAL /
+QUESTIONABLE / MISSING) has no category for "maintainer-confirmed, canonical, but not
+found by the starred-repo scrape" — VERIFIED specifically means "traces to a starred
+repo," and re-running that specific match wasn't done here (no access to the 991-repo
+starred dataset from this session). Recorded as its own row rather than force-fit into
+an existing category that would either overclaim (VERIFIED) or wrongly imply doubt
+(QUESTIONABLE, which means a claimed source that was actively checked and NOT found).
+Both `tools/gpu-providers.all.json` entries now carry the real `source` (and
+`predecessor_source` / `integration_reference` where applicable).
+
 ## Audit Protocol Compliance
 
 | Requirement | Status |

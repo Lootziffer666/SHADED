@@ -22,17 +22,18 @@ differenzierteres Bild:
 | `triposr` | VERIFIED (VAST-AI-Research/TripoSR) | echte, geprüfte Quelle |
 | `stable_fast_3d` | VERIFIED (Stability-AI/stable-fast-3d) | echte, geprüfte Quelle |
 | `webgpu_water`, `tidewright`, `snowflow`, `neural_planetoid`, `isosurface`, `supersplat`, `wonder3d`, `zero123plus`, `lato2`, `procedural_terrains` | VERIFIED | echte, geprüfte Quellen (aber s. §3 — nicht relevant für dieses Vorhaben) |
-| **`sam_segmentation`** | **MISSING** | kein Quell-Repo hinterlegt — interner Platzhalter, keine geprüfte Implementierung |
-| **`depth_anything_v2`** | **MISSING** | dito |
-| `depth_anything_cpp` | VERIFIED (localai-org/depth-anything.cpp) | eine Variante existiert geprüft — nur nicht `depth_anything_v2` selbst |
+| **`sam_segmentation`** | war **MISSING**, jetzt korrigiert | `MISSING` bedeutete hier nur "nicht im 991-Repo-Starred-Scrape gefunden", nicht "keine echte Quelle" — der Maintainer hat die reale, kanonische Quelle direkt bestätigt: `https://github.com/facebookresearch/sam2` (Metas offizielles Repo, genau der "internal/baseline/paper"-Fall, den die MISSING-Kategorie selbst schon vorsieht). Zusätzlich `https://github.com/isl-org/Open3D/issues/4929` — keine Provider-Quelle, sondern eine konkrete Integrationsanleitung (RGB + Depth + 2D-Maske → gefilterte Punktwolke → Bounding Box), s. u. Beides jetzt in `tools/gpu-providers.all.json` als `source`/`integration_reference` hinterlegt, s. `tools/provenance_matrix.md` §"Post-Audit Correction". |
+| **`depth_anything_v2`** | war **MISSING**, jetzt korrigiert | Gleicher Fall: `https://github.com/DepthAnything/Depth-Anything-V2` (offizielles Repo), Vorgänger `https://github.com/LiheYoung/Depth-Anything` (v1) zur Herkunft mitgegeben. Jetzt als `source`/`predecessor_source` in der Registry. |
+| `depth_anything_cpp` | VERIFIED (localai-org/depth-anything.cpp) | eine Variante existiert seit dem ursprünglichen Audit-Lauf bereits geprüft |
 
-Zusätzlich: `sam_segmentation`s `capabilities`-Feld im Registry-Eintrag lautet
-`['depth', 'confidence']` — identisch mit fast jedem anderen Eintrag, unabhängig vom
-tatsächlichen Modelltyp. Das ist erkennbar ein generisches Platzhalter-Feld, keine
-kuratierte Fähigkeitsangabe. **Konsequenz:** die zwei Provider, die für dieses Vorhaben am
-interessantesten wären, sind in der eigenen Registry unbelegt — jede Aussage darüber, was
-sie können, kommt aktuell nur aus externer Recherche, nicht aus SHADEDs eigener,
-verifizierter Quelle.
+`sam_segmentation`s `capabilities`-Feld im Registry-Eintrag lautet weiterhin
+`['depth', 'confidence']` — wie fast jeder andere `perception`-Eintrag der Registry
+(`semantic_mask_filter`, `photometric_stone_provider`, `pixel_extractor` ebenso), also
+ein registry-weites, nicht auf diesen Eintrag beschränktes Platzhalter-Problem. Die
+gesamte Registry kennt nur vier Fähigkeits-Tags (`depth`, `normals`, `points`,
+`confidence`) — kein `masks`/`segmentation`-Tag existiert überhaupt. Ein neues Tag
+einzuführen wäre eine Vokabular-/Schema-Erweiterung, keine Datenkorrektur — bewusst NICHT
+in dieser Session gemacht, nur benannt (s. §5).
 
 ## 2. Direkt relevant für die Cultivation-Generalisierung
 
@@ -58,10 +59,12 @@ Web + WebGPU existieren laut externer Recherche real.
   identischer Erscheinung — SAM2 hat keinen Grund, dort zu trennen). Das ist keine
   Ablehnung von SAM2, sondern der Beleg, warum es ein Kanal unter mehreren bleiben muss,
   nicht der Mechanismus selbst.
-- **Vor jeder Nutzung:** `sam_segmentation`s Registry-Eintrag braucht zuerst eine echte,
-  geprüfte `source`-Angabe (nach demselben Protokoll wie `provenance_matrix.md` es für
-  die anderen 122 Einträge schon durchgeführt hat) — sonst wird unbelegt vertraut, was
-  im ganzen Projekt sonst nirgends passiert.
+- **Der Integrationsschritt ist jetzt konkret belegt:** Open3D-Issue #4929 beschreibt
+  exakt den Weg von SAM2-Maske + Depth-Provider-Output zu gefilterten 3D-Punkten (RGBD-
+  Image → Punktwolke → Filterung nach 2D-Maske → Bounding Box) — das ist die technische
+  Brücke zwischen "SAM2 liefert einen Evidenzkanal" (oben) und "daraus wird tatsächlich
+  3D-Geometrie". Kein SHADED-spezifischer Code, aber ein konkretes, nachvollziehbares
+  Muster statt einer vagen Absicht.
 
 ### Depth Anything V2 — technisch verfügbar, aber gegen die eigene Priorisierung
 
@@ -112,11 +115,15 @@ Achse, kein Ersatz für die anderen zwei.
 
 ## 5. Ausdrücklich offen
 
-- Kein Code geändert, kein Provider registriert oder umbenannt.
-- `sam_segmentation` und `depth_anything_v2` haben weiterhin keine verifizierte Quelle in
-  `tools/gpu-providers.all.json` — das wäre der eigentliche nächste Schritt, nach
-  demselben Protokoll wie `provenance_matrix.md`, nicht das Vertrauen auf externe
-  Behauptungen.
+- **Erledigt seit der ersten Fassung:** `sam_segmentation` und `depth_anything_v2` haben
+  jetzt reale, maintainer-bestätigte `source`-Einträge in `tools/gpu-providers.all.json`,
+  dokumentiert in `tools/provenance_matrix.md`s "Post-Audit Correction". Kein
+  SHADED-Ausführungscode geändert — nur Registry-Metadaten.
+- **Weiterhin offen:** kein neues `masks`/`segmentation`-Fähigkeits-Tag eingeführt
+  (registry-weite Vokabular-Lücke, betrifft mehrere Einträge, keine Ad-hoc-Erweiterung
+  für nur diesen einen).
+- Kein browser-nativer SAM2/DA2-Pfad tatsächlich implementiert oder getestet — nur
+  Quellen dokumentiert.
 - Keine vollständige Browser-nativ-Prüfung der übrigen ~119 Provider — das wäre ein
   eigenes, großes Vorhaben nach dem `research-radar-themen.md`-Prüfraster, nicht Teil
   dieser Notiz.
