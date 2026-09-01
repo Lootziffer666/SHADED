@@ -83,6 +83,42 @@ kompilierte `.wasm`-Datei, Modell-Lade-Code im TypeScript auskommentiert) — da
 derselbe Pfad wie der jetzt bewiesene; `@huggingface/transformers` ist ein fertiges,
 externes npm-Paket, keine hier gebaute Eigenentwicklung.
 
+**Was DA2 technisch gut macht, und warum das ohne ML nicht nachbaubar ist:** kein
+geometrischer Trick, sondern ein gelernter statistischer Prior — ein DINOv2-Backbone
+(selbstüberwacht auf riesigen diversen Bildmengen vortrainiert) plus Lehrer-Schüler-Training
+auf ~1,5 Mio. gelabelten + ~62 Mio. pseudo-gelabelten Bildern. Monokulare Tiefe aus einem
+Bild ist fundamental unterbestimmt; DA2 ergänzt die fehlende Information aus gelernten
+Statistiken über sehr viele echte Bilder, nicht aus dem einen Bild selbst. Klassische
+Tiefe-Hinweise (Fluchtpunkte, Schattierung, Verdeckung) — genau das, was der affine
+Box-Solver dieser Session für polyedrische Objekte nutzt — sind real und funktionieren,
+aber jeweils nur für die schmale Objektklasse, für die ihre Annahmen gelten. Kein
+Ersatz für gelernte Priors auf beliebigem Bildinhalt, sondern eine andere, für
+Polyeder überlegene Methode.
+
+**Reicht eine einzelne Tiefenkarte zum Drehen der Szene?** Getestet, nicht nur behauptet:
+`tools/scratch-test-depthmap-rotation-limits.mjs` — echte DA2-Tiefenkarte per Pinhole-Modell
+zu einer 3D-Punktwolke rückprojiziert, aus 6 synthetischen Blickwinkeln gerendert
+(`tools/verify-out/depthmap-rotation-limits.png`). Ergebnis: 0–15° Rotation bleibt praktisch
+intakt (die 2.5D-Parallaxe, die SHADED laut `docs/shaded-faehigkeiten.md` bereits kennt —
+"kein freier 6-DoF-Flug", genau aus diesem Grund). Ab ~25° reißen an Tiefensprüngen
+schwarze Löcher auf, bei 45° verzerren sich Silhouetten zu gestreckten Streifen, bei 90°/180°
+ist die Rekonstruktion unbrauchbar — man sieht keine echte Rückseite, nur verschmierte
+Vorderflächen, weil eine Einzelkamera-Tiefenkarte schlicht keine Information über
+Verdecktes enthält. Strukturell dieselbe Lücke wie bei den konstruierten Box-Rückseiten
+dieser Session (Parallel-Kopie, GENERATED-Provenienz) — keine Implementierungsschwäche,
+sondern eine grundsätzliche Eigenschaft von Einzelbild-Tiefe.
+
+**Der eigentliche Wert liegt in der Kombination, nicht im Ersatz:** die Tiefenkarte deckt
+JEDEN Bildinhalt ab (auch organische Formen, die der Box-Solver nicht kann), liefert aber
+nur ein kontinuierliches Höhenfeld ohne Objektgrenzen. Der Box-Solver liefert vollständige,
+drehbare 3D-Körper, aber nur für polyedrische Objekte. Cultivation liefert die fehlende
+Objekttrennung, um das Tiefenfeld in unabhängig drehbare Stücke zu zerlegen. Keines der drei
+ersetzt die anderen zwei — dieselbe Multimodal-These wie bei den Fusions-Runden in
+`docs/village-box-cultivation-experimente.md`, hier auf einen vierten, sehr unterschiedlichen
+Kanaltyp (dichte gelernte Tiefe statt spärlicher gemessener Geometrie) angewendet. Nicht
+umgesetzt: die tatsächliche Fusion (DA-Tiefe als Cultivation-Kanal, Cultivation-Segmente als
+Objektgrenzen für den Box-Solver) — nur die drei Einzelteile sind jetzt real geprüft.
+
 Ein browser-nativer DA2-Pfad (Transformers.js + ONNX + WebGPU, teils sogar in Echtzeit
 auf Kamera-Streams) ist real und würde funktionieren — jetzt nicht mehr nur „würde", sondern
 gemessen. Aber: `shaded-reconstruction`s eigene Provider-Entscheidungsbaum sagt ausdrücklich:
