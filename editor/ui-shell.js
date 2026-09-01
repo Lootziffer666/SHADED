@@ -1,7 +1,4 @@
-// SHADED ist der Editor: die Engine läuft im selben Dokument (kein <iframe>
-// mehr). Layout/Fullscreen-Regeln für den Viewport stehen jetzt statisch in
-// editor/engine-shell.css statt hier per <style> in ein iframe-Dokument
-// injiziert zu werden (frühere injectEnginePresentation()).
+// SHADED is the editor: renderer + controls live in the same document.
 const body = document.body;
 const inspector = document.getElementById('inspector');
 const inspectorToggle = document.getElementById('btn-inspector-toggle');
@@ -28,6 +25,118 @@ function setInspector(open) {
   body.classList.toggle('inspector-collapsed', !open);
   inspectorToggle?.setAttribute('aria-expanded', String(!!open));
   inspectorMobile?.setAttribute('aria-expanded', String(!!open));
+}
+
+function setInspectorTitle(label) {
+  const title = inspector?.querySelector('.inspector-head strong');
+  if (title) title.textContent = label || 'Workspace';
+}
+
+function sectionMarkup(id, number, title, bodyMarkup) {
+  return `<section class="inspector-section section-collapsed workspace-generated" id="${id}">
+    <div class="section-title"><span>${number}</span><h2>${title}</h2></div>${bodyMarkup}</section>`;
+}
+
+function ensureWorkspacePanels() {
+  const scroll = inspector?.querySelector('.inspector-scroll');
+  const rail = document.querySelector('.tool-rail');
+  if (!scroll || !rail || rail.dataset.workspaceReady === '1') return;
+  rail.dataset.workspaceReady = '1';
+
+  // Material already has a real panel but historically no rail entry.
+  const storyButton = rail.querySelector('[data-target="panel-story"]');
+  if (!rail.querySelector('[data-target="panel-material"]')) {
+    const button = document.createElement('button');
+    button.className = 'rail-btn';
+    button.type = 'button';
+    button.dataset.target = 'panel-material';
+    button.title = 'Material / Style';
+    button.innerHTML = '<span>◩</span><b>Material</b>';
+    rail.insertBefore(button, rail.querySelector('[data-target="panel-paint"]') || storyButton);
+  }
+
+  if (!document.getElementById('panel-reconstruct')) {
+    scroll.insertAdjacentHTML('afterbegin', sectionMarkup('panel-reconstruct', '02', 'Reconstruct', `
+      <p class="hint">Direkter Blick auf die räumliche Pipeline. Die globale Kamera bleibt nach dem Fit eingefroren; lokale Geometrie darf sich weiter anpassen.</p>
+      <div class="workspace-proxy-grid">
+        <button type="button" data-workspace-stage="primitive">Geometry</button>
+        <button type="button" data-workspace-stage="components">Regions</button>
+        <button type="button" data-workspace-stage="voxels">Voxels</button>
+        <button type="button" data-workspace-stage="final">Final</button>
+      </div>
+      <div class="workspace-live-stack">
+        <div class="workspace-live-row"><span>Projection</span><span data-live-copy="spatial-representation">—</span></div>
+        <div class="workspace-live-row"><span>Fit</span><span data-live-copy="spatial-fit-status">—</span></div>
+        <div class="workspace-live-row"><span>Runtime</span><span data-live-copy="spatial-performance">—</span></div>
+      </div>
+      <button type="button" class="wide accent" data-workspace-room style="margin-top:8px">Raum öffnen</button>`));
+  }
+
+  if (!document.getElementById('panel-debug')) {
+    scroll.insertAdjacentHTML('beforeend', sectionMarkup('panel-debug', '08', 'Debug / Evidence', `
+      <div class="workspace-live-stack">
+        <div class="workspace-live-row"><span>Engine</span><span data-live-engine>—</span></div>
+        <div class="workspace-live-row"><span>Editor</span><span data-live-copy="editor-status">—</span></div>
+        <div class="workspace-live-row"><span>Scene</span><span data-live-copy="status">—</span></div>
+        <div class="workspace-live-row"><span>Geometry</span><span data-live-copy="spatial-fit-status">—</span></div>
+      </div>`));
+  }
+
+  if (!document.getElementById('panel-project')) {
+    scroll.insertAdjacentHTML('beforeend', sectionMarkup('panel-project', '09', 'Project / History', `
+      <p class="hint">Projektaktionen verwenden weiterhin die bestehenden SHADED-Handler; die Shell ändert nur deren Anordnung.</p>
+      <div class="workspace-proxy-grid">
+        <button type="button" data-proxy-click="btn-save-preset">Preset speichern</button>
+        <button type="button" data-proxy-click="btn-json">Parameter JSON</button>
+        <button type="button" data-proxy-click="btn-install">App installieren</button>
+        <button type="button" data-proxy-click="btn-pointcloud">PointCloud</button>
+      </div>`));
+  }
+
+  const defs = [
+    ['panel-source', 'Source', '◫'],
+    ['panel-reconstruct', 'Reconstruct', '◇'],
+    ['panel-world', 'World', '◎'],
+    ['panel-worldlaws', 'Laws', '⚖'],
+    ['panel-material', 'Material', '◩'],
+    ['panel-paint', 'Paint', '✎'],
+    ['panel-actors', 'Actors', '♟'],
+    ['panel-story', 'Story', '▶'],
+    ['panel-debug', 'Debug', '◉'],
+    ['panel-project', 'Project', '▣'],
+  ];
+
+  const byTarget = new Map([...rail.querySelectorAll('.rail-btn[data-target]')].map(button => [button.dataset.target, button]));
+  defs.forEach(([target, label, icon]) => {
+    let button = byTarget.get(target);
+    if (!button) {
+      button = document.createElement('button');
+      button.className = 'rail-btn';
+      button.type = 'button';
+      button.dataset.target = target;
+      rail.appendChild(button);
+    }
+    button.title = label;
+    button.dataset.workspaceLabel = label;
+    button.innerHTML = `<span>${icon}</span><b>${label}</b>`;
+    rail.appendChild(button);
+  });
+
+  scroll.querySelectorAll('[data-proxy-click]').forEach(button => {
+    button.addEventListener('click', () => document.getElementById(button.dataset.proxyClick)?.click());
+  });
+  scroll.querySelectorAll('[data-workspace-room]').forEach(button => {
+    button.addEventListener('click', () => document.getElementById('btn-spatial-view')?.click());
+  });
+  scroll.querySelectorAll('[data-workspace-stage]').forEach(button => {
+    button.addEventListener('click', () => openSpatialStage(button.dataset.workspaceStage));
+  });
+}
+
+function openSpatialStage(stage) {
+  const viewer = document.getElementById('spatial-viewer');
+  if (viewer?.hidden) document.getElementById('btn-spatial-view')?.click();
+  requestAnimationFrame(() => document.querySelector(`[data-spatial-stage="${stage}"]`)?.click());
 }
 
 function prepareCollapsibleSections() {
@@ -57,9 +166,113 @@ function revealSection(id, exclusive = true) {
 function openSection(id) {
   setInspector(true);
   revealSection(id, true);
+  const railButton = document.querySelector(`.rail-btn[data-target="${id}"]`);
+  setInspectorTitle(railButton?.dataset.workspaceLabel || railButton?.title || 'Workspace');
 }
 
+function ensureViewportToolbar() {
+  if (document.getElementById('workspace-view-toolbar')) return;
+  const toolbar = document.createElement('div');
+  toolbar.id = 'workspace-view-toolbar';
+  toolbar.setAttribute('aria-label', 'Viewport mode');
+  toolbar.innerHTML = `
+    <button type="button" data-workspace-view="image" class="active">IMAGE</button>
+    <span class="workspace-sep"></span>
+    <button type="button" data-workspace-view="geometry">GEOMETRY</button>
+    <button type="button" data-workspace-view="voxels">VOXELS</button>
+    <button type="button" data-workspace-view="final">FINAL</button>
+    <span class="workspace-sep"></span>
+    <button type="button" data-workspace-view="walk">WALK</button>`;
+  document.body.appendChild(toolbar);
+  toolbar.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-workspace-view]');
+    if (!button) return;
+    const mode = button.dataset.workspaceView;
+    if (mode === 'image') {
+      if (!document.getElementById('spatial-viewer')?.hidden) document.getElementById('spatial-close')?.click();
+    } else if (mode === 'walk') {
+      const viewer = document.getElementById('spatial-viewer');
+      if (viewer?.hidden) document.getElementById('btn-spatial-view')?.click();
+      requestAnimationFrame(() => document.getElementById('spatial-walk')?.click());
+    } else {
+      openSpatialStage(mode === 'geometry' ? 'primitive' : mode);
+    }
+    toolbar.querySelectorAll('[data-workspace-view]').forEach(item => item.classList.toggle('active', item === button));
+  });
+}
+
+function ensureBottomDock() {
+  if (document.getElementById('workspace-bottom-dock')) return;
+  const dock = document.createElement('section');
+  dock.id = 'workspace-bottom-dock';
+  dock.innerHTML = `
+    <div class="workspace-dock-head">
+      <button type="button" class="workspace-dock-tab active" data-dock-tab="output">OUTPUT</button>
+      <button type="button" class="workspace-dock-tab" data-dock-tab="pipeline">PIPELINE</button>
+      <button type="button" class="workspace-dock-tab" data-dock-tab="story">TIMELINE</button>
+      <button type="button" class="workspace-dock-toggle" title="Dock ein-/ausklappen">⌄</button>
+    </div>
+    <div class="workspace-dock-body" data-dock-body></div>`;
+  document.body.appendChild(dock);
+  const render = () => renderBottomDock(dock.dataset.tab || 'output');
+  dock.querySelectorAll('[data-dock-tab]').forEach(button => button.addEventListener('click', () => {
+    dock.dataset.tab = button.dataset.dockTab;
+    dock.querySelectorAll('[data-dock-tab]').forEach(item => item.classList.toggle('active', item === button));
+    render();
+  }));
+  dock.querySelector('.workspace-dock-toggle')?.addEventListener('click', () => dock.classList.toggle('collapsed'));
+  render();
+}
+
+function textOf(id, fallback = '—') {
+  const text = document.getElementById(id)?.textContent?.trim();
+  return text || fallback;
+}
+
+function renderBottomDock(tab) {
+  const bodyEl = document.querySelector('#workspace-bottom-dock [data-dock-body]');
+  if (!bodyEl) return;
+  if (tab === 'pipeline') {
+    bodyEl.innerHTML = `<div class="workspace-dock-grid">
+      <div class="workspace-dock-card"><span class="workspace-dock-label">REPRESENTATION</span><div class="workspace-dock-value">${escapeHtml(textOf('spatial-representation'))}</div></div>
+      <div class="workspace-dock-card"><span class="workspace-dock-label">FIT</span><div class="workspace-dock-value">${escapeHtml(textOf('spatial-fit-status'))}</div></div>
+      <div class="workspace-dock-card"><span class="workspace-dock-label">PERFORMANCE</span><div class="workspace-dock-value">${escapeHtml(textOf('spatial-performance'))}</div></div>
+    </div>`;
+  } else if (tab === 'story') {
+    const storyCount = document.getElementById('story-list')?.children?.length ?? 0;
+    bodyEl.innerHTML = `<div class="workspace-dock-grid">
+      <div class="workspace-dock-card"><span class="workspace-dock-label">STEPS</span><div class="workspace-dock-value">${storyCount}</div></div>
+      <div class="workspace-dock-card"><span class="workspace-dock-label">RECORDING</span><div class="workspace-dock-value">${document.body.classList.contains('recording') ? 'ACTIVE' : 'IDLE'}</div></div>
+      <div class="workspace-dock-card"><span class="workspace-dock-label">SCENE</span><div class="workspace-dock-value">${escapeHtml(textOf('status'))}</div></div>
+    </div>`;
+  } else {
+    const log = textOf('spatial-log', '');
+    bodyEl.innerHTML = `<div class="workspace-dock-grid">
+      <div class="workspace-dock-card"><span class="workspace-dock-label">ENGINE</span><div class="workspace-dock-value">${escapeHtml(state?.lastElementChild?.textContent || 'ENGINE')}</div></div>
+      <div class="workspace-dock-card"><span class="workspace-dock-label">EDITOR</span><div class="workspace-dock-value">${escapeHtml(textOf('editor-status'))}</div></div>
+      <div class="workspace-dock-card"><span class="workspace-dock-label">LATEST EVIDENCE</span><div class="workspace-dock-value">${escapeHtml(log.split('\n').filter(Boolean).slice(-1)[0] || textOf('status'))}</div></div>
+    </div>`;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+
+function syncWorkspaceLiveCopies() {
+  document.querySelectorAll('[data-live-copy]').forEach(target => {
+    target.textContent = textOf(target.dataset.liveCopy);
+  });
+  document.querySelectorAll('[data-live-engine]').forEach(target => {
+    target.textContent = state?.lastElementChild?.textContent || 'ENGINE';
+  });
+  renderBottomDock(document.getElementById('workspace-bottom-dock')?.dataset.tab || 'output');
+}
+
+ensureWorkspacePanels();
 prepareCollapsibleSections();
+ensureViewportToolbar();
+ensureBottomDock();
 
 document.querySelectorAll('.rail-btn[data-target]').forEach((button) => {
   button.addEventListener('click', () => {
@@ -85,8 +298,7 @@ inspectorMobile?.addEventListener('click', () => {
 
 createPanel?.addEventListener('click', () => createTop?.click());
 
-// Pipeline/Welt-Umschalter im Spatial-Viewer — dieselbe interaktive Logik wie
-// zuvor, jetzt direkt auf dem eigenen Dokument statt auf einem iframe-Dokument.
+// Pipeline/world switcher inside the spatial viewer.
 function spatialChrome() {
   const viewer = document.getElementById('spatial-viewer');
   if (!viewer) return null;
@@ -124,13 +336,13 @@ function updateState() {
   if (state) state.lastElementChild.textContent = ready ? 'SCENE READY' : loaded ? 'ENGINE LIVE' : 'ENGINE';
   if (viewportStatus) viewportStatus.textContent = ready ? 'Szene bereit · direkt im echten Renderer' : loaded ? 'Engine live · Bild laden oder Demo starten' : 'Engine wird geladen …';
   if (loaded) spatialChrome();
+  syncWorkspaceLiveCopies();
 }
 
 updateState();
 setInterval(updateState, 750);
 
-// world-room-gate.js besitzt RAUM in der Capture-Phase. Dieser Listener bleibt
-// nur als Kompatibilitäts-Fallback für Shells, die diese Datei nicht laden.
+// world-room-gate.js owns ROOM in capture phase. This listener remains a compatibility fallback.
 roomButton?.addEventListener('click', () => {
   if (window.SHADEDWorldStudio?.enterRoom) return;
   setInspector(false);
@@ -144,6 +356,7 @@ roomButton?.addEventListener('click', () => {
 if (editorStatus && 'MutationObserver' in window) {
   new MutationObserver(() => {
     if (viewportStatus && editorStatus.textContent) viewportStatus.textContent = editorStatus.textContent.replace(/^[✅⚠️🧠]\s*/, '');
+    syncWorkspaceLiveCopies();
   }).observe(editorStatus, { childList: true, characterData: true, subtree: true });
 }
 
