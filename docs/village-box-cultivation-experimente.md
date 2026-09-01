@@ -381,6 +381,41 @@ Quantisierung oder einen zusätzlichen Trennschritt (z. B. lokale Farbvarianz in
 großen Region prüfen, ob sie in Wirklichkeit mehrere leicht unterschiedlich schattierte
 Teilflächen enthält) — nicht in dieser Runde umgesetzt.
 
+## 4k. Runde 16: DA2-Tiefe als fünfter Fusionskanal
+
+Direkte Umsetzung der am Ende der DA2-Rotationsgrenzen-Untersuchung versprochenen Fusion.
+`tools/scratch-village-fake-lidar-segment-depth-fusion.mjs` — für jeden bereits
+rekonstruierten 3D-Punkt (village-fake-lidar-Wolke) wird über dieselbe `screenPoint()`-
+Projektion, die der affine Solver selbst nutzt, die zugehörige 2D-Bildposition
+zurückgerechnet, dort der reale DA2-Tiefenwert gesampelt, und als fünfter Kanal (nach
+Geometrie, Farbe, LBP, Gabor, Autokorrelation, VP) mit demselben Anker-Rezept getestet
+(kleiner geometrie+farb-vertrauter Kern, Tiefenwert gemittelt, eingefroren, Kandidaten
+kontinuierlich dagegen geprüft).
+
+| Konfiguration | Reine Punkte |
+|---|---|
+| Geometrie + Farbe (Baseline) | 28,6 % |
+| Geometrie + Farbe + eingefrorener DA2-Tiefen-Anker | 34,7 % |
+| DA2-Tiefen-Anker allein (keine Farbe, keine Geometrieprüfung) | **0,2 %** |
+
+**DA2-Tiefe allein ist bei dieser Punktauflösung fast nutzlos** — deutlich schwächer als
+jeder andere bisher getestete Kanal, sogar schwächer als VP allein (1,6 %). Das ist
+mechanistisch erklärbar, kein Fehler: Tiefe kodiert Kameraabstand, und zwei Flächen
+DESSELBEN kleinen Hauses (z. B. Dach vs. Wand) unterscheiden sich darin kaum — genau das
+Gegenteil dessen, wofür Tiefe stark ist (Objekte in unterschiedlicher Entfernung
+auseinanderhalten, nicht Flächen desselben Objekts trennen). In Fusion mit Geometrie+Farbe
+trägt sie trotzdem einen echten, moderaten Zugewinn (28,6 %→34,7 %, +6,1 Prozentpunkte —
+ähnliche Größenordnung wie VPs Beitrag, deutlich schwächer als LBP/Gabor/Autokorrelation).
+
+**Einordnung, konsistent mit der Rotationsgrenzen-Untersuchung:** DA2-Tiefe ist der einzige
+hier getestete Kanal, der JEDEN Bildinhalt abdeckt (nicht nur die gemessenen Boxflächen),
+aber genau bei der Aufgabe, für die diese Session ihn hier testet (Flächentrennung
+INNERHALB eines kleinen Objekts), strukturell schwach. Seine eigentliche Stärke — Objekte
+unterschiedlicher Entfernung auseinanderhalten, beliebiger Bildinhalt — wurde hier nicht
+gemessen, weil alle 6 Häuser in der village-cube-Fixture ähnlich weit von der Kamera
+entfernt sind. Ein Test mit tatsächlich unterschiedlich weit entfernten Objekten
+(Vordergrund/Hintergrund) würde vermutlich ein anderes Bild zeigen — nicht durchgeführt.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -396,7 +431,9 @@ Teilflächen enthält) — nicht in dieser Runde umgesetzt.
 | Geometrie + Farbe + Textur (laufender Mittelwert) | 33,4 % |
 | Geometrie + Farbe + VP (eingefrorener Anker) | 39,4 % |
 | Geometrie + Farbe + Textur (eingefrorener Anker, size=5) | 73,0 % |
-| **Geometrie + Farbe + Textur + VP (beide eingefrorene Anker)** | **74,5 %** |
+| Geometrie + Farbe + Textur + VP (beide eingefrorene Anker) | 74,5 % |
+| Geometrie + Farbe + eingefrorener DA2-Tiefen-Anker | 34,7 % |
+| **Geometrie + Farbe + Textur + VP** (bestes Ergebnis, DA2-Tiefe nicht mit einkombiniert) | **74,5 %** |
 
 Kein einzelner Kanal ist für sich brauchbar (0–6 %); zwei der drei Zusatzkanäle sind sogar
 für sich SCHLECHTER als der Geometrie-Baseline (VP: 1,6 %, Textur: 0,0 %). Trotzdem verbessert
