@@ -5,6 +5,15 @@
 > village-cube-Rekonstruktion dieser Session. Nichts hier berührt
 > `runtime/shaded-engine.mjs`, `analyze()`, `classGrid` oder `runtime/spatial-kernel/` —
 > nur `reconstruction.js`s exportierte, reine Hilfsfunktionen werden gelesen, nie verändert.
+>
+> **Wichtige Einschränkung (s. §4g): ALLE Prozentzahlen in diesem Dokument stammen aus
+> EINEM einzigen Quellbild** (der VLG-02-„6-Häuser-Dorf"-Fixture, `file_
+> 000000006d188210a9bb1129089a7b29.png`). Die Zahlen sind reale Messungen an dieser einen
+> Fixture, keine allgemeingültigen Aussagen über LBP/Gabor/Autokorrelation/VP als Operatoren.
+> §4g zeigt eine Holdout-Kreuzvalidierung, die zumindest die Zirkularität der
+> Schwellenwertwahl entschärft (Schwellen aus 3 Häusern gelernt, Reinheit an den anderen 3
+> gemessen: 43,8 % vs. 38,6 %, moderater statt kollabierender Rückgang) — aber keine
+> zweite, unabhängige Bildquelle ersetzt.
 
 ## 0. Ausgangsfrage
 
@@ -215,6 +224,44 @@ voneinander, dass die in §2 geäußerte Sorge („gemalte/cel-shadete Illustrat
 wenig Mikrotextur enthalten") für diese Fixture nicht zutrifft — jeder der drei Operatoren
 trägt echtes, nutzbares Signal, mit LBP als dem stärksten der drei.
 
+## 4g. Runde 12: Methodenkritik — alles bisher ist EIN Bild
+
+Berechtigter Einwand (Maintainer, wörtlich: „wirklich repräsentativ ist das jetzt nicht bei
+einem einzigen Bild"): jede Zahl in §1–§4f stammt aus GENAU EINER Punktwolke aus GENAU EINEM
+Quellbild (`file_000000006d188210a9bb1129089a7b29.png`, die VLG-02-Fixture, 6 Häuser). Alle
+Schwellenwerte (`COLOR_THRESHOLD`, LBP-/Gabor-/Autokorrelations-Schwellen, Ankergröße) wurden
+aus Perzentilen DERSELBEN Punktwolke abgeleitet, die dann bewertet wurde — nahe an
+„auf den Testdaten kalibriert" und ein direkter Verstoß gegen die eigene Anti-Overfit-Regel
+in `material-geometrie-ohne-farbe.md` §3 („jeder Schwellenwert über einen Bereich getestet
+und als Intervall statt Einzelwert berichtet"). Ein echtes zweites Bild würde eine eigene
+Extraktor-Kalibrierung brauchen (`fixture-taxonomie.md` §6: der Extraktor ist bewusst noch
+szenen-/palettenspezifisch, fest verdrahtete `roof`/`wallLight`/`wallDark`-Farbtoleranzen —
+kein kurzer Nebenschritt).
+
+**Sofort machbare Teil-Antwort: Holdout-Kreuzvalidierung INNERHALB desselben Bildes.**
+`tools/scratch-village-fake-lidar-holdout-crossval.mjs`. Schwellenwerte werden NUR aus 3 der
+6 Häuser gelernt (Fit-Set: house1–3), Reinheit wird NUR an den anderen 3, beim Lernen nie
+gesehenen Häusern gemessen (Holdout-Set: house4–6).
+
+| | Fit-Häuser | Holdout-Häuser |
+|---|---|---|
+| Reine Punkte | 43,8 % | 38,6 % |
+
+Ein moderater, kein katastrophaler Rückgang (~12 % relativ). Die aus 3 Häusern gelernten
+Schwellenwerte übertragen sich einigermaßen auf 3 nie gesehene Häuser desselben Bildes — ein
+Hinweis, dass das Rezept (Geometrie+Farbe+eingefrorener LBP-Anker) etwas Reales über
+Material-/Texturtrennung erfasst, nicht nur exakte Eigenheiten einzelner Häuser auswendig
+lernt.
+
+**Was das NICHT beweist, ausdrücklich:** dieselbe Kunststil-, Palette- und
+Beleuchtungsannahme gilt für alle 6 Häuser (dasselbe Bild). Diese Kreuzvalidierung behebt
+NUR die Zirkularität der Schwellenwertwahl (Schwellen aus Daten X, gemessen auf Daten X) —
+NICHT die eigentliche, tiefere Sorge des Einwands: ob dasselbe Rezept auf einem strukturell
+anderen Bild (andere Kunstrichtung, andere Materialpalette, andere Lichtstimmung) überhaupt
+noch funktioniert. Das bleibt ungeprüft, bis eine zweite, unabhängig kalibrierte Fixture
+existiert (VLG-01/04/05 sind laut `fixture-taxonomie.md` die nächstliegenden Kandidaten,
+noch nicht extrahiert).
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -288,8 +335,12 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
   unterschiedliche Texturen) — bräuchte eine eigens präparierte Testszene.
 - Gewichtete Score-Fusion (statt binärem UND) ist nicht getestet — alle Kombinationen hier
   sind harte Konjunktionen.
-- Alle Zahlen gelten für GENAU diese eine synthetische Punktwolke aus 6 Häusern; kein
-  Anti-Overfit-Benchmark-Lauf (Stufe A–K aus `material-geometrie-ohne-farbe.md` §3) wurde
+- **Teilweise adressiert (§4g):** Alle Zahlen gelten weiterhin für GENAU EIN Quellbild.
+  Eine Holdout-Kreuzvalidierung INNERHALB dieses Bildes (Schwellen aus 3 Häusern gelernt,
+  Reinheit an den anderen 3 gemessen: 43,8 % vs. 38,6 %) zeigt zumindest, dass die
+  Schwellenwerte nicht auf einzelne Häuser überangepasst sind. Eine echte zweite,
+  unabhängig kalibrierte Bildquelle fehlt weiterhin — kein Anti-Overfit-Benchmark-Lauf
+  (Stufe A–K aus `material-geometrie-ohne-farbe.md` §3) über mehrere Bilder wurde
   durchgeführt.
 - Kein Code in `runtime/spatial-kernel/` oder `runtime/shaded-engine.mjs` geändert — alles
   bleibt in `tools/scratch-*`.
