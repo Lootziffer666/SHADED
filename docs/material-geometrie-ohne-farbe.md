@@ -188,16 +188,17 @@ müsste dieser Skill zuerst geladen werden — hier nur vorgemerkt, nicht schon 
 ## 5. Ausdrücklich offen
 
 - Kein Code geändert. Kein Extraktor umgebaut. Kein Growth-Kernel angelegt.
-- **Teilweise geklärt** (`docs/village-box-cultivation-experimente.md` §4, `tools/scratch-
-  village-fake-lidar-segment-texture.mjs`): LBP (eine der drei Mikrotextur-Operatoren) wurde
-  empirisch an der village-cube-Fixture getestet. Das Signal existiert und ist messbar
-  diskriminativ (direkter Stichprobenvergleich, deutlich über Zufallsniveau) — die hier
-  geäußerte Sorge, gemalte/cel-shadete Illustrationen könnten zu wenig Mikrotextur enthalten,
-  trifft NICHT zu. Aber ein naiver Punkt-zu-Punkt-Vergleich scheitert fast vollständig
-  (0,0 % reine Komponenten) — die richtige Vergleichsebene ist ein regions-aggregiertes
-  Histogramm, nicht Punktpaare (klassische LBP-Verwendung). In Fusion mit Geometrie+Farbe
-  bringt selbst der naive Punktpaar-Vergleich noch eine messbare Verbesserung (35,4 % statt
-  28,6 % reine Punkte). Gabor und 2D-Autokorrelation bleiben ungeprüft.
+- **Vollständig geklärt** (`docs/village-box-cultivation-experimente.md` §4/§4e/§4f): alle
+  drei Mikrotextur-Operatoren (LBP, Gabor, 2D-Autokorrelation) wurden empirisch an der
+  village-cube-Fixture getestet, mit derselben Methode (kleiner geometrie+farb-vertrauter
+  Anker, dann eingefroren statt fortlaufend aktualisiert oder punktweise verglichen —
+  entscheidender Fund, s. §4b dort). Alle drei tragen reales, nutzbares Signal, deutlich über
+  der Geometrie+Farbe-Baseline (28,6 %): LBP 73,0 %, Autokorrelation 65,8 %, Gabor 57,7 %
+  (jeweils reine Punkte, mit Farbe+Anker). Die hier geäußerte Sorge, gemalte/cel-shadete
+  Illustrationen könnten zu wenig Mikrotextur enthalten, trifft für KEINEN der drei Operatoren
+  zu. Ein naiver Punkt-zu-Punkt-Vergleich (statt Anker-Aggregation) scheitert dagegen fast
+  vollständig (0,0 % bei LBP) — die VergleichsGRANULARITÄT, nicht das Signal, war das
+  eigentliche Problem der ersten Fassung dieser Notiz.
 - Geklärt: `main` hat `cellular-geometry-solver.js` nie besessen, also auch nie
   entfernt — s. §4. Weiterhin offen: wo genau der vom Maintainer berichtete
   ChatGPT-Löschvorfall stattfand, wenn nicht an dieser Datei/diesem Repository.

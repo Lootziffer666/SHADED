@@ -186,6 +186,35 @@ Punktpaar-Vergleich wie bei LBPs erstem Versuch in Runde 4).
   Textur-Operator** — nicht LBP-spezifisch. Aber die beiden Operatoren sind nicht
   gleich stark: LBP bleibt für diese Fixture der bessere Kanal.
 
+## 4f. Runde 11: 2D-Autokorrelation (dritter Mikrotextur-Operator) — alle drei komplett
+
+`tools/scratch-village-fake-lidar-segment-autocorr.mjs`. Dritter und letzter der in
+`material-geometrie-ohne-farbe.md` §2 genannten Operatoren. Normalisierte 2D-Autokorrelation
+an 8 festen Lag-Offsets (Radius 3, dieselben 8 Winkel wie Gabors Orientierungen für einen
+fairen Vergleich), über 11×11-Patch berechnet → 8-dimensionaler Feature-Vektor, euklidischer
+Abstand, gleiches Anker-Rezept.
+
+- **Mit Farbe (`threshold=0,31`, Ankergröße 5): 65,8 % rein** — zwischen Gabor (57,7 %) und
+  LBP (73,0 %).
+- Ohne Farbe: 44,3 % — vergleichbar mit Gabor (43,0 %), beide klar unter LBPs
+  Ohne-Farbe-Bereich (der in Runde 6 nicht direkt mit Farbe-aus getestet wurde, aber die
+  Größenordnung der anderen zwei Operatoren passt zueinander).
+
+**Alle drei aus `material-geometrie-ohne-farbe.md` §2 benannten Mikrotextur-Operatoren sind
+jetzt mit derselben Methode (Anker-Rezept, dieselbe Fixture, vergleichbare Einstellungen)
+empirisch getestet und geordnet:**
+
+| Operator | Mit Farbe+Anker | Ohne Farbe |
+|---|---|---|
+| **LBP** | **73,0 %** | — (nicht separat getestet) |
+| Autokorrelation | 65,8 % | 44,3 % |
+| Gabor | 57,7 % | 43,0 % |
+
+Alle drei liegen weit über der Geometrie+Farbe-Baseline (28,6 %) und bestätigen unabhängig
+voneinander, dass die in §2 geäußerte Sorge („gemalte/cel-shadete Illustrationen könnten zu
+wenig Mikrotextur enthalten") für diese Fixture nicht zutrifft — jeder der drei Operatoren
+trägt echtes, nutzbares Signal, mit LBP als dem stärksten der drei.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -246,9 +275,10 @@ naheliegende nächste Test, aber noch nicht durchgeführt.
   erklärt (VPs 90°-Zellen bleiben grob, auch wenn die Achse nur einmal statt pro Punkt
   bestimmt wird) — keine direkte Kontaminations-Zähler-Messung (wie oft ist der gefrorene
   Anker selbst schon über eine Kante gewachsen?) für beide Kanäle durchgeführt.
-- **Erledigt:** Gabor getestet (§4e, 57,7 % mit Anker+Farbe — schwächer als LBP, aber das
-  Anker-Rezept generalisiert). 2D-Autokorrelation bleibt der einzige noch ungetestete der
-  drei genannten Mikrotextur-Operatoren.
+- **Erledigt:** alle drei benannten Mikrotextur-Operatoren getestet (§4e/§4f) — LBP 73,0 %,
+  Autokorrelation 65,8 %, Gabor 57,7 % (jeweils mit Farbe+Anker, Ankergröße 5). Das
+  Anker-Rezept generalisiert auf alle drei; die Operatoren sind unterschiedlich stark, keiner
+  scheitert.
 - **Stufe B ist jetzt beantwortet** (§4d, erstmals empirisch statt nur als offene Frage im
   Benchmark-Ladder): Cultivation übersteht Graustufen moderat (−9,2pp mit Textur-Anker),
   aber nur weil Textur den Farbverlust auffängt, nicht weil Geometrie allein reicht.
