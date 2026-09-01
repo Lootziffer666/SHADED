@@ -90,6 +90,38 @@ Textur-Kontinuitätsmaß.
   schwächer als Geometrie+Farbe). Geometrie+Farbe+Textur: **35,4 % reine Punkte** — das beste
   Ergebnis aller vier Experimente, besser als Geometrie+Farbe+VP (33,7 %).
 
+## 4b. Runde 5–6: Regions-Aggregation und der Anker-Kontaminations-Effekt
+
+`tools/scratch-village-fake-lidar-segment-texture-region.mjs`. Direkter Test der in §4
+selbst vorgeschlagenen Reparatur ("richtige Vergleichsebene ist ein regions-aggregiertes
+Histogramm, nicht Punktpaare").
+
+**Runde 5 — laufender Mittelwert (naive Umsetzung):** Region-Wachstum hält ein laufend
+aktualisiertes Mittelwert-Histogramm der bisher aufgenommenen Punkte; jeder Kandidat wird
+gegen dieses Mittel geprüft, nicht gegen den einzelnen Nachbarpunkt. Ergebnis:
+**widerlegt die eigene Hypothese aus §4** — bestenfalls 33,4 % rein (Geometrie+Farbe+
+Textur), leicht SCHLECHTER als der naive Punktpaar-Vergleich (35,4 %). Vermuteter Grund:
+sobald früh ein falscher Punkt aufgenommen wird, verschiebt er den Mittelwert selbst — ein
+klassisches Region-Growing-Kontaminationsproblem (die Region "driftet" in Richtung der
+falschen Fläche, was das Aufnehmen weiterer falscher Punkte sogar erleichtert, statt es zu
+verhindern).
+
+**Runde 6 — eingefrorener Anker (Test der Kontaminations-Hypothese):** die ersten
+`anchorSize` Punkte werden nur unter Geometrie+Farbe aufgenommen (kleiner, vertrauenswürdiger
+Kern), das Histogramm wird danach EINGEFROREN (nie wieder aktualisiert), alle weiteren
+Kandidaten werden gegen diesen fixen Anker geprüft statt gegen ein driftendes Mittel.
+
+- **`anchorSize=5, textureThreshold=0.9`: 73,0 % reine Punkte** — mit Abstand das beste
+  Ergebnis der gesamten Versuchsreihe, mehr als doppelt so gut wie alles vorherige.
+- Klarer, mechanistisch erklärbarer Trend über Ankergrößen: **5 → 73,0 % · 20 → 64,0 % ·
+  50 → 52,8 %** (bei `textureThreshold=0.9`). Größere Anker haben mehr Zeit, vor dem
+  Einfrieren selbst schon eine falsche Fläche mit aufzunehmen — bestätigt die
+  Kontaminations-Hypothese aus Runde 5 direkt, statt sie nur zu vermuten.
+- Bestätigt: das Problem in Runde 5 war nicht „regions-aggregiert vs. punktweise” an sich,
+  sondern **kontinuierliche Aktualisierung vs. eingefrorene Hypothese**. Ein kleiner,
+  schnell eingefrorener Anker schützt vor genau der Selbstverstärkung, die eine
+  fortlaufend aktualisierte Region-Hypothese anfällig macht.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
@@ -101,7 +133,9 @@ Textur-Kontinuitätsmaß.
 | Geometrie + Textur | 10,2 % |
 | Geometrie + Farbe | 28,6 % |
 | Geometrie + Farbe + VP | 33,7 % |
-| **Geometrie + Farbe + Textur** | **35,4 %** |
+| Geometrie + Farbe + Textur (Punktpaar) | 35,4 % |
+| Geometrie + Farbe + Textur (laufender Mittelwert) | 33,4 % |
+| **Geometrie + Farbe + Textur (eingefrorener Anker, size=5)** | **73,0 %** |
 
 Kein einzelner Kanal ist für sich brauchbar (0–6 %); zwei der drei Zusatzkanäle sind sogar
 für sich SCHLECHTER als der Geometrie-Baseline (VP: 1,6 %, Textur: 0,0 %). Trotzdem verbessert
@@ -122,18 +156,31 @@ Zwei konkrete, wiederkehrende Fehlermuster über alle vier Kanäle hinweg:
 2. **Falsche Vergleichsgranularität** (LBP: Punktpaar statt Regions-Aggregat) — verdeckt ein
    echtes Signal fast vollständig, obwohl es nachweislich da ist.
 
-Beide Muster sind eher Implementierungsfragen als Kanal-Eigenschaften — ein zukünftiger Lauf
-mit margin-bewusstem VP-Snap und regions-aggregiertem LBP (statt Punktpaar-Vergleich) sollte
-beide Kanäle deutlich stärker machen, ohne die Kanäle selbst zu ändern.
+Beide Muster sind eher Implementierungsfragen als Kanal-Eigenschaften. Für LBP ist das jetzt
+mehr als eine Vermutung: der Sprung von 35,4 % (Punktpaar) über 33,4 % (naives laufendes
+Mittel, sogar leicht schlechter) auf 73,0 % (eingefrorener Anker) zeigt, dass die
+Aggregations-FORM (kontinuierlich driftend vs. früh eingefroren) mehr Wirkung hat als die
+Aggregation an sich. Ein analoger „eingefrorener Anker" für den VP-Snap (Kardinalachse aus
+einem kleinen vertrauenswürdigen Kern bestimmen, statt pro Punkt neu einzurasten) ist der
+naheliegende nächste Test, aber noch nicht durchgeführt.
 
 ## 6. Ausdrücklich offen
 
 - Gabor und 2D-Autokorrelation (die anderen zwei Mikrotextur-Operatoren aus
   `material-geometrie-ohne-farbe.md` §2) sind nicht getestet.
-- Region-aggregierte LBP-Histogramme (statt Punktpaar-Vergleich) sind nicht implementiert —
-  der naheliegendste nächste Schritt laut §4/§5 hier.
+- **Erledigt seit der ersten Fassung:** regions-aggregierte LBP-Histogramme sind implementiert
+  und getestet (§4b) — sowohl als laufender Mittelwert (kein klarer Vorteil) als auch als
+  eingefrorener Anker (73,0 % rein, bestes Ergebnis der Session). `anchorSize`/
+  `textureThreshold` sind nur grob gerastert (5/20/50 × 0,9/1,1/1,265) durchsucht, keine
+  systematische Optimierung.
+- Analoges „eingefrorener Anker"-Prinzip für VP-Snap (Kardinalachse aus einem kleinen
+  vertrauenswürdigen Kern bestimmen) ist noch nicht getestet — direkte Folgefrage aus §4b.
 - Margin-bewusstes VP-Snapping (Punkte nahe einer Zellgrenze als ambig markieren) ist nicht
   implementiert.
+- Warum der eingefrorene Anker so stark wirkt, ist mechanistisch plausibel erklärt (§4b), aber
+  nicht durch einen direkten Kontaminations-Zähler (wie oft ist der gefrorene Anker selbst
+  schon über eine Kante gewachsen?) verifiziert — nur die Ankergrößen-Trend-Konsistenz spricht
+  dafür.
 - Gewichtete Score-Fusion (statt binärem UND) ist nicht getestet — alle Kombinationen hier
   sind harte Konjunktionen.
 - Alle Zahlen gelten für GENAU diese eine synthetische Punktwolke aus 6 Häusern; kein
