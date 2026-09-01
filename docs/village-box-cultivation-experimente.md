@@ -543,6 +543,95 @@ und Rasterabstand systematisch statt einmalig durchsuchen, oder — konsistent m
 dieser Session — Farbe als zusätzlichen Kanal neben LBP hinzunehmen, statt LBP allein
 arbeiten zu lassen.
 
+## 4o. Runde 20a: Tiefenkanten-Pipeline auf einem echten zweiten Bild mit Giebeldächern
+
+`tools/scratch-gable-village-depth-test.mjs` — testet Runden 17–18s Depth-Edge+VP-Ansatz auf
+`file_000000002b2871f4891c9f18768440ca.png`: isometrisches Dorf, gleicher Zeichenstil wie
+VLG-02, aber mit echten Giebeldächern (Firstlinie, Giebeldreieck) statt flacher
+Hexagon-Boxen — strukturell komplexer, echtes zweites Bild, keine Wiederverwendung von
+VLG-02-Werten.
+
+**Wichtiger Unterschied zu §4l–§4m:** für dieses Bild existiert KEIN gemessener VP-Fit
+(`dirF`) — der würde eine eigene Extraktion brauchen. Getestet wurde stattdessen eine
+generische isometrische Winkel-Annahme (0°/60°/120°), schwächer als ein echter Fit.
+
+**Ergebnis: gemischt, ehrlich kein sauberer Erfolg.** Fragmentierung sinkt deutlich
+(82,6 %→30,7 % größte Region), und 4 der 5 sichtbaren Dächer bekommen reale
+Teilflächen-Treffer, sichtbar korrekt auf dem jeweiligen Dach positioniert
+(`gable-village-depth-components.png`) — aber jeweils nur ein PARTIELLER Bereich, kein
+sauberes Vollflächen-Polygon. Das graue Dach (ein Haus) wird komplett verfehlt. Zusätzlich
+echtes Rauschen im Baumkronen-Hintergrund (mehrere falsch-positive Flecken in der
+Vegetation) — die generische Winkelannahme ohne echten Fit ist erwartbar schwächer als
+VLG-02s gemessene `dirF`.
+
+**Einordnung:** kein Widerspruch zu §4h/§4i (dort schlug der Farbmasken-Transfer komplett
+fehl) — hier zeigt sich stattdessen, dass der Tiefenkanten-Ansatz selbst ohne bildspezifische
+Kalibrierung ein reales, wenn auch unvollständiges Signal liefert. Für ein sauberes
+Ergebnis bräuchte dieses Bild seine eigene VP-Messung (z. B. aus den jetzt gefundenen
+Teilflächen-Kanten selbst extrahiert) statt der generischen Annahme — nicht umgesetzt.
+
+## 4p. Runde 20b: der Tron-Bike-Grenzverfolger — echter Teilerfolg
+
+Wörtlicher Vorschlag des Maintainers: Operatoren sollen „wie Tron Bikes ein Stück entlang
+der bekannten Grenze fahren und dann im 90°-Winkel abbiegen, bis sie auf die nächste Grenze
+stoßen... Flood fill, aber gemessen bzw. exakt hergeleitet." Anderer Mechanismus als Runde
+18s gerichtetes Schließen (das blind JEDEN Kantenpixel verlängert, ein Weichzeichner-artiger
+Vorgang): ein gerichteter Lauf, der einer echten Kante entlang einer der 3 bekannten
+Richtungen folgt, solange der Tiefengradient sie stützt, und bei Signalverlust aktiv nach
+einer Fortsetzung in den ANDEREN bekannten Richtungen sucht (eine Ecke), statt zu stoppen
+oder zu verschmieren. `tools/scratch-tron-boundary-tracer.mjs`, getestet auf VLG-02 (echter
+`dirF`-Fit vorhanden).
+
+**Ergebnis: kein geschlossenes Polygon, aber ein echter, funktionierender Abbiege-Vorgang.**
+Von 6 Startrichtungen aus keine schließt eine Schleife. Die beste Spur läuft 28 Schritte
+sauber entlang einer Kante (Startrichtung 331°), erkennt dann eine Ecke und biegt korrekt auf
+eine neue Richtung ab (sichtbar am Richtungswechsel in den letzten Pfadpunkten: von
+schräg-diagonaler Bewegung zu nahezu reiner Y-Bewegung, konsistent mit einem ~90°-Wechsel
+zwischen zwei der bekannten Familien) — bricht aber kurz danach ab (kein weiterer
+Fortsetzungs-Fund).
+
+**Einordnung:** das ist der erste echte Beweis, dass der Kern-Mechanismus (Kante folgen,
+bei Signalverlust aktiv nach einer anderen bekannten Richtung suchen, abbiegen) funktioniert
+— nicht nur Theorie. Für ein geschlossenes Polygon fehlt noch: bessere Fortsetzungssuche nach
+einem Abbiegen (aktuell bricht der Lauf ab, sobald auch die zweite Richtung keine Stütze mehr
+findet), und vermutlich ein zweiter Durchlauf mit anderen Startpunkten/-richtungen. Nicht
+weiter optimiert in dieser Runde — echter erster Schritt, kein fertiges Verfahren.
+
+## 4q. Runde 21: SHADEDs eigene Tiefenkarte gegen DA2, gleiche Aufgabe
+
+Korrektur unterwegs: eine gefundene Tiefenkarte (`file_0000000098bc71f49c057d54182386e6.png`)
+wurde zunächst für externen Ground Truth gehalten — Maintainer korrigiert: „Diese Depthmap
+ist von shaded selbst." Kein Wahrheitsvergleich also, sondern ein echter Werkzeugvergleich:
+SHADEDs eigene Tiefenschätzung gegen DA2, dieselbe Kanten-Segmentierungsaufgabe, auf der
+gemalten Giebeldach-Kreuzungsversion (`file_00000000c40471f4859a10d6bf3ac39b.png`).
+`tools/scratch-shaded-vs-da2-depth-edges.mjs`.
+
+| Quelle | Komponenten (p85) | Größte Region |
+|---|---|---|
+| SHADEDs eigene Tiefe | 45 | 60,5 % |
+| DA2 | 23 | 69,2 % |
+
+Mehr Komponenten bei SHADEDs eigener Tiefe bedeutet NICHT bessere Kanten — der visuelle
+Vergleich (`shaded-vs-da2-depth-components.png`) zeigt: DA2 erfasst ein zusätzliches echtes
+Dach korrekt (grüner Treffer auf dem dritten Haus), das SHADEDs eigene Schätzung verpasst,
+trotz insgesamt fast doppelt so vieler Komponenten — die zusätzlichen SHADED-Komponenten
+sind größtenteils verteiltes Rauschen im Baumkronen-Hintergrund, kein zusätzliches echtes
+Signal. Keine der beiden Quellen segmentiert die Häuser dieses Bildes sauber und vollständig.
+
+## 4r. Runde 20c: die 4 LOD-Stufen des Demo-Dorfs — Bildzuordnung noch ungeklärt
+
+Der Maintainer bestätigte: es gibt 4 LOD-Stufen (Detailgrad-Stufen) DERSELBEN Dorf-Szene im
+Repo. **Meine Zuordnung, welche konkreten Dateien das sind, war falsch** (Maintainer:
+„Das ist das falsche Dorf" — bezogen auf die in §4o–§4q verwendete gemalte
+Giebeldach-Kreuzungsversion, `file_00000000c40471f4859a10d6bf3ac39b.png`). VLG-02
+(`file_000000006d188210a9bb1129089a7b29.png`) bleibt vermutlich eine der 4 Stufen (visuell
+identisch mit dem vom Maintainer zuerst gezeigten Bild), aber welche Dateien die anderen 3
+Stufen tatsächlich sind, ist NICHT geklärt — §4o–§4q liefen versehentlich gegen ein anderes,
+nur oberflächlich ähnliches Giebeldach-Dorf. Die dortigen Befunde (Fragmentierung, SHADED-
+vs-DA2-Vergleich, Tron-Tracer-Teilerfolg) bleiben als Methodik-Beweis gültig, sagen aber
+nichts über echte LOD-Übertragbarkeit aus, bis die richtigen Dateien identifiziert sind.
+Absichtlich nicht weiter geraten — direkte Rückfrage an den Maintainer nötig.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
