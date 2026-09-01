@@ -10,12 +10,112 @@ const state = document.getElementById('engine-state');
 const viewportStatus = document.getElementById('viewport-status');
 const editorStatus = document.getElementById('editor-status');
 
+const WORKSPACE_THEME_KEY = 'shaded.workspace-theme';
+const WORKSPACE_THEME_DEFAULT = 'carbonight';
+const WORKSPACE_THEMES = [
+  { id: 'carbonight', label: 'Carbonight', colors: ['#2E2C2B', '#C4C4C4', '#8C8C8C', '#FFFFFF'] },
+  { id: 'darkside', label: 'Darkside', colors: ['#222324', '#1CC3E8', '#E8341C', '#68C244', '#F08D24'] },
+  { id: 'earthsong', label: 'Earthsong', colors: ['#36312C', '#95CC5E', '#DB784D', '#F8BB39'] },
+  { id: 'legacy', label: 'Tron Legacy', colors: ['#14191F', '#267FB5', '#FFB20D', '#FF410D', '#C7F026'] },
+  { id: 'glowfish', label: 'Glowfish', colors: ['#191F13', '#95CC5E', '#DB784D', '#F8BB39'] },
+  { id: 'neutral', label: 'SHADED Neutral', colors: ['#141516', '#82AEE0', '#79C9A1', '#D5B070'] },
+];
+
 if (!document.querySelector('link[data-viewport-first]')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = '/editor/viewport-first.css';
   link.dataset.viewportFirst = '1';
   document.head.appendChild(link);
+}
+
+function readWorkspaceTheme() {
+  try {
+    const stored = localStorage.getItem(WORKSPACE_THEME_KEY);
+    return WORKSPACE_THEMES.some(theme => theme.id === stored) ? stored : WORKSPACE_THEME_DEFAULT;
+  } catch {
+    return WORKSPACE_THEME_DEFAULT;
+  }
+}
+
+function applyWorkspaceTheme(themeId, persist = true) {
+  const theme = WORKSPACE_THEMES.find(candidate => candidate.id === themeId)
+    || WORKSPACE_THEMES.find(candidate => candidate.id === WORKSPACE_THEME_DEFAULT);
+  if (!theme) return;
+  document.documentElement.dataset.workspaceTheme = theme.id;
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.content = theme.colors[0];
+  const button = document.getElementById('workspace-theme-button');
+  if (button) {
+    button.dataset.theme = theme.id;
+    button.title = `Theme: ${theme.label}`;
+  }
+  document.querySelectorAll('[data-workspace-theme-option]').forEach(option => {
+    const active = option.dataset.workspaceThemeOption === theme.id;
+    option.classList.toggle('active', active);
+    option.setAttribute('aria-checked', String(active));
+  });
+  if (persist) {
+    try { localStorage.setItem(WORKSPACE_THEME_KEY, theme.id); } catch { /* storage is optional */ }
+  }
+}
+
+function setThemeMenuOpen(open) {
+  const button = document.getElementById('workspace-theme-button');
+  const menu = document.getElementById('workspace-theme-menu');
+  if (!button || !menu) return;
+  menu.hidden = !open;
+  button.classList.toggle('active', open);
+  button.setAttribute('aria-expanded', String(open));
+}
+
+function ensureThemePicker() {
+  const actions = document.querySelector('.top-actions');
+  if (!actions || document.getElementById('workspace-theme-button')) return;
+
+  const button = document.createElement('button');
+  button.id = 'workspace-theme-button';
+  button.type = 'button';
+  button.className = 'ghost compact workspace-theme-button';
+  button.setAttribute('aria-haspopup', 'menu');
+  button.setAttribute('aria-expanded', 'false');
+  button.innerHTML = '<span aria-hidden="true">◐</span><span class="workspace-theme-button-label">THEME</span>';
+  actions.insertBefore(button, actions.firstChild);
+
+  const menu = document.createElement('div');
+  menu.id = 'workspace-theme-menu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Workspace colour theme');
+  menu.innerHTML = `<div class="workspace-theme-menu-title">COLOUR THEMES</div>
+    <div class="workspace-theme-options">${WORKSPACE_THEMES.map(theme => `
+      <button type="button" role="menuitemradio" aria-checked="false" data-workspace-theme-option="${theme.id}">
+        <span class="workspace-theme-swatches" aria-hidden="true">${theme.colors.map(color => `<i style="background:${color}"></i>`).join('')}</span>
+        <b>${theme.label}</b>
+      </button>`).join('')}
+    </div>
+    <div class="workspace-theme-credit">Palette adaptations · Dayle Rees · MIT</div>`;
+  document.body.appendChild(menu);
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setThemeMenuOpen(menu.hidden);
+  });
+  menu.addEventListener('click', (event) => {
+    const option = event.target.closest('[data-workspace-theme-option]');
+    if (!option) return;
+    applyWorkspaceTheme(option.dataset.workspaceThemeOption);
+    setThemeMenuOpen(false);
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (menu.hidden || menu.contains(event.target) || button.contains(event.target)) return;
+    setThemeMenuOpen(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setThemeMenuOpen(false);
+  });
+
+  applyWorkspaceTheme(readWorkspaceTheme(), false);
 }
 
 const inspectorIsOpen = () => body.classList.contains('inspector-open');
@@ -269,6 +369,7 @@ function syncWorkspaceLiveCopies() {
   renderBottomDock(document.getElementById('workspace-bottom-dock')?.dataset.tab || 'output');
 }
 
+ensureThemePicker();
 ensureWorkspacePanels();
 prepareCollapsibleSections();
 ensureViewportToolbar();
