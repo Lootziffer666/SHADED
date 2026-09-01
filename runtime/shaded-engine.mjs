@@ -6,6 +6,13 @@ import {buildRelativePointCloud} from './spatial-point-cloud.mjs';
 // (arbeitet auf einer reinen 0/255-Maske + {width,height}) und eignet sich unverändert für
 // classGrid-abgeleitete Masken.
 import {connectedComponents} from './hall-plan/plan-analyzer.mjs';
+// Style Discovery Produktionsintegration (docs/STYLE_DISCOVERY.md): der einzige
+// Anschluss von runtime/style/ an die Produktions-Engine. Kein zweiter Shader,
+// keine zweite Materialwahrheit -- nur Parameter fuer den bestehenden Fragment-
+// shader (Invariante 2).
+import {defaultStyleProfile, validateStyleProfile, cloneStyleProfile} from './style/style-profile.js';
+import {STYLE_BUDGET_TIERS} from './style/render-budget.js';
+import {deriveProductionMaterialResponses, styleUniformsForShader} from './style/production-adapter.js';
 
 const ENGINE_STUB_IDS=["sliders","s-dayNight","v-dayNight","s-storm","v-storm","s-rain","v-rain","s-wet","v-wet","s-puddle","v-puddle","s-fog","v-fog","s-wind","v-wind","s-glow","v-glow","s-decay","v-decay","s-snow","v-snow","s-snowfall","v-snowfall","s-temperature","v-temperature","s-autumn","v-autumn","s-bloom","v-bloom","s-bleach","v-bleach","btn-create","btn-demo","btn-fire","btn-clear-world","btn-elements-clear","btn-add","btn-cinema","exit-cinema","btn-png","btn-rec","btn-json","btn-pointcloud","btn-showcase","btn-year","btn-timelapse","btn-drama","btn-play","cb-loop","btn-eco-cats","btn-eco-enemies","btn-eco-npcs","btn-eco-heroes","btn-eco-depth-test","f-scene","f-mat","f-depth","f-actor-sheet","f-actor-manifest","gl","ov","rec","showcase-card","showcase-title","showcase-copy","showcase-kicker","dialogue-box","dialogue-speaker","dialogue-text","dialogue-hint","drop-hint","status","stage","story-list","spatial-viewer","spatial-canvas","spatial-close","spatial-walk","spatial-map","spatial-pipeline","spatial-pipeline-buttons","spatial-stage-copy","spatial-laws","spatial-fit-status","spatial-performance","spatial-seasons","spatial-season-status","spatial-scene-season","spatial-scene-event","spatial-scene-duration","spatial-scene-add","spatial-scene-list","spatial-record-duration","spatial-record","spatial-paint","spatial-paint-material","spatial-paint-radius","spatial-paint-opacity","spatial-paint-color","spatial-pressure","spatial-undo","spatial-redo","spatial-voxel-export","spatial-voxel-import","spatial-boundary","spatial-thickness","spatial-texture-blend","spatial-seed","spatial-vegetation","spatial-canopy-flex","spatial-wind-direction","spatial-lightning-rate","spatial-urine-rate","spatial-blood-rate","spatial-rain-extinguish","spatial-time-scale","spatial-now-lightning","spatial-now-blood","spatial-now-urine","spatial-help","spatial-log"];
 function createEngineDOM(){if(document.getElementById("gl")&&document.getElementById("ov"))return;
@@ -146,6 +153,17 @@ uniform sampler2D u_sound;    // Klang als sichtbare Wellen (#7): r=Wellenfeld, 
 // Elemente-Spielplatz: transiente Intensitäten aus UI/API. Diese Werte steuern
 // Materialreaktionen im Fragment-Pass, nicht nur Canvas-Partikel.
 uniform float u_elementWetBurst,u_elementHeatBurst,u_elementPressureBurst,u_elementAshBurst,u_elementHailBurst,u_elementLavaBurst;
+// Style Discovery Produktionsintegration (docs/STYLE_DISCOVERY.md, Migration #1):
+// aus StyleProfile + RenderBudget + einer echten, pro Frame aus CUR abgeleiteten
+// MaterialResponse (runtime/style/production-adapter.js) berechnet, NICHT hier
+// hartkodiert. u_specWeight* ersetzt die vormals gleich gewichteten Masken
+// (mRoof+mPath+mRock+mWood) durch materialabhaengige Staerke.
+uniform float u_specStyleIntensity, u_specStyleMode;
+uniform float u_specWeightRoof, u_specWeightPath, u_specWeightRock, u_specWeightWood;
+// shadow.warmth: StyleProfile-Identitaetsdimension (-1..1), bleibt ueber
+// RenderBudget.substitute() hinweg IMMER unveraendert (siehe style-profile.js
+// STYLE_IDENTITY_KEYS) -- Beweisfeld fuer budget-unabhaengige Stil-Identitaet.
+uniform float u_shadowWarmth;
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vnoise(vec2 p){
@@ -164,7 +182,17 @@ vec3 grade(vec3 c){
   c *= 1.0 - u_storm*(1.0-u_dayNight)*0.20;                    // Sturmtag: fahl
   c = mix(c, vec3(lum(c)), u_storm*0.18);                      // entsättigt
   vec3 nc = pow(max(c,0.0), vec3(1.28)) * vec3(0.34,0.40,0.62) * 1.35; // Mondblau
-  return mix(c, nc, u_dayNight);
+  c = mix(c, nc, u_dayNight);
+  // Style Discovery Produktionsintegration: Warm/Kalt-Schattenrampe (StyleProfile
+  // shadow.warmth). Nur dunkle Bereiche werden getoent (sonst waere es eine globale
+  // Farbverschiebung, keine Schattenrampe); bei shadow.warmth==0 (Default) exakt
+  // no-op, siehe tools/test-production-adapter.mjs.
+  float shadowMask = 1.0 - smoothstep(0.05, 0.55, lum(c));
+  vec3 warmTint = vec3(1.06, 0.98, 0.88);
+  vec3 coolTint = vec3(0.88, 0.96, 1.08);
+  vec3 warmthTint = mix(coolTint, warmTint, clamp(u_shadowWarmth*0.5+0.5, 0.0, 1.0));
+  c = mix(c, c*warmthTint, shadowMask*abs(u_shadowWarmth)*0.5);
+  return c;
 }
 
 void main(){
@@ -408,10 +436,19 @@ void main(){
   col = mix(col, col*0.86, fpCore*(mPath+mRock+mGrass)*u_wet*0.5);
 
   // --- Specular-Sheen auf nassen, obenliegenden Kanten ---
+  // Style Discovery Produktionsintegration, Migration #1 (docs/STYLE_DISCOVERY.md):
+  // die relative Staerke je Material kommt jetzt aus einer echten, pro Frame aus CUR
+  // abgeleiteten MaterialResponse (runtime/style/production-adapter.js) statt aus
+  // vier gleich gewichteten Masken; Kurvenform (glatt/gebaendert, u_specStyleMode)
+  // und Gesamt-Intensitaet (u_specStyleIntensity) kommen aus dem StyleProfile,
+  // budgetabhaengig skaliert ueber RenderBudget.substitute(). Die Nacht-Abdunklung
+  // bleibt ein Weltzustands-Fakt (CUR.dayNight), kein Stil-Fakt.
   float lC = lum(texture(u_scene,uv).rgb);
   float lU = lum(texture(u_scene,uv-vec2(0.0,u_px.y*3.0)).rgb);
-  float sheen = clamp((lC-lU)*6.0,0.0,1.0) * u_wet;
-  col += sheen * vec3(0.85,0.92,1.0) * (mRoof+mPath+mRock+mWood) * (0.28 - 0.16*night);
+  float sheenRaw = clamp((lC-lU)*6.0,0.0,1.0) * u_wet;
+  float sheen = mix(sheenRaw, floor(sheenRaw*3.0+0.5)/3.0, u_specStyleMode);
+  float matWeight = mRoof*u_specWeightRoof + mPath*u_specWeightPath + mRock*u_specWeightRock + mWood*u_specWeightWood;
+  col += sheen * vec3(0.85,0.92,1.0) * matWeight * u_specStyleIntensity * (1.0 - night*0.5714286);
 
   // --- Material Fatigue & Verfall (Runde 3): Materialien altern in realistischer
   //     Reihenfolge über versetzte Verfallskurven; Klima entscheidet Moos vs. Bleiche ---
@@ -954,6 +991,7 @@ const U={};
  'u_rainPhase','u_windDrift','u_dryPhase','u_heatWarp','u_rustAccum','u_smokeAmount','u_breathAmount','u_pressureDim','u_pollutionGlow','u_moonBright','u_shelfShadow','u_vegFade','u_moodTint','u_worldTired','u_forbiddenCold',  'u_runeGlow','u_bloodStain','u_mudStain',
  'u_lens','u_sound',
  'u_elementWetBurst','u_elementHeatBurst','u_elementPressureBurst','u_elementAshBurst','u_elementHailBurst','u_elementLavaBurst',
+ 'u_specStyleIntensity','u_specStyleMode','u_specWeightRoof','u_specWeightPath','u_specWeightRock','u_specWeightWood','u_shadowWarmth',
  ...PARAM_META.map(m=>'u_'+m[0])].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
 gl.uniform3f(U.u_grassAvg, 0.34, 0.48, 0.20);   // Fallback bis analyze() misst
 
@@ -2199,6 +2237,15 @@ function buildLayerRegions(){
 let storyboard=[], playing=false, stepIdx=0, stepT=0, blendFrom=null;
 const CUR={...PARAMS};    // gerenderte (geblendete) Werte
 
+// Style Discovery Produktionsintegration: EIN aktives StyleProfile + EINE
+// Budget-Stufe fuer die ganze laufende Szene (kein zweiter Weltzustand -- CUR
+// bleibt SHADEDs einzige Weltwahrheit, dies ist nur die stilistische Antwort
+// darauf). Neu berechnet, wenn window.SHADED.style.set()/setBudget() aufgerufen
+// wird ODER CUR sich aendert -- pro Frame acht billige Objektaufrufe, kein
+// GPU-Zugriff (siehe runtime/style/production-adapter.js).
+let styleProfile=defaultStyleProfile('production','SHADED Production Default');
+let styleBudgetTier=STYLE_BUDGET_TIERS.FULL;
+
 function defaultStoryboard(){
   storyboard = [
     {name:'🌅 Dunkel → Hell Übergang', dur:3, p:{...ACTS.morgen.p, dayNight:0.95, storm:0.08, rain:0, wet:0.70}}, // Nacht-Start
@@ -3216,6 +3263,19 @@ function frameBody(now){
     lastFlash = ready ? tickLightning(time) : 0;
     gl.uniform1f(U.u_flash, lastFlash);
     gl.uniform1f(U.u_mossBoost, ready? mossBoost*0.3 : 0);
+    // Style Discovery Produktionsintegration (Migration #1: Specular-Sheen +
+    // Warm/Kalt-Schattenrampe, docs/STYLE_DISCOVERY.md). Acht billige
+    // MaterialResponse-Objekte aus CUR, keine Grid-/GPU-Arbeit.
+    {
+      const styleUniforms=styleUniformsForShader(styleProfile, styleBudgetTier, deriveProductionMaterialResponses(CUR));
+      gl.uniform1f(U.u_specStyleIntensity, styleUniforms.specStyleIntensity);
+      gl.uniform1f(U.u_specStyleMode, styleUniforms.specStyleMode);
+      gl.uniform1f(U.u_specWeightRoof, styleUniforms.specWeightRoof);
+      gl.uniform1f(U.u_specWeightPath, styleUniforms.specWeightPath);
+      gl.uniform1f(U.u_specWeightRock, styleUniforms.specWeightRock);
+      gl.uniform1f(U.u_specWeightWood, styleUniforms.specWeightWood);
+      gl.uniform1f(U.u_shadowWarmth, styleUniforms.shadowWarmth);
+    }
     fireUniforms();
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     drawOverlay(dt);
@@ -3341,6 +3401,33 @@ window.SHADED = {
   // angehängt, nachdem dieses Modul geladen ist (siehe dort).
   // Runde 7: Ökosystem-Integration
   ecosystem:{ spawn:spawnEcosystem, defs:()=>Object.keys(ecosystemDefs) },
+  // Style Discovery Produktionsintegration (docs/STYLE_DISCOVERY.md): macht ein
+  // in der Sandbox gefundenes StyleProfile auf eine echte geladene SHADED-Szene
+  // anwendbar -- genau der Schritt, der Style Discovery vom Experiment zum
+  // Feature macht. Reine Parameter, keine zweite Materialwahrheit (Invariante 2);
+  // aktuell nur Migration #1 (Specular-Sheen + Warm/Kalt-Schattenrampe) wirkt
+  // sichtbar, weitere Dimensionen folgen als eigene, einzeln migrierte Effekte.
+  style:{
+    get:()=>cloneStyleProfile(styleProfile),
+    // Erwartet ein VOLLSTAENDIGES StyleProfile (z.B. aus der Sandbox exportiert,
+    // via defaultStyleProfile()/fromVector()/deserializeStyleProfile() gebaut,
+    // oder per runtime/style/style-profile.js setDimension() abgeleitet) --
+    // kein Teil-Patch: ein flacher Merge wuerde verschachtelte Dimensionsgruppen
+    // (z.B. {specular:{mode:...}}) stillschweigend zerstoeren, statt nur ein
+    // Feld darin zu aendern. Gleiches Muster wie window.SHADED.intrinsic.set().
+    set:(profile)=>{
+      const {ok,errors} = validateStyleProfile(profile);
+      if(!ok) throw new Error('SHADED.style.set: ungültiges StyleProfile — '+errors.join('; '));
+      styleProfile = cloneStyleProfile(profile);
+      return cloneStyleProfile(styleProfile);
+    },
+    getBudget:()=>styleBudgetTier,
+    setBudget:(tier)=>{
+      if(!STYLE_BUDGET_TIERS[tier]) throw new Error('SHADED.style.setBudget: unbekannte Stufe "'+tier+'" — erlaubt: '+Object.keys(STYLE_BUDGET_TIERS).join(', '));
+      styleBudgetTier = tier;
+      return styleBudgetTier;
+    },
+  },
   // Runde 8: Wally-Monokel (Inspektions-Linsen) + Klang-Wellenfeld
   lens:{ set:(n)=>{ lensState=Math.max(0,Math.min(5,n|0)); }, get:()=>lensState },
   sound:{ emit:(u,v,strength)=>soundStamp(u,v,strength==null?1:strength), clear:soundClear },

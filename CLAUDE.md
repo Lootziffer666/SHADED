@@ -337,8 +337,18 @@ Nur FULL und MOBILE sind nutzersichtbare Budget-Stufen; MaterialResponse
 reicht mehr als `{baseColor, roughness, reflectance, emission, damage}` über
 die Style-Grenze (Nässe/Ruß/Risse/Frost/Schnee/Rost bleiben als eigene
 Kanäle erhalten). Details, Bedienung und der volle Verifikations-Workflow:
-`docs/STYLE_DISCOVERY.md`. Ein späterer Task darf einen Adapter ergänzen,
-der dasselbe `StyleProfile` auf den Produktionsrenderer anwendet.
+`docs/STYLE_DISCOVERY.md`.
+
+**Produktionsintegration (`runtime/style/production-adapter.js`,
+`window.SHADED.style`, siehe `docs/STYLE_DISCOVERY.md` §Produktionsintegration):**
+der dort skizzierte Adapter existiert jetzt real, aktuell für GENAU EINEN
+migrierten Legacy-Effekt (Specular-Sheen, Migration 1 von vielen — nicht Big
+Bang). `window.SHADED.style.set(profile)`/`.setBudget(tier)` wenden ein in
+der Sandbox gefundenes StyleProfile auf eine echte geladene Szene an; die
+übrigen 18 StyleProfile-Dimensionen hängen noch an keinem Produktionseffekt
+und die Nässe-Abdunklung selbst (SHADEDs am stärksten zielbildabhängige
+Kernwirkung) ist bewusst noch NICHT migriert — beides folgt als eigene,
+einzeln verifizierte Schritte, kein Nebenprodukt dieser Migration.
 
 ## Verifikations-Workflow (Pflicht nach Shader-/Analyse-Änderungen)
 
