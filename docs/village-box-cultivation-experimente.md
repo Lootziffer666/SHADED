@@ -1039,6 +1039,61 @@ andere, seither ebenfalls als methodisch ungültig erkannte DA2-Pinhole-vs-Solve
 Verrechnung) — dieser Abschnitt korrigiert nur den in Runde 28 selbst neu eingeführten Fehler,
 §4v bleibt weiterhin offen.
 
+## 4y. Runde 29: echte Bodentextur (Wege, Büsche) — autonome Nachtiteration
+
+Der Maintainer ist schlafen gegangen, mit der Bitte, das Vorgehen mit allem Verfügbaren
+eigenständig weiter zu verbessern (`/loop`, dynamischer Modus). Direkt anschließend an
+Runde 28s offenen Punkt „Wege und Büsche sind nicht rekonstruiert" bearbeitet — ohne dafür
+Pfad-/Busch-Geometrie neu zu erfinden, sondern mit bereits verifizierten Bausteinen dieser
+Session.
+
+**Methode.** Für einen Bodenpunkt (Welt-Y=0, die in Runde 28 bestätigte gemeinsame
+Bodenreferenz) ist die Vorwärtsabbildung des affinen Solvers linear:
+`screen = X*dirF[0] + Z*dirF[2]`. Das 2×2-System ist direkt invertierbar — für JEDEN
+Bildpixel lässt sich exakt (nicht approximativ) die reale Boden-Weltposition berechnen,
+per Rundreise-Test bestätigt (`tools/scratch-ground-texture-project.mjs`).
+
+**Ein sofort gefundener eigener Denkfehler, bevor überhaupt etwas gebaut wurde:** die erste
+Idee war, die Bodenfläche als achsenausgerichtetes Rechteck um die Häuser zu legen und das
+Quellbild einfach draufzuprojizieren. Das versagt sofort messbar — unter der Isometrie-Kamera
+bildet ein Weltrechteck sich auf ein SCHIEFES PARALLELOGRAMM im Bild ab, nicht umgekehrt.
+Projiziert man das Bild auf ein Weltrechteck, liegen die meisten UV-Koordinaten weit außerhalb
+[0,1] (gemessen: -0,72 bis 1,91). Richtig ist der umgekehrte Weg: die 4 Bild-Ecken (0,0)/(W,0)/
+(0,H)/(W,H) über die inverse Abbildung zurück nach Welt-(X,Z) — das ergibt das tatsächliche
+Boden-Parallelogramm, das die 3D-Bodenfläche jetzt ist (kein Rechteck).
+
+**Hausflächen aus der Textur herausgerechnet**, nicht nur draufgelegt: dieselben echten
+Dach-/Wandfarben aus Runde 25 (`roof:[225,126,69], wallLight:[198,166,109],
+wallDark:[141,125,81]`) identifizieren Hauspixel, die vor dem Einbetten mit der gemessenen
+Grasfarbe (`rgb(101,136,48)`, gleicher Punkt wie Runde 26) übermalt werden — sonst würde unter
+jeder echten 3D-Box ein doppeltes, flach projiziertes 2D-Geisterhaus durchscheinen.
+
+**Zwei echte Bugs beim ersten lokalen Testrender gefunden (Playwright ließ sich nur mit lokal
+gespiegelten CDN-Skripten prüfen — der Sandbox-Netzwerkzugang bricht bei Chromium-eigenen
+Requests an cdnjs/jsdelivr ab, `curl` funktioniert, das ist eine Umgebungs-Eigenheit, keine
+Eigenschaft dieser Seite):**
+1. `texture.colorSpace` gesetzt — falsche API für das gepinnte three.js r128 (das nutzt noch
+   `texture.encoding`); `.colorSpace` existiert dort nicht und tut still gar nichts. Behoben.
+2. Direktlicht+Umgebungslicht waren von Anfang an zu hell eingestellt (Dach erschien
+   cremeweiß statt orange) — unabhängig vom Textur-Bug, seit Runde 28 unbemerkt, weil nie
+   ein echter Screenshot angesehen wurde. `sun` 1,15→0,85, Ambient 0,55→0,35, Hemisphere
+   0,4→0,25. Sichtbar per lokalem Testrender bestätigt, nicht nur angenommen.
+
+**Ergebnis:** Wege und Büsche sind jetzt sichtbar, korrekt positioniert (an denselben
+Koordinaten wie die Häuser, exakt derselbe Abbildung) — aber weiterhin FLACHE Textur, keine
+3D-Geometrie. Das steht auch im Viewer-Panel so, nicht nur im Log. Artifact aktualisiert
+(gleicher Link).
+
+**Ausdrücklich offen:**
+- Der Nahtübergang zwischen dem texturierten Parallelogramm und der einfarbigen
+  Rand-Bodenfläche ist nach der Farbkorrektur unauffällig, aber nicht perfekt unsichtbar.
+- `renderer.outputEncoding=sRGBEncoding` wurde gesetzt, ohne die gesamte r128-Farbpipeline
+  systematisch durchzuprüfen — nur so weit korrigiert, bis Dach und Wege im Testrender
+  plausibel aussahen, kein Farbmess-Beweis wie bei den geometrischen Befunden dieser Session.
+- Kein Zugriff auf reale Netzwerk-CDN-Ressourcen in dieser Sandbox für Playwright-Renders
+  (nur `curl` funktioniert) — jede zukünftige visuelle Prüfung eines Artifacts braucht
+  denselben Umweg (CDN-Skripte lokal spiegeln, URLs für den Test umbiegen, danach zurück).
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
