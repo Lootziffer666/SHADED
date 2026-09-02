@@ -1094,6 +1094,60 @@ Koordinaten wie die Häuser, exakt derselbe Abbildung) — aber weiterhin FLACHE
   (nur `curl` funktioniert) — jede zukünftige visuelle Prüfung eines Artifacts braucht
   denselben Umweg (CDN-Skripte lokal spiegeln, URLs für den Test umbiegen, danach zurück).
 
+**Korrektur (noch Runde 29, nach echten Screenshots des Maintainers — „Wege" oben war
+verfrüht behauptet, nicht geprüft):** Der Maintainer legte eine ausführliche, stilistisch
+erkennbar fremde (vermutlich von einem anderen System stammende) Hypothese vor: Dächer würden
+fälschlich als „Terrain/Ground" klassifiziert und bekämen deshalb eine Gras-oben/Erde-Seiten-
+Extrusion. Nachgeprüft statt übernommen: nichts im Viewer-Code oder sonst im Repo hat eine
+solche Klassifikations-/Extrusionslogik — der Viewer setzt Materialien nur statisch aus dem
+`HOUSES`-Array. Zurückgewiesen, mit Bitte um die tatsächlichen Screenshots.
+
+Die dann gelieferten echten Screenshots zeigten etwas anderes, reales: „die Häuser liegen jetzt
+nicht an den Wegen, sondern auf der eigenen Dachfläche". Drei Diagnoseschritte, jeder hat den
+vorigen korrigiert:
+
+1. **Erste Diagnose (teilweise richtig, nicht die Hauptursache):** die flache Boden-Textur
+   nimmt jeden Bildpixel unter der Annahme „liegt auf Welt-Y=0" — falsch für Dach-/Wandpixel,
+   die tatsächlich erhöht sind. Elevation-Parallaxe verschiebt ihre Ground-Projektion vom
+   wahren Footprint weg. Fix versucht: zusätzliche Maskierung des per `T`/`scale` real
+   vorwärtsprojizierten Footprints — änderte sichtbar nichts, weil beide Masken sich stark
+   überlappten (nachgeprüft per Top-Down-Orthografie-Testkamera, nicht angenommen).
+2. **Falscher Nebenschluss, vom Maintainer direkt korrigiert:** ein verbliebenes
+   Orangefragment am rechten Bildrand wurde fälschlich als „7. Haus, nie Teil der
+   Rekonstruktion" abgetan. Maintainer: „es gibt kein 7. Haus, das ist ein Masking Fehler,
+   ebenso bei Haus 5." Geprüft: house5/house6 haben in `village-raw2d-v2.json` nur 4 von 6
+   Hüllkurven-Ecken gemessen (die anderen 2 sind `null` — echt außerhalb des Bildrands, nie
+   messbar). Das reine Verbinden der 4 vorhandenen Punkte zieht eine gerade „Abkürzungs"-Kante
+   über die Lücke, statt bis zum Bildrand zu reichen — genau der übrig gebliebene Rest.
+   `extendClippedPoly()` schließt die Lücke jetzt zum jeweils näheren Bildrand.
+3. **Zweiter, unabhängiger Maintainer-Einwand:** „wieso maskierst du grün auf grün?" — ein
+   einzelner GLOBALER Grasfarb-Sample (ein Punkt, weit entfernt) ignoriert den echten
+   Beleuchtungsgradienten dieses Renders; jede maskierte Fläche bekam dieselbe flache Farbe und
+   stach dadurch als sichtbarer dunkler „Geist"-Fleck neben echtem, graduiertem Gras hervor —
+   das erzeugte den Eindruck eines verschobenen Lochs, obwohl die Position selbst näher an
+   richtig war, als die erste Diagnose vermuten ließ. Fix: `localGrassColor()` sampelt pro Haus
+   lokal (8 Punkte im Ring um die eigene Silhouette, grün-dominante gefiltert, gemittelt) statt
+   eines einzigen globalen Punkts.
+
+**Reale Verifikation, nicht nur Behauptung:** eine Playwright-Testkamera direkt von oben
+(orthografisch, `y=100` schauend nach unten) zeigt nach beiden Fixes keine sichtbaren
+„Geister"-Flecken neben den Boxen mehr — Boxen und maskierte Bereiche fallen zusammen. Vorher
+(nur Fix 1) war der Versatz im Top-Down-Bild klar sichtbar; das allein hätte ich ohne die
+Top-Down-Kamera vermutlich als „nah genug" fehlinterpretiert. Artifact erneut aktualisiert
+(gleicher Link).
+
+**Ausdrücklich offen, jetzt aktualisiert:**
+- Die zusätzliche Footprint-Maskierung (Diagnoseschritt 1) bleibt im Code, ist aber
+  wahrscheinlich redundant zur jetzt korrekten Silhouetten-Maskierung — nicht entfernt, um das
+  Verhalten nicht erneut ungeprüft zu ändern.
+- `extendClippedPoly()` ist nur für „Lücke an genau einem Bildrand" getestet (house5: rechts,
+  house6: unten) — ein Haus, das an einer ECKE abgeschnitten ist (zwei Ränder gleichzeitig),
+  ist nicht geprüft.
+- Die dem Maintainer vorgelegte „Terrain/Ground"-Hypothese bleibt unbestätigt UND unwiderlegt
+  für den Rest der Codebase (nur für diesen Viewer-Code ausgeschlossen) — falls sie sich auf
+  den echten `analyze()`/`classGrid`-Pfad bezog, wurde das nicht geprüft, da außerhalb des
+  Scopes dieser Session.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
