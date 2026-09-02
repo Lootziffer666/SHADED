@@ -992,11 +992,12 @@ umgerechnet, Weltachse == Familienindex (0=X, 1=Y/vertikal, 2=Z), mit dem Runde-
 (`metersPerUnit = 3 / scale['house1'][1] = 0,03496`) in Meter skaliert, pro Haus Boden auf
 globales Minimum-Y normalisiert.
 
-**Ehrlicher Nebenbefund dabei:** die Boden-Y-Werte der 6 Häuser streuen nach Normalisierung
-0 bis 2,26 m — nicht alle sitzen exakt auf derselben Ebene. Das ist derselbe offene Punkt wie
-§4v's ungeklärte Boden-Neigungsfrage, hier nur sichtbar geworden statt gelöst: könnte reales
-(kleines) Gefälle sein oder Restrauschen des weichen Ground-Plane-Constraints im Solver
-(`GROUND_WEIGHT`, weich nicht hart). Nicht weiter untersucht in dieser Runde.
+**Ursprünglich hier vermuteter Nebenbefund, INZWISCHEN WIDERLEGT — Korrektur direkt im
+Anschluss dokumentiert statt still gefixt (s. „Korrektur" unten):** eine erste Fassung dieses
+Abschnitts berichtete eine Boden-Y-Streuung von 0 bis 2,26 m zwischen den 6 Häusern und
+markierte sie als UNKNOWN (echtes Gefälle oder Solver-Rauschen). Der Maintainer bemerkte den
+sichtbaren Effekt direkt im Viewer als „4 von 6 schweben" — das führte zur Prüfung unten, die
+zeigt: es war kein Solver-Befund, sondern ein eigener Fehler in genau dieser Szenenberechnung.
 
 **Artefakt:** `tools/verify-out/village-3d-viewer.html`, als Artifact veröffentlicht
 (https://claude.ai/code/artifact/f8a99da5-8718-438a-a5fc-b3f5b61d8379) — echte Three.js-Szene,
@@ -1012,9 +1013,31 @@ Boden-Streuung) — keine Zahl wird als sicherer ausgegeben, als sie ist.
   Viewer als Lücke benannt, nicht verschwiegen.
 - Die Kamera-Startpose ist eine PerspectiveCamera aus großer Distanz mit engem Sichtfeld, keine
   echte OrthographicCamera — nähert die Isometrie nur an, reproduziert sie nicht exakt.
-- Die Boden-Y-Streuung (0–2,26 m) ist nicht geklärt, nur sichtbar gemacht.
 - `tools/verify-out/*` ist laut `.gitignore` nicht committet (Projektregel) — die Szene lebt
   ausschließlich im veröffentlichten Artifact, nicht im Repo.
+
+**Korrektur (noch Runde 28, direkt im Anschluss):** Maintainer meldete den sichtbaren Effekt
+im Artifact direkt: „4 von 6 schweben". Nachgeprüft statt vermutet — `T[house][1] + scale
+[house][1]` (nicht `T[house][1]` allein) ergibt für ALLE 6 Häuser exakt `0,0000`. Das IST die
+vom Solver tatsächlich durchgesetzte gemeinsame Bodenreferenz (`GROUND_WEIGHT`-Constraint
+funktioniert exakt wie vorgesehen — testweise um den Faktor 10.000 erhöht, Ergebnis identisch,
+weil die Bindung bereits nahezu exakt erfüllt war). Der Fehler lag ausschließlich in der
+Szenenberechnung dieser Runde: nach dem E4-Vorzeichen-Gauge-Fix des Solvers (Invariante:
+`T[axis]+a*L[axis] ≡ T'[axis]+(1-a)*L'[axis]`) hat sich bei ALLEN 6 Häusern die lokale
+Ecke 1 mit der Ecke 0 vertauscht — die geteilte Bodenecke liegt danach bei `a'=1`
+(`T[1]+scale[1]`), nicht bei `a'=0` (`T[1]` allein), wie ich angenommen hatte. Ich hatte
+schlicht die falsche der beiden Ecken als „Boden" behandelt und dann noch zusätzlich über alle
+Häuser hinweg falsch normalisiert — daraus kam die scheinbare 0–2,26-m-Streuung. Kein
+Solver-Fehler, keine reale Boden-Neigung, kein ungeklärter Rest: eine falsche Ecken-Auswahl in
+`village-3d-viewer.html`. Korrigiert (`y=0` für alle 6 Häuser direkt aus `scale[1]` als Höhe),
+Artifact neu veröffentlicht (gleicher Link), Viewer-Panel zeigt die Korrektur jetzt offen an
+statt sie zu verstecken. `tools/scratch-affine-gw-test.mjs` (die `GROUND_WEIGHT`-Diagnose, die
+den Solver als unschuldig entlarvt hat) bleibt als Beleg im Repo.
+
+Bezug zu §4v: das ist NICHT dieselbe offene Frage wie §4v's Boden-Neigung (dort ging es um eine
+andere, seither ebenfalls als methodisch ungültig erkannte DA2-Pinhole-vs-Solver-Ebenenfit-
+Verrechnung) — dieser Abschnitt korrigiert nur den in Runde 28 selbst neu eingeführten Fehler,
+§4v bleibt weiterhin offen.
 
 ## 5. Synthese — der eigentliche Befund
 
