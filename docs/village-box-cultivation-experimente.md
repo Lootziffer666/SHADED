@@ -979,6 +979,43 @@ Orthogonalität wahrscheinlich nur eine kleine Korrektur wäre, nicht die vermut
 genutzt, nicht pixelgenau vermessen (keine Datei, keine verlässliche Koordinatenextraktion aus
 eingefügten Bildern).
 
+## 4x. Runde 28: erste befahrbare 3D-Rekonstruktion (LOD0)
+
+Direkte Reaktion auf den Wunsch, tatsächlich „in dieses Bild eintauchen" zu können. Die Runde-
+27-Bestätigung (echte Isometrie, Pitch 35,26°/Yaw 45°, keine 2:1-Dimetrie) macht die bereits
+gelösten `T`/`scale`-Werte erstmals direkt in eine echte 3D-Szene übersetzbar — vorher war
+`dirF` nur eine 2D-Projektionsrichtung ohne bekannte 3D-Kamera dahinter.
+
+**Rechnung (`tools/verify-out/village-scene-3d.json`, nicht committet, s. u.):** pro Haus alle
+8 lokalen Eckkoordinaten (0/1 je Achse) über `T[f] + a[f]*scale[f]` in Weltkoordinaten
+umgerechnet, Weltachse == Familienindex (0=X, 1=Y/vertikal, 2=Z), mit dem Runde-27-Metrik-Anker
+(`metersPerUnit = 3 / scale['house1'][1] = 0,03496`) in Meter skaliert, pro Haus Boden auf
+globales Minimum-Y normalisiert.
+
+**Ehrlicher Nebenbefund dabei:** die Boden-Y-Werte der 6 Häuser streuen nach Normalisierung
+0 bis 2,26 m — nicht alle sitzen exakt auf derselben Ebene. Das ist derselbe offene Punkt wie
+§4v's ungeklärte Boden-Neigungsfrage, hier nur sichtbar geworden statt gelöst: könnte reales
+(kleines) Gefälle sein oder Restrauschen des weichen Ground-Plane-Constraints im Solver
+(`GROUND_WEIGHT`, weich nicht hart). Nicht weiter untersucht in dieser Runde.
+
+**Artefakt:** `tools/verify-out/village-3d-viewer.html`, als Artifact veröffentlicht
+(https://claude.ai/code/artifact/f8a99da5-8718-438a-a5fc-b3f5b61d8379) — echte Three.js-Szene,
+6 Boxen an den berechneten Positionen/Größen, Kamera-Startpose entlang der bestätigten
+Isometrie-Richtung, danach frei per OrbitControls navigierbar (Drehen/Zoomen/Verschieben),
+Klick auf ein Haus fliegt die Kamera dorthin. Rechtes Panel zeigt reale Maße pro Haus und
+markiert die Herkunft jeder Zahl explizit mit den Session-eigenen Provenance-Tags
+(INVENTED für den Metrik-Anker, DERIVED für Position/Größe/Kamera, UNKNOWN für die
+Boden-Streuung) — keine Zahl wird als sicherer ausgegeben, als sie ist.
+
+**Ausdrücklich offen:**
+- Wege und Büsche sind nicht rekonstruiert (nur die 6 Häuser + eine ebene Bodenplatte) — im
+  Viewer als Lücke benannt, nicht verschwiegen.
+- Die Kamera-Startpose ist eine PerspectiveCamera aus großer Distanz mit engem Sichtfeld, keine
+  echte OrthographicCamera — nähert die Isometrie nur an, reproduziert sie nicht exakt.
+- Die Boden-Y-Streuung (0–2,26 m) ist nicht geklärt, nur sichtbar gemacht.
+- `tools/verify-out/*` ist laut `.gitignore` nicht committet (Projektregel) — die Szene lebt
+  ausschließlich im veröffentlichten Artifact, nicht im Repo.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |
