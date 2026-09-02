@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="editor/world-studio-shell.css?v=1">
 <link rel="stylesheet" href="editor/world-studio-imports.css?v=1">
 <link rel="stylesheet" href="editor/engine-shell.css?v=1">
+<link rel="stylesheet" href="editor/world-sandbox.css?v=1">
 </head>
 <body>
 <header class="topbar">
@@ -28,6 +29,7 @@
   <div class="top-actions">
     <button class="ghost compact" id="btn-install" type="button" hidden title="SHADED als App installieren">INSTALLIEREN</button>
     <button class="ghost compact" id="btn-room-view" type="button" title="Welt erzeugen/beitreten">RAUM</button>
+    <button class="ghost compact" id="btn-world-sandbox" type="button" title="Gekoppelte Weltprozesse ausprobieren">SANDBOX</button>
     <button class="primary compact" id="btn-erstellen" type="button">ERSTELLEN</button>
   </div>
 </header>
@@ -37,6 +39,7 @@
     <button class="rail-btn" type="button" data-target="panel-source" title="Quelle"><span>◫</span><b>Quelle</b></button>
     <button class="rail-btn" type="button" data-target="panel-world" title="Welt"><span>◎</span><b>Welt</b></button>
     <button class="rail-btn" type="button" data-target="panel-worldlaws" title="Weltgesetze &amp; Akte"><span>⚖</span><b>Gesetze</b></button>
+    <button class="rail-btn" type="button" data-target="panel-sandbox" title="Interaktive Welt-Sandbox"><span>◉</span><b>Sandbox</b></button>
     <button class="rail-btn" type="button" data-target="panel-story" title="Storyboard &amp; Aufnahme"><span>▶</span><b>Story</b></button>
     <button class="rail-btn" type="button" data-target="panel-paint" title="Material korrigieren"><span>✎</span><b>Korr.</b></button>
     <button class="rail-btn" type="button" data-target="panel-actors" title="Akteure"><span>♟</span><b>Actor</b></button>
@@ -45,6 +48,7 @@
   <section class="viewport" aria-label="Live Vorschau">
     <div id="preview-wrap">
       <div id="stage">
+        <canvas id="world-sandbox-canvas" aria-label="Interaktive gekoppelte SHADED-Weltsimulation"></canvas>
         <div id="rec">🔴 REC</div>
         <button id="exit-cinema" type="button" title="Kino-Modus verlassen">⚙️</button>
         <div id="showcase-card" aria-live="polite">
@@ -217,6 +221,45 @@
         <button id="btn-eco-depth-test" type="button" class="wide" style="margin-top:6px">🔍 Depth-Map Test (v1.4.0)</button>
       </section>
 
+      <section class="inspector-section section-collapsed" id="panel-sandbox">
+        <div class="section-title"><span>LAB</span><h2>World Sandbox</h2></div>
+        <p class="hint">CPU-Ereignisse stoßen die Welt an. GPU oder Referenzsolver entwickeln Sand, Wasser, Feuchte, Vegetation und Wärme weiter.</p>
+        <div class="status-line world-state" id="world-state">SOLVER STARTET …</div>
+        <div class="world-contract"><span>CPU EVENTS</span><b>→</b><span>WORLD STATE</span><b>→</b><span>LOCAL QUERY</span></div>
+        <div class="world-tools" role="group" aria-label="Sandbox-Werkzeuge">
+          <button type="button" class="active" data-world-tool="sand">SAND</button>
+          <button type="button" data-world-tool="water">WASSER</button>
+          <button type="button" data-world-tool="seed">SAAT</button>
+          <button type="button" data-world-tool="dig">GRABEN</button>
+          <button type="button" data-world-tool="heat">HITZE</button>
+          <button type="button" data-world-tool="stone">STEIN</button>
+        </div>
+        <label class="world-brush"><span>Radius</span><input id="world-brush" type="range" min="2" max="12" step="1" value="5"><output>0.05</output></label>
+        <div class="world-readout" aria-label="Lokale Solver-Abfrage">
+          <div><span>SAND</span><output data-world-metric="sand">–</output></div>
+          <div><span>WASSER</span><output data-world-metric="waterDepth">–</output></div>
+          <div><span>FEUCHTE</span><output data-world-metric="wetness">–</output></div>
+          <div><span>BIO</span><output data-world-metric="biomass">–</output></div>
+          <div><span>HITZE</span><output data-world-metric="heat">–</output></div>
+          <div><span>LATENZ</span><output data-world-metric="latencyMs">–</output></div>
+        </div>
+        <div class="world-settings">
+          <label><span>Regen</span><input data-world-env="rain" type="range" min="0" max="1" step=".01" value="0"><output>0.00</output></label>
+          <label><span>Sonne</span><input data-world-env="sun" type="range" min="0" max="1" step=".01" value=".64"><output>0.64</output></label>
+          <label><span>Wachstum</span><input data-world-env="growthRate" type="range" min=".05" max="1.2" step=".01" value=".36"><output>0.36</output></label>
+          <label><span>Ansicht</span><select id="world-view"><option value="0">Beauty</option><option value="1">Höhe</option><option value="2">Wasser</option><option value="3">Feuchte</option><option value="4">Biomasse</option><option value="5">Strömung</option><option value="6">Hitze</option></select></label>
+          <label><span>Tempo</span><select id="world-speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="8">8×</option></select></label>
+        </div>
+        <div class="world-actions">
+          <button type="button" class="world-chain" id="world-chain">URSACHE → WIRKUNG</button>
+          <button type="button" id="world-pause">PAUSE</button>
+          <button type="button" id="world-step">SCHRITT</button>
+          <button type="button" id="world-reset">RESET</button>
+          <button type="button" id="world-exit">ZUR SZENE</button>
+        </div>
+        <p class="world-note" id="world-note">Prozedurale Materialantwort; keine heruntergeladene Texturbibliothek nötig. Der Stein bleibt CPU-autorisiert, der Weltzustand wird lokal und verzögert zurückgelesen.</p>
+      </section>
+
       <section class="inspector-section material-section section-collapsed" id="panel-material">
         <div class="section-title"><span>04</span><h2>Material / Licht</h2></div>
         <p class="hint">Trennt eingebackenes Licht von Materialwirkung. 0 bleibt der unveränderte Fallback.</p>
@@ -304,6 +347,7 @@
 <script type="module" src="editor/world-studio-bridge-settings.js?v=1"></script>
 <script type="module" src="editor/material-preview-live.js?v=1"></script>
 <script type="module" src="editor/world-studio-expert.js?v=2"></script>
+<script type="module" src="editor/world-sandbox.js?v=1"></script>
 
 </body>
 </html>

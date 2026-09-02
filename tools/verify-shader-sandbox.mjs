@@ -1,20 +1,28 @@
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
-const [html, js, css, granularJs, granularCss, coastJs, coastCss, sources] = await Promise.all([
+const [html, rootHtml, js, css, granularJs, granularCss, coastJs, coastCss, worldJs, worldCss, worldGpu, worldReference, sources] = await Promise.all([
   readFile('editor/sandbox.html', 'utf8'),
+  readFile('index.html', 'utf8'),
   readFile('editor/sandbox.js', 'utf8'),
   readFile('editor/sandbox.css', 'utf8'),
   readFile('editor/sandbox-granular.js', 'utf8'),
   readFile('editor/sandbox-granular.css', 'utf8'),
   readFile('editor/sandbox-coast.js', 'utf8'),
   readFile('editor/sandbox-coast.css', 'utf8'),
+  readFile('editor/world-sandbox.js', 'utf8'),
+  readFile('editor/world-sandbox.css', 'utf8'),
+  readFile('runtime/world-sandbox-webgpu.mjs', 'utf8'),
+  readFile('runtime/world-sandbox-reference.mjs', 'utf8'),
   readFile('docs/sandbox-sand-water-sources.md', 'utf8'),
 ]);
 
 assert.match(html, /id="sandbox-canvas"/);
 assert.match(html, /sandbox-granular\.js/);
 assert.match(html, /sandbox-coast\.js/);
+assert.match(rootHtml, /id="world-sandbox-canvas"/);
+assert.match(rootHtml, /id="panel-sandbox"/);
+assert.match(rootHtml, /world-sandbox\.js/);
 assert.match(html, /SHADED<\/span><span class="brand-mode">\/ SANDBOX/);
 assert.match(html, /id="material-select"/);
 assert.match(html, /ISOLIERT/);
@@ -51,6 +59,22 @@ assert.match(coastJs, /slopeL/);
 assert.match(coastJs, /uRipples/);
 assert.match(coastCss, /body\.coast-mode/);
 
+assert.match(worldJs, /class CpuWorldSandbox/);
+assert.match(worldJs, /WebGpuWorldSandbox\.create/);
+assert.match(rootHtml, /URSACHE → WIRKUNG/);
+assert.match(worldJs, /updateBody/);
+assert.match(worldJs, /latencyMs/);
+assert.match(worldCss, /body\.world-sandbox-mode/);
+assert.match(worldGpu, /createComputePipelineAsync/);
+assert.match(worldGpu, /mapAsync\(GPUMapMode\.READ\)/);
+assert.match(worldGpu, /copyBufferToBuffer/);
+assert.match(worldGpu, /worldGroups/);
+assert.match(worldGpu, /particleGroups/);
+assert.match(worldGpu, /queryGroups/);
+assert.match(worldReference, /stepWorldReference/);
+assert.match(worldReference, /sandFlux/);
+assert.match(worldReference, /waterFlux/);
+
 assert.match(sources, /WebGL SandToy/);
 assert.match(sources, /FreeStylized Sand 01/);
 assert.match(sources, /Particle \/ Volume Lab/);
@@ -61,6 +85,8 @@ const forbiddenUi = /\b(?:TODO|STUB|FAKE_RENDER)\b/i;
 assert.equal(forbiddenRuntime.test(js), false, 'sandbox runtime contains forbidden placeholder language');
 assert.equal(forbiddenRuntime.test(granularJs), false, 'granular runtime contains forbidden placeholder language');
 assert.equal(forbiddenRuntime.test(coastJs), false, 'coast runtime contains forbidden placeholder language');
+assert.equal(forbiddenRuntime.test(worldJs), false, 'world runtime contains forbidden placeholder language');
+assert.equal(forbiddenRuntime.test(worldGpu), false, 'world GPU runtime contains forbidden placeholder language');
 assert.equal(forbiddenUi.test(html), false, 'sandbox UI contains forbidden placeholder rendering');
 
-console.log(`sandbox verify: ${requiredEffects.length} material/volume effects · WebGL2 granular ping-pong lab · depth-aware Coast Lab · local material hook · mobile shell`);
+console.log(`sandbox verify: ${requiredEffects.length} material/volume effects · WebGL2 granular lab · depth-aware Coast Lab · coupled WebGPU World Lab with CPU reference · optional material hook · mobile shell`);

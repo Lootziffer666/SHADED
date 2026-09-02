@@ -90,9 +90,16 @@ const canvas = document.getElementById('gl');
 const gl = canvas.getContext('webgl2',{preserveDrawingBuffer:true});
 if(!gl){
   // Bewusst KEIN zweiter WebGL-1-Pfad: zwei Shader-Quellen waeren zwei Wahrheiten.
-  document.body.innerHTML='<div style="padding:28px;font:14px/1.6 system-ui;color:#e6e6f0;'
-    +'background:#14141c;height:100vh"><b>SHADED braucht WebGL 2.</b><br>'
-    +'Dieser Browser stellt keinen WebGL-2-Kontext bereit.</div>';
+  // Die Autorenoberflaeche bleibt trotzdem erhalten: Der World-Sandbox-Arbeitsbereich
+  // besitzt einen echten CPU-Referenzsolver und darf nicht zusammen mit dem
+  // Szenenrenderer aus dem DOM geloescht werden.
+  document.documentElement.classList.add('webgl2-unavailable');
+  const engineState=document.getElementById('engine-state');
+  if(engineState?.lastElementChild)engineState.lastElementChild.textContent='WEBGL 2 FEHLT';
+  const viewportState=document.getElementById('viewport-status');
+  if(viewportState)viewportState.textContent='Szenenrenderer braucht WebGL 2 · Sandbox bleibt verfuegbar';
+  const fallbackHint=document.getElementById('drop-hint');
+  if(fallbackHint)fallbackHint.innerHTML='<b>WEBGL 2 FEHLT</b><span>Der Szenenrenderer ist nicht verfuegbar.<br>Die World Sandbox laeuft ueber den CPU-Solver.</span>';
   throw new Error('WebGL2 nicht verfuegbar');
 }
 const VS = `#version 300 es

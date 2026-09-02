@@ -44,6 +44,25 @@ try {
   check(`Viewport nutzt nahezu volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
   check(`Viewport nutzt nahezu volle Höhe (${viewport?.height}px)`, viewport && viewport.height >= 835);
 
+  const sandboxLaunch = page.locator('#btn-world-sandbox');
+  check('Sandbox ist im mobilen SHADED-Topbar erreichbar', await sandboxLaunch.isVisible());
+  await sandboxLaunch.click();
+  await page.waitForFunction(() => window.SHADEDWorldSandbox?.active && !!window.SHADEDWorldSandbox?.backend, undefined, { timeout: 15000 });
+  const sandbox = await page.evaluate(() => ({
+    mode: document.body.classList.contains('world-sandbox-mode'),
+    inspector: document.body.classList.contains('inspector-open'),
+    panelOpen: !document.getElementById('panel-sandbox')?.classList.contains('section-collapsed'),
+    canvasVisible: getComputedStyle(document.getElementById('world-sandbox-canvas')).display !== 'none',
+    studioHidden: getComputedStyle(document.getElementById('world-studio')).display === 'none',
+    backend: window.SHADEDWorldSandbox.backend,
+  }));
+  check(`Mobile World Sandbox läuft IN SHADED (${sandbox.backend})`, sandbox.mode && sandbox.inspector && sandbox.panelOpen && sandbox.canvasVisible && sandbox.studioHidden);
+  await page.locator('#world-chain').click();
+  await page.waitForTimeout(350);
+  check('Mobile Ursache-Wirkungs-Kette bleibt interaktiv', await page.evaluate(() => Number.isFinite(window.SHADEDWorldSandbox?.query?.waterDepth)));
+  await page.locator('#world-exit').click();
+  check('Mobile Rückkehr stellt den SHADED-Editor wieder her', await page.evaluate(() => !window.SHADEDWorldSandbox?.active && !document.body.classList.contains('world-sandbox-mode')));
+
   // World Studio owns the default UX. The legacy rail is intentionally hidden until ERWEITERT.
   const sourceButton = page.locator('.rail-btn[data-target="panel-source"]');
   const expertButton = page.locator('.world-studio-expert');

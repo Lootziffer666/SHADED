@@ -1,0 +1,51 @@
+#world-sandbox-canvas{
+  position:absolute;
+  inset:0;
+  z-index:28;
+  display:none;
+  width:100%;
+  height:100%;
+  background:#050708;
+  cursor:crosshair;
+  touch-action:none;
+}
+body.world-sandbox-mode #world-sandbox-canvas{display:block}
+body.world-sandbox-mode #canvas-wrap,
+body.world-sandbox-mode #spatial-viewer,
+body.world-sandbox-mode #actor-overlay,
+body.world-sandbox-mode #drop-hint,
+body.world-sandbox-mode #showcase-card,
+body.world-sandbox-mode #rec,
+body.world-sandbox-mode #exit-cinema,
+body.world-sandbox-mode #world-studio{display:none!important}
+body.world-sandbox-mode:has(#world-studio) .tool-rail,
+body.world-sandbox-mode:has(#world-studio) .inspector{display:flex!important}
+body.world-sandbox-mode .viewport-hud.hud-left{display:flex!important;z-index:90;left:10px!important}
+body.world-sandbox-mode .viewport-hud.hud-right{display:none!important}
+#btn-world-sandbox.active,
+.rail-btn[data-target="panel-sandbox"].active{
+  border-color:rgba(78,222,163,.48);
+  color:#a7f3d0;
+  background:rgba(78,222,163,.11);
+}
+#panel-sandbox .world-state{margin:0 0 8px;border-left-color:var(--green);color:#b9e8d4}
+.world-contract{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:9px;padding:6px;border:1px solid rgba(78,222,163,.13);border-radius:6px;background:rgba(78,222,163,.04);color:#8d9a96;font:600 7px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.07em}.world-contract b{color:var(--green);font-weight:500}
+.world-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.world-tools button{min-width:0;padding-inline:5px;font:600 8px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em}.world-tools button.active{border-color:rgba(78,222,163,.58);color:#a7f3d0;background:rgba(78,222,163,.12)}
+.world-tools button[data-world-tool="sand"].active{border-color:rgba(229,180,102,.7);color:#f2d09a;background:rgba(229,180,102,.12)}
+.world-tools button[data-world-tool="water"].active{border-color:rgba(92,171,220,.7);color:#a9ddff;background:rgba(64,151,210,.13)}
+.world-tools button[data-world-tool="heat"].active{border-color:rgba(255,113,65,.7);color:#ffb28c;background:rgba(255,90,35,.11)}
+.world-brush,.world-settings label{display:grid;grid-template-columns:68px minmax(0,1fr) 34px;align-items:center;gap:6px;margin-top:8px;color:var(--muted);font-size:9px}.world-brush output,.world-settings output{color:#a7f3d0;text-align:right;font:500 8px/1 ui-monospace,SFMono-Regular,Consolas,monospace}
+.world-readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:9px 0}.world-readout>div{display:flex;align-items:baseline;justify-content:space-between;gap:5px;min-width:0;padding:6px 7px;border:1px solid var(--line);border-radius:5px;background:rgba(17,19,22,.76)}.world-readout span{color:var(--dim);font:650 7px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.05em}.world-readout output{overflow:hidden;text-overflow:ellipsis;color:#b7e7d2;font:500 8px/1 ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.world-settings{display:grid;gap:1px}.world-settings select{width:100%;min-width:0;min-height:30px;border:1px solid var(--line);border-radius:5px;background:#111217;color:var(--text);padding:4px 6px;font-size:9px}.world-settings label:has(select){grid-template-columns:68px minmax(0,1fr)}
+.world-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:10px}.world-actions button{min-width:0;padding-inline:5px;font-size:9px}.world-actions .world-chain{grid-column:1/-1;border-color:rgba(59,130,246,.5);color:#bad0ff;background:rgba(59,130,246,.12)}.world-actions #world-exit{grid-column:1/-1}
+.world-actions button.active{color:var(--orange);border-color:rgba(255,183,134,.45)}
+.world-note{margin:8px 1px 0;color:var(--dim);font-size:9px;line-height:1.4}
+@media(max-width:860px){
+  .tool-rail .rail-btn{min-width:0}
+  body.world-sandbox-mode:has(#world-studio) .tool-rail{display:flex!important}
+  body.world-sandbox-mode .viewport{inset:0 0 var(--rail) 0}
+  body.world-sandbox-mode:has(#world-studio) .inspector{display:flex!important}
+  .world-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .world-readout{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .world-note{display:none}
+}

@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v21';
+const CACHE = 'shaded-shell-v23';
 const SHELL = [
   './',
   './index.html',
@@ -37,6 +37,10 @@ const SHELL = [
   './editor/sandbox-granular.js?v=1',
   './editor/sandbox-coast.css?v=1',
   './editor/sandbox-coast.js?v=1',
+  './editor/world-sandbox.css?v=1',
+  './editor/world-sandbox.js?v=1',
+  './runtime/world-sandbox-reference.mjs',
+  './runtime/world-sandbox-webgpu.mjs',
   './editor/world-studio-v4.js?v=1',
   './editor/world-studio-bridge-settings.js?v=1',
   './editor/material-preview-live.js?v=1',

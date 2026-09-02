@@ -59,6 +59,23 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
     check('Kein "Editor öffnen"-Link mehr (SHADED ist der Editor, ein Dokument)', !shell.linkEditor);
     check('Keine iframe-Engine mehr (Canvas läuft im selben Dokument)', !shell.engineFrame);
 
+    await page.locator('#btn-world-sandbox').click();
+    await page.waitForFunction(() => window.SHADEDWorldSandbox?.active && !!window.SHADEDWorldSandbox?.backend, { timeout: 15000 });
+    const sandbox = await page.evaluate(() => ({
+      mode: document.body.classList.contains('world-sandbox-mode'),
+      inspector: document.body.classList.contains('inspector-open'),
+      panelOpen: !document.getElementById('panel-sandbox')?.classList.contains('section-collapsed'),
+      canvasVisible: getComputedStyle(document.getElementById('world-sandbox-canvas')).display !== 'none',
+      studioHidden: getComputedStyle(document.getElementById('world-studio')).display === 'none',
+      backend: window.SHADEDWorldSandbox.backend,
+    }));
+    check(`World Sandbox läuft IN SHADED (${sandbox.backend})`, sandbox.mode && sandbox.inspector && sandbox.panelOpen && sandbox.canvasVisible && sandbox.studioHidden);
+    await page.locator('#world-chain').click();
+    await page.waitForTimeout(350);
+    check('Ursache-Wirkungs-Replay bedient den integrierten Solver', await page.evaluate(() => Number.isFinite(window.SHADEDWorldSandbox?.query?.sand)));
+    await page.locator('#world-exit').click();
+    check('Zur Szene verlässt nur den Sandbox-Arbeitsbereich', await page.evaluate(() => !window.SHADEDWorldSandbox?.active && !document.body.classList.contains('world-sandbox-mode')));
+
     await page.locator('#world-demo').click();
     await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 15000 });
     check('Demo wird direkt in den World-Studio-Workflow geladen', true);
