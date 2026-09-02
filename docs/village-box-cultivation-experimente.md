@@ -18,6 +18,14 @@
 > null verwertbare Häuser. §4i korrigiert die Fragestellung: rein bild-lokale, nicht auf
 > VLG-02 verweisende Größe+Geometrie-Suche findet auf VLG-04 mindestens eine echte,
 > strukturell kohärente dachartige Region — aber kein vollständig rekonstruiertes Haus.
+> **§4w klärt eine bis dahin offene Grundannahme:** ob alle 6 Häuser wirklich dieselbe
+> Ausrichtung teilen (Voraussetzung des gesamten Affine-Solvers seit Runde 1) ließ sich aus
+> dem 2D-Bild allein nicht beweisen (§4w Schritt 4) — ein Rotations-Invarianz-Test (starre
+> Rotation erhält den 60/60/60-Achsabstand eines Objekts immer) zeigt aber, dass der über alle
+> Häuser gepoolte Fit 8×–45× näher am orthogonalen Ideal liegt als jedes einzelne Haus für
+> sich — Indiz für gemeinsame Ausrichtung + Extraktionsrauschen, nicht für echte individuelle
+> Rotation. Weiterhin kein strenger Beweis, aber jetzt eine begründete, getestete Einschätzung
+> statt einer offenen Frage.
 
 ## 0. Ausgangsfrage
 
@@ -857,6 +865,119 @@ ergänzt — das wäre der naheliegende nächste Schritt, aber nicht Teil dieser
   gibt keine) — nur visuell/farblich plausibel, nicht pixelgenau verifiziert.
 - Wand-Kandidaten sind grob (Bounding-Box-Spalte), keine Kantenverfeinerung; Precision bleibt
   in 5/6 Fällen unter 75 %.
+
+## 4w. Runde 27: Metrik-Anker, Fluchtpunkt-Debatte, und der entscheidende Rotations-Test
+
+Ein längerer, direkter Schlagabtausch mit dem Maintainer, hier vollständig nachdokumentiert
+(bisher nur im Gespräch, nicht im Log). Fünf Teilschritte, jeder hat den vorigen korrigiert
+oder geschärft — das wird bewusst so gezeigt, nicht geglättet.
+
+**1) Metrik-Anker über eine einzige Reallänge.** Direkte Reaktion auf die Kalibrierungslücke
+aus §4v: der Affine-Solver (`scratch-village-reconstruct-affine.mjs`) ist NICHT das
+willkürlich reskalierte DA2-Pinhole-Modell aus §4u/§4v — seine `scale[name][f]`-Werte sind
+bereits pixelkonsistente Längen entlang der gemessenen Familienrichtung `dirF[f]` (Zitat aus
+dem Solver-Kommentar: „P's three COLUMNS are simply the three families' own measured 2D screen
+directions"). Unter Orthographie ist Bildverschiebung entlang einer Familie überall im Bild ein
+KONSTANTES Vielfaches der Realdistanz — eine einzige bekannte (oder angenommene) Reallänge
+kalibriert die GESAMTE Rekonstruktion in einem linearen Schritt, ohne Kreuzverhältnis. LOD0 hat
+kein Tür/Fenster-Feature (visuell geprüft, reine Farbboxen) — Anker musste daher ERFUNDEN
+werden (house1-Dachhöhe ≈ 3 m, explizit INVENTED, nicht OBSERVED). Korrekt umgesetzt als EIN
+globaler Skalierungsfaktor aus EINEM Referenzhaus, auf alle anderen angewendet (nicht pro Haus
+neu geankert — das würde nur die Annahme zirkulär reproduzieren):
+
+| Haus | Breite | Höhe | Tiefe |
+|---|---|---|---|
+| house1 (Anker) | 6,16 m | 3,00 m | 5,03 m |
+| house2 | 6,14 m | 4,03 m | 6,82 m |
+| house3 | 6,81 m | 4,48 m | 5,25 m |
+| house4 | 9,28 m | 5,17 m | 7,57 m |
+| house5 | 7,05 m | 5,26 m | 6,59 m |
+| house6 | 8,37 m | 4,27 m | 6,26 m |
+
+Kein Ausreißer (keine 40-m- oder 20-cm-Häuser), plausibler Wohnhaus-Maßstab — ein bestandener,
+nicht-zirkulärer Sanity-Check, kein Beweis (keine unabhängige Ground Truth für die
+„beabsichtigte" Realgröße dieses synthetischen Assets existiert).
+
+**2) Maintainer-Einwand: „die affine Perspektive bedeutet bloß, dass jedes Haus seine eigenen 3
+Fluchtpunkte hat".** Wörtlich falsch (ein Fluchtpunkt gehört einer 3D-RICHTUNG, nicht einem
+Objekt — bei gleicher Richtung teilen sich beliebig viele Objekte denselben VP), aber mit einem
+echten Kern: die pro-Haus gemessene Winkelabweichung (schon in §4v/`scratch-village-reconstruct-
+affine.mjs`-Kommentar als Rauschen behandelt) könnte STRUKTURIERT statt zufällig sein. Test:
+pro-Haus-lokale Familienwinkel gegen Bildposition (dx/dy vom Bildzentrum) korreliert:
+
+| Familie | corr(Abw., dx) | corr(Abw., dy) |
+|---|---|---|
+| 0 | -0,83 | -0,77 |
+| 1 (vertikal) | +0,72 | +0,23 |
+| 2 | -0,49 | +0,54 (house4 Ausreißer) |
+
+Zwei von drei Familien zeigen deutliche, vorzeichenkonsistente Korrelation — kein
+Zufallsrauschen-Muster, eher das Signaturmuster eines echten, aber sehr weit entfernten,
+gemeinsamen Fluchtpunkts.
+
+**3) Maintainer-Gegeneinwand: „bei frei rotierten, ungleich großen Quadern auf einer Ebene
+funktionieren 3 gemeinsame Fluchtpunkte für alle nicht mehr — eine angewinkelte Linie läuft nie
+auf denselben Fluchtpunkt wie eine parallele. Das ist unmöglich."** Der allgemeine Satz ist
+unbestreitbar richtig. Direkter Test, ob er HIER zutrifft: eine starre Rotation (Häuser stehen
+auf gemeinsamer Bodenebene, „frei rotiert" heißt praktisch Gieren um die Vertikale) ändert NIE
+die paarweisen WinkelABSTÄNDE zwischen den 3 Achsen eines Hauses — nur ihren gemeinsamen
+Absolutwert. Gemessen: die Abstände selbst streuen 10–17° zwischen Häusern (0-1: 53,0°–67,3°,
+0-2: 51,4°–67,7°) — unvereinbar mit reiner starrer Rotation.
+
+**4) Ehrliches Eingeständnis auf direkte Nachfrage („Zeig mir, dass sie gleich ausgerichtet
+sind. Kannst du nicht.").** Zu Recht — aus einem einzigen 2D-Bild ohne unabhängige
+3D-Ground-Truth ist NICHT entscheidbar, ob die Restabweichung von (a) individueller Rotation,
+(b) echter, sehr entfernter Perspektive, oder (c) Extraktionsrauschen stammt. Alle drei
+erzeugen ähnliche 2D-Muster. Auch die identische `famAssignment`-Struktur `[0,2,1,0,2,1]` über
+alle Häuser ist KEIN Beleg für gleiche Ausrichtung — nur ein Artefakt des
+Nächste-Familie-Zuordnungsalgorithmus, der so labelt, egal ob die Häuser wirklich gleich
+ausgerichtet sind.
+
+**5) Der Ausweg und die entscheidende Prüfgröße.** Maintainer: reale Bilder liefern so gut wie
+nie sichtbar konvergente Fluchtpunkte („Die Welt ist kein Anime") — Single-View-Metrology
+funktioniert in der Praxis nie ohne eine zusätzlich EINGEBRACHTE Annahme (bekannte Länge,
+angenommener rechter Winkel). Statt eines frei erfundenen VP-Orts (ein unbeschränkter, will­
+kürlicher Freiheitsgrad) wurde eine schwächere, physikalisch begründete Alternative
+vorgeschlagen: Orthogonalität der 3 Achsen als expliziter INVENTED-Constraint. Fünf klassische
+Perspektive-Konstruktionsdiagramme vom Maintainer (u. a. die Grundriss/Aufriss/Horizont-
+Konstruktion mit F1/F2/Augpunkt O') lieferten die entscheidende Klärung: **F1/F2 sind eine
+Funktion von (Objektausrichtung im Grundriss, Augpunkt)** — löst den scheinbaren Widerspruch
+zwischen Schritt 2 (VPs sind pro Richtung global) und Schritt 3 (unterschiedlich rotierte
+Objekte haben unterschiedliche VPs) vollständig auf: beides ist gleichzeitig wahr, je nachdem
+ob die Objekte dieselbe Ausrichtung teilen.
+
+Direkt aus dieser Klärung folgt die in Schritt 3 verwendete Prüfgröße nochmal geschärft: eine
+starre Rotation erhält den paarweisen Winkelabstand der 3 Achsen eines Objekts IMMER — bei
+echter Isometrie (3 orthogonale Achsen) muss dieser Abstand exakt 60°/60°/60° sein. Vergleich
+pro-Haus-lokal gegen global gepoolt (Summe der quadrierten Abweichungen von 60°):
+
+| | house1 | house2 | house3 | house4 | house5 | house6 | **global (gepoolt)** |
+|---|---|---|---|---|---|---|---|
+| SumSq-Abweichung von 60/60/60 | 128,4 | 34,6 | 22,7 | 66,0 | 87,6 | 90,2 | **2,82** |
+
+Jedes einzelne Haus weicht 8×–45× stärker vom orthogonalen Idealmuster ab als der über alle 6
+Häuser gepoolte globale Fit. Das ist das Gegenteil von dem, was echte individuelle Rotation
+vorhersagen würde (die pro Haus die 60/60/60-Struktur erhalten müsste, nur verschoben) — es
+spricht dafür, dass die wahre zugrunde liegende Geometrie eine gemeinsame, echte Orthogonalität
+ist, und die große Streuung PRO Haus überwiegend aus Extraktionsrauschen kommt (nur 6 Kanten je
+Haus, Hüllkurven-Ungenauigkeit), das sich beim Poolen über alle Häuser weitgehend heraus
+mittelt.
+
+**Ehrliche Grenze:** das beweist nicht, dass gar keine reale Rotationsdifferenz zwischen
+Häusern existiert — eine kleine echte Differenz könnte im Rauschen versteckt sein. Aber es
+macht „jedes Haus ist bedeutsam individuell rotiert" als DOMINANTE Erklärung unwahrscheinlich
+und dreht die in Schritt 4 festgestellte Unentscheidbarkeit in eine evidenzbasierte, weiterhin
+vorsichtige Schlussfolgerung um: die gemeinsame-Ausrichtung-Annahme, auf der der gesamte
+Affine-Solver seit Runde 1 beruht, ist jetzt eher gestützt als widerlegt — aber weiterhin nicht
+bewiesen im strengen Sinn von Schritt 4.
+
+**Ausdrücklich offen:** die Orthogonalitäts-Constraint-Version des Solvers (Schritt 5s
+INVENTED-Alternative zum freien Fit) ist vorgeschlagen, aber nicht implementiert — der jetzige
+freie globale Fit liegt mit 2,82 SumSq-Abweichung bereits so nah am Ideal, dass eine erzwungene
+Orthogonalität wahrscheinlich nur eine kleine Korrektur wäre, nicht die vermutete große. Die
+5 Referenzbilder (Perspektive-Tutorials, keine Fotos des Dorfs) wurden nur konzeptionell
+genutzt, nicht pixelgenau vermessen (keine Datei, keine verlässliche Koordinatenextraktion aus
+eingefügten Bildern).
 
 ## 5. Synthese — der eigentliche Befund
 
