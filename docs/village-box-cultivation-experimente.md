@@ -1148,6 +1148,64 @@ Top-Down-Kamera vermutlich als „nah genug" fehlinterpretiert. Artifact erneut 
   den echten `analyze()`/`classGrid`-Pfad bezog, wurde das nicht geprüft, da außerhalb des
   Scopes dieser Session.
 
+**Korrektur #2 (noch Runde 29, der eigentliche Kernfehler — vom Maintainer direkt benannt:
+„du nimmst das Dach als Boden, wodurch die Boxen um die Diagonale des Hexagons verschoben
+werden").** Die Top-Down-Prüfung oben zeigte weiterhin keine sichtbaren „Geister" mehr — aber
+das lag daran, dass sowohl die Boxen als auch die Boden-Textur DENSELBEN falschen
+Referenzwert benutzten und sich dadurch gegenseitig deckten, nicht daran, dass der Wert
+richtig war. Direkt geprüft statt weiter vermutet: die reale Bildfarbe an allen 6
+Sechseck-Ecken von Haus 1 UND Haus 4 abgefragt (nicht die Formel, das Bild selbst).
+
+| Vertex | Solver-lc[1] | Bildfarbe (RGB) | Material |
+|---|---|---|---|
+| 3× mit `T[1]+scale[1]=0` | a1=1 | ~(223,126,68) | **Dach** (Referenz-Dachfarbe [225,126,69]) |
+| 3× mit `T[1]` allein | a1=0 | ~(136–205,123–176,79–118) | **Wand/Boden** (Referenz wallLight/wallDark) |
+
+Bei BEIDEN getesteten Häusern identisch. Das heißt: `T[1]+scale[1]=0` — der Wert, der über
+alle 6 Häuser hinweg IDENTISCH ist und den sowohl Runde 28 als auch der erste Teil von
+Runde 29 durchgängig als „die gemeinsame Bodenreferenz" benutzt haben (inklusive der
+kompletten Boden-Textur-Projektion, `screenToGroundMeters`/`groundRawToScreen`, den ganzen
+Abend über) — ist tatsächlich die gemeinsame DACHLINIE, nicht der Boden. Der tatsächliche
+Boden ist `T[1]` allein: pro Haus verschieden (0,89 m unter bis 1,37 m über dem Mittelwert),
+nicht geteilt.
+
+**Warum das die ganze Nacht lang niemandem auffiel:** die Boxen UND die Boden-Textur benutzten
+BEIDE denselben (falschen) Referenzwert — sie blieben also relativ zueinander konsistent, nur
+absolut falsch platziert. Das erklärt rückblickend genau den vom Maintainer gezeigten Effekt
+(„Häuser liegen auf der eigenen Dachfläche, nicht an den Wegen") besser als jede der vorherigen
+drei Diagnosen: es war kein Masken-Detailfehler, sondern ein einziger, durchgängiger
+Referenzhöhen-Fehler.
+
+**Fix, direkt gegen echte Daten geprüft:** `groundRefRaw` = Mittelwert von `T[house][1]` über
+alle 6 Häuser (jetzt korrekt als Boden verifiziert, nicht als geteilte Konstante angenommen),
+ersetzt die stillschweigende 0 in JEDER Boden-Ebenen-Projektion dieser Datei
+(`screenToGroundMeters`, `groundRawToScreen`, die Boden-Parallelogramm-Ecken). Die
+Hausboxen selbst benutzen jetzt `T[1]` (pro Haus, real, nicht künstlich geglättet) als
+tatsächlichen Boden, `T[1]+scale[1]=0` als Dachlinie — Höhe bleibt exakt gleich (`scale[1]`
+unverändert), nur welches Ende „unten" ist, hat sich geändert. Erneut mit der Top-Down-Kamera
+geprüft: die zuvor ~3 m großen Lücken zwischen Weg-Ende und Hausbox schrumpfen auf
+1–1,5 m (im Bereich des Solvers eigenem Reprojektionsfehler, 5–16 px), keine systematische
+Verschiebung mehr.
+
+**Ehrliche Neubewertung der Runde-28-„4-von-6-schweben"-Korrektur:** die dort „reparierte"
+Streuung (0–2,26 m Boden-Y zwischen Häusern) ist jetzt als ECHTER Befund bestätigt, nicht als
+Bug — Runde 28 hat versehentlich die Symptome (schwebende Boxen) durch eine Änderung
+beseitigt, die inhaltlich falsch war (Dach statt Boden als y=0). Ob die jetzt wieder sichtbare
+Höhenstreuung ein reales, leichtes Bodengefälle in der Szene ist oder ein Artefakt des
+`GROUND_WEIGHT`-Constraints (der augenscheinlich die Dachlinien angleicht, nicht die Böden —
+möglicherweise weil Dachkanten präziser/rauschärmer gemessen werden als Wandbasis-Kanten und
+der kleinste-Quadrate-Fit sich deshalb dorthin ausrichtet), bleibt offen und ist NICHT Teil
+dieser Korrektur.
+
+**Ausdrücklich offen:**
+- Die eigentliche Ursache, warum `GROUND_WEIGHT` die Dachlinie statt den Boden angleicht, ist
+  nicht untersucht — nur die FOLGE (falsche Referenz in diesem Viewer-Code) ist behoben.
+- Nur house1 und house4 direkt per Pixelfarbe geprüft; die anderen 4 Häuser wurden nicht
+  einzeln nachgemessen, nur die durchgängige `famAssignment`-Struktur (`[0,2,1,0,2,1]` für alle
+  6, aus Runde 27 bekannt) macht dieselbe Zuordnung für alle 6 plausibel.
+- Die verbleibende 1–1,5 m-Restabweichung zwischen Weg-Ende und Hausbox ist nicht weiter
+  untersucht — könnte Solver-Reprojektionsfehler sein oder ein noch unbekannter Rest.
+
 ## 5. Synthese — der eigentliche Befund
 
 | Kombination | Reine Punkte |

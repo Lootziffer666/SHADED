@@ -36,14 +36,39 @@ const r = JSON.parse(fs.readFileSync(path.join(OUT, 'village-reconstructed-affin
 const { dirF, T, scale, W, H } = r;
 const metersPerUnit = 3.0 / scale['house1'][1];
 
+// CORRECTION #5 (Runde 29, caught directly by the maintainer -- "du nimmst
+// das Dach als Boden"). Verified with real pixel colors, not another guess:
+// at EVERY house, the 3 hexagon vertices with local axis-1 = 1 (screen =
+// ...+(T[1]+scale[1])*dirF[1], which is exactly 0 for all 6 houses) sample as
+// ROOF color (~225,126,69); the 3 with axis-1 = 0 (screen = ...+T[1]*dirF[1])
+// sample as WALL color, i.e. near the true ground. So T[1]+scale[1]=0 -- what
+// this whole file previously called "the shared ground" and used as the Y=0
+// reference for EVERY ground-plane projection (paths, grass, bushes, the
+// footprint mask) -- is actually the shared ROOFLINE. Every ground pixel this
+// file has projected so far was projected as if it sat at roof height, not
+// ground height: a real, systematic error, not just the smaller masking bugs
+// already fixed above (this is very likely the actual root cause behind the
+// "Wege passen nicht zu den Haeusern" symptom, not just the masking gaps).
+// Fixed at the root: ground-plane projections now use each house's own T[1]
+// (confirmed ground-level) averaged across the 6 houses as the reference --
+// not 0. This does NOT force artificial flatness: individual houses keep
+// their own real T[1], only the shared ground TEXTURE plane (which has no
+// "per house" concept) needs one reference value.
+const groundRefRaw = Object.values(T).reduce((s, t) => s + t[1], 0) / Object.keys(T).length;
+console.log('Boden-Referenz (Mittel von T[.][1], jetzt korrekt als Boden statt Dach):', groundRefRaw.toFixed(2), 'raw =', (groundRefRaw * metersPerUnit).toFixed(2), 'm');
+
 const a = dirF[0][0], b = dirF[2][0], c = dirF[0][1], d = dirF[2][1];
 const det = a * d - b * c;
 function screenToGroundMeters(px, py) {
-  const X = (px * d - b * py) / det;
-  const Z = (a * py - px * c) / det;
+  const rhsX = px - groundRefRaw * dirF[1][0];
+  const rhsY = py - groundRefRaw * dirF[1][1];
+  const X = (rhsX * d - b * rhsY) / det;
+  const Z = (a * rhsY - rhsX * c) / det;
   return [X * metersPerUnit, Z * metersPerUnit];
 }
-function groundRawToScreen(xRaw, zRaw) { return [xRaw * a + zRaw * b, xRaw * c + zRaw * d]; }
+function groundRawToScreen(xRaw, zRaw) {
+  return [xRaw * a + zRaw * b + groundRefRaw * dirF[1][0], xRaw * c + zRaw * d + groundRefRaw * dirF[1][1]];
+}
 
 // CORRECTION #2 (still Runde 29 -- caught by the maintainer's screenshots even
 // after CORRECTION #1 below): masking the VISIBLE silhouette polygon alone is
@@ -61,16 +86,25 @@ function groundRawToScreen(xRaw, zRaw) { return [xRaw * a + zRaw * b, xRaw * c +
 // (T[0]/T[2] + scale[0]/scale[2], the same data the 3D box itself is built
 // from), forward-projected via the identical affine map, so the ground
 // texture is guaranteed clean exactly where the real 3D box actually stands.
+// Footprint corners use EACH house's OWN real T[1] (its own confirmed ground
+// level, not the shared average used for the flat ground texture plane) --
+// the true 3D position of that house's own base, not an approximation.
+function groundRawToScreenAtY(xRaw, yRaw, zRaw) {
+  return [xRaw * a + zRaw * b + yRaw * dirF[1][0], xRaw * c + zRaw * d + yRaw * dirF[1][1]];
+}
 const houseFootprintPolys = Object.keys(T).map((name) => {
   const t = T[name], s = scale[name];
   const corners = [[t[0], t[2]], [t[0] + s[0], t[2]], [t[0] + s[0], t[2] + s[2]], [t[0], t[2] + s[2]]];
-  return corners.map(([x, z]) => groundRawToScreen(x, z));
+  return corners.map(([x, z]) => groundRawToScreenAtY(x, t[1], z));
 });
 console.log('det =', det.toFixed(6));
 const corners = { c00: screenToGroundMeters(0, 0), c10: screenToGroundMeters(W, 0), c01: screenToGroundMeters(0, H), c11: screenToGroundMeters(W, H) };
 console.log('Welt-Parallelogramm-Ecken (Meter):', JSON.stringify(corners));
 // Round-trip sanity check (cheap, catches any sign/axis mixup before touching the viewer).
-function groundToScreen(xMeters, zMeters) { const x = xMeters / metersPerUnit, z = zMeters / metersPerUnit; return [x * a + z * b, x * c + z * d]; }
+function groundToScreen(xMeters, zMeters) {
+  const x = xMeters / metersPerUnit, z = zMeters / metersPerUnit;
+  return [x * a + z * b + groundRefRaw * dirF[1][0], x * c + z * d + groundRefRaw * dirF[1][1]];
+}
 const [rtx, rty] = groundToScreen(...screenToGroundMeters(777, 411));
 if (Math.abs(rtx - 777) > 0.01 || Math.abs(rty - 411) > 0.01) throw new Error('Rundreise-Test fehlgeschlagen: ' + rtx + ',' + rty);
 console.log('Rundreise-Test bestanden.');
