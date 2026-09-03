@@ -19,6 +19,7 @@ struct Cell {
   terrain: vec4<f32>,
   water: vec4<f32>,
   bio: vec4<f32>,
+  atmo: vec4<f32>,
 }
 
 struct Stamp {
@@ -59,7 +60,8 @@ fn sandFlux(a: Cell, b: Cell) -> f32 {
   let delta = surface(a) - surface(b);
   let cohesion = 0.006 + a.terrain.w * 0.026 + a.terrain.z * 0.018;
   let excess = max(0.0, delta - 0.009 - cohesion);
-  return min(a.terrain.y * 0.19, excess * P.rates.x * dt * 0.24);
+  let flowable = 1.0 - a.atmo.z; // frozen ground does not slide
+  return min(a.terrain.y * 0.19, excess * P.rates.x * dt * 0.24) * flowable;
 }
 
 // Water is no longer moved by an instantaneous "excess head -> displacement" rule (that
@@ -74,9 +76,11 @@ fn edgeFlow(near: Cell, far: Cell, edgeVelocity: f32, dt: f32, size: f32) -> f32
   let cap = 0.24;
   let crossing = edgeVelocity * dt * size;
   if (crossing > 0.0) {
-    return min(near.water.x * cap, crossing * near.water.x);
+    let flowable = 1.0 - near.atmo.z; // frozen water does not transport
+    return min(near.water.x * cap, crossing * near.water.x) * flowable;
   }
-  return -min(far.water.x * cap, -crossing * far.water.x);
+  let flowable = 1.0 - far.atmo.z;
+  return -min(far.water.x * cap, -crossing * far.water.x) * flowable;
 }
 
 fn smooth(a: f32, b: f32, value: f32) -> f32 {
@@ -129,24 +133,70 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let flowFromTop = edgeFlow(top, c, edgeVelZTop, dt, f32(size));
   var waterDelta = flowFromLeft - flowToRight + flowFromTop - flowToBottom;
 
-  var water = max(0.0, c.water.x + waterDelta + P.environment.x * dt * 0.018);
+  // --- Water cycle (Gas -> Kondensation -> Feuchte -> Eis -> Regen/Hagel/Schnee) ---------
+  // Same leapfrog discipline as the momentum transport above: this step's precipitation
+  // falls from LAST step's cloud (src), evaporation feeds THIS step's vapor, and vapor only
+  // condenses into cloud for NEXT step's rainfall. Altitude cools (real orographic effect),
+  // so the same cloud snows on a ridge while it rains in the valley below.
+  let iceOld = c.atmo.z;
+  let cloudOld = c.atmo.y;
+  let altitude = surface(c);
+  let localTemp = clamp(P.environment.z + c.bio.z * 0.35 - altitude * 0.6, 0.0, 1.0);
+
+  let precip = min(cloudOld, cloudOld * dt * 0.22);
+  // A near-freezing but not fully frozen band with a heavily loaded cloud is the closest
+  // single-cell proxy for a thunderstorm updraft/downdraft cycle this 2.5D model has --
+  // marked explicitly as a first approximation, not real hail-growth physics.
+  let hailBand = smooth(0.30, 0.42, localTemp) * (1.0 - smooth(0.46, 0.58, localTemp));
+  let hailing = hailBand > 0.5 && cloudOld > 0.03;
+  let snowFraction = select(1.0 - smooth(0.42, 0.58, localTemp), 1.0, hailing);
+  let rainPart = precip * (1.0 - snowFraction);
+  let snowPart = precip * snowFraction;
+  let hailImpact = select(0.0, min(0.05, precip * 1.5), hailing); // ground-impact kick, not extra mass
+
+  var water = max(0.0, c.water.x + waterDelta + rainPart);
+  var snow = max(0.0, c.atmo.w + snowPart);
   var sediment = max(0.0, c.water.w);
-  let erosion = min(sand, water * speed * (1.0 - c.terrain.z) * dt * 0.032);
+  let erosion = min(sand, water * speed * (1.0 - c.terrain.z) * dt * 0.032) * (1.0 - iceOld);
   let deposition = min(sediment, sediment * dt * (0.08 + max(0.0, 0.7 - speed) * 0.24));
   sand += deposition - erosion;
   sediment += erosion - deposition;
 
-  let infiltration = min(water, P.rates.w * (1.0 - c.terrain.z) * dt * 0.035);
-  let evaporation = min(water, P.environment.w * (0.25 + P.environment.y) * dt * 0.025);
+  // Snowmelt: warmth above the freeze line converts the snow reservoir back into water.
+  let melt = min(snow, snow * max(0.0, localTemp - 0.46) * dt * 1.4);
+  snow -= melt;
+  water += melt;
+
+  // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
+  // a lake takes time to freeze over or thaw), and feeds back into sandFlux/edgeFlow above.
+  let iceTarget = 1.0 - smooth(0.30, 0.42, localTemp);
+  let ice = clamp(iceOld + (iceTarget - iceOld) * dt * 0.5 + hailImpact * 0.4, 0.0, 1.0);
+
+  let infiltration = min(water, P.rates.w * (1.0 - c.terrain.z) * dt * 0.035) * (1.0 - iceOld);
+  let evaporation = min(water, P.environment.w * (0.25 + P.environment.y) * dt * 0.025) * (1.0 - iceOld);
   water -= infiltration + evaporation;
   var wetness = clamp(c.terrain.w + infiltration * 12.0 + water * dt * 0.45
     - dt * P.environment.w * (0.18 + P.environment.y * 0.52)
     - c.bio.z * dt * 0.16, 0.0, 1.0);
 
+  // Vapor: diffuses like heat, gains this step's evaporation 1:1 (mass now carries through
+  // instead of vanishing) plus P.environment.x (rain) as an atmospheric moisture injection --
+  // rain no longer teleports straight into water, it has to condense and fall like everything
+  // else. Colder air holds less vapor before the excess condenses into cloud (tuned to the
+  // scale a small lake's evaporation actually reaches in a demo-length run, not a literal
+  // g/m3 curve -- this is a game-scale abstraction, not a weather model).
+  let neighbourVapor = (left.atmo.x + right.atmo.x + top.atmo.x + bottom.atmo.x) * 0.25;
+  var vapor = max(0.0, c.atmo.x + (neighbourVapor - c.atmo.x) * dt * 0.18
+    + evaporation + P.environment.x * dt * 0.06);
+  let saturation = 0.0006 + localTemp * 0.006;
+  let condensed = max(0.0, vapor - saturation) * dt * 0.6;
+  vapor -= condensed;
+  let cloud = max(0.0, cloudOld - precip + condensed);
+
   let neighbourHeat = (left.bio.z + right.bio.z + top.bio.z + bottom.bio.z) * 0.25;
   var heat = clamp(c.bio.z + (neighbourHeat - c.bio.z) * dt * 0.8
     - (0.08 + wetness * 0.55 + water * 2.0) * dt, 0.0, 1.0);
-  var disturbance = clamp(c.bio.w * max(0.0, 1.0 - dt * 0.16), 0.0, 1.0);
+  var disturbance = clamp(c.bio.w * max(0.0, 1.0 - dt * 0.16) + hailImpact, 0.0, 1.0);
   let moistureFit = smooth(0.12, 0.46, wetness)
     * (1.0 - smooth(0.72, 1.05, wetness + water * 5.0));
   let temperatureFit = 1.0 - clamp(abs(P.environment.z - 0.55) / 0.52, 0.0, 1.0);
@@ -207,6 +257,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   next.terrain.w = wetness;
   next.water = vec4<f32>(max(0.0, water), velocity.x, velocity.y, max(0.0, sediment));
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
+  next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
   dst[i] = next;
 }
 `;
@@ -226,6 +277,7 @@ struct Cell {
   terrain: vec4<f32>,
   water: vec4<f32>,
   bio: vec4<f32>,
+  atmo: vec4<f32>,
 }
 
 struct Particle {
@@ -358,6 +410,7 @@ struct Cell {
   terrain: vec4<f32>,
   water: vec4<f32>,
   bio: vec4<f32>,
+  atmo: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> P: Params;
@@ -390,6 +443,7 @@ struct Cell {
   terrain: vec4<f32>,
   water: vec4<f32>,
   bio: vec4<f32>,
+  atmo: vec4<f32>,
 }
 
 struct VertexOut {
@@ -604,6 +658,7 @@ struct Cell {
   terrain: vec4<f32>,
   water: vec4<f32>,
   bio: vec4<f32>,
+  atmo: vec4<f32>,
 }
 
 struct SurfaceOut {
@@ -614,6 +669,7 @@ struct SurfaceOut {
   @location(3) terrain: vec4<f32>,
   @location(4) water: vec4<f32>,
   @location(5) bio: vec4<f32>,
+  @location(6) atmo: vec4<f32>,
 }
 
 struct BladeOut {
@@ -711,6 +767,7 @@ fn makeSurface(vertexIndex: u32, includeWater: bool) -> SurfaceOut {
   output.terrain = cell.terrain;
   output.water = cell.water;
   output.bio = cell.bio;
+  output.atmo = cell.atmo;
   return output;
 }
 
@@ -727,7 +784,7 @@ fn vsWater(@builtin(vertex_index) vertexIndex: u32) -> SurfaceOut {
   return output;
 }
 
-fn fieldColor(terrain: vec4<f32>, water: vec4<f32>, bio: vec4<f32>, mode: u32) -> vec3<f32> {
+fn fieldColor(terrain: vec4<f32>, water: vec4<f32>, bio: vec4<f32>, atmo: vec4<f32>, mode: u32) -> vec3<f32> {
   let height = terrain.x + terrain.y;
   if (mode == 1u) {
     let h = clamp(height * 2.15, 0.0, 1.0);
@@ -744,6 +801,15 @@ fn fieldColor(terrain: vec4<f32>, water: vec4<f32>, bio: vec4<f32>, mode: u32) -
   }
   if (mode == 5u) {
     return vec3<f32>(0.035) + vec3<f32>(abs(water.y), length(water.yz), abs(water.z)) * 0.75;
+  }
+  if (mode == 7u) {
+    // Weather debug view: red=vapor (gas), green=cloud (condensed), blue=snow, ice pales toward white.
+    let base = vec3<f32>(
+      clamp(atmo.x * 60.0, 0.0, 1.0),
+      clamp(atmo.y * 70.0, 0.0, 1.0),
+      clamp(atmo.w * 14.0, 0.0, 1.0)
+    );
+    return mix(vec3<f32>(0.02, 0.02, 0.03) + base, vec3<f32>(0.85, 0.90, 0.93), clamp(atmo.z, 0.0, 1.0) * 0.8);
   }
   return mix(vec3<f32>(0.035, 0.045, 0.055), vec3<f32>(0.88, 0.15, 0.025), bio.z);
 }
@@ -768,11 +834,18 @@ fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
   let groundCover = smoothstep(0.025, 0.42, input.bio.x) * (0.72 + macroNoise * 0.22);
   color = mix(color, vec3<f32>(0.16, 0.285, 0.105), groundCover * 0.62);
   color = mix(color, vec3<f32>(0.105, 0.075, 0.052), input.bio.z * 0.66);
+  // Water cycle made visible: frozen ground pales toward blue-white ice, and accumulated
+  // snow (atmo.w, a separate reservoir from wet ground) buries the surface in white --
+  // snow wins over ice when both are present, since snow sits on top of a frozen lake.
+  let icePresence = smoothstep(0.15, 0.75, input.atmo.z);
+  color = mix(color, vec3<f32>(0.62, 0.74, 0.80), icePresence * 0.62);
+  let snowCoverage = smoothstep(0.006, 0.06, input.atmo.w);
+  color = mix(color, vec3<f32>(0.90, 0.93, 0.95) + fineNoise * 0.02, snowCoverage * 0.88);
   color *= hemi + diffuse * 0.72;
   let backLight = pow(max(dot(n, normalize(vec3<f32>(0.46, 0.42, 0.76))), 0.0), 3.0);
   color += vec3<f32>(0.07, 0.085, 0.075) * backLight;
   if (mode > 0u) {
-    color = fieldColor(input.terrain, input.water, input.bio, mode) * (0.35 + diffuse * 0.65);
+    color = fieldColor(input.terrain, input.water, input.bio, input.atmo, mode) * (0.35 + diffuse * 0.65);
   }
 
   let cursorDistance = distance(input.uv, R.cursor.xy);
@@ -798,11 +871,14 @@ fn fsWater(input: SurfaceOut) -> @location(0) vec4<f32> {
   // in the compute kernel) is now the actual transport -- so it should be visible as actual
   // transport here too: ripples travel along the real flow direction and get busier with
   // speed, instead of only reacting to |flow| with a direction-blind noise pattern.
-  let flow = length(input.water.yz);
+  // A frozen surface (edgeFlow already stopped transporting it) should look still, not just
+  // physically stop -- fade its own wave/flow motion out by the same ice fraction.
+  let frozen = clamp(input.atmo.z, 0.0, 1.0);
+  let flow = length(input.water.yz) * (1.0 - frozen);
   let flowDir = select(vec2<f32>(0.71, 0.71), input.water.yz / max(flow, 1e-5), flow > 1e-5);
   let along = dot(input.world.xz, flowDir);
   let travel = sin(along * 46.0 - R.view.y * (2.6 + flow * 9.0)) * min(0.05, flow * 0.06);
-  let wave = ambient + flowDir * travel;
+  let wave = (ambient + flowDir * travel) * (1.0 - frozen);
   let n = normalize(input.normal + vec3<f32>(wave.x, 0.0, wave.y));
   let viewDirection = normalize(-cameraForward());
   let sun = normalize(vec3<f32>(-0.42, 0.82, -0.31));
@@ -820,6 +896,7 @@ fn fsWater(input: SurfaceOut) -> @location(0) vec4<f32> {
     * smoothstep(0.25, 0.9, flow);
   let foam = clamp(shore + smoothstep(0.35, 1.0, flow) * 0.40 + streak * 0.38, 0.0, 1.0);
   color = mix(color, vec3<f32>(0.76, 0.81, 0.72), foam * 0.64);
+  color = mix(color, vec3<f32>(0.80, 0.87, 0.90), frozen * 0.72);
   let alpha = 0.48 + depth * 0.27 + fresnel * 0.14;
   return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), alpha);
 }
@@ -840,6 +917,7 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let seed = hash2(vec2<f32>(f32(x) + f32(layer) * 19.7, f32(z) - f32(layer) * 31.1));
   let visible = cell.bio.x > 0.008
     && cell.water.x < 0.006
+    && cell.atmo.w < 0.02 // snow buries grass -- it does not simply photobleach through it
     && seed < clamp(cell.bio.x * 3.8, 0.0, 0.94)
     && u32(R.view.x + 0.5) == 0u;
   let jitter = vec2<f32>(
@@ -1025,7 +1103,10 @@ export class WebGpuWorldSandbox {
     this.onQuery = options.onQuery || (() => {});
     this.onError = options.onError || (() => {});
     this.mobile = options.mobile ?? matchMedia('(max-width: 700px)').matches;
-    this.size = options.size || (this.mobile ? 96 : 128);
+    // Immensely higher voxel resolution than the original 96/128 -- GPU compute and instanced
+    // rendering both scale to this fine, unlike the CPU 2D-canvas fallback (see world-sandbox.js),
+    // whose per-quad Canvas2D path fills are the real bottleneck and stay far more conservative.
+    this.size = options.size || (this.mobile ? 256 : 512);
     this.particleCount = options.particleCount || (this.mobile ? 2048 : 8192);
     this.read = 0;
     this.tick = 0;

@@ -5,7 +5,7 @@
 // plain JavaScript so invariants can be tested without a GPU and browsers
 // without WebGPU still get a real (lower-resolution) simulation.
 
-export const CELL_STRIDE = 12;
+export const CELL_STRIDE = 16;
 
 export const FIELD = Object.freeze({
   BEDROCK: 0,
@@ -20,6 +20,15 @@ export const FIELD = Object.freeze({
   SEEDS: 9,
   HEAT: 10,
   DISTURBANCE: 11,
+  // Water cycle (Gas -> Kondensation -> Feuchte -> Eis -> Regen/Hagel/Schnee): a fourth,
+  // independent reservoir set. VAPOR/CLOUD are atmospheric (unitless moisture "load", can
+  // exceed 1); ICE is a 0..1 frozen fraction of the ground that suppresses flow/erosion in
+  // sandFlux/edgeFlow; SNOW is a separate ground reservoir from WATER because it does not
+  // flow the same way and melts back into WATER instead of draining through edgeFlow.
+  VAPOR: 12,
+  CLOUD: 13,
+  ICE: 14,
+  SNOW: 15,
 });
 
 export const STAMP = Object.freeze({
@@ -163,7 +172,8 @@ function sandFlux(state, from, to, dt, rate) {
     + state[from + FIELD.WETNESS] * 0.026
     + state[from + FIELD.COMPACTION] * 0.018;
   const excess = Math.max(0, delta - 0.009 - cohesion);
-  return Math.min(state[from + FIELD.SAND] * 0.19, excess * rate * dt * 0.24);
+  const flowable = 1 - state[from + FIELD.ICE]; // frozen ground does not slide
+  return Math.min(state[from + FIELD.SAND] * 0.19, excess * rate * dt * 0.24) * flowable;
 }
 
 // Water is no longer moved by an instantaneous "excess head -> displacement" rule (that
@@ -177,9 +187,11 @@ function sandFlux(state, from, to, dt, rate) {
 function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24) {
   const crossing = edgeVelocity * dt * size; // signed fraction of a cell width crossed toward `far`
   if (crossing > 0) {
-    return Math.min(state[nearIndex + FIELD.WATER] * cap, crossing * state[nearIndex + FIELD.WATER]);
+    const flowable = 1 - state[nearIndex + FIELD.ICE]; // frozen water does not transport
+    return Math.min(state[nearIndex + FIELD.WATER] * cap, crossing * state[nearIndex + FIELD.WATER]) * flowable;
   }
-  return -Math.min(state[farIndex + FIELD.WATER] * cap, -crossing * state[farIndex + FIELD.WATER]);
+  const flowable = 1 - state[farIndex + FIELD.ICE];
+  return -Math.min(state[farIndex + FIELD.WATER] * cap, -crossing * state[farIndex + FIELD.WATER]) * flowable;
 }
 
 export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
@@ -231,16 +243,48 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       const flowFromTop = edgeFlow(stamped, north, o, edgeVelZTop, safeDt, size);
       const waterDelta = flowFromLeft - flowToRight + flowFromTop - flowToBottom;
 
+      // --- Water cycle (Gas -> Kondensation -> Feuchte -> Eis -> Regen/Hagel/Schnee) -------
+      // Same leapfrog discipline as the momentum transport above: this step's precipitation
+      // falls from LAST step's cloud (stamped), and evaporation feeds THIS step's vapor,
+      // which only condenses into cloud for NEXT step's rainfall. Altitude cools (real
+      // orographic effect), so the same cloud snows on a ridge while it rains in the valley.
+      const iceOld = stamped[o + FIELD.ICE];
+      const cloudOld = stamped[o + FIELD.CLOUD];
+      const altitude = surface(stamped, o);
+      const localTemp = clamp(env.temperature + stamped[o + FIELD.HEAT] * 0.35 - altitude * 0.6);
+
+      const precip = Math.min(cloudOld, cloudOld * safeDt * 0.22);
+      // A near-freezing but not fully frozen band with a heavily loaded cloud is the closest
+      // single-cell proxy for a thunderstorm updraft/downdraft cycle this 2.5D model has --
+      // marked explicitly as a first approximation, not real hail-growth physics.
+      const hailBand = smoothstep(0.30, 0.42, localTemp) * (1 - smoothstep(0.46, 0.58, localTemp));
+      const hailing = hailBand > 0.5 && cloudOld > 0.03;
+      const snowFraction = hailing ? 1 : 1 - smoothstep(0.42, 0.58, localTemp);
+      const rainPart = precip * (1 - snowFraction);
+      const snowPart = precip * snowFraction;
+      const hailImpact = hailing ? Math.min(0.05, precip * 1.5) : 0; // ground-impact kick, not extra mass
+
       let sand = Math.max(0, stamped[o + FIELD.SAND] + sandDelta);
-      let water = Math.max(0, stamped[o + FIELD.WATER] + waterDelta + env.rain * safeDt * 0.018);
+      let water = Math.max(0, stamped[o + FIELD.WATER] + waterDelta + rainPart);
+      let snow = Math.max(0, stamped[o + FIELD.SNOW] + snowPart);
       let sediment = Math.max(0, stamped[o + FIELD.SEDIMENT]);
-      const erosion = Math.min(sand, water * speed * (1 - stamped[o + FIELD.COMPACTION]) * safeDt * 0.032);
+      const erosion = Math.min(sand, water * speed * (1 - stamped[o + FIELD.COMPACTION]) * safeDt * 0.032) * (1 - iceOld);
       const deposition = Math.min(sediment, sediment * safeDt * (0.08 + Math.max(0, 0.7 - speed) * 0.24));
       sand += deposition - erosion;
       sediment += erosion - deposition;
 
-      const infiltration = Math.min(water, env.permeability * (1 - stamped[o + FIELD.COMPACTION]) * safeDt * 0.035);
-      const evaporation = Math.min(water, env.evaporation * (0.25 + env.sun) * safeDt * 0.025);
+      // Snowmelt: warmth above the freeze line converts the snow reservoir back into water.
+      const melt = Math.min(snow, snow * Math.max(0, localTemp - 0.46) * safeDt * 1.4);
+      snow -= melt;
+      water += melt;
+
+      // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
+      // a lake takes time to freeze over or thaw), and feeds back into sandFlux/edgeFlow above.
+      const iceTarget = 1 - smoothstep(0.30, 0.42, localTemp);
+      const ice = clamp(iceOld + (iceTarget - iceOld) * safeDt * 0.5 + hailImpact * 0.4);
+
+      const infiltration = Math.min(water, env.permeability * (1 - stamped[o + FIELD.COMPACTION]) * safeDt * 0.035) * (1 - iceOld);
+      const evaporation = Math.min(water, env.evaporation * (0.25 + env.sun) * safeDt * 0.025) * (1 - iceOld);
       water -= infiltration + evaporation;
       const wetness = clamp(stamped[o + FIELD.WETNESS]
         + infiltration * 12
@@ -248,11 +292,28 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
         - safeDt * env.evaporation * (0.18 + env.sun * 0.52)
         - stamped[o + FIELD.HEAT] * safeDt * 0.16);
 
+      // Vapor: diffuses like heat, gains this step's evaporation 1:1 (mass now carries through
+      // instead of vanishing) plus env.rain as an atmospheric moisture injection -- `rain` no
+      // longer teleports straight into `water`, it has to condense and fall like everything else.
+      const neighbourVapor = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.VAPOR], 0) * 0.25;
+      let vapor = Math.max(0, stamped[o + FIELD.VAPOR]
+        + (neighbourVapor - stamped[o + FIELD.VAPOR]) * safeDt * 0.18
+        + evaporation
+        + env.rain * safeDt * 0.06);
+      // Condensation: colder air holds less vapor before the excess condenses into cloud.
+      // Tuned to the actual scale a small lake's evaporation reaches within a demo-length
+      // run (a peak of roughly 0.01 over ~100s of sim time at default settings), not to a
+      // literal g/m3 saturation curve -- this is a game-scale abstraction, not a weather model.
+      const saturation = 0.0006 + localTemp * 0.006;
+      const condensed = Math.max(0, vapor - saturation) * safeDt * 0.6;
+      vapor -= condensed;
+      const cloud = Math.max(0, cloudOld - precip + condensed);
+
       const neighbourHeat = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.HEAT], 0) * 0.25;
       const heat = clamp(stamped[o + FIELD.HEAT]
         + (neighbourHeat - stamped[o + FIELD.HEAT]) * safeDt * 0.8
         - (0.08 + wetness * 0.55 + water * 2.0) * safeDt);
-      const disturbance = clamp(stamped[o + FIELD.DISTURBANCE] * Math.max(0, 1 - safeDt * 0.16));
+      const disturbance = clamp(stamped[o + FIELD.DISTURBANCE] * Math.max(0, 1 - safeDt * 0.16) + hailImpact);
       const moistureFit = smoothstep(0.12, 0.46, wetness)
         * (1 - smoothstep(0.72, 1.05, wetness + water * 5));
       const temperatureFit = 1 - clamp(Math.abs(env.temperature - 0.55) / 0.52);
@@ -275,6 +336,10 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       next[o + FIELD.DISTURBANCE] = disturbance;
       next[o + FIELD.SEEDS] = seeds;
       next[o + FIELD.BIOMASS] = biomass;
+      next[o + FIELD.VAPOR] = vapor;
+      next[o + FIELD.CLOUD] = cloud;
+      next[o + FIELD.ICE] = ice;
+      next[o + FIELD.SNOW] = snow;
     }
   }
   return next;
@@ -296,16 +361,23 @@ export function sampleWorld(state, size, x, z) {
     biomass: state[o + FIELD.BIOMASS],
     heat: state[o + FIELD.HEAT],
     sand: state[o + FIELD.SAND],
+    vapor: state[o + FIELD.VAPOR],
+    cloud: state[o + FIELD.CLOUD],
+    ice: state[o + FIELD.ICE],
+    snow: state[o + FIELD.SNOW],
   };
 }
 
 export function worldTotals(state) {
-  const totals = {sand: 0, water: 0, sediment: 0, biomass: 0};
+  const totals = {sand: 0, water: 0, sediment: 0, biomass: 0, vapor: 0, cloud: 0, snow: 0};
   for (let o = 0; o < state.length; o += CELL_STRIDE) {
     totals.sand += state[o + FIELD.SAND];
     totals.water += state[o + FIELD.WATER];
     totals.sediment += state[o + FIELD.SEDIMENT];
     totals.biomass += state[o + FIELD.BIOMASS];
+    totals.vapor += state[o + FIELD.VAPOR];
+    totals.cloud += state[o + FIELD.CLOUD];
+    totals.snow += state[o + FIELD.SNOW];
   }
   return totals;
 }

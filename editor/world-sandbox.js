@@ -1,4 +1,5 @@
 import {
+  CELL_STRIDE,
   DEFAULT_ENVIRONMENT,
   FIELD,
   STAMP,
@@ -173,6 +174,10 @@ function colorForCell(data, offset, mode) {
   const vz = data[offset + FIELD.VELOCITY_Z];
   const bio = data[offset + FIELD.BIOMASS];
   const heat = data[offset + FIELD.HEAT];
+  const vapor = data[offset + FIELD.VAPOR];
+  const cloud = data[offset + FIELD.CLOUD];
+  const ice = data[offset + FIELD.ICE];
+  const snow = data[offset + FIELD.SNOW];
   const height = bedrock + sand;
   if (mode === 1) {
     const v = Math.round(Math.min(1, height * 2.1) * 255);
@@ -183,6 +188,7 @@ function colorForCell(data, offset, mode) {
   if (mode === 4) return [8 + bio * 36, 12 + bio * 225, 9 + bio * 52];
   if (mode === 5) return [18 + Math.abs(vx) * 180, 18 + Math.hypot(vx, vz) * 210, 18 + Math.abs(vz) * 180];
   if (mode === 6) return [12 + heat * 243, 15 + heat * 28, 30 - heat * 20];
+  if (mode === 7) return [12 + Math.min(230, vapor * 3600), 14 + Math.min(230, cloud * 4200), 30 + Math.min(200, snow * 800)];
   let r = 62 + sand * 850;
   let g = 55 + sand * 480;
   let b = 43 + sand * 170;
@@ -195,6 +201,16 @@ function colorForCell(data, offset, mode) {
   b = b * (1 - bio * 0.66) + 30 * bio;
   r = r * (1 - heat * 0.45) + 245 * heat;
   g = g * (1 - heat * 0.7) + 38 * heat;
+  // Water cycle made visible on the beauty view too, same rule as the WGSL fsTerrain: ice
+  // pales the surface blue-white, snow (a separate reservoir on top) buries it in white.
+  const icePresence = Math.min(1, Math.max(0, (ice - 0.15) / 0.6));
+  r = r * (1 - icePresence * 0.62) + 158 * icePresence * 0.62;
+  g = g * (1 - icePresence * 0.62) + 189 * icePresence * 0.62;
+  b = b * (1 - icePresence * 0.62) + 204 * icePresence * 0.62;
+  const snowCoverage = Math.min(1, Math.max(0, (snow - 0.006) / 0.054));
+  r = r * (1 - snowCoverage * 0.88) + 230 * snowCoverage * 0.88;
+  g = g * (1 - snowCoverage * 0.88) + 237 * snowCoverage * 0.88;
+  b = b * (1 - snowCoverage * 0.88) + 242 * snowCoverage * 0.88;
   return [r, g, b];
 }
 
@@ -203,7 +219,10 @@ class CpuWorldSandbox {
     this.canvas = target;
     this.context = target.getContext('2d', {alpha: false});
     if (!this.context) throw new Error('Canvas 2D unavailable');
-    this.size = mobile ? 56 : 72;
+    // Higher than before, but far more conservative than the WebGPU backend's 256/512:
+    // this path steps AND rasterizes every quad with Canvas2D fillPath calls on the main
+    // thread, so its bottleneck is draw-call count, not compute -- see CpuWorldSandbox.render.
+    this.size = mobile ? 96 : 144;
     this.particleCount = mobile ? 420 : 900;
     this.onQuery = options.onQuery || (() => {});
     this.offscreen = document.createElement('canvas');
@@ -297,7 +316,7 @@ class CpuWorldSandbox {
     const size = this.size;
     const verticalScale = camera.verticalScale;
     const offsetAt = (x, z) => (Math.max(0, Math.min(size - 1, z)) * size
-      + Math.max(0, Math.min(size - 1, x))) * 12;
+      + Math.max(0, Math.min(size - 1, x))) * CELL_STRIDE;
     const heightAt = (x, z, water = false) => {
       const offset = offsetAt(x, z);
       return this.world[offset + FIELD.BEDROCK] + this.world[offset + FIELD.SAND]
@@ -365,13 +384,19 @@ class CpuWorldSandbox {
         // in world-sandbox-reference.mjs) also has to show up here -- this 2D canvas path
         // is the real fallback most browsers/headless runs actually use, not a decoration
         // layered only on top of the WebGPU renderer.
+        // A frozen cell (edgeFlow already stopped transporting it) should look still, not
+        // just physically stop -- fade its own flow-driven foam out by the ice fraction.
+        const ice = this.world[offset + FIELD.ICE];
         const vx = this.world[offset + FIELD.VELOCITY_X];
         const vz = this.world[offset + FIELD.VELOCITY_Z];
-        const speed = Math.min(1, Math.hypot(vx, vz) * 6);
+        const speed = Math.min(1, Math.hypot(vx, vz) * 6) * (1 - ice);
         const foam = Math.max(0, speed - 0.35) / 0.65;
-        const r = 42 - depth * 18 + foam * 150;
-        const g = 120 - depth * 31 + foam * 120;
-        const b = 137 - depth * 24 + foam * 90;
+        let r = 42 - depth * 18 + foam * 150;
+        let g = 120 - depth * 31 + foam * 120;
+        let b = 137 - depth * 24 + foam * 90;
+        r = r * (1 - ice * 0.72) + 204 * ice * 0.72;
+        g = g * (1 - ice * 0.72) + 222 * ice * 0.72;
+        b = b * (1 - ice * 0.72) + 230 * ice * 0.72;
         context.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${0.48 + depth * 0.24})`;
         context.beginPath();
         context.moveTo(w00.x, w00.y);
@@ -383,7 +408,8 @@ class CpuWorldSandbox {
       }
 
       const biomass = this.world[offset + FIELD.BIOMASS];
-      if (viewMode === 0 && water < 0.006 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
+      const snowCover = this.world[offset + FIELD.SNOW];
+      if (viewMode === 0 && water < 0.006 && snowCover < 0.02 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
         const stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
         const vx = this.world[offset + FIELD.VELOCITY_X];
         const vz = this.world[offset + FIELD.VELOCITY_Z];

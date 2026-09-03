@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {
+  CELL_STRIDE,
   DEFAULT_ENVIRONMENT,
+  FIELD,
   STAMP,
+  cellOffset,
   createWorldState,
   sampleWorld,
   stateChecksum,
@@ -93,16 +96,15 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
 // real momentum-carrying transport model.
 {
   const damSize = 24;
-  const flat = new Float32Array(damSize * damSize * 12);
-  const {cellOffset: damOffset, FIELD: damField} = await import('../runtime/world-sandbox-reference.mjs');
+  const flat = new Float32Array(damSize * damSize * CELL_STRIDE);
   for (let z = 0; z < damSize; z++) {
     for (let x = 0; x < damSize; x++) {
-      flat[damOffset(damSize, x, z) + damField.BEDROCK] = 0.1;
+      flat[cellOffset(damSize, x, z) + FIELD.BEDROCK] = 0.1;
     }
   }
   for (let z = 0; z < damSize; z++) {
     for (let x = 0; x < damSize / 2; x++) {
-      flat[damOffset(damSize, x, z) + damField.WATER] = 0.3;
+      flat[cellOffset(damSize, x, z) + FIELD.WATER] = 0.3;
     }
   }
   const damEnvironment = {
@@ -126,6 +128,96 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   const peak = Math.max(...depths.slice(0, 100));
   const late = depths[depths.length - 1];
   assert.ok(peak > late + 0.01, `dam-break water must overshoot its late-time settling depth (peak ${peak.toFixed(4)} vs late ${late.toFixed(4)})`);
+}
+
+// --- Water cycle: Gas (vapor) -> Kondensation -> Feuchte -> Eis -> Regen/Hagel/Schnee -----
+// Evaporation no longer discards mass -- it feeds a real vapor reservoir that condenses into
+// cloud once local (altitude-cooled) temperature can no longer hold it, and precipitates back
+// down as rain or snow depending on that same local temperature. The whole loop must conserve
+// mass with no external injection, and must actually produce weather at the scale a small lake's
+// natural evaporation reaches within a demo-length run, not just in principle.
+{
+  const flatSize = 16;
+  function flatWorldWithCloud(cloudAmount) {
+    const s = new Float32Array(flatSize * flatSize * CELL_STRIDE);
+    for (let z = 0; z < flatSize; z++) {
+      for (let x = 0; x < flatSize; x++) {
+        const o = cellOffset(flatSize, x, z);
+        s[o + FIELD.BEDROCK] = 0.1; // fixed altitude, so localTemp tracks env.temperature exactly
+        s[o + FIELD.CLOUD] = cloudAmount;
+      }
+    }
+    return s;
+  }
+  const closedEnv = {...DEFAULT_ENVIRONMENT, rain: 0, permeability: 0};
+
+  // A. Closed system: no rain injection, no infiltration -> water+vapor+cloud+snow is conserved.
+  let closed = createWorldState(flatSize, 0x1234);
+  const closedBefore = worldTotals(closed);
+  const beforeSum = closedBefore.water + closedBefore.vapor + closedBefore.cloud + closedBefore.snow;
+  for (let tick = 0; tick < 1200; tick++) closed = stepWorldReference(closed, flatSize, 1 / 30, {environment: closedEnv});
+  const closedAfter = worldTotals(closed);
+  const afterSum = closedAfter.water + closedAfter.vapor + closedAfter.cloud + closedAfter.snow;
+  assert.ok(
+    Math.abs(afterSum - beforeSum) < Math.max(1e-6, beforeSum * 1e-4),
+    `closed water cycle (no rain, no infiltration) must conserve total moisture (before ${beforeSum}, after ${afterSum})`,
+  );
+
+  // B. Natural evaporation actually reaches condensation within a demo-length run (not just
+  //    in principle) -- a lake basin under default settings must produce a real cloud.
+  let natural = createWorldState(48, 3);
+  let cloudSeen = false;
+  for (let tick = 0; tick < 3000 && !cloudSeen; tick++) {
+    natural = stepWorldReference(natural, 48, 1 / 30, {environment: DEFAULT_ENVIRONMENT});
+    if (worldTotals(natural).cloud > 1e-4) cloudSeen = true;
+  }
+  assert.ok(cloudSeen, 'natural lake evaporation must condense into a real cloud within 100s of default-settings sim time');
+
+  // C. Temperature decides rain vs snow: warm precipitation goes to water, cold to snow.
+  let warm = flatWorldWithCloud(0.05);
+  warm = stepWorldReference(warm, flatSize, 1 / 30, {environment: {...closedEnv, temperature: 0.85}});
+  const warmTotals = worldTotals(warm);
+  assert.ok(warmTotals.water > 0 && warmTotals.snow < 1e-6, `warm (temp=0.85) precipitation must fall as rain, not snow (water ${warmTotals.water}, snow ${warmTotals.snow})`);
+
+  let cold = flatWorldWithCloud(0.05);
+  cold = stepWorldReference(cold, flatSize, 1 / 30, {environment: {...closedEnv, temperature: 0.15}});
+  const coldTotals = worldTotals(cold);
+  assert.ok(coldTotals.snow > 0 && coldTotals.water < 1e-6, `cold (temp=0.15) precipitation must fall as snow, not rain (water ${coldTotals.water}, snow ${coldTotals.snow})`);
+
+  // D. Sustained cold freezes a lake solid, and ice then suppresses transport (edgeFlow) and
+  //    erosion (sandFlux) -- a frozen cell must stop moving water/sand, not just look cold.
+  const frozenSize = 20;
+  const frozenLake = new Float32Array(frozenSize * frozenSize * CELL_STRIDE);
+  for (let z = 0; z < frozenSize; z++) {
+    for (let x = 0; x < frozenSize; x++) {
+      const o = cellOffset(frozenSize, x, z);
+      frozenLake[o + FIELD.BEDROCK] = 0.1;
+    }
+  }
+  for (let z = 0; z < frozenSize; z++) {
+    for (let x = 0; x < frozenSize / 2; x++) frozenLake[cellOffset(frozenSize, x, z) + FIELD.WATER] = 0.3;
+  }
+  let frozen = frozenLake;
+  const freezeEnv = {rain: 0, sun: 0.5, temperature: 0.05, evaporation: 0, permeability: 0, sandRate: 2.35, waterRate: 5.4, growthRate: 0};
+  for (let tick = 0; tick < 900; tick++) frozen = stepWorldReference(frozen, frozenSize, 1 / 30, {environment: freezeEnv});
+  const seamIce = sampleWorld(frozen, frozenSize, 0.5, 0.5).ice;
+  assert.ok(seamIce > 0.9, `sustained cold must freeze the lake near-solid (ice fraction at seam: ${seamIce})`);
+  const preFreezeDepth = sampleWorld(frozen, frozenSize, 0.5, 0.5).waterDepth;
+  for (let tick = 0; tick < 60; tick++) frozen = stepWorldReference(frozen, frozenSize, 1 / 30, {environment: freezeEnv});
+  const postFreezeDepth = sampleWorld(frozen, frozenSize, 0.5, 0.5).waterDepth;
+  assert.ok(
+    Math.abs(postFreezeDepth - preFreezeDepth) < 1e-4,
+    `a frozen cell must stop transporting water once ice is near 1 (before ${preFreezeDepth}, after 60 more steps ${postFreezeDepth})`,
+  );
+
+  // E. Hail: a heavily loaded cloud right at the near-freezing band (just above where ice
+  //    fully forms) must produce a real, measurable ground-impact kick (disturbance), not
+  //    just silently convert to ordinary snow.
+  let hailWorld = flatWorldWithCloud(0.5);
+  hailWorld = stepWorldReference(hailWorld, flatSize, 1 / 30, {environment: {...closedEnv, temperature: 0.48}});
+  let maxDisturbance = 0;
+  for (let o = 0; o < hailWorld.length; o += CELL_STRIDE) maxDisturbance = Math.max(maxDisturbance, hailWorld[o + FIELD.DISTURBANCE]);
+  assert.ok(maxDisturbance > 0.001, `a heavy cloud in the hail band must leave a ground-impact disturbance (max disturbance: ${maxDisturbance})`);
 }
 
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);
