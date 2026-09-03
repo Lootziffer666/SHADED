@@ -98,9 +98,22 @@ fn smooth(a: f32, b: f32, value: f32) -> f32 {
 // mass leaks out a downwind edge / gets manufactured at an upwind edge with no real neighbour
 // on the other side. Cell structs carry no index identity here, so the caller in main() passes
 // hasLeft/hasRight/hasTop/hasBottom explicitly instead of edgeFlow/windFlux detecting it.
-fn windFlux(fromValue: f32, windAlongFromTo: f32, dt: f32, size: f32, rate: f32) -> f32 {
-  let crossing = max(0.0, windAlongFromTo) * dt * size * rate;
-  return min(fromValue * 0.5, crossing * fromValue);
+// Bounds a cell's TOTAL outgoing wind flux (summed over all 4 directions) to at most its
+// own available stock -- mirrors runtime/world-sandbox-reference.mjs's windOutflowScale
+// exactly. A per-edge cap alone is not enough: at large grid sizes or strong diagonal wind,
+// crossing can exceed the cap on two outgoing edges at once, letting a cell lose more than
+// it has once summed. Derived only from the cell's own wind + dt/size/rate, so it stays a
+// pure function of the source cell alone, which the mass-conservation guarantee requires.
+// (crossing = the per-direction fraction of a cell's stock that wind moves this step.)
+fn windOutflowScale(wind: vec2<f32>, dt: f32, size: f32, rate: f32) -> f32 {
+  let total = max(0.0, wind.x) * dt * size * rate + max(0.0, -wind.x) * dt * size * rate
+    + max(0.0, wind.y) * dt * size * rate + max(0.0, -wind.y) * dt * size * rate;
+  return select(1.0, 1.0 / total, total > 1.0);
+}
+
+fn windFlux(fromValue: f32, windAlongFromTo: f32, dt: f32, size: f32, rate: f32, outflowScale: f32) -> f32 {
+  let crossing = max(0.0, windAlongFromTo) * dt * size * rate * outflowScale;
+  return crossing * fromValue;
 }
 
 // windAlong: dot of the wind vector carried by ONE cell with a cardinal direction. Always the
@@ -119,22 +132,27 @@ fn windTransportDelta(
   selfWind: vec2<f32>, leftWind: vec2<f32>, rightWind: vec2<f32>, topWind: vec2<f32>, bottomWind: vec2<f32>,
   dt: f32, size: f32, rate: f32,
 ) -> f32 {
+  let scaleSelf = windOutflowScale(selfWind, dt, size, rate);
+  let scaleLeft = windOutflowScale(leftWind, dt, size, rate);
+  let scaleRight = windOutflowScale(rightWind, dt, size, rate);
+  let scaleTop = windOutflowScale(topWind, dt, size, rate);
+  let scaleBottom = windOutflowScale(bottomWind, dt, size, rate);
   var delta = 0.0;
   if (hasLeft) {
-    delta += windFlux(leftValue, windAlong(leftWind, 1.0, 0.0), dt, size, rate)
-      - windFlux(selfValue, windAlong(selfWind, -1.0, 0.0), dt, size, rate);
+    delta += windFlux(leftValue, windAlong(leftWind, 1.0, 0.0), dt, size, rate, scaleLeft)
+      - windFlux(selfValue, windAlong(selfWind, -1.0, 0.0), dt, size, rate, scaleSelf);
   }
   if (hasRight) {
-    delta += windFlux(rightValue, windAlong(rightWind, -1.0, 0.0), dt, size, rate)
-      - windFlux(selfValue, windAlong(selfWind, 1.0, 0.0), dt, size, rate);
+    delta += windFlux(rightValue, windAlong(rightWind, -1.0, 0.0), dt, size, rate, scaleRight)
+      - windFlux(selfValue, windAlong(selfWind, 1.0, 0.0), dt, size, rate, scaleSelf);
   }
   if (hasTop) {
-    delta += windFlux(topValue, windAlong(topWind, 0.0, 1.0), dt, size, rate)
-      - windFlux(selfValue, windAlong(selfWind, 0.0, -1.0), dt, size, rate);
+    delta += windFlux(topValue, windAlong(topWind, 0.0, 1.0), dt, size, rate, scaleTop)
+      - windFlux(selfValue, windAlong(selfWind, 0.0, -1.0), dt, size, rate, scaleSelf);
   }
   if (hasBottom) {
-    delta += windFlux(bottomValue, windAlong(bottomWind, 0.0, -1.0), dt, size, rate)
-      - windFlux(selfValue, windAlong(selfWind, 0.0, 1.0), dt, size, rate);
+    delta += windFlux(bottomValue, windAlong(bottomWind, 0.0, -1.0), dt, size, rate, scaleBottom)
+      - windFlux(selfValue, windAlong(selfWind, 0.0, 1.0), dt, size, rate, scaleSelf);
   }
   return delta;
 }
@@ -1078,14 +1096,21 @@ fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
   // Combustion made visible: fire reads as its own emissive light source (day or night --
   // a real fire is not just "brighter shadow"), smoke thickens the air right above it into
   // a grey haze, and ash left behind after the fire dies down darkens the ground toward
-  // soot instead of the burn scar vanishing without a trace once fuelBurn stops.
-  let ashPresence = smoothstep(0.02, 0.35, input.combust.z);
-  color = mix(color, vec3<f32>(0.05, 0.048, 0.045), ashPresence * 0.55);
-  let fireGlow = clamp(input.combust.x, 0.0, 1.0);
-  color = mix(color, vec3<f32>(1.0, 0.42, 0.06), fireGlow * 0.72);
-  color += vec3<f32>(1.0, 0.55, 0.12) * fireGlow * fireGlow * 0.9;
-  let smokeHaze = clamp(input.combust.y * 3.5, 0.0, 0.85);
-  color = mix(color, vec3<f32>(0.18, 0.17, 0.16), smokeHaze);
+  // soot instead of the burn scar vanishing without a trace once fuelBurn stops. Gated to
+  // mode == 0u (beauty view) only -- applying it unconditionally after the mode>0u block
+  // above overwrote every diagnostic field view (WATERFIELD/HOEHENFELD/WETTER/...) with
+  // soot/fire/smoke colors instead of the requested field value, and did so inconsistently
+  // with the CPU fallback (colorForCell returns its diagnostic colors before ever applying
+  // these overlays), making the same experiment backend-dependent.
+  if (mode == 0u) {
+    let ashPresence = smoothstep(0.02, 0.35, input.combust.z);
+    color = mix(color, vec3<f32>(0.05, 0.048, 0.045), ashPresence * 0.55);
+    let fireGlow = clamp(input.combust.x, 0.0, 1.0);
+    color = mix(color, vec3<f32>(1.0, 0.42, 0.06), fireGlow * 0.72);
+    color += vec3<f32>(1.0, 0.55, 0.12) * fireGlow * fireGlow * 0.9;
+    let smokeHaze = clamp(input.combust.y * 3.5, 0.0, 0.85);
+    color = mix(color, vec3<f32>(0.18, 0.17, 0.16), smokeHaze);
+  }
 
   let cursorDistance = distance(input.uv, R.cursor.xy);
   let edgeWidth = max(0.0025, fwidth(cursorDistance) * 1.35);

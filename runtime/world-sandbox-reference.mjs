@@ -303,10 +303,28 @@ function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24
 // only on the source cell's own stock, not a from-vs-to difference, so a clamped self-
 // neighbour at the grid edge would otherwise leak mass out (downwind edge) or manufacture it
 // from nothing (upwind edge) instead of correctly acting as a closed, no-flux boundary.
-function windFlux(state, fieldIndex, fromIndex, toIndex, windAlongFromTo, dt, size, rate) {
+// Bounds a cell's TOTAL outgoing wind flux (summed over all 4 directions) to at most its
+// own available stock. A per-edge cap alone is not enough: at large grid sizes (or strong
+// diagonal wind) `crossing` can exceed the cap on TWO outgoing edges at once, so capping
+// each edge independently at 50% still lets a cell lose up to 100%+ of its stock in one
+// step once both are summed, going negative before the final Math.max(0, ...) clips the
+// debit -- while its neighbours, computed independently, still receive the FULL uncapped
+// credit each edge implied. Fixed by scaling every outgoing direction from a cell by the
+// SAME factor, derived only from that cell's own wind + dt/size/rate (never a neighbour's),
+// so it stays a pure function of the source cell alone -- required for the mass-conservation
+// guarantee below to still hold.
+function windOutflowScale(state, index, dt, size, rate) {
+  const windX = state[index + FIELD.WIND_X];
+  const windZ = state[index + FIELD.WIND_Z];
+  const total = Math.max(0, windX) * dt * size * rate + Math.max(0, -windX) * dt * size * rate
+    + Math.max(0, windZ) * dt * size * rate + Math.max(0, -windZ) * dt * size * rate;
+  return total > 1 ? 1 / total : 1;
+}
+
+function windFlux(state, fieldIndex, fromIndex, toIndex, windAlongFromTo, dt, size, rate, outflowScale) {
   if (fromIndex === toIndex) return 0;
-  const crossing = Math.max(0, windAlongFromTo) * dt * size * rate;
-  return Math.min(state[fromIndex + fieldIndex] * 0.5, crossing * state[fromIndex + fieldIndex]);
+  const crossing = Math.max(0, windAlongFromTo) * dt * size * rate * outflowScale;
+  return crossing * state[fromIndex + fieldIndex];
 }
 
 // Dot of the wind vector STORED AT `index` with a cardinal direction -- deliberately always
@@ -321,15 +339,20 @@ function windAlong(state, index, dirX, dirZ) {
 }
 
 function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt, size, rate) {
+  const scaleO = windOutflowScale(state, o, dt, size, rate);
+  const scaleLeft = windOutflowScale(state, left, dt, size, rate);
+  const scaleRight = windOutflowScale(state, right, dt, size, rate);
+  const scaleNorth = windOutflowScale(state, north, dt, size, rate);
+  const scaleSouth = windOutflowScale(state, south, dt, size, rate);
   let delta = 0;
-  delta += windFlux(state, fieldIndex, left, o, windAlong(state, left, 1, 0), dt, size, rate)
-    - windFlux(state, fieldIndex, o, left, windAlong(state, o, -1, 0), dt, size, rate);
-  delta += windFlux(state, fieldIndex, right, o, windAlong(state, right, -1, 0), dt, size, rate)
-    - windFlux(state, fieldIndex, o, right, windAlong(state, o, 1, 0), dt, size, rate);
-  delta += windFlux(state, fieldIndex, north, o, windAlong(state, north, 0, 1), dt, size, rate)
-    - windFlux(state, fieldIndex, o, north, windAlong(state, o, 0, -1), dt, size, rate);
-  delta += windFlux(state, fieldIndex, south, o, windAlong(state, south, 0, -1), dt, size, rate)
-    - windFlux(state, fieldIndex, o, south, windAlong(state, o, 0, 1), dt, size, rate);
+  delta += windFlux(state, fieldIndex, left, o, windAlong(state, left, 1, 0), dt, size, rate, scaleLeft)
+    - windFlux(state, fieldIndex, o, left, windAlong(state, o, -1, 0), dt, size, rate, scaleO);
+  delta += windFlux(state, fieldIndex, right, o, windAlong(state, right, -1, 0), dt, size, rate, scaleRight)
+    - windFlux(state, fieldIndex, o, right, windAlong(state, o, 1, 0), dt, size, rate, scaleO);
+  delta += windFlux(state, fieldIndex, north, o, windAlong(state, north, 0, 1), dt, size, rate, scaleNorth)
+    - windFlux(state, fieldIndex, o, north, windAlong(state, o, 0, -1), dt, size, rate, scaleO);
+  delta += windFlux(state, fieldIndex, south, o, windAlong(state, south, 0, -1), dt, size, rate, scaleSouth)
+    - windFlux(state, fieldIndex, o, south, windAlong(state, o, 0, 1), dt, size, rate, scaleO);
   return delta;
 }
 
