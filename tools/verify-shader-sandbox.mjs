@@ -21,6 +21,7 @@ assert.match(html, /id="sandbox-canvas"/);
 assert.match(html, /sandbox-granular\.js/);
 assert.match(html, /sandbox-coast\.js/);
 assert.match(rootHtml, /id="world-sandbox-canvas"/);
+assert.match(rootHtml, /id="world-sandbox-hud"/);
 assert.match(rootHtml, /id="panel-sandbox"/);
 assert.match(rootHtml, /world-sandbox\.js/);
 assert.match(html, /SHADED<\/span><span class="brand-mode">\/ SANDBOX/);
@@ -71,9 +72,16 @@ assert.match(worldGpu, /copyBufferToBuffer/);
 assert.match(worldGpu, /worldGroups/);
 assert.match(worldGpu, /particleGroups/);
 assert.match(worldGpu, /queryGroups/);
+assert.match(worldGpu, /vsTerrain/);
+assert.match(worldGpu, /vsWater/);
+assert.match(worldGpu, /vsGrass/);
+assert.match(worldGpu, /depth24plus/);
+assert.match(worldJs, /beginMultiGesture/);
 assert.match(worldReference, /stepWorldReference/);
 assert.match(worldReference, /sandFlux/);
-assert.match(worldReference, /waterFlux/);
+// Water transport is velocity-driven (edgeFlow reads the accelerate-then-damp velocity
+// field), not the old instantaneous excess-head rule -- see world-sandbox-reference.mjs.
+assert.match(worldReference, /edgeFlow/);
 
 assert.match(sources, /WebGL SandToy/);
 assert.match(sources, /FreeStylized Sand 01/);

@@ -35,6 +35,7 @@ uniform float u_primSnow[MAX_PRIMS];
 uniform float u_primRust[MAX_PRIMS];
 uniform float u_primHeat[MAX_PRIMS];
 uniform float u_primFire[MAX_PRIMS];
+uniform float u_primMud[MAX_PRIMS];
 
 // --- StyleProfile-Uniforms (ein Wert pro Dimension, siehe runtime/style/style-profile.js) ---
 uniform int u_lightingMode;      // 0 halfLambert, 1 banded, 2 hardCel
@@ -116,11 +117,40 @@ void main() {
   vec3 worldPos = (g3.rgb - 0.5) / 0.06;
 
   // --- Normal-Stil ---
-  if (u_normalMode == 2) { // faceted: Normale auf grobe Buckets quantisieren
+  float cavity = 0.0;
+  if (u_normalMode == 1) { // curvature: bestehende Krümmungs-Vertiefung
+    cavity = curvature * u_normalStrength;
+  } else if (u_normalMode == 2) { // faceted: Normale auf grobe Buckets quantisieren
     float bucket = 4.0;
     n = normalize(floor(n * bucket + 0.5) / bucket + 1e-4);
+  } else if (u_normalMode == 3) {
+    // cellular — unregelmäßige organische Zellstruktur statt gleichmäßiger
+    // Facetten-Buckets. Inspiriert von chrxh/alien's Ästhetik organischer
+    // Partikelnetzwerke/Zellorganismen (BSD-3, siehe
+    // docs/sandbox-element-license-audit.md) — NICHT dieselbe Mechanismus-
+    // Familie wie bei VaseFX/stereogram: alien ist eine CUDA-C++-
+    // Partikelphysik-Engine, hier wird nur die visuelle Idee "organische
+    // Zellen" unabhängig als 3x3x3-Voronoi in GLSL umgesetzt.
+    vec3 cp = worldPos * 6.0;
+    vec3 ip = floor(cp);
+    vec3 fp = fract(cp);
+    float minD = 8.0;
+    vec3 cellSeed = ip;
+    for (int z = -1; z <= 1; z++) {
+      for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+          vec3 off = vec3(float(x), float(y), float(z));
+          vec3 seed = ip + off;
+          vec3 jitter = vec3(hash13(seed), hash13(seed + 91.7), hash13(seed + 43.1));
+          float d = length(fp - (off + jitter));
+          if (d < minD) { minD = d; cellSeed = seed; }
+        }
+      }
+    }
+    vec3 tilt = normalize(n + vec3(hash13(cellSeed) - 0.5, hash13(cellSeed + 5.2) - 0.5, hash13(cellSeed + 9.4) - 0.5) * 1.4);
+    n = normalize(mix(n, tilt, clamp(u_normalStrength, 0.0, 1.0)));
+    cavity = smoothstep(0.42, 0.28, minD) * u_normalStrength * 0.5; // dunklere Zellgrenzen
   }
-  float cavity = (u_normalMode == 1) ? curvature * u_normalStrength : 0.0;
 
   // --- Materialsemantik aus der indizierten Tabelle (Korrektur 1) ---
   float wetness = u_primWetness[mi];
@@ -131,6 +161,7 @@ void main() {
   float rustAmt = u_primRust[mi];
   float heatAmt = u_primHeat[mi];
   float fireAmt = u_primFire[mi];
+  float mudAmt = u_primMud[mi];
 
   // Risse dunkeln die Normale lokal ab (Kantenschatten), unabhängig vom Stil.
   vec3 litSurfaceColor = baseColor;
@@ -191,6 +222,7 @@ void main() {
   color = mix(color, color * 0.55, wetness * 0.6);          // Nässe dunkelt & glänzt (spec bereits reflectance-gekoppelt)
   color = mix(color, vec3(0.03, 0.03, 0.03), charAmt * 0.7); // Ruß/Verkohlung Richtung Schwarz
   color = mix(color, vec3(0.55, 0.30, 0.12), rustAmt * 0.5); // Rost Richtung Orange-Braun
+  color = mix(color, vec3(0.24, 0.19, 0.11), mudAmt * 0.55); // Sediment/Schlamm Richtung erdig-matt, unterscheidbar von Rost
   color = mix(color, vec3(0.85, 0.90, 0.96), frostAmt * 0.4);
   color = mix(color, vec3(1.0), snowAmt * 0.6);
   color += u_lightColor * emission * (1.0 + fireAmt * 2.0) * mix(1.0, 1.6, heatAmt);
@@ -213,6 +245,20 @@ void main() {
   } else if (u_paletteMode == 2) { // posterize
     float steps = max(2.0, u_paletteSteps);
     color = floor(color * steps + 0.5) / steps;
+  } else if (u_paletteMode == 3) {
+    // iridescent — layered seeded noise blends between two hues, plus a
+    // view-angle shift (real iridescence changes hue with viewing angle).
+    // Mechanism from KilledByAPixel/VaseFX's README ("layers of seeded noise
+    // drive the glaze patterns... blending between two colors"), reimplemented
+    // independently in GLSL (GPL-3.0 source, technique only; see
+    // docs/sandbox-element-license-audit.md) using this shader's own
+    // valueNoise3()/hsv2rgb(), not VaseFX code.
+    float marble = valueNoise3(worldPos * 2.0) * 0.6 + valueNoise3(worldPos * 5.0 + 7.0) * 0.4;
+    float angleShift = pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), 2.0);
+    vec3 hueA = hsv2rgb(vec3(fract(u_paletteHue + marble * 0.35), 0.55, 0.95));
+    vec3 hueB = hsv2rgb(vec3(fract(u_paletteHue + 0.5 + angleShift * 0.25), 0.6, 1.0));
+    float lum = clamp(dot(color, vec3(0.299, 0.587, 0.114)), 0.0, 1.0);
+    color = mix(hueA, hueB, angleShift) * (0.35 + lum * 0.9);
   }
 
   // --- Outline-Stil (Sobel auf Tiefe + Normale) ---

@@ -77,6 +77,11 @@ const previewWrap = document.getElementById('preview-wrap');
 previewWrap?.addEventListener('pointerdown', event => {
   if (event.target.closest?.('#spatial-viewer')) return;
   if (event.target.closest?.('.actor-marker')) return;
+  if (body.classList.contains('world-sandbox-mode')) {
+    closeInspector();
+    requestAnimationFrame(() => document.querySelector('.rail-btn[data-target="panel-sandbox"]')?.classList.add('active'));
+    return;
+  }
   closeChrome();
 }, true);
 

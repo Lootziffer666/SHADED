@@ -66,6 +66,21 @@ float sdCapsule(vec3 p, float h, float r) {
   p.y -= clamp(p.y, -h, h);
   return length(p) - r;
 }
+// Profile-of-height revolved around the vertical axis — same mechanism family
+// as KilledByAPixel/VaseFX (compact profile -> GPU raymarches the resulting
+// solid, no mesh), reimplemented independently: VaseFX packs 256 sampled
+// radius/smoothness values into a data texture (GPL-3.0, technique only, see
+// docs/sandbox-element-license-audit.md); the sandbox's per-primitive budget
+// is a single vec4, so the profile here is analytic (sine-fluted) instead of
+// sampled. Same idea — few numbers, GPU reconstructs a non-trivial revolved
+// form — different, independent source.
+float sdRevolution(vec3 p, vec4 pr) {
+  float baseR = pr.x, freq = pr.y, amp = pr.z, halfH = pr.w;
+  float y = clamp(p.y, -halfH, halfH);
+  float profileR = baseR + amp * sin(freq * (y + halfH));
+  vec2 d2 = vec2(length(p.xz) - profileR, abs(p.y) - halfH);
+  return length(max(d2, 0.0)) + min(max(d2.x, d2.y), 0.0);
+}
 
 float primDist(int i, vec3 p) {
   vec3 lp = p - u_primCenter[i];
@@ -75,7 +90,8 @@ float primDist(int i, vec3 p) {
   if (t == 1) return sdBox(lp, pr.xyz);
   if (t == 2) return sdTorus(lp, pr.xy);
   if (t == 3) return sdOctahedron(lp, pr.x);
-  return sdCapsule(lp, pr.x, pr.y);
+  if (t == 4) return sdCapsule(lp, pr.x, pr.y);
+  return sdRevolution(lp, pr);
 }
 
 vec2 mapScene(vec3 p) {

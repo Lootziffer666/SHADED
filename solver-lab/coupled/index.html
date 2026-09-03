@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHADED Solver Lab — Erosion × Granular</title>
+<link rel="stylesheet" href="../lab-common.css">
+</head>
+<body>
+<header class="lab-header">
+  <h1>SHADED Solver Lab — Erosion × Granular gekoppelt</h1>
+  <p>Kein dritter Solver — eine dünne Brücke (<code>runtime/solver/erosion-granular-bridge.js</code>), die die
+     beiden bestehenden, unabhängig verifizierten Labs zusammenschaltet: eine Zeile des (Draufsicht-)Höhenfelds
+     ist eine gültige 1D-Bodenkontur für das (Seitenansicht-)Granular-Grid. Wo Erosion Höhe abträgt, entsteht
+     dort unten im Granular-Grid Sand — sichtbar auf genau der Stelle, an der es herausgegraben wurde. Der
+     Granular-Solver läuft danach vollkommen unverändert weiter. Geprüft von
+     <code>tools/test-erosion-granular-bridge.mjs</code>.</p>
+  <div class="top-controls">
+    <button id="btn-erode-transfer">500 Tropfen erodieren + Sediment übernehmen</button>
+    <button id="btn-play-granular" class="active">▶ Granular läuft</button>
+    <button id="btn-reset">Neu seeden</button>
+    <label>Seed <input id="seed-input" type="number" value="1" min="0" step="1"></label>
+  </div>
+</header>
+
+<section class="lab-section">
+  <div>
+    <div class="canvas-wrap">
+      <canvas id="height-canvas" width="120" height="60"></canvas>
+    </div>
+    <p class="hint">Höhenfeld von oben. Die markierte Zeile ist die Bodenkontur, die unten ins Granular-Grid
+       übernommen wird.</p>
+    <div class="canvas-wrap" style="margin-top: 0.75rem;">
+      <canvas id="grid-canvas" width="120" height="70"></canvas>
+    </div>
+    <p class="hint">Granular-Grid von der Seite. Die Bodenkontur oben bestimmt die Wand-Silhouette hier; frisch
+       erodiertes Sediment erscheint als Sand direkt darüber und fällt danach unter normaler Schwerkraft.</p>
+  </div>
+  <div class="side-panel">
+    <h2>Live-Status</h2>
+    <dl id="status" class="status-grid">
+      <dt>Erosionsläufe</dt><dd id="status-runs">0</dd>
+      <dt>Tropfen gesamt</dt><dd id="status-droplets">0</dd>
+      <dt>Sediment (Sand-Zellen)</dt><dd id="status-sand">0</dd>
+      <dt>Granular-Schritt</dt><dd id="status-step">0</dd>
+    </dl>
+    <p class="hint">Jeder Klick auf "erodieren + übernehmen" fügt weiteres Sediment an den dann jeweils frisch
+       abgetragenen Stellen hinzu — die Sandzahl wächst mit jedem Lauf, sie wird nie zurückgesetzt außer bei
+       "Neu seeden".</p>
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
