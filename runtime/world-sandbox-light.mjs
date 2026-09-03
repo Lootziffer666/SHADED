@@ -1,9 +1,9 @@
-// SHADED per-cell light field -- first real slice of the architecture from the user's own
+// SHADED per-cell light field -- first real slices of the architecture from the user's own
 // "SHADED: Light as a World Field" reference doc ("light is a field of the world, not a
-// property of the camera"). This file implements Pass 3 from that doc (direct sun visibility via
-// height-field ray-marching) only: a real, honest first step, not a stub for the full 7-pass
-// pipeline (optical bake, sky exposure, iterative bounce light transport, world response,
-// render). Those are real, named follow-ups -- not built here yet.
+// property of the camera"). This file implements Pass 3 (direct sun visibility) and Pass 4 (sky
+// exposure) from that doc, both via real height-field ray-marching: an honest first step, not a
+// stub for the full 7-pass pipeline (optical bake, iterative bounce light transport, world
+// response, render). Those are real, named follow-ups -- not built here yet.
 //
 // Reads the SAME heightfield the rest of the sandbox already uses (surface() = BEDROCK + SAND
 // from world-sandbox-reference.mjs, already the terrain's own real elevation, not a second
@@ -62,6 +62,54 @@ export function computeSunVisibility(state, size, sunDirX, sunDirZ, sunElevation
         }
       }
       out[z * size + x] = visible;
+    }
+  }
+  return out;
+}
+
+// Eight compass directions, normalized -- same set the reference doc's Pass 4 samples.
+const SKY_DIRECTIONS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]]
+  .map(([dx, dz]) => { const len = Math.hypot(dx, dz); return [dx / len, dz / len]; });
+const SKY_SAMPLES_PER_DIRECTION = 32;
+const SKY_STEP_CELLS = 2;
+
+// Returns a Float32Array of size*size sky-exposure values in [0,1] (1 = fully open sky, 0 =
+// completely enclosed) -- how much of the upper hemisphere a cell can actually see, independent
+// of any specific sun direction (unlike computeSunVisibility, this doesn't need one). For each
+// of 8 compass directions, marches outward and tracks the steepest elevation angle any terrain
+// along that direction reaches above the cell's own height (a real horizon line, not a fixed
+// search radius cutoff pretending to be one); the average of those 8 horizon angles is how much
+// of the sky is blocked. A canyon reads as low exposure on every cell inside it; open flat
+// ground reads as 1 everywhere, since there is no terrain anywhere to raise any horizon angle
+// above 0.
+export function computeSkyExposure(state, size) {
+  const step = SKY_STEP_CELLS / size;
+  const out = new Float32Array(size * size);
+  for (let z = 0; z < size; z++) {
+    for (let x = 0; x < size; x++) {
+      const originHeight = surface(state, cellOffset(size, x, z));
+      const originX = (x + 0.5) / size;
+      const originZ = (z + 0.5) / size;
+      let horizonSum = 0;
+      for (const [dx, dz] of SKY_DIRECTIONS) {
+        let maxAngle = 0;
+        let worldX = originX;
+        let worldZ = originZ;
+        for (let s = 1; s <= SKY_SAMPLES_PER_DIRECTION; s++) {
+          worldX += dx * step;
+          worldZ += dz * step;
+          if (worldX < 0 || worldX > 1 || worldZ < 0 || worldZ > 1) break;
+          const cx = Math.min(size - 1, Math.max(0, Math.floor(worldX * size)));
+          const cz = Math.min(size - 1, Math.max(0, Math.floor(worldZ * size)));
+          const terrainHeight = surface(state, cellOffset(size, cx, cz));
+          const dist = s * step;
+          const angle = Math.atan2(terrainHeight - originHeight, dist);
+          if (angle > maxAngle) maxAngle = angle;
+        }
+        horizonSum += Math.max(0, maxAngle);
+      }
+      const skyExposure = 1 - horizonSum / (SKY_DIRECTIONS.length * (Math.PI / 2));
+      out[z * size + x] = Math.max(0, Math.min(1, skyExposure));
     }
   }
   return out;
