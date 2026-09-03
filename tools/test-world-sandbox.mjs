@@ -534,6 +534,24 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   assert.ok(driftedX > 10, `snow's peak drifts downwind (+x) from its seed column, not just falling and staying put (started x=10, now x=${driftedX})`);
 }
 
+// --- Vegetation: seeds ride the wind downwind, same pattern as snow/sand/smoke -----------
+{
+  const seedSize = 24;
+  const seedEnv = {...DEFAULT_ENVIRONMENT, wind: 1, windDeg: 0, rain: 0}; // blows toward +x
+  const seedStamp = {kind: STAMP.SEED, x: 10 / seedSize, z: 12 / seedSize, radius: 1 / seedSize, amount: 1};
+  let field = new Float32Array(seedSize * seedSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) field[o + FIELD.BEDROCK] = 0.1;
+  const totalSeedsAt = x => {
+    let sum = 0;
+    for (let z = 0; z < seedSize; z++) sum += field[cellOffset(seedSize, x, z) + FIELD.SEEDS];
+    return sum;
+  };
+  for (let tick = 0; tick < 60; tick++) field = stepWorldReference(field, seedSize, 1 / 30, {environment: seedEnv, stamps: [seedStamp]});
+  const seedsDownwind = totalSeedsAt(13);
+  assert.ok(seedsDownwind > 1e-4,
+    `seeds stamped at x=10 measurably reach a downwind column (x=13) within 60 steps under strong +x wind, got ${seedsDownwind}`);
+}
+
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read> src/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read_write> dst/);

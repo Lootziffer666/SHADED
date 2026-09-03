@@ -627,7 +627,14 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       const temperatureFit = 1 - clamp(Math.abs(env.temperature - 0.55) / 0.52);
       const neighbourBiomass = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.BIOMASS], 0) * 0.25;
       const seedSpread = neighbourBiomass * moistureFit * safeDt * 0.012;
-      const seeds = clamp(stamped[o + FIELD.SEEDS] + seedSpread - safeDt * 0.0015);
+      // Seeds ride the wind, same as pollen/dandelion seeds/spores in real vegetation --
+      // downwind cells get colonised faster than the isotropic neighbour-average above would
+      // predict on its own, exactly the SAND/SNOW/CLOUD/SMOKE wind-transport pattern (mass-
+      // conserving via windTransportDelta, so a gust redistributes seeds rather than creating
+      // them). Rate is deliberately gentle -- seeds are a much lighter payload than snow/sand,
+      // but should still visibly drift a scrubby patch downwind over time.
+      const seedWindDelta = windTransportDelta(stamped, FIELD.SEEDS, o, left, right, north, south, safeDt, size, 0.5);
+      const seeds = clamp(stamped[o + FIELD.SEEDS] + seedSpread + seedWindDelta - safeDt * 0.0015);
       const fertility = 1 + Math.min(0.6, ash * 1.4);
       const growth = seeds * moistureFit * env.sun * temperatureFit * (1 - disturbance)
         * env.growthRate * fertility * safeDt;

@@ -396,7 +396,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     * (1.0 - smooth(0.72, 1.05, wetness + water * 5.0));
   let temperatureFit = 1.0 - clamp(abs(P.environment.z - 0.55) / 0.52, 0.0, 1.0);
   let neighbourBiomass = (left.bio.x + right.bio.x + top.bio.x + bottom.bio.x) * 0.25;
-  var seed = clamp(c.bio.y + neighbourBiomass * moistureFit * dt * 0.012 - dt * 0.0015, 0.0, 1.0);
+  // Seeds ride the wind, same as pollen/dandelion seeds/spores in real vegetation -- mirrors
+  // the CPU reference's seedWindDelta exactly (mass-conserving via windTransportDelta, gentle
+  // rate since seeds are a much lighter payload than snow/sand).
+  let seedWindDelta = windTransportDelta(c.bio.y, left.bio.y, right.bio.y, top.bio.y, bottom.bio.y,
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.5);
+  var seed = clamp(c.bio.y + neighbourBiomass * moistureFit * dt * 0.012 + seedWindDelta - dt * 0.0015, 0.0, 1.0);
   let fertility = 1.0 + min(0.6, ash * 1.4);
   let growth = seed * moistureFit * P.environment.y * temperatureFit
     * (1.0 - disturbance) * P.rates.z * fertility * dt;
