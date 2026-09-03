@@ -165,6 +165,24 @@ function deepEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
   assert(!STYLE_IDENTITY_KEYS.some((k) => STYLE_COST_KEYS.includes(k)), 'Sanity: Identitätsfelder und Kostenfelder überschneiden sich nicht');
 }
 
+// --- 7b. PreferenceModel backfills categorical options a saved state predates ----
+{
+  // Simulates restoring a pre-'cellular'/'iridescent' discovery model from
+  // localStorage: the dimension KEY already exists (so the constructor's
+  // "state entirely absent" branch never runs), but its options object is
+  // missing the newer choices entirely.
+  const staleState = {
+    'normal.mode': { kind: 'categorical', options: { smooth: 1000, curvature: 1000, faceted: 1000 }, observations: 5 },
+  };
+  const model = new PreferenceModel(staleState);
+  assert(Number.isFinite(model.state['normal.mode'].options.cellular), 'restoring a stale PreferenceModel state backfills a missing categorical option to a finite score');
+  const a = setDimension(defaultStyleProfile('a', 'a'), 'normal.mode', 'cellular');
+  const b = setDimension(defaultStyleProfile('b', 'b'), 'normal.mode', 'smooth');
+  model.update({ a, b, winner: 'a' });
+  const options = model.state['normal.mode'].options;
+  assert(Object.values(options).every((v) => Number.isFinite(v)), `voting on a backfilled option never produces NaN (${JSON.stringify(options)})`);
+}
+
 // --- 8. discovery-store Round-Trip ist verlustfrei -------------------------
 {
   const model = new PreferenceModel();
@@ -200,7 +218,11 @@ function deepEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
   const sampleProfile = defaultStyleProfile('sample', 'sample');
   assert(validateProfile(sampleProfile), `defaultStyleProfile() validiert gegen contracts/shaded-style-profile.schema.json${validateProfile(sampleProfile) ? '' : `: ${JSON.stringify(validateProfile.errors)}`}`);
   const sampleCandidate = fromSeed(7);
-  assert(validateProfile(sampleCandidate), `fromSeed()-Kandidat validiert gegen contracts/shaded-style-profile.schema.json${validateProfile(sampleCandidate) ? '' : `: ${JSON.stringify(validateProfile.errors)}`}`);
+  // fromSeed() returns a candidate WRAPPER ({schema: 'shaded.style.candidate/v1', id, seed,
+  // profile, worldStateId, budget, sceneVersion}, see runtime/style/candidate.js), not a bare
+  // StyleProfile -- the schema this asserts against only accepts a StyleProfile (or a
+  // DiscoveryState) directly, so the embedded profile is what must be validated here.
+  assert(validateProfile(sampleCandidate.profile), `fromSeed()-Kandidat.profile validiert gegen contracts/shaded-style-profile.schema.json${validateProfile(sampleCandidate.profile) ? '' : `: ${JSON.stringify(validateProfile.errors)}`}`);
 }
 
 // --- 10. seed-profiles: strukturell verschieden, Namen intern ---

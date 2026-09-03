@@ -42,7 +42,7 @@
           "type": "object", "additionalProperties": false,
           "required": ["mode", "strength"],
           "properties": {
-            "mode": { "enum": ["smooth", "curvature", "faceted"] },
+            "mode": { "enum": ["smooth", "curvature", "faceted", "cellular"] },
             "strength": { "type": "number", "minimum": 0, "maximum": 1 }
           }
         },
@@ -58,7 +58,7 @@
           "type": "object", "additionalProperties": false,
           "required": ["mode", "steps", "hue"],
           "properties": {
-            "mode": { "enum": ["free", "gradientMap", "posterize"] },
+            "mode": { "enum": ["free", "gradientMap", "posterize", "iridescent"] },
             "steps": { "type": "number", "minimum": 2, "maximum": 8 },
             "hue": { "type": "number", "minimum": 0, "maximum": 1 }
           }

@@ -310,15 +310,20 @@ folgt jetzt §3 statt Szenennamen.
 
 ---
 
-## 6. Ausdrücklich außerhalb dieses Dokuments
+## Notation-Referenz (kein Fixture)
 
-- Keine Solver- oder Extraktionsänderung. Diese Taxonomie beschreibt einen Methodenraum.
-- Keine Aussage darüber, ob `tools/scratch-village-reconstruct-affine.mjs` auf einer der
-  6 Strukturklassen überhaupt lauffähig ist — sie wurde nur gegen SC-2 gebaut und dort nur
-  gegen ein Fixture geprüft. Für Horizont-Projektionsfälle (VLG-03/RUI-01/VLG-06/VRT-01)
-  ist zu erwarten, dass sie NICHT lauffähig ist (affines Kameramodell vorausgesetzt).
-- Keine Messung der hier nur beobachteten Projektionscharaktere; siehe Provenienz-Hinweis
-  in §2.
+[`docs/village-site-plan-reference/`](village-site-plan-reference/README.md)
+enthält drei eigene, bereits beschriftete Village-Site-Pläne (Gebäude-
+Positionsnamen, Maßstabsbalken, bei der deutschen Variante zusätzlich
+Erschließungs-/Anschlussvokabular). **Kein Eintrag für die Fixture-Tabelle
+oben** — die Lösung steht dort als Text im Bild, das entwertet sie als
+Rekonstruktions-Testfall. Wert haben sie als Notation-Referenz für genau die
+zwei Dinge, die der Fixture-Tabelle bisher fehlen: eine Positions-
+Namenskonvention für mehrere Baukörper in einer Szene, und ein echter
+Maßstabsbalken (0/5/10 m) — während die Skalierung der VLG-Fixtures oben laut
+Provenienz-Hinweis am Dokumentanfang noch ungemessen ist.
+
+## 5. Ausdrücklich außerhalb dieses Dokuments
 
 **Offene, hier bewusst nicht entschiedene Frage:** `tools/scratch-village-extract-v2.mjs`
 klassifiziert Pixel über feste Farbtoleranzen für `roof`/`wallLight`/`wallDark` — das ist
@@ -331,14 +336,21 @@ ist eine eigene Entscheidung — nicht Teil dieser Taxonomie-Korrektur.
 ## Hinweis: Bilder noch nicht auf diesem Branch
 
 Die 12 Fixtures liegen auf `main` (Commits `c5d47da`..`690b9ae`), nicht auf
-`claude/village-cube-reconstruction-review`. `main` hat sich seit dem gemeinsamen
-Vorfahren (`e27558c`) unabhängig weiterentwickelt und dabei u. a. `docs/synthetic-visual-
-reverse-engineering.md`, `runtime/spatial-kernel/cellular-geometry-solver.js`,
-`runtime/style/production-adapter.js` und die `shaded-spatial-primitive-solver`-Skill
-entfernt sowie `CLAUDE.md` und `runtime/shaded-engine.mjs` geändert — Änderungen, die
-dieser Branch nicht hat und die hier nicht automatisch übernommen wurden (kein Merge
-durchgeführt). Wer mit den Bilddateien selbst arbeiten will, braucht vorerst `main` oder
-`git show origin/main:<Dateiname>`.
+`claude/village-cube-reconstruction-review`.
+
+**Korrektur einer früheren Fehleinschätzung in dieser Zeile:** hier stand vorher, `main`
+habe u. a. `docs/synthetic-visual-reverse-engineering.md`,
+`runtime/spatial-kernel/cellular-geometry-solver.js`, `runtime/style/production-adapter.js`
+und die `shaded-spatial-primitive-solver`-Skill "entfernt". Das war falsch — forensisch
+geprüft (`git merge-base --is-ancestor`, Existenzprüfung an `e27558c`): keine dieser
+Dateien existierte jemals auf `main`s eigener Linie. Alle wurden erst NACH dem
+gemeinsamen Vorfahren `e27558c` erzeugt, und zwar ausschließlich auf diesem
+Branch (Commit `227bf4b` für `production-adapter.js`/die Skill/`CLAUDE.md`/
+`runtime/shaded-engine.mjs`, `bc5d36d` für `cellular-geometry-solver.js`, `825b808` für
+das Dokument) — `main` hat sie nie erhalten, weil dieser Branch nie zurückgemerged wurde,
+nicht weil sie dort gelöscht wurden. Nichts davon ist verloren; alles steht unverändert
+auf diesem Branch. Wer mit den Bilddateien selbst arbeiten will, braucht vorerst `main`
+oder `git show origin/main:<Dateiname>`.
 
 Die 5 Fixtures `RUI-01`/`VLG-06`/`ENC-02`/`VRT-01`/`CAV-02` liegen bislang **nirgends** im
 Repo — sie wurden nur im Chat gezeigt, ihre Einträge oben beruhen auf visueller Prüfung

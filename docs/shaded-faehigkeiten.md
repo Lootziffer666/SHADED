@@ -48,6 +48,15 @@ Modelle, Gewichte, Torch und CUDA sind nicht im Repository enthalten. Ein grüne
 Vertragstest beweist Prozessstart, Schema, Kanäle, Bundle und Vergleichsrechnung – keine
 Modellqualität, keinen RTX-Durchsatz und keine GPU-Verfügbarkeit.
 
+**CUDA ist für Depth-Anything-Inferenz an sich nicht zwingend** — nur für DIESEN
+Python-Adapter-Pfad. `docs/village-box-cultivation-experimente.md`/
+`docs/browser-native-provider-kandidaten.md` (2026-09-01) belegen einen zweiten, echten
+Pfad: `@huggingface/transformers` (npm) führt `onnx-community/depth-anything-v2-small`
+per CPU/WASM aus, ganz ohne GPU/CUDA/Torch, in unter 2 Sekunden pro Bild, visuell
+verifiziert korrekt. Reines `tools/scratch-*`-Experiment, keine Integration in `runtime/`
+oder `window.SHADED` — aber der CUDA-Zwang gilt nur für den bestehenden Python-Adapter,
+nicht für Depth-Anything-Inferenz allgemein.
+
 ## PWA
 
 Manifest, Service Worker und Installationsmodul sind vorhanden. Der Browser-Test prüft

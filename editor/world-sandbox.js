@@ -1,8 +1,10 @@
 import {
+  CELL_STRIDE,
   DEFAULT_ENVIRONMENT,
   FIELD,
   STAMP,
   createWorldState,
+  mulberry32,
   sampleWorld,
   stepWorldReference,
 } from '../runtime/world-sandbox-reference.mjs';
@@ -26,12 +28,47 @@ const DEFAULT_CAMERA = Object.freeze({
   verticalScale: 1.55,
   targetY: 0.29,
 });
+// Walking is a real perspective first-person mode (see project()'s R.spare0.w branch in
+// world-sandbox-webgpu.mjs), not the orbit camera relabeled -- it owns its own look yaw/pitch
+// and ground-following eye height so leaving it restores the orbit camera untouched.
+const DEFAULT_WALK = Object.freeze({
+  active: false,
+  x: 0.5,
+  z: 0.62,
+  yaw: 0,
+  pitch: 0.06,
+  eyeY: 0.09,
+  vx: 0,
+  vz: 0,
+});
+const WALK_SPEED = 0.052; // world units/second crossing the 0..1 desert (~19s edge to edge)
+const WALK_EYE_OFFSET = 0.052; // above sampled ground height, in the same verticalScale-adjusted units
+// Twin-stick support (left stick = move, right stick = look), standard Gamepad API mapping
+// (axes 0/1 = left stick x/y, axes 2/3 = right stick x/y) -- this is what an Xbox controller
+// reports through the browser without any extra wiring. GAMEPAD_LOOK_SPEED is rad/second at
+// full stick deflection; deadzone matches typical stick centring drift.
+const GAMEPAD_DEADZONE = 0.15;
+const GAMEPAD_LOOK_SPEED = 2.6;
+// One full day/night cycle in real seconds while walking; env.temperature swings from the hot
+// desert-day setting down into genuinely sub-freezing (see ICE's ~0.3-0.42 threshold in
+// world-sandbox-reference.mjs) territory at night, so frost forms for real, not just cosmetically.
+const DAY_LENGTH_SECONDS = 90;
+const DAY_TEMPERATURE = 0.82;
+const NIGHT_TEMPERATURE = 0.12;
 const toolDefinitions = {
   sand: {kind: STAMP.SAND, amount: 0.026, particleKind: 2, particles: mobile ? 18 : 38},
   water: {kind: STAMP.WATER, amount: 0.029, particleKind: 1, particles: mobile ? 22 : 52},
   seed: {kind: STAMP.SEED, amount: 0.055, particleKind: 3, particles: mobile ? 10 : 24},
   dig: {kind: STAMP.DIG, amount: 0.028, particles: 0},
   heat: {kind: STAMP.HEAT, amount: 0.048, particleKind: 4, particles: mobile ? 16 : 34},
+  // A magnifying glass, not a torch: STAMP.FOCUS only concentrates real sunlight (scales
+  // with env.sun in the solver, near-zero without it) -- no particle effect of its own,
+  // a continuous beam/glint reads better than thrown embers for "focusing sunlight".
+  focus: {kind: STAMP.FOCUS, amount: 0.05, particles: 0},
+  // "Wasserbändigen": aims water by the drag stroke's own direction (see useTool's
+  // directional handling below) instead of just dropping it in place -- the same speed-driven
+  // erosion the sim already has cuts a channel wherever this is aimed.
+  carve: {kind: STAMP.CARVE, amount: 0.03, directional: true, particleKind: 1, particles: mobile ? 20 : 46},
 };
 
 const state = {
@@ -48,7 +85,15 @@ const state = {
   backend: null,
   backendKind: '',
   pointer: {x: 0.5, z: 0.5, radius: 0.05, visible: false, down: false},
+  // Tracks the previous stamp position for directional tools (currently only "carve") so a
+  // drag stroke's own direction can be read from successive useTool() calls -- reset to null on
+  // every pointer-down so a fresh stroke never inherits direction from a previous, disconnected
+  // one.
+  toolTrail: {x: null, z: null},
   camera: {...DEFAULT_CAMERA},
+  walk: {...DEFAULT_WALK},
+  dayNight: 0.5,
+  savedEnvironment: null,
   body: {active: false, x: 0.5, z: 0.2, y: 0.8, vx: 0, vz: 0, vy: 0, radius: 0.018, impacts: 0},
   query: {ground: 0.16, waterSurface: 0.16, waterDepth: 0, wetness: 0, biomass: 0, heat: 0, sand: 0, latencyMs: 0},
   accumulator: 0,
@@ -89,6 +134,109 @@ function projectWorld(world, width, height, camera = state.camera) {
     y: (0.5 - ndcY * 0.5) * height,
     depth: dot(delta, forward),
   };
+}
+
+// Real perspective for walk mode -- mirrors project()'s R.spare0.w branch in
+// world-sandbox-webgpu.mjs (same near/fovTan constants), unlike the orbit projection above,
+// which is deliberately non-perspective (isometric-style, no size falloff with distance).
+function walkBasis(walk) {
+  const cosPitch = Math.cos(walk.pitch);
+  const forward = [Math.sin(walk.yaw) * cosPitch, -Math.sin(walk.pitch), Math.cos(walk.yaw) * cosPitch];
+  const rightLength = Math.hypot(forward[2], forward[0]) || 1;
+  const right = [forward[2] / rightLength, 0, -forward[0] / rightLength];
+  const up = [forward[1] * right[2], forward[2] * right[0] - forward[0] * right[2], -forward[1] * right[0]];
+  return {forward, right, up};
+}
+
+const WALK_NEAR = 0.006;
+const WALK_FOV_TAN = 0.62;
+
+function projectWalk(world, width, height, walk) {
+  const {forward, right, up} = walkBasis(walk);
+  const eye = [walk.x * 2 - 1, walk.eyeY, walk.z * 2 - 1];
+  const delta = [world[0] - eye[0], world[1] - eye[1], world[2] - eye[2]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const aspect = width / Math.max(1, height);
+  const viewX = dot(delta, right);
+  const viewY = dot(delta, up);
+  const clipZ = Math.max(dot(delta, forward), WALK_NEAR);
+  const ndcX = viewX / (WALK_FOV_TAN * aspect * clipZ);
+  const ndcY = viewY / (WALK_FOV_TAN * clipZ);
+  return {
+    x: (ndcX * 0.5 + 0.5) * width,
+    y: (0.5 - ndcY * 0.5) * height,
+    depth: clipZ,
+  };
+}
+
+let skyStars = null;
+function ensureSkyStars() {
+  if (skyStars) return skyStars;
+  const random = mulberry32(0xA57);
+  skyStars = [];
+  for (let i = 0; i < 140; i++) skyStars.push({ux: random(), uy: random() * 0.62, seed: random()});
+  return skyStars;
+}
+
+// Mirrors sunElevationOf/skyColor in world-sandbox-webgpu.mjs, translated to Canvas2D
+// primitives -- an approximate gradient + disc + stars, not a physically simulated
+// atmosphere, matching the fidelity level of this whole fallback renderer.
+function drawSky(context, width, height, dayNight, temperature, time) {
+  const sunElevation = Math.sin((dayNight - 0.25) * Math.PI * 2);
+  const dayFactor = Math.max(0, Math.min(1, (sunElevation + 0.18) / 0.26));
+  const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const zenith = mix3([3, 4, 7], [41, 107, 189], dayFactor);
+  const horizon = mix3([14, 13, 23], [219, 184, 133], dayFactor); // day: warm desert dust haze; night: cold, not warm
+  const gradient = context.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, `rgb(${zenith.map(v => Math.round(v)).join(',')})`);
+  gradient.addColorStop(1, `rgb(${horizon.map(v => Math.round(v)).join(',')})`);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+
+  if (dayFactor < 0.6) {
+    const alpha = (1 - dayFactor) * 0.9;
+    context.fillStyle = `rgba(230,235,255,${alpha})`;
+    for (const star of ensureSkyStars()) {
+      const twinkle = 0.5 + 0.5 * Math.sin(time * 3 + star.seed * 60);
+      if (twinkle < 0.35) continue;
+      context.fillRect(star.ux * width, star.uy * height, 1.4, 1.4);
+    }
+  }
+
+  const sunScreenX = width * (0.5 + Math.sin(dayNight * Math.PI * 2) * 0.42);
+  const sunScreenY = height * (0.92 - Math.max(0, sunElevation) * 0.75);
+  if (dayFactor > 0.02) {
+    context.fillStyle = 'rgba(255,235,200,0.95)';
+    context.beginPath();
+    context.arc(sunScreenX, sunScreenY, Math.max(6, width * 0.018), 0, Math.PI * 2);
+    context.fill();
+  }
+  const moonScreenX = width * (0.5 - Math.sin(dayNight * Math.PI * 2) * 0.42);
+  const moonScreenY = height * (0.92 - Math.max(0, -sunElevation) * 0.75);
+  if (dayFactor < 0.85) {
+    context.fillStyle = `rgba(205,210,222,${(1 - dayFactor) * 0.85})`;
+    context.beginPath();
+    context.arc(moonScreenX, moonScreenY, Math.max(5, width * 0.013), 0, Math.PI * 2);
+    context.fill();
+  }
+
+  // Heat shimmer hint: a soft wavering line near the horizon during hot midday -- this
+  // fallback path has no offscreen texture to refract, same honest limitation as fsSky.
+  const hotFactor = Math.max(0, Math.min(1, (temperature - 0.55) / 0.4)) * dayFactor;
+  if (hotFactor > 0.02) {
+    context.save();
+    context.globalAlpha = hotFactor * 0.35;
+    context.strokeStyle = 'rgba(255,244,222,0.6)';
+    context.lineWidth = Math.max(1, height * 0.006);
+    context.beginPath();
+    const baseY = height * 0.82;
+    for (let x = 0; x <= width; x += 8) {
+      const y = baseY + Math.sin(x * 0.05 + time * 5) * height * 0.01;
+      if (x === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    }
+    context.stroke();
+    context.restore();
+  }
 }
 
 function screenToWorld(clientX, clientY) {
@@ -173,6 +321,13 @@ function colorForCell(data, offset, mode) {
   const vz = data[offset + FIELD.VELOCITY_Z];
   const bio = data[offset + FIELD.BIOMASS];
   const heat = data[offset + FIELD.HEAT];
+  const vapor = data[offset + FIELD.VAPOR];
+  const cloud = data[offset + FIELD.CLOUD];
+  const ice = data[offset + FIELD.ICE];
+  const snow = data[offset + FIELD.SNOW];
+  const fire = data[offset + FIELD.FIRE];
+  const smoke = data[offset + FIELD.SMOKE];
+  const ash = data[offset + FIELD.ASH];
   const height = bedrock + sand;
   if (mode === 1) {
     const v = Math.round(Math.min(1, height * 2.1) * 255);
@@ -183,6 +338,7 @@ function colorForCell(data, offset, mode) {
   if (mode === 4) return [8 + bio * 36, 12 + bio * 225, 9 + bio * 52];
   if (mode === 5) return [18 + Math.abs(vx) * 180, 18 + Math.hypot(vx, vz) * 210, 18 + Math.abs(vz) * 180];
   if (mode === 6) return [12 + heat * 243, 15 + heat * 28, 30 - heat * 20];
+  if (mode === 7) return [12 + Math.min(230, vapor * 3600), 14 + Math.min(230, cloud * 4200), 30 + Math.min(200, snow * 800)];
   let r = 62 + sand * 850;
   let g = 55 + sand * 480;
   let b = 43 + sand * 170;
@@ -195,6 +351,31 @@ function colorForCell(data, offset, mode) {
   b = b * (1 - bio * 0.66) + 30 * bio;
   r = r * (1 - heat * 0.45) + 245 * heat;
   g = g * (1 - heat * 0.7) + 38 * heat;
+  // Water cycle made visible on the beauty view too, same rule as the WGSL fsTerrain: ice
+  // pales the surface blue-white, snow (a separate reservoir on top) buries it in white.
+  const icePresence = Math.min(1, Math.max(0, (ice - 0.15) / 0.6));
+  r = r * (1 - icePresence * 0.62) + 158 * icePresence * 0.62;
+  g = g * (1 - icePresence * 0.62) + 189 * icePresence * 0.62;
+  b = b * (1 - icePresence * 0.62) + 204 * icePresence * 0.62;
+  const snowCoverage = Math.min(1, Math.max(0, (snow - 0.006) / 0.054));
+  r = r * (1 - snowCoverage * 0.88) + 230 * snowCoverage * 0.88;
+  g = g * (1 - snowCoverage * 0.88) + 237 * snowCoverage * 0.88;
+  b = b * (1 - snowCoverage * 0.88) + 242 * snowCoverage * 0.88;
+  // Combustion made visible on the beauty view too, same rule as the WGSL fsTerrain: ash
+  // darkens the burned ground toward soot, fire is its own emissive glow (not a shadow-lit
+  // patch), smoke thickens the air above it into a grey haze.
+  const ashPresence = Math.min(1, Math.max(0, (ash - 0.02) / 0.33));
+  r = r * (1 - ashPresence * 0.55) + 13 * ashPresence * 0.55;
+  g = g * (1 - ashPresence * 0.55) + 12 * ashPresence * 0.55;
+  b = b * (1 - ashPresence * 0.55) + 11 * ashPresence * 0.55;
+  const fireGlow = Math.min(1, Math.max(0, fire));
+  r = r * (1 - fireGlow * 0.72) + 255 * fireGlow * 0.72 + 255 * fireGlow * fireGlow * 0.35;
+  g = g * (1 - fireGlow * 0.72) + 107 * fireGlow * 0.72 + 140 * fireGlow * fireGlow * 0.35;
+  b = b * (1 - fireGlow * 0.72) + 15 * fireGlow * 0.72 + 31 * fireGlow * fireGlow * 0.35;
+  const smokeHaze = Math.min(0.85, smoke * 3.5);
+  r = r * (1 - smokeHaze) + 46 * smokeHaze;
+  g = g * (1 - smokeHaze) + 43 * smokeHaze;
+  b = b * (1 - smokeHaze) + 41 * smokeHaze;
   return [r, g, b];
 }
 
@@ -203,7 +384,10 @@ class CpuWorldSandbox {
     this.canvas = target;
     this.context = target.getContext('2d', {alpha: false});
     if (!this.context) throw new Error('Canvas 2D unavailable');
-    this.size = mobile ? 56 : 72;
+    // Higher than before, but far more conservative than the WebGPU backend's 256/512:
+    // this path steps AND rasterizes every quad with Canvas2D fillPath calls on the main
+    // thread, so its bottleneck is draw-call count, not compute -- see CpuWorldSandbox.render.
+    this.size = mobile ? 96 : 144;
     this.particleCount = mobile ? 420 : 900;
     this.onQuery = options.onQuery || (() => {});
     this.offscreen = document.createElement('canvas');
@@ -216,8 +400,8 @@ class CpuWorldSandbox {
     this.reset();
   }
 
-  reset(seed = 0x53484144) {
-    this.world = createWorldState(this.size, seed);
+  reset(seed = 0x53484144, options = {}) {
+    this.world = createWorldState(this.size, seed, options);
     this.particles.length = 0;
     this.deposits.length = 0;
     this.orderKey = '';
@@ -289,41 +473,51 @@ class CpuWorldSandbox {
     }
   }
 
-  render({viewMode = 0, body, cursor, camera = state.camera}) {
+  render({viewMode = 0, body, cursor, camera = state.camera, walk = null, dayNight = 0.5, temperature = 0.5, time = 0}) {
     this.resize();
     const context = this.context;
     const width = this.canvas.width;
     const height = this.canvas.height;
     const size = this.size;
     const verticalScale = camera.verticalScale;
+    const useWalk = !!walk?.active;
     const offsetAt = (x, z) => (Math.max(0, Math.min(size - 1, z)) * size
-      + Math.max(0, Math.min(size - 1, x))) * 12;
+      + Math.max(0, Math.min(size - 1, x))) * CELL_STRIDE;
     const heightAt = (x, z, water = false) => {
       const offset = offsetAt(x, z);
       return this.world[offset + FIELD.BEDROCK] + this.world[offset + FIELD.SAND]
         + (water ? this.world[offset + FIELD.WATER] : 0);
     };
-    const projected = (x, z, water = false) => projectWorld([
-      x / (size - 1) * 2 - 1,
-      heightAt(x, z, water) * verticalScale,
-      z / (size - 1) * 2 - 1,
-    ], width, height, camera);
+    const projected = (x, z, water = false) => {
+      const world = [x / (size - 1) * 2 - 1, heightAt(x, z, water) * verticalScale, z / (size - 1) * 2 - 1];
+      return useWalk ? projectWalk(world, width, height, walk) : projectWorld(world, width, height, camera);
+    };
+    const walkEye = useWalk ? [walk.x * 2 - 1, walk.eyeY, walk.z * 2 - 1] : null;
+    const walkForward = useWalk ? walkBasis(walk).forward : null;
 
-    const background = context.createLinearGradient(0, 0, 0, height);
-    background.addColorStop(0, '#18201d');
-    background.addColorStop(0.52, '#111715');
-    background.addColorStop(1, '#080b0a');
-    context.fillStyle = background;
-    context.fillRect(0, 0, width, height);
+    drawSky(context, width, height, dayNight, temperature, time);
 
-    const orderKey = `${size}:${camera.yaw.toFixed(3)}:${camera.pitch.toFixed(3)}`;
+    const orderKey = useWalk
+      ? `${size}:walk:${walk.x.toFixed(3)}:${walk.z.toFixed(3)}:${walk.yaw.toFixed(3)}:${walk.pitch.toFixed(3)}`
+      : `${size}:${camera.yaw.toFixed(3)}:${camera.pitch.toFixed(3)}`;
     if (this.orderKey !== orderKey) {
       const {forward} = cameraBasis(camera);
       this.drawOrder = [];
       for (let z = 0; z < size - 1; z++) {
         for (let x = 0; x < size - 1; x++) {
           const world = [x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1];
-          this.drawOrder.push({x, z, depth: world[0] * forward[0] + world[1] * forward[1] + world[2] * forward[2]});
+          if (useWalk) {
+            // Frustum cull: a quad whose center sits behind the eye would otherwise get
+            // clamped to the near plane in projectWalk without adjusting x/y, smearing it
+            // across the front of the screen instead of correctly vanishing.
+            const toCenter = [world[0] - walkEye[0], world[1] - walkEye[1], world[2] - walkEye[2]];
+            const viewZ = toCenter[0] * walkForward[0] + toCenter[1] * walkForward[1] + toCenter[2] * walkForward[2];
+            if (viewZ < WALK_NEAR * 4) continue;
+          }
+          const depth = useWalk
+            ? Math.hypot(world[0] - walkEye[0], world[1] - walkEye[1], world[2] - walkEye[2])
+            : world[0] * forward[0] + world[1] * forward[1] + world[2] * forward[2];
+          this.drawOrder.push({x, z, depth});
         }
       }
       this.drawOrder.sort((a, b) => b.depth - a.depth);
@@ -361,7 +555,24 @@ class CpuWorldSandbox {
         const w11 = projected(x + 1, z + 1, true);
         const w01 = projected(x, z + 1, true);
         const depth = Math.min(1, water * 12);
-        context.fillStyle = `rgba(${Math.round(42 - depth * 18)},${Math.round(120 - depth * 31)},${Math.round(137 - depth * 24)},${0.48 + depth * 0.24})`;
+        // Same accelerate-then-damp velocity that now actually transports water (edgeFlow
+        // in world-sandbox-reference.mjs) also has to show up here -- this 2D canvas path
+        // is the real fallback most browsers/headless runs actually use, not a decoration
+        // layered only on top of the WebGPU renderer.
+        // A frozen cell (edgeFlow already stopped transporting it) should look still, not
+        // just physically stop -- fade its own flow-driven foam out by the ice fraction.
+        const ice = this.world[offset + FIELD.ICE];
+        const vx = this.world[offset + FIELD.VELOCITY_X];
+        const vz = this.world[offset + FIELD.VELOCITY_Z];
+        const speed = Math.min(1, Math.hypot(vx, vz) * 6) * (1 - ice);
+        const foam = Math.max(0, speed - 0.35) / 0.65;
+        let r = 42 - depth * 18 + foam * 150;
+        let g = 120 - depth * 31 + foam * 120;
+        let b = 137 - depth * 24 + foam * 90;
+        r = r * (1 - ice * 0.72) + 204 * ice * 0.72;
+        g = g * (1 - ice * 0.72) + 222 * ice * 0.72;
+        b = b * (1 - ice * 0.72) + 230 * ice * 0.72;
+        context.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${0.48 + depth * 0.24})`;
         context.beginPath();
         context.moveTo(w00.x, w00.y);
         context.lineTo(w10.x, w10.y);
@@ -372,15 +583,61 @@ class CpuWorldSandbox {
       }
 
       const biomass = this.world[offset + FIELD.BIOMASS];
-      if (viewMode === 0 && water < 0.006 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
-        const base = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1], width, height, camera);
-        const top = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale + 0.025 + Math.sqrt(biomass) * 0.095, z / (size - 1) * 2 - 1], width, height, camera);
-        context.strokeStyle = this.world[offset + FIELD.HEAT] > 0.25 ? 'rgba(119,88,38,.82)' : 'rgba(68,111,42,.88)';
-        context.lineWidth = Math.max(1, width / 900);
+      const snowCover = this.world[offset + FIELD.SNOW];
+      if (viewMode === 0 && water < 0.006 && snowCover < 0.02 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
+        // Real per-cell plant succession (mirrors FIELD.PLANT_TYPE in
+        // world-sandbox-reference.mjs and vsGrass/fsGrass in world-sandbox-webgpu.mjs exactly
+        // -- three renderers, one truth, same as everywhere else in this codebase). This is
+        // the path most browsers (and every headless run in this session) actually fall back
+        // to, so plant type needs to read here too, not only in the WebGPU renderer.
+        const plantType = this.world[offset + FIELD.PLANT_TYPE];
+        const isFlower = plantType > 0.5 && plantType < 1.5;
+        const isShrub = plantType > 1.5 && plantType < 2.5;
+        const isTree = plantType > 2.5;
+        let stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
+        if (isFlower) stalkHeight *= 0.75;
+        else if (isShrub) stalkHeight *= 1.6;
+        else if (isTree) stalkHeight *= 7;
+        const vx = this.world[offset + FIELD.VELOCITY_X];
+        const vz = this.world[offset + FIELD.VELOCITY_Z];
+        const lean = Math.min(0.6, Math.hypot(vx, vz) * 2.2);
+        const groundHeight = heightAt(x, z) * verticalScale;
+        const base = projectWorld([x / (size - 1) * 2 - 1, groundHeight, z / (size - 1) * 2 - 1], width, height, camera);
+        const topWorld = [
+          x / (size - 1) * 2 - 1 + vx * lean,
+          groundHeight + stalkHeight * (1 - lean * 0.3),
+          z / (size - 1) * 2 - 1 + vz * lean,
+        ];
+        const top = projectWorld(topWorld, width, height, camera);
+        const hot = this.world[offset + FIELD.HEAT] > 0.25;
+        context.strokeStyle = hot ? 'rgba(119,88,38,.82)'
+          : isTree ? 'rgba(77,54,26,.9)' // trunk
+            : isShrub ? 'rgba(46,84,32,.92)' // denser, darker canopy green
+              : 'rgba(68,111,42,.88)'; // grass/flower stem
+        context.lineWidth = Math.max(1, width / 900) * (isShrub ? 2.2 : isTree ? 3 : 1);
         context.beginPath();
         context.moveTo(base.x, base.y);
         context.lineTo(top.x, top.y);
         context.stroke();
+        if (isFlower && !hot) {
+          // A bright bloom dot at the tip -- the same three real bloom hues fsGrass uses, so
+          // the two renderers agree on what a flower actually looks like, not just that
+          // biomass exists there.
+          const hue = Math.abs(Math.sin((x * 12.9898 + z * 78.233) * 43758.5453) % 1);
+          const petal = hue < 0.33 ? '212,148,168' : hue < 0.66 ? '242,217,89' : '230,230,219';
+          context.fillStyle = `rgba(${petal},.92)`;
+          context.beginPath();
+          context.arc(top.x, top.y, Math.max(1.4, width / 480), 0, Math.PI * 2);
+          context.fill();
+        } else if (isTree) {
+          // A filled canopy blob above the trunk -- distinct from the single thin stalk every
+          // other stage draws, so a tree actually reads as a tree in silhouette, not a tall
+          // blade of grass.
+          context.fillStyle = 'rgba(38,84,26,.88)';
+          context.beginPath();
+          context.arc(top.x, top.y, Math.max(3, width / 130), 0, Math.PI * 2);
+          context.fill();
+        }
       }
     }
 
@@ -521,11 +778,14 @@ function exit({preserveInspector = false} = {}) {
   activePointers.clear();
   paintPointerId = null;
   orbitGesture = null;
+  walkLookGesture = null;
+  walkKeysHeld.clear();
+  if (state.walk.active) exitWalk();
 }
 
-function queueStamp(kind, x, z, amount, radius = state.radius) {
+function queueStamp(kind, x, z, amount, radius = state.radius, directionX = 0, directionZ = 0) {
   if (state.stamps.length >= 32) return;
-  state.stamps.push({kind, x, z, radius, amount});
+  state.stamps.push({kind, x, z, radius, amount, directionX, directionZ});
 }
 
 function queueEmitter(kind, x, z, count, strength = 1) {
@@ -554,8 +814,140 @@ function useTool(x, z) {
   }
   const tool = toolDefinitions[state.tool];
   if (!tool) return;
-  queueStamp(tool.kind, x, z, tool.amount, state.radius);
+  let directionX = 0;
+  let directionZ = 0;
+  if (tool.directional && state.toolTrail.x !== null) {
+    const dx = x - state.toolTrail.x;
+    const dz = z - state.toolTrail.z;
+    const length = Math.hypot(dx, dz);
+    if (length > 1e-4) {
+      directionX = dx / length;
+      directionZ = dz / length;
+    }
+  }
+  state.toolTrail.x = x;
+  state.toolTrail.z = z;
+  queueStamp(tool.kind, x, z, tool.amount, state.radius, directionX, directionZ);
   queueEmitter(tool.particleKind, x, z, tool.particles, state.radius / 0.05);
+}
+
+const walkKeysHeld = new Set();
+const WALK_MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+// The Gamepad API is poll-only for axis/button state (only connect/disconnect are events), so
+// this is called fresh every updateWalk() tick rather than cached -- navigator.getGamepads()
+// itself is cheap (no browser round-trip, just reads already-polled state).
+function activeGamepad() {
+  if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  for (const pad of pads) {
+    if (pad && pad.connected) return pad;
+  }
+  return null;
+}
+
+function applyDeadzone(value, deadzone) {
+  const magnitude = Math.abs(value);
+  if (magnitude < deadzone) return 0;
+  return Math.sign(value) * (magnitude - deadzone) / (1 - deadzone);
+}
+
+function enterWalk() {
+  if (state.walk.active) return;
+  state.savedEnvironment = {...state.environment};
+  state.walk = {...DEFAULT_WALK, active: true};
+  state.dayNight = 0.5; // start at noon -- immediately, obviously a hot desert
+  state.body.active = false;
+  state.stamps.length = 0;
+  state.emitter = null;
+  state.scenario = null;
+  state.backend?.reset(0x64657365, {terrain: 'desert', windDeg: 34});
+  state.elapsed = 0;
+  state.accumulator = 0;
+  state.queryDivider = 0;
+  panel.querySelector('#world-walk')?.classList.add('active');
+  document.body.classList.add('world-walk-active');
+  const gesture = document.querySelector('.world-hud-gesture');
+  if (gesture) gesture.textContent = 'WASD/STICK LAUFEN · ZIEHEN/STICK UMSEHEN · ESC VERLASSEN';
+}
+
+function exitWalk() {
+  if (!state.walk.active) return;
+  state.walk.active = false;
+  if (state.savedEnvironment) {
+    state.environment = state.savedEnvironment;
+    state.savedEnvironment = null;
+  }
+  panel.querySelector('#world-walk')?.classList.remove('active');
+  document.body.classList.remove('world-walk-active');
+  const gesture = document.querySelector('.world-hud-gesture');
+  if (gesture) gesture.textContent = 'MALEN · 2 FINGER KAMERA';
+}
+
+function toggleWalk() {
+  if (state.walk.active) exitWalk();
+  else enterWalk();
+}
+
+function updateWalk(dt) {
+  const walk = state.walk;
+  if (!walk.active) return;
+  let forwardInput = 0;
+  let strafeInput = 0;
+  if (walkKeysHeld.has('KeyW') || walkKeysHeld.has('ArrowUp')) forwardInput += 1;
+  if (walkKeysHeld.has('KeyS') || walkKeysHeld.has('ArrowDown')) forwardInput -= 1;
+  if (walkKeysHeld.has('KeyD') || walkKeysHeld.has('ArrowRight')) strafeInput += 1;
+  if (walkKeysHeld.has('KeyA') || walkKeysHeld.has('ArrowLeft')) strafeInput -= 1;
+
+  const pad = activeGamepad();
+  if (pad) {
+    // Standard Gamepad API mapping: axes 0/1 = left stick x/y, axes 2/3 = right stick x/y --
+    // exactly what a wired/wireless Xbox controller reports through the browser with no extra
+    // setup. Left stick REPLACES (not adds to) a same-axis key press when its magnitude is
+    // larger, so a half-tilted stick can still walk at half speed even with a key also held --
+    // summing them could push the combined vector past 1 and back into "always full speed."
+    const stickX = applyDeadzone(pad.axes[0] ?? 0, GAMEPAD_DEADZONE);
+    const stickY = applyDeadzone(pad.axes[1] ?? 0, GAMEPAD_DEADZONE);
+    if (Math.abs(stickX) > Math.abs(strafeInput)) strafeInput = stickX;
+    if (Math.abs(-stickY) > Math.abs(forwardInput)) forwardInput = -stickY; // stick up = negative Y
+    // Right stick: continuous look, the twin-stick counterpart to the mouse-drag gesture below.
+    const lookX = applyDeadzone(pad.axes[2] ?? 0, GAMEPAD_DEADZONE);
+    const lookY = applyDeadzone(pad.axes[3] ?? 0, GAMEPAD_DEADZONE);
+    if (lookX !== 0 || lookY !== 0) {
+      walk.yaw += lookX * GAMEPAD_LOOK_SPEED * dt;
+      walk.pitch = Math.max(-0.95, Math.min(0.95, walk.pitch - lookY * GAMEPAD_LOOK_SPEED * dt));
+    }
+  }
+
+  const inputLength = Math.hypot(forwardInput, strafeInput);
+  if (inputLength > 0.001) {
+    // Clamp to at most unit length rather than always normalizing TO unit length -- a fully
+    // digital key press (magnitude 1 on its axis) still moves at full speed and a W+D diagonal
+    // still normalizes exactly as before, but a partially-tilted analog stick now genuinely
+    // walks slower instead of snapping to full speed the instant it leaves the deadzone.
+    const clampedLength = Math.min(1, inputLength);
+    const normForward = (forwardInput / inputLength) * clampedLength;
+    const normStrafe = (strafeInput / inputLength) * clampedLength;
+    // Matches cameraForward()'s (sin(yaw), .., cos(yaw)) convention in world-sandbox-webgpu.mjs,
+    // so "forward" on the keyboard is exactly what the eye is looking at.
+    const sinYaw = Math.sin(walk.yaw);
+    const cosYaw = Math.cos(walk.yaw);
+    const moveX = sinYaw * normForward + cosYaw * normStrafe;
+    const moveZ = cosYaw * normForward - sinYaw * normStrafe;
+    walk.x = Math.max(0.015, Math.min(0.985, walk.x + moveX * WALK_SPEED * dt));
+    walk.z = Math.max(0.015, Math.min(0.985, walk.z + moveZ * WALK_SPEED * dt));
+  }
+
+  // Day/night cycle + temperature derived from the SAME sun-elevation curve the shader uses
+  // (sunElevationOf in world-sandbox-webgpu.mjs) -- feeds straight into the simulated world,
+  // so night cold genuinely freezes standing water (ICE in world-sandbox-reference.mjs)
+  // instead of just dimming the lights.
+  state.dayNight = (state.dayNight + dt / DAY_LENGTH_SECONDS) % 1;
+  const sunElevation = Math.sin((state.dayNight - 0.25) * Math.PI * 2);
+  const dayFactor = Math.max(0, Math.min(1, (sunElevation + 0.18) / 0.26));
+  state.environment = {...state.environment, temperature: NIGHT_TEMPERATURE + (DAY_TEMPERATURE - NIGHT_TEMPERATURE) * dayFactor};
+
+  walk.eyeY = state.query.ground * state.camera.verticalScale + WALK_EYE_OFFSET;
 }
 
 function updateBody(dt) {
@@ -651,7 +1043,8 @@ function stepOnce() {
   if (!state.backend) return;
   runScenarioEvents();
   updateBody(SIM_DT);
-  const queryPosition = state.body.active ? state.body : state.pointer;
+  updateWalk(SIM_DT);
+  const queryPosition = state.walk.active ? state.walk : (state.body.active ? state.body : state.pointer);
   state.queryDivider = (state.queryDivider + 1) % 2;
   const query = state.queryDivider === 0 ? {x: queryPosition.x, z: queryPosition.z} : null;
   const stamps = state.stamps.splice(0, 32);
@@ -687,6 +1080,9 @@ function loop(now) {
     body: state.body,
     cursor: state.pointer,
     camera: state.camera,
+    walk: state.walk,
+    dayNight: state.dayNight,
+    temperature: state.environment.temperature,
   });
   state.frames += 1;
   if (now - state.fpsStarted >= 800) {
@@ -711,6 +1107,12 @@ function clampCamera() {
   state.camera.pitch = Math.max(0.42, Math.min(1.18, state.camera.pitch));
   state.camera.zoom = Math.max(0.72, Math.min(2.35, state.camera.zoom));
 }
+
+function clampWalkLook() {
+  state.walk.pitch = Math.max(-0.95, Math.min(0.95, state.walk.pitch));
+}
+
+let walkLookGesture = null;
 
 function beginMultiGesture() {
   const pointers = [...activePointers.values()].slice(0, 2);
@@ -750,6 +1152,10 @@ function bindCanvas() {
     event.preventDefault();
     activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY, type: event.pointerType});
     canvas.setPointerCapture?.(event.pointerId);
+    if (state.walk.active) {
+      walkLookGesture = {id: event.pointerId, x: event.clientX, y: event.clientY, yaw: state.walk.yaw, pitch: state.walk.pitch};
+      return;
+    }
     if (event.pointerType === 'touch' && activePointers.size >= 2) {
       beginMultiGesture();
       return;
@@ -764,12 +1170,20 @@ function bindCanvas() {
     }
     Object.assign(state.pointer, pointerPosition(event), {down: true, visible: true});
     paintPointerId = event.pointerId;
+    state.toolTrail.x = null;
+    state.toolTrail.z = null;
     useTool(state.pointer.x, state.pointer.z);
     lastPaint = event.timeStamp;
   });
   canvas.addEventListener('pointermove', event => {
     if (activePointers.has(event.pointerId)) {
       activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY, type: event.pointerType});
+    }
+    if (walkLookGesture?.id === event.pointerId) {
+      state.walk.yaw = walkLookGesture.yaw + (event.clientX - walkLookGesture.x) * 0.0052;
+      state.walk.pitch = walkLookGesture.pitch - (event.clientY - walkLookGesture.y) * 0.0042;
+      clampWalkLook();
+      return;
     }
     if (orbitGesture?.kind === 'multi') {
       updateMultiGesture();
@@ -789,6 +1203,7 @@ function bindCanvas() {
   });
   const release = event => {
     activePointers.delete(event.pointerId);
+    if (walkLookGesture?.id === event.pointerId) walkLookGesture = null;
     if (paintPointerId === event.pointerId) {
       paintPointerId = null;
       state.pointer.down = false;
@@ -826,6 +1241,7 @@ launch.addEventListener('click', () => {
 });
 panel.querySelector('#world-exit').addEventListener('click', exit);
 panel.querySelector('#world-reset').addEventListener('click', () => {
+  if (state.walk.active) exitWalk();
   state.backend?.reset();
   state.elapsed = 0;
   state.accumulator = 0;
@@ -835,6 +1251,7 @@ panel.querySelector('#world-reset').addEventListener('click', () => {
   state.body.active = false;
   state.scenario = null;
 });
+panel.querySelector('#world-walk')?.addEventListener('click', toggleWalk);
 panel.querySelector('#world-chain').addEventListener('click', startCauseChain);
 panel.querySelector('#world-pause').addEventListener('click', () => setPaused(!state.paused));
 panel.querySelector('#world-step').addEventListener('click', () => {
@@ -891,6 +1308,28 @@ window.addEventListener('keydown', event => {
     event.preventDefault();
     panel.querySelector('#world-pause').click();
   }
+  if (state.active && state.walk.active && WALK_MOVE_KEYS.has(event.code)) {
+    event.preventDefault();
+    walkKeysHeld.add(event.code);
+  }
+  if (event.key === 'Escape' && state.active && state.walk.active) {
+    event.preventDefault();
+    exitWalk();
+    // editor/ux-fixes.js also binds a global window Escape handler (closeChrome) that
+    // collapses the whole inspector; relying on event-phase ordering to outrun it proved
+    // unreliable, so instead correct the DOM right after this dispatch finishes, once
+    // every same-tick keydown handler (that one included) has already run.
+    queueMicrotask(() => {
+      if (!state.active) return;
+      document.body.classList.remove('inspector-collapsed');
+      document.body.classList.add('inspector-open');
+      railLaunch?.classList.add('active');
+      document.querySelectorAll('.inspector-section').forEach(section => section.classList.toggle('section-collapsed', section !== panel));
+    });
+  }
+});
+window.addEventListener('keyup', event => {
+  walkKeysHeld.delete(event.code);
 });
 
 setTool(state.tool);
@@ -903,9 +1342,18 @@ window.SHADEDWorldSandbox = {
   exit,
   startCauseChain,
   queueStamp,
+  enterWalk,
+  exitWalk,
   get active() { return state.active; },
   get backend() { return state.backendKind; },
   get query() { return {...state.query}; },
   get body() { return {...state.body}; },
   get camera() { return {...state.camera}; },
+  get walk() { return {...state.walk}; },
+  get dayNight() { return state.dayNight; },
+  // Debug-only: read-only snapshot of the stamps queued this frame, before stepOnce() drains
+  // them. Exists for tests to inspect what a real DOM interaction (a click, a drag) actually
+  // produced -- e.g. verifying a directional tool's drag-direction computation -- without
+  // racing the running simulation loop (pause first via #world-pause, then this stays stable).
+  get stamps() { return state.stamps.map(stamp => ({...stamp})); },
 };

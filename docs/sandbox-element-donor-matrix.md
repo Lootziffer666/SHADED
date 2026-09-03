@@ -18,11 +18,15 @@ A source can be excellent at one layer and useless at the other two.
 
 | System | Primary donors | Why SHADED needs it | License posture |
 |---|---|---|---|
-| Granular cellular solver | GelamiSalami/GPU-Falling-Sand-CA; m4ym4y/falling-sand-shader; kody-w Falling Sand Lab | Replace simple per-cell movement with race-safe block updates; support material reactions | GelamiSalami and m4ym4y: no reusable license established in inspected root, technique only until resolved. Kody page: verify before code reuse. |
+| Granular cellular solver | GelamiSalami/GPU-Falling-Sand-CA; m4ym4y/falling-sand-shader; kody-w Falling Sand Lab; Qqwy/js1k_powder_game (reaction vocabulary: 11 elements, 50+ reactions) | Replace simple per-cell movement with race-safe block updates; support material reactions | GelamiSalami and m4ym4y: no reusable license established in inspected root, technique only until resolved. Kody page: verify before code reuse. Qqwy: no license found, technique only. **First slice implemented**: `runtime/solver/granular-grid.js` + `solver-lab/granular/`, now covering empty/sand/water/wall/wood/fire/smoke/ice/steam with reactions (fire ignites adjacent wood and ages into smoke; ice melts to water near fire; water boils to steam near fire or extinguishes it) -- the `water <-> ice <-> steam` example from the Reaction Lab wishlist below is now real, in this module. Verified by `tools/test-granular-solver.mjs` (32 checks) and `tools/verify-solver-lab-granular.js` (13 browser checks). |
 | Stable Fluids / smoke velocity field | piellardj/navier-stokes-webgl; aadebdeb/WebGL_SmokeSimulation; julesyoungberg/2d-smoke; keijiro/StableFluids; matthiasbroske/GPUStableFluids | Real advection / pressure projection for smoke, steam, heat haze and gas instead of noise-only animation | piellardj package declares ISC; aadebdeb MIT; julesyoungberg MIT; keijiro public-domain/Unlicense; matthiasbroske MIT. |
 | Coast / water surface | Babylon stylized-water thread; gameidea stylized 3D water; Seascape; PhysicsMod oceans.glsl | Depth-aware shallow/deep water, refraction, shore/crest foam, wave normals | Babylon/gameidea used as technique blueprint. Verify individual Seascape / PhysicsMod source license before copying. |
 | Dune surface dynamics | keaukraine/webgl-dunes + dunes article | Windward/leeward ripple orientation, distance fade, cheap terrain shading | MIT verified for webgl-dunes. |
 | Soft particle intersection | keaukraine soft-particles article | Dust, sand spray, smoke, mist, foam spray without hard geometry clipping | Technique reimplementation; keep independent SHADED shader path. |
+| Terrain erosion / sediment | SebLague/Hydraulic-Erosion | Fills the previously-open Erosion/Sediment Lab gap: erosion grounded in published methods (firespark.de, ranmantaru.com), not an ad-hoc shader trick | MIT, verified in repo root — safe to adapt. |
+| Terrain generation | baturinsky/worldgen | Voronoi-less approach: gradient noise from summed ellipses + a tectonic-plate (`crust`/`noise`) simulation that produces mountains at plate boundaries, instead of one flat noise layer | MIT, verified in repo root. |
+| Soft-body / granular particle physics | chrxh/alien | CUDA particle engine unifying soft bodies, fluids, heat, damage and adhesion in one solver; complements Particles4All (which is fluid/rigid-body-focused via PBD) | BSD-3-Clause, verified in repo root — most permissive donor found so far for this layer. |
+| Rigid-body / contact solver | erincatto/box3d | Modern 3D rigid-body engine (Box2D author): continuous collision, contact events, character mover, height fields, deterministic replay | MIT, verified in repo root. |
 
 ### Granular algorithm target
 
@@ -90,6 +94,30 @@ Use the papers to define tests and invariants, then use open-source implementati
 
 ## Missing SHADED labs after Material / Coast / Granular
 
+**Status:** `runtime/solver/` now exists as the renderer-independent home for
+these labs (mirrors `runtime/style/`'s split from `sandbox/`). The Granular
+solver above is its first real vertical slice — WorldState (grid) → Solver
+(`step()`) → thin Renderer (`solver-lab/granular/`), same three-layer rule
+as this file's own header. The sections below remain open; each should
+follow the same shape (Node-testable core + thin visual layer + a verify
+script) rather than growing inside the Style Discovery Sandbox, which is
+explicitly style-only and has no solver.
+
+**Erosion × Granular coupling (`runtime/solver/erosion-granular-bridge.js`,
+`solver-lab/coupled/`)**: a thin bridge, not a third solver — a single row
+of the (top-down) erosion heightfield is a valid 1D terrain profile for the
+(side-view) Granular grid's floor. Wherever a run of the Erosion Lab
+carves height away along that row, the bridge spawns proportional SAND in
+the Granular grid directly above the freshly exposed surface, then the
+unmodified Granular `step()` takes over. Deliberately not generalized into
+a shared "world coupling" framework yet — this is the first (and so far
+only) coupling between two labs; CLAUDE.md's own anti-premature-abstraction
+rule says extract a shared pattern after a second real case needs it, not
+before. Verified by `tools/test-erosion-granular-bridge.mjs` (16 checks)
+and `tools/verify-solver-lab-coupled.js` (9 browser checks). Screenshot-
+confirmed: sand appears dusted along the hill's slope exactly where the
+terrain view shows a fresh drainage channel cut into it.
+
 ### Fluid Lab
 A 2D GPU Stable-Fluids solver with observable velocity, divergence, pressure, density, temperature and obstacles. This becomes the shared solver for smoke, steam, gas, heat and later fluid-driven particles.
 
@@ -100,6 +128,13 @@ Instanced particles with scene-depth softening. Shared emitters for dust, spray,
 Raymarched density renderer for smoke, fog and clouds. It consumes density/temperature/light fields from Fluid Lab or procedural density sources, with HQ/Balanced/Fast step budgets and temporal stabilization.
 
 ### Reaction Lab
+**Partial start, inside the Granular Lab rather than as its own instance**: `runtime/solver/granular-grid.js`'s
+`reactions()` pass now implements `water <-> ice <-> steam` and `fuel + heat -> fire -> smoke` (wood/fire/smoke)
+from the list below, using the same age-tracked, hash-seeded, double-buffered pattern as movement. Still not a
+general state graph -- each rule is hand-written per material pair. A real Reaction Lab would generalize this
+into a declarative graph other labs (Erosion, Vegetation) can also drive, instead of every lab hand-rolling its
+own reaction pass.
+
 A readable material-state graph, e.g.:
 - water <-> ice <-> steam,
 - soil + water -> mud,
@@ -112,7 +147,13 @@ A readable material-state graph, e.g.:
 The graph updates authoritative world fields; renderers only visualize them.
 
 ### Erosion / Sediment Lab
-Couple terrain slope, water flow, loose sediment and deposition. This connects dune/sand visuals to actual world evolution instead of treating terrain as immutable decoration.
+Couple terrain slope, water flow, loose sediment and deposition. This connects dune/sand visuals to actual world evolution instead of treating terrain as immutable decoration. `SebLague/Hydraulic-Erosion` (MIT, verified) is now the strongest available donor for this lab — previously an open gap with no credible source.
+**First slice implemented**: `runtime/solver/erosion-heightfield.js` + `solver-lab/erosion/` — droplet-based
+hydraulic erosion (Beyer's published method, independently implemented in JS, not a port of SebLague's C#).
+Verified by `tools/test-erosion-heightfield.mjs` (12 checks, incl. exact total-mass conservation to float64
+precision) and `tools/verify-solver-lab-erosion.js` (9 browser checks). Screenshot-confirmed: branching
+drainage channels carve down from hilltops after a few thousand droplets, the expected signature of the
+algorithm, not a hand-tuned visual.
 
 ### Vegetation Lab
 Growth, bending, wet/dry state, snow loading, burn/char and procedural scatter. It should read wind/moisture/temperature/light fields rather than invent its own weather controls.

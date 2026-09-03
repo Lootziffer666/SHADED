@@ -90,6 +90,13 @@ This document records the source set supplied for the sandbox and, more importan
 - Available public resolutions: 1K / 2K / 4K.
 - Site marks the material royalty-free for commercial and non-commercial use; SHADED's existing FreeStylized importer still keeps downloaded files local and gitignored because the site's redistribution restrictions remain in force.
 
+### 11. matsuoka-601/Particles4All
+- URL: https://github.com/matsuoka-601/Particles4All
+- Role: WebGPU architecture donor for GPU-resident secondary particles, compact compute passes and delayed small-buffer readback.
+- Verified scope: Position Based Fluids and particle-based rigid bodies share a constraint loop; the demo renders a reconstructed fluid surface in screen space.
+- License: MIT, copyright matsuoka-601 (2026), verified in the repository root.
+- SHADED adaptation: the coupled World Lab does not pretend that a full 3D PBF solver is a replacement for height, moisture, sediment and biomass fields. It adopts the GPU-resident particle boundary now; a complete Particles4All fluid operator can later replace the secondary-water-particle pass behind that boundary without changing the CA state contract.
+
 ## Implementation decision after this source pass
 
 The first sandbox implementation treated sand primarily as a procedural surface preset. That is insufficient.
@@ -105,3 +112,11 @@ The first sandbox implementation treated sand primarily as a procedural surface 
 - no mutation of SHADED scene/world state
 
 The next Coast Lab should combine sources 2, 4, 6, 7, 9 and 10 instead of extending the old single `water` preset indefinitely.
+
+`editor/world-sandbox.js` and `runtime/world-sandbox-webgpu.mjs` now establish the coupled **World Sandbox inside the canonical SHADED editor**:
+- CPU input and rigid-body events become bounded stamps;
+- WebGPU compute evolves sand, shallow water, sediment, wetness, heat and biomass in ping-pong storage buffers;
+- secondary particles remain GPU-resident and return settled mass through atomic deposit cells;
+- only a triple-buffered local query is mapped back to the CPU;
+- the deterministic CPU reference uses the same 12-scalar cell contract and is both a test oracle and a real fallback;
+- downloaded material maps are optional and never gate the simulation.
