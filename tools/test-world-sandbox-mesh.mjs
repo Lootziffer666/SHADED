@@ -2,8 +2,10 @@
 // Sweep Geometry from the user's cultivation plan). Proves the concrete geometric claims: a
 // straight segment's ring vertices sit at exactly the stored radius from the centerline, radius
 // genuinely tapers between differently-sized ends rather than averaging or ignoring one end, a
-// branch point's ring is shared (not duplicated) between however many segments start there, and
-// every produced index stays within bounds of the actual vertex buffer.
+// branch point's ring is shared (not duplicated) between however many segments start there,
+// every produced index stays within bounds of the actual vertex buffer, and rootDistances (the
+// wind-weight substitute for world-space height) accumulates real edge length along the graph
+// rather than counting hops or staying flat.
 import assert from 'node:assert/strict';
 import {sweepPlantGraph} from '../runtime/world-sandbox-mesh.mjs';
 
@@ -22,11 +24,12 @@ function makeGraph(nodeSpecs) {
 }
 
 function assertNoNaN(mesh, label) {
-  for (const arr of [mesh.positions, mesh.normals]) {
+  for (const arr of [mesh.positions, mesh.normals, mesh.rootDistances]) {
     for (let i = 0; i < arr.length; i++) {
       assert.ok(Number.isFinite(arr[i]), `${label}: every coordinate is finite (found ${arr[i]} at index ${i})`);
     }
   }
+  assert.equal(mesh.rootDistances.length, mesh.positions.length / 3, `${label}: exactly one rootDistances entry per vertex`);
 }
 
 // --- A single straight stick: two nodes, same radius --------------------------------------
@@ -95,6 +98,43 @@ function assertNoNaN(mesh, label) {
   for (const i of mesh.indices) assert.ok(i >= 0 && i < mesh.positions.length / 3, `index ${i} stays within the actual vertex buffer`);
 }
 
+// --- rootDistances accumulates real edge length, not hop count -----------------------------
+{
+  // A bent 3-segment chain with DELIBERATELY different edge lengths (2, 0.5, 3 world units), so
+  // "count of hops from the root" (which would give 0,1,2,3) and "real accumulated distance"
+  // (0, 2, 2.5, 5.5) disagree -- proving this is a real geodesic sum, not a hop counter.
+  const graph = makeGraph([
+    {x: 0, y: 0, z: 0, radius: 0.1, parentId: null},   // root, distance 0
+    {x: 2, y: 0, z: 0, radius: 0.1, parentId: 0},        // +2 -> distance 2
+    {x: 2.5, y: 0, z: 0, radius: 0.1, parentId: 1},      // +0.5 -> distance 2.5
+    {x: 5.5, y: 0, z: 0, radius: 0.1, parentId: 2},      // +3 -> distance 5.5
+  ]);
+  const mesh = sweepPlantGraph(graph, {radialSegments: RADIAL_SEGMENTS});
+  assertNoNaN(mesh, 'bent chain');
+
+  const expectedByRing = [0, 2, 2.5, 5.5];
+  for (let ring = 0; ring < 4; ring++) {
+    for (let i = 0; i < RADIAL_SEGMENTS; i++) {
+      const got = mesh.rootDistances[ring * RADIAL_SEGMENTS + i];
+      assert.ok(Math.abs(got - expectedByRing[ring]) < 1e-5,
+        `ring ${ring}'s rootDistances is the real accumulated edge length (${expectedByRing[ring]}), not a hop count or a flat value (got ${got})`);
+    }
+  }
+
+  // A branch: both children of the fork start accumulating distance from the SAME fork value,
+  // independently -- one child being far away must not affect the other child's own distance.
+  const branchGraph = makeGraph([
+    {x: 0, y: 0, z: 0, radius: 0.1, parentId: null},  // fork, distance 0
+    {x: 10, y: 0, z: 0, radius: 0.1, parentId: 0},      // far child A, distance 10
+    {x: 0, y: 0, z: 1, radius: 0.1, parentId: 0},       // near child B, distance 1
+  ]);
+  const branchMesh = sweepPlantGraph(branchGraph, {radialSegments: RADIAL_SEGMENTS});
+  const distA = branchMesh.rootDistances[RADIAL_SEGMENTS]; // child A's ring starts right after the fork's ring
+  const distB = branchMesh.rootDistances[2 * RADIAL_SEGMENTS];
+  assert.ok(Math.abs(distA - 10) < 1e-5, `child A's own distance (10) is unaffected by its sibling (got ${distA})`);
+  assert.ok(Math.abs(distB - 1) < 1e-5, `child B's own distance (1) is unaffected by its sibling (got ${distB})`);
+}
+
 // --- A graph with no edges at all (a lone, just-planted seed) produces valid empty buffers -
 {
   const graph = makeGraph([{x: 0.3, y: 0, z: 0.3, radius: 0.05, parentId: null}]);
@@ -103,4 +143,4 @@ function assertNoNaN(mesh, label) {
   assert.equal(mesh.indices.length, 0, 'a graph with no parent-child edges produces no indices');
 }
 
-console.log('mesh: sweepPlantGraph builds real tube geometry from a plant graph -- rings sit at their own node\'s exact radius, taper genuinely differs per end, branch rings are shared not duplicated, and every index stays in bounds');
+console.log('mesh: sweepPlantGraph builds real tube geometry from a plant graph -- rings sit at their own node\'s exact radius, taper genuinely differs per end, branch rings are shared not duplicated, every index stays in bounds, and rootDistances is a real accumulated edge-length sum independent per branch');
