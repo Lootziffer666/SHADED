@@ -789,11 +789,20 @@ fn fsWater(input: SurfaceOut) -> @location(0) vec4<f32> {
   if (input.water.x < 0.00035 || u32(R.view.x + 0.5) != 0u) {
     discard;
   }
-  let flow = length(input.water.yz);
-  let wave = vec2<f32>(
+  // Ambient ripple for still water -- direction-agnostic, keeps calm ponds from looking dead.
+  let ambient = vec2<f32>(
     sin(input.world.x * 31.0 + R.view.y * 2.2) + sin(input.world.z * 43.0 - R.view.y * 1.4),
     cos(input.world.z * 29.0 - R.view.y * 1.9) + cos(input.world.x * 37.0 + R.view.y * 1.2)
-  ) * (0.018 + min(0.035, flow * 0.015));
+  ) * 0.018;
+  // The momentum field (input.water.yz, driven by edgeFlow's accelerate-then-damp velocity
+  // in the compute kernel) is now the actual transport -- so it should be visible as actual
+  // transport here too: ripples travel along the real flow direction and get busier with
+  // speed, instead of only reacting to |flow| with a direction-blind noise pattern.
+  let flow = length(input.water.yz);
+  let flowDir = select(vec2<f32>(0.71, 0.71), input.water.yz / max(flow, 1e-5), flow > 1e-5);
+  let along = dot(input.world.xz, flowDir);
+  let travel = sin(along * 46.0 - R.view.y * (2.6 + flow * 9.0)) * min(0.05, flow * 0.06);
+  let wave = ambient + flowDir * travel;
   let n = normalize(input.normal + vec3<f32>(wave.x, 0.0, wave.y));
   let viewDirection = normalize(-cameraForward());
   let sun = normalize(vec3<f32>(-0.42, 0.82, -0.31));
@@ -805,7 +814,11 @@ fn fsWater(input: SurfaceOut) -> @location(0) vec4<f32> {
   color = mix(color, vec3<f32>(0.38, 0.60, 0.61), fresnel * 0.42);
   color += vec3<f32>(0.82, 0.91, 0.86) * specular * 0.72;
   let shore = (1.0 - smoothstep(0.0014, 0.008, input.water.x)) * smoothstep(0.0003, 0.0016, input.water.x);
-  let foam = clamp(shore + smoothstep(0.35, 1.0, flow) * 0.52, 0.0, 1.0);
+  // Turbulence streaks along the flow direction -- the visible leading-edge surge of a
+  // dam-break front, not just a flat foam-by-speed blend.
+  let streak = smoothstep(0.55, 1.0, abs(sin(along * 90.0 - R.view.y * (3.0 + flow * 6.0))))
+    * smoothstep(0.25, 0.9, flow);
+  let foam = clamp(shore + smoothstep(0.35, 1.0, flow) * 0.40 + streak * 0.38, 0.0, 1.0);
   color = mix(color, vec3<f32>(0.76, 0.81, 0.72), foam * 0.64);
   let alpha = 0.48 + depth * 0.27 + fresnel * 0.14;
   return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), alpha);
@@ -840,7 +853,12 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let corner = corners[vertexIndex];
   let bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
   let bladeWidth = 0.0028 + seed * 0.0032;
-  let bend = normalize(vec3<f32>(cell.water.y, 0.0, cell.water.z) + vec3<f32>(0.34, 0.0, 0.18)) * bladeHeight * 0.16;
+  // Bend intensity now follows real current strength (the same edgeFlow-driven velocity
+  // that transports water), not a fixed lean -- a flooded dam-break front visibly presses
+  // grass over, calm runoff barely touches it.
+  let flowSpeed = length(vec2<f32>(cell.water.y, cell.water.z));
+  let bend = normalize(vec3<f32>(cell.water.y, 0.0, cell.water.z) + vec3<f32>(0.34, 0.0, 0.18))
+    * bladeHeight * (0.08 + min(0.30, flowSpeed * 0.9));
   var world = vec3<f32>(uv.x * 2.0 - 1.0, ground, uv.y * 2.0 - 1.0);
   world += side * corner.x * bladeWidth;
   world += vec3<f32>(0.0, corner.y * bladeHeight, 0.0) + bend * corner.y * corner.y;

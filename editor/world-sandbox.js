@@ -361,7 +361,18 @@ class CpuWorldSandbox {
         const w11 = projected(x + 1, z + 1, true);
         const w01 = projected(x, z + 1, true);
         const depth = Math.min(1, water * 12);
-        context.fillStyle = `rgba(${Math.round(42 - depth * 18)},${Math.round(120 - depth * 31)},${Math.round(137 - depth * 24)},${0.48 + depth * 0.24})`;
+        // Same accelerate-then-damp velocity that now actually transports water (edgeFlow
+        // in world-sandbox-reference.mjs) also has to show up here -- this 2D canvas path
+        // is the real fallback most browsers/headless runs actually use, not a decoration
+        // layered only on top of the WebGPU renderer.
+        const vx = this.world[offset + FIELD.VELOCITY_X];
+        const vz = this.world[offset + FIELD.VELOCITY_Z];
+        const speed = Math.min(1, Math.hypot(vx, vz) * 6);
+        const foam = Math.max(0, speed - 0.35) / 0.65;
+        const r = 42 - depth * 18 + foam * 150;
+        const g = 120 - depth * 31 + foam * 120;
+        const b = 137 - depth * 24 + foam * 90;
+        context.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${0.48 + depth * 0.24})`;
         context.beginPath();
         context.moveTo(w00.x, w00.y);
         context.lineTo(w10.x, w10.y);
@@ -373,8 +384,16 @@ class CpuWorldSandbox {
 
       const biomass = this.world[offset + FIELD.BIOMASS];
       if (viewMode === 0 && water < 0.006 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
+        const stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
+        const vx = this.world[offset + FIELD.VELOCITY_X];
+        const vz = this.world[offset + FIELD.VELOCITY_Z];
+        const lean = Math.min(0.6, Math.hypot(vx, vz) * 2.2);
         const base = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1], width, height, camera);
-        const top = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale + 0.025 + Math.sqrt(biomass) * 0.095, z / (size - 1) * 2 - 1], width, height, camera);
+        const top = projectWorld([
+          x / (size - 1) * 2 - 1 + vx * lean,
+          heightAt(x, z) * verticalScale + stalkHeight * (1 - lean * 0.3),
+          z / (size - 1) * 2 - 1 + vz * lean,
+        ], width, height, camera);
         context.strokeStyle = this.world[offset + FIELD.HEAT] > 0.25 ? 'rgba(119,88,38,.82)' : 'rgba(68,111,42,.88)';
         context.lineWidth = Math.max(1, width / 900);
         context.beginPath();
