@@ -3514,6 +3514,19 @@ window.SHADED = {
 // verwenden; nur von Modulen, die shaded-engine.mjs selbst aufgeteilt hat.
 // time/heatWarp sind Getter (kein Snapshot), weil beide `let`-Variablen sind, die jeden Frame
 // neu berechnet werden — eine Kopie zum Bridge-Aufbauzeitpunkt wäre sofort veraltet.
-window.SHADED_ENGINE_INTERNAL = { PARAMS, CUR, get time(){return time;}, get heatWarp(){return heatWarp;}, findSpawnPoint };
+// Seed every value consumed by the render loop before the extracted companion
+// modules get their first turn. Module scripts execute asynchronously relative
+// to requestAnimationFrame on sufficiently slow devices/CI, so `fires` and
+// `player` must already satisfy the bridge contract here. player-fire.mjs
+// replaces both placeholders with the live objects as soon as it loads.
+window.SHADED_ENGINE_INTERNAL = {
+  PARAMS,
+  CUR,
+  fires: [],
+  player: {active:false, blood:0, mud:0},
+  get time(){return time;},
+  get heatWarp(){return heatWarp;},
+  findSpawnPoint
+};
 
 export default window.SHADED;
