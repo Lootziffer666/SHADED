@@ -68,10 +68,13 @@ Einzelbild MIT messbaren Strukturkanten (echte, getracte Ecken/Konturen,
 Fluchtpunkte, Manhattan-World-Annahme aus rechtwinkligen Kanten)?
   → klassische Single-View-Metrologie (Eckpunkt + zwei gemessene
     Kantenvektoren u/v algebraisch zu Volumen konstruieren, siehe
-    `tools/scratch-manhattan-box.mjs`-Familie). Provenienz MEASURED, nicht
-    INFERRED -- das ist gemessene Geometrie aus echten Bildkanten, kein
-    geschätztes Tiefenfeld. Rangiert in der Prioritätsliste unten VOR
-    MonocularDepthProvider, nicht danach.
+    `tools/scratch-manhattan-box.mjs`-Familie). Provenienz strikt trennen:
+    die tatsächlich gemessenen 2D-Bildkoordinaten/Kanten sind MEASURED;
+    daraus unter Projektions-, Manhattan- oder anderen geometrischen Regeln
+    erzeugte räumliche Lage, Tiefe, Skala und unsichtbare Geometrie sind
+    RECONSTRUCTED. Diese Rekonstruktion rangiert vor einem rein geschätzten
+    MonocularDepthProvider, darf aber echte sensorisch/engine-seitig
+    MEASURED-Geometrie niemals überstimmen.
 
 Nur RGB-Einzelbild OHNE belastbare Strukturkanten (keine tracebare Kontur,
 keine verlässlichen Eckpunkte)?
@@ -89,9 +92,11 @@ bereits "gemessen > ... > monokular geschätzt" -- der alte Entscheidungsbaum
 hatte dafür aber keinen Zweig zwischen "Multiview vorhanden" und "nur
 RGB → MonocularDepthProvider". Ein Einzelbild mit echten, nachprüfbaren
 Konturen (Dachpolygon, Wegnetz, Gebäudeecken über `getMaterialTypeAt()` +
-Contour-Trace + Douglas-Peucker) liefert MESSBARE Geometrie aus einer
-einzigen Aufnahme -- das ist kein Sonderfall von "nur RGB", sondern eine
-eigene, höherwertige Kategorie, die vor der geschätzten Variante gehört.
+Contour-Trace + Douglas-Peucker) liefert **messbare 2D-Evidenz** aus einer
+einzigen Aufnahme. Die daraus erzeugte 3D-Geometrie bleibt trotzdem
+**RECONSTRUCTED**, weil Tiefe/Skala/unsichtbare Struktur durch geometrische
+Regeln hergeleitet werden. Diese evidenzbasierte Kategorie gehört vor die
+rein geschätzte Variante, ohne die Provenienzklasse MEASURED zu missbrauchen.
 
 ## SHADED-Bausteine
 

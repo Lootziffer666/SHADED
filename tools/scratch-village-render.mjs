@@ -1,20 +1,7 @@
-// Render the reconstructed village (from scratch-village-reconstruct-v2.mjs's
-// village-reconstructed-v2.json) from the original recovered camera (sanity
-// check against the real render) and from novel viewpoints -- the actual
-// "turn the scene" deliverable for this attempt. All 6 houses reprojected
-// to within 0.00-0.03px of their measured 2D vertices (5 fully measured,
-// 1 partial with 2 corners reconstructed purely from the box's rigid
-// structure, no 2D measurement at all for those) -- the only legitimate
-// proof of correctness for a real render with no ground truth.
-//
-// T is anchored at whatever local corner localCoords[name][0] happens to
-// be (NOT always (0,0,1) -- that was true for the earlier cube dataset's
-// specific family pattern, not a general rule), so the (0,0,0) corner is
-// recovered by subtracting exactly that offset before building the full
-// 8-corner box. Lx/Ly/Lz are now PER-HOUSE (E1 fix in
-// scratch-village-reconstruct-v2.mjs -- a shared scale forced every house
-// to be exactly the same 3D size, which was the actual cause of the wild
-// arrangement; each house keeps its own JSON `scale[name]` entry instead).
+// Render the reconstructed village from the recovered camera and from novel
+// viewpoints. This renderer is deliberately a verifier: it must preserve the
+// exact camera/axis conventions serialized by scratch-village-reconstruct-v2.mjs
+// instead of silently inventing its own.
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
@@ -23,31 +10,54 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, 'verify-out');
 const data = JSON.parse(fs.readFileSync(path.join(OUT, 'village-reconstructed-v2.json'), 'utf8'));
-const { R: axes, T, W: imgW, H: imgH, f, scale: perHouseScale, localCoords } = data;
+const {
+  R: axes,
+  T,
+  W: imgW,
+  H: imgH,
+  f,
+  pp,
+  verticalFam = 1,
+  scale: perHouseScale,
+} = data;
 
 function dot3(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
-function sub3(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
 function worldFromCam(vCam) { return [dot3(axes[0], vCam), dot3(axes[1], vCam), dot3(axes[2], vCam)]; }
 
 const cubesWorld = {};
 for (const [name, Tcam] of Object.entries(T)) {
   const { Lx, Ly, Lz } = perHouseScale[name];
   const scale = [Lx, Ly, Lz];
-  const [a0, b0, c0] = localCoords[name][0]; // whatever corner T is anchored at for this house
-  const origin000cam = [
-    Tcam[0] - a0 * scale[0] * axes[0][0] - b0 * scale[1] * axes[1][0] - c0 * scale[2] * axes[2][0],
-    Tcam[1] - a0 * scale[0] * axes[0][1] - b0 * scale[1] * axes[1][1] - c0 * scale[2] * axes[2][1],
-    Tcam[2] - a0 * scale[0] * axes[0][2] - b0 * scale[1] * axes[1][2] - c0 * scale[2] * axes[2][2],
-  ];
-  const originWorld = worldFromCam(origin000cam);
+  // solveJointAnisotropic serializes T as the camera-space position of the
+  // local (0,0,0) corner. Do NOT subtract localCoords[0] again here.
+  const originWorld = worldFromCam(Tcam);
   const corners = [];
-  for (let a = 0; a <= 1; a++) for (let b = 0; b <= 1; b++) for (let c = 0; c <= 1; c++) corners.push([originWorld[0] + a * scale[0], originWorld[1] + b * scale[1], originWorld[2] + c * scale[2]]);
+  for (let a = 0; a <= 1; a++) {
+    for (let b = 0; b <= 1; b++) {
+      for (let c = 0; c <= 1; c++) {
+        corners.push([
+          originWorld[0] + a * scale[0],
+          originWorld[1] + b * scale[1],
+          originWorld[2] + c * scale[2],
+        ]);
+      }
+    }
+  }
   cubesWorld[name] = { origin: originWorld, corners };
 }
 console.log('World-space house origins (real units, per-house Lx/Ly/Lz):');
 for (const [name, c] of Object.entries(cubesWorld)) console.log(' ', name, c.origin.map(v => v.toFixed(3)), 'scale=', perHouseScale[name]);
 
-const origCam = { pos: [0, 0, 0], right: worldFromCam([1, 0, 0]), up: worldFromCam([0, 1, 0]), forward: worldFromCam([0, 0, 1]) };
+// The reconstruction uses image coordinates with +Y downward:
+//   py = pp.y + f * camY/camZ
+// The canvas camera below uses +up then subtracts it from pixel Y, so the
+// recovered camera's up basis must be the NEGATIVE camera-Y direction.
+const origCam = {
+  pos: [0, 0, 0],
+  right: worldFromCam([1, 0, 0]),
+  up: worldFromCam([0, -1, 0]),
+  forward: worldFromCam([0, 0, 1]),
+};
 
 function cubeFaces(corners) {
   const idx = (a, b, c) => corners[a * 4 + b * 2 + c];
@@ -64,6 +74,17 @@ const allFaces = [];
 const baseColors = { house1: [200, 90, 90], house2: [90, 180, 100], house3: [90, 130, 210], house4: [220, 150, 60], house5: [190, 90, 190], house6: [90, 190, 190] };
 for (const [name, c] of Object.entries(cubesWorld)) for (const fc of cubeFaces(c.corners)) allFaces.push({ cube: name, baseColor: baseColors[name] || [150, 150, 150], corners: fc.c });
 
+const footprintAxes = [0, 1, 2].filter((axis) => axis !== verticalFam);
+const originVerticals = Object.values(cubesWorld).map((c) => c.origin[verticalFam]).sort((a, b) => a - b);
+const groundCoord = originVerticals[Math.floor(originVerticals.length / 2)] || 0;
+function axisMapped(h0, up, h1) {
+  const v = [0, 0, 0];
+  v[footprintAxes[0]] = h0;
+  v[verticalFam] = up;
+  v[footprintAxes[1]] = h1;
+  return v;
+}
+
 (async () => {
   const launchOpts = { args: ['--no-sandbox'] };
   if (fs.existsSync('/opt/pw-browsers/chromium')) launchOpts.executablePath = '/opt/pw-browsers/chromium';
@@ -71,25 +92,26 @@ for (const [name, c] of Object.entries(cubesWorld)) for (const fc of cubeFaces(c
   const page = await browser.newPage();
   await page.setContent('<canvas id=c></canvas>');
 
-  const renderDataUrl = await page.evaluate(async ({ allFaces, cubesWorld, cams }) => {
+  const renderDataUrl = await page.evaluate(async ({ allFaces, cams, verticalFam, footprintAxes, groundCoord }) => {
     const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
     const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
     const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     const norm3 = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+    const axisUnit = (axis) => [0, 1, 2].map((i) => i === axis ? 1 : 0);
+
     function makeCameraLookAt(eye, target, fovDeg, width, height) {
       const forward = norm3(sub3(target, eye));
-      let upHint = [0, 1, 0];
-      if (Math.abs(dot3(forward, upHint)) > 0.99) upHint = [0, 0, 1];
+      let upHint = axisUnit(verticalFam);
+      if (Math.abs(dot3(forward, upHint)) > 0.99) upHint = axisUnit(footprintAxes[1]);
       const right = norm3(cross3(forward, upHint));
       const up = cross3(right, forward);
-      const fov = fovDeg * Math.PI / 180;
-      return { eye, forward, right, up, f: 1 / Math.tan(fov / 2), aspect: width / height, width, height };
+      const fy = (height * 0.5) / Math.tan(fovDeg * Math.PI / 360);
+      return { eye, forward, right, up, fx: fy, fy, cx: width / 2, cy: height / 2, width, height };
     }
     function projectPoint(p, cam) {
       const rel = sub3(p, cam.eye), x = dot3(rel, cam.right), y = dot3(rel, cam.up), z = dot3(rel, cam.forward);
       if (z <= 0.01) return null;
-      const ndcX = (x / z) * cam.f / cam.aspect, ndcY = (y / z) * cam.f;
-      return [(ndcX * 0.5 + 0.5) * cam.width, (1 - (ndcY * 0.5 + 0.5)) * cam.height, z];
+      return [cam.cx + cam.fx * x / z, cam.cy - cam.fy * y / z, z];
     }
     function faceNormal(corners) { const [a, b, c] = corners; return norm3(cross3(sub3(b, a), sub3(c, a))); }
     const LIGHT_DIR = norm3([0.4, 1.0, 0.55]);
@@ -110,16 +132,33 @@ for (const [name, c] of Object.entries(cubesWorld)) for (const fc of cubeFaces(c
       ctx.fillStyle = bg; ctx.fillRect(0, 0, W_PX, H_PX);
       let cam;
       if (camDef.basis) {
-        const fovRad = camDef.fov * Math.PI / 180;
-        cam = { eye: camDef.eye, forward: camDef.basis.forward, right: camDef.basis.right, up: camDef.basis.up, f: 1 / Math.tan(fovRad / 2), aspect: W_PX / H_PX, width: W_PX, height: H_PX };
+        const sx = W_PX / camDef.sourceWidth;
+        const sy = H_PX / camDef.sourceHeight;
+        cam = {
+          eye: camDef.eye,
+          forward: camDef.basis.forward,
+          right: camDef.basis.right,
+          up: camDef.basis.up,
+          fx: camDef.focal * sx,
+          fy: camDef.focal * sy,
+          cx: camDef.principal[0] * sx,
+          cy: camDef.principal[1] * sy,
+          width: W_PX,
+          height: H_PX,
+        };
       } else {
         cam = makeCameraLookAt(camDef.eye, camDef.target, camDef.fov, W_PX, H_PX);
       }
 
       ctx.strokeStyle = 'rgba(0,0,0,0.10)'; ctx.lineWidth = 1;
       for (let g = -12; g <= 12; g++) {
-        const a1 = projectPoint([g, 0, -12], cam), a2 = projectPoint([g, 0, 12], cam);
-        const b1 = projectPoint([-12, 0, g], cam), b2 = projectPoint([12, 0, g], cam);
+        const pA1 = [0, 0, 0], pA2 = [0, 0, 0], pB1 = [0, 0, 0], pB2 = [0, 0, 0];
+        pA1[footprintAxes[0]] = g; pA1[verticalFam] = groundCoord; pA1[footprintAxes[1]] = -12;
+        pA2[footprintAxes[0]] = g; pA2[verticalFam] = groundCoord; pA2[footprintAxes[1]] = 12;
+        pB1[footprintAxes[0]] = -12; pB1[verticalFam] = groundCoord; pB1[footprintAxes[1]] = g;
+        pB2[footprintAxes[0]] = 12; pB2[verticalFam] = groundCoord; pB2[footprintAxes[1]] = g;
+        const a1 = projectPoint(pA1, cam), a2 = projectPoint(pA2, cam);
+        const b1 = projectPoint(pB1, cam), b2 = projectPoint(pB2, cam);
         if (a1 && a2) { ctx.beginPath(); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a2[0], a2[1]); ctx.stroke(); }
         if (b1 && b2) { ctx.beginPath(); ctx.moveTo(b1[0], b1[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke(); }
       }
@@ -147,27 +186,36 @@ for (const [name, c] of Object.entries(cubesWorld)) for (const fc of cubeFaces(c
     });
     return outCanvas.toDataURL('image/png');
   }, {
-    allFaces, cubesWorld,
+    allFaces,
+    verticalFam,
+    footprintAxes,
+    groundCoord,
     cams: (() => {
       const centers = Object.values(cubesWorld).map(c => c.origin);
-      const cx = centers.reduce((s, p) => s + p[0], 0) / centers.length + 0.5;
-      const cy = centers.reduce((s, p) => s + p[1], 0) / centers.length + 0.5;
-      const cz = centers.reduce((s, p) => s + p[2], 0) / centers.length + 0.5;
-      const target = [cx, cy, cz];
-      const trueFovY = 2 * Math.atan((imgH / 2) / f) * 180 / Math.PI;
+      const center = [0, 0, 0];
+      for (const p of centers) for (let i = 0; i < 3; i++) center[i] += p[i] / centers.length;
+      center[verticalFam] += 0.5;
       const dist = 16;
+      const pos = (h0, up, h1) => {
+        const v = center.slice();
+        v[footprintAxes[0]] += h0;
+        v[verticalFam] += up;
+        v[footprintAxes[1]] += h1;
+        return v;
+      };
       return [
-        { label: 'original camera (sanity check)', eye: origCam.pos, basis: { right: origCam.right, up: origCam.up, forward: origCam.forward }, fov: trueFovY },
-        { label: 'rotated +60deg yaw', eye: [target[0] + Math.sin(1.05) * dist, target[1] - 2, target[2] - Math.cos(1.05) * dist + 4], target, fov: 45 },
-        { label: 'rotated -90deg (side)', eye: [target[0] - dist, target[1] - 1, target[2]], target, fov: 45 },
-        { label: 'top-down (floor plan)', eye: [target[0], target[1] + dist + 4, target[2] + 0.01], target, fov: 50 },
-        { label: 'from behind', eye: [target[0], target[1] - 1, target[2] + dist], target, fov: 45 },
-        { label: 'low oblique', eye: [target[0] + dist * 0.7, target[1] - 4, target[2] + dist * 0.7], target, fov: 45 },
+        { label: 'original camera (sanity check)', eye: origCam.pos, basis: { right: origCam.right, up: origCam.up, forward: origCam.forward }, focal: f, principal: pp, sourceWidth: imgW, sourceHeight: imgH },
+        { label: 'rotated +60deg yaw', eye: pos(Math.sin(1.05) * dist, 2, -Math.cos(1.05) * dist), target: center, fov: 45 },
+        { label: 'rotated -90deg (side)', eye: pos(-dist, 1, 0), target: center, fov: 45 },
+        { label: 'top-down (floor plan)', eye: pos(0.01, dist + 4, 0.01), target: center, fov: 50 },
+        { label: 'from behind', eye: pos(0, 1, dist), target: center, fov: 45 },
+        { label: 'low oblique', eye: pos(dist * 0.7, 4, dist * 0.7), target: center, fov: 45 },
       ];
     })(),
   });
 
   const b64 = renderDataUrl.replace(/^data:image\/png;base64,/, '');
+  fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(path.join(OUT, 'village-turntable.png'), Buffer.from(b64, 'base64'));
   console.log('Wrote village-turntable.png');
   await browser.close();
