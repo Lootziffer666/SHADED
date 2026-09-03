@@ -5,7 +5,7 @@
 // plain JavaScript so invariants can be tested without a GPU and browsers
 // without WebGPU still get a real (lower-resolution) simulation.
 
-export const CELL_STRIDE = 20;
+export const CELL_STRIDE = 22;
 
 export const FIELD = Object.freeze({
   BEDROCK: 0,
@@ -39,6 +39,16 @@ export const FIELD = Object.freeze({
   SMOKE: 17,
   ASH: 18,
   GROUNDWATER: 19,
+  // Sixth reservoir set: a real spatial wind field, not a uniform scalar. WIND_X/WIND_Z is the
+  // local air-movement vector this cell actually carries -- it diffuses toward its neighbours
+  // (gusts spread out), relaxes back toward env.wind/windDeg's prevailing direction (weather
+  // "wants" to return to normal absent a disturbance), and gets pushed outward by nearby FIRE's
+  // own heat gradient (a real fire generates its own outflow/updraft, it doesn't just sit in
+  // whatever ambient breeze exists). Everything that used to read the uniform wind directly
+  // (VAPOR/CLOUD/SMOKE drift, and now SNOW drift + fire spread's downwind bias) reads this
+  // field instead, so gusts are visibly local and directional instead of one global number.
+  WIND_X: 20,
+  WIND_Z: 21,
 });
 
 export const STAMP = Object.freeze({
@@ -60,9 +70,9 @@ export const DEFAULT_ENVIRONMENT = Object.freeze({
   sandRate: 2.35,
   waterRate: 5.4,
   growthRate: 0.21,
-  // Wind: drifts CLOUD/VAPOR/SMOKE downwind instead of leaving them pinned in place. Magnitude
-  // 0..1, direction in degrees (0 = +x). Water/sand/heat stay wind-independent -- only the
-  // airborne fields move with it.
+  // Wind: the PREVAILING direction/strength the local WIND_X/WIND_Z field (FIELD.WIND_X/Z)
+  // relaxes toward absent a local disturbance -- not applied directly to any field itself
+  // anymore (see FIELD.WIND_X's comment). Magnitude 0..1, direction in degrees (0 = +x).
   wind: 0.3,
   windDeg: 45,
 });
@@ -288,12 +298,27 @@ function windFlux(state, fieldIndex, fromIndex, toIndex, windAlongFromTo, dt, si
   return Math.min(state[fromIndex + fieldIndex] * 0.5, crossing * state[fromIndex + fieldIndex]);
 }
 
-function windTransportDelta(state, fieldIndex, o, left, right, north, south, windX, windZ, dt, size, rate) {
+// Dot of the wind vector STORED AT `index` with a cardinal direction -- deliberately always
+// the FROM cell's own wind, never an average or the TO cell's, and never the caller's local
+// uniform. That single rule is what keeps this mass-conserving under a spatially-varying
+// field: the flux for a given directed edge (say left->o) is a pure function of (left, o)
+// evaluated identically no matter which cell's own delta computation calls it -- exactly the
+// same guarantee sandFlux/edgeFlow already rely on, just carried over to a field that is now
+// spatially varying instead of one shared scalar.
+function windAlong(state, index, dirX, dirZ) {
+  return state[index + FIELD.WIND_X] * dirX + state[index + FIELD.WIND_Z] * dirZ;
+}
+
+function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt, size, rate) {
   let delta = 0;
-  delta += windFlux(state, fieldIndex, left, o, windX, dt, size, rate) - windFlux(state, fieldIndex, o, left, -windX, dt, size, rate);
-  delta += windFlux(state, fieldIndex, right, o, -windX, dt, size, rate) - windFlux(state, fieldIndex, o, right, windX, dt, size, rate);
-  delta += windFlux(state, fieldIndex, north, o, windZ, dt, size, rate) - windFlux(state, fieldIndex, o, north, -windZ, dt, size, rate);
-  delta += windFlux(state, fieldIndex, south, o, -windZ, dt, size, rate) - windFlux(state, fieldIndex, o, south, windZ, dt, size, rate);
+  delta += windFlux(state, fieldIndex, left, o, windAlong(state, left, 1, 0), dt, size, rate)
+    - windFlux(state, fieldIndex, o, left, windAlong(state, o, -1, 0), dt, size, rate);
+  delta += windFlux(state, fieldIndex, right, o, windAlong(state, right, -1, 0), dt, size, rate)
+    - windFlux(state, fieldIndex, o, right, windAlong(state, o, 1, 0), dt, size, rate);
+  delta += windFlux(state, fieldIndex, north, o, windAlong(state, north, 0, 1), dt, size, rate)
+    - windFlux(state, fieldIndex, o, north, windAlong(state, o, 0, -1), dt, size, rate);
+  delta += windFlux(state, fieldIndex, south, o, windAlong(state, south, 0, -1), dt, size, rate)
+    - windFlux(state, fieldIndex, o, south, windAlong(state, o, 0, 1), dt, size, rate);
   return delta;
 }
 
@@ -308,8 +333,8 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
   const safeDt = clamp(Number(dt) || 0, 0, 1 / 10);
   const windAngle = (env.windDeg * Math.PI) / 180;
   const windStrength = clamp(env.wind);
-  const windX = Math.cos(windAngle) * windStrength;
-  const windZ = Math.sin(windAngle) * windStrength;
+  const baseWindX = Math.cos(windAngle) * windStrength;
+  const baseWindZ = Math.sin(windAngle) * windStrength;
 
   for (let z = 0; z < size; z++) {
     for (let x = 0; x < size; x++) {
@@ -331,6 +356,37 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       const right = neighbours[1];
       const north = neighbours[2];
       const south = neighbours[3];
+
+      // --- Wind field: a real local vector, not a uniform scalar --------------------------
+      // Three forces, same leapfrog discipline as everything else (reads stamped, writes
+      // next): spatial diffusion (a gust spreads into its neighbours instead of staying a
+      // single-cell spike), relaxation toward the prevailing weather (env.wind/windDeg --
+      // absent a disturbance, local wind drifts back to "normal"), and a thermal push away
+      // from nearby heat (the same gradient technique the water-surface slope above already
+      // uses, just on FIELD.HEAT instead of water+terrain height -- a real fire generates its
+      // own outflow, it doesn't just sit passively in whatever breeze exists).
+      const windXOld = stamped[o + FIELD.WIND_X];
+      const windZOld = stamped[o + FIELD.WIND_Z];
+      const neighbourWindX = (stamped[left + FIELD.WIND_X] + stamped[right + FIELD.WIND_X]
+        + stamped[north + FIELD.WIND_X] + stamped[south + FIELD.WIND_X]) * 0.25;
+      const neighbourWindZ = (stamped[left + FIELD.WIND_Z] + stamped[right + FIELD.WIND_Z]
+        + stamped[north + FIELD.WIND_Z] + stamped[south + FIELD.WIND_Z]) * 0.25;
+      // The gradient itself already vanishes away from a heat source -- no extra "am I
+      // actually on fire" gate needed (an earlier version gated this on the CURRENT cell's
+      // own FIELD.FIRE, which meant only the burning cell itself ever got pushed, never its
+      // neighbours, even though their gradient already correctly senses it next door).
+      const heatGradX = (stamped[right + FIELD.HEAT] - stamped[left + FIELD.HEAT]) * 0.5 * size;
+      const heatGradZ = (stamped[south + FIELD.HEAT] - stamped[north + FIELD.HEAT]) * 0.5 * size;
+      const CONVECTION_STRENGTH = 0.65;
+      const windX = windXOld
+        + (neighbourWindX - windXOld) * safeDt * 0.6
+        + (baseWindX - windXOld) * safeDt * 0.35
+        - heatGradX * CONVECTION_STRENGTH * safeDt;
+      const windZ = windZOld
+        + (neighbourWindZ - windZOld) * safeDt * 0.6
+        + (baseWindZ - windZOld) * safeDt * 0.35
+        - heatGradZ * CONVECTION_STRENGTH * safeDt;
+
       const level = index => surface(stamped, index) + stamped[index + FIELD.WATER];
       const gradientX = (level(right) - level(left)) * 0.5 * size;
       const gradientZ = (level(south) - level(north)) * 0.5 * size;
@@ -385,6 +441,13 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       snow -= melt;
       water += melt;
 
+      // Snowdrift: loose snow gets picked up and redeposited downwind (real snowdrift
+      // behaviour -- it piles up on the leeward side of obstacles instead of falling and
+      // staying exactly where it landed), same conservative wind-flux machinery as the
+      // atmospheric fields, just on a ground reservoir. Slower than smoke -- snow is heavy.
+      const snowWindDelta = windTransportDelta(stamped, FIELD.SNOW, o, left, right, north, south, safeDt, size, 0.35);
+      snow = Math.max(0, snow + snowWindDelta);
+
       // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
       // a lake takes time to freeze over or thaw), and feeds back into sandFlux/edgeFlow above.
       const iceTarget = 1 - smoothstep(0.30, 0.42, localTemp);
@@ -423,7 +486,7 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // straight into `water`, it has to condense and fall like everything else.
       const neighbourVapor = (stamped[left + FIELD.VAPOR] + stamped[right + FIELD.VAPOR]
         + stamped[north + FIELD.VAPOR] + stamped[south + FIELD.VAPOR]) * 0.25;
-      const vaporWindDelta = windTransportDelta(stamped, FIELD.VAPOR, o, left, right, north, south, windX, windZ, safeDt, size, 0.6);
+      const vaporWindDelta = windTransportDelta(stamped, FIELD.VAPOR, o, left, right, north, south, safeDt, size, 0.6);
       let vapor = Math.max(0, stamped[o + FIELD.VAPOR]
         + (neighbourVapor - stamped[o + FIELD.VAPOR]) * safeDt * 0.18
         + vaporWindDelta
@@ -440,7 +503,7 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       vapor -= condensed;
       const neighbourCloud = (stamped[left + FIELD.CLOUD] + stamped[right + FIELD.CLOUD]
         + stamped[north + FIELD.CLOUD] + stamped[south + FIELD.CLOUD]) * 0.25;
-      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, windX, windZ, safeDt, size, 0.6);
+      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, safeDt, size, 0.6);
       const cloud = Math.max(0, cloudOld + (neighbourCloud - cloudOld) * safeDt * 0.35 + cloudWindDelta - precip + condensed);
 
       // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining
@@ -449,9 +512,20 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // releasing its own heat, exactly the positive-feedback chain real combustion is, until
       // it either runs out of fuel or gets doused by wetness/water/rain.
       const biomassOld = stamped[o + FIELD.BIOMASS];
+      // Downwind spread should visibly outrun upwind spread -- a neighbour's fire threatens
+      // this cell more when the local wind blows FROM that neighbour TOWARD here, not just
+      // from raw adjacency. windBias(dirX,dirZ) is >1 when the wind here blows in that
+      // direction (i.e. away from that neighbour, toward us) and <1 against it, using the
+      // exact same direction convention windAlong/windTransportDelta already established.
+      // Reads windXOld/windZOld (last step's field), same leapfrog discipline as every other
+      // wind consumer this step (windTransportDelta below reads stamped too) -- not the
+      // brand-new windX/windZ computed a few lines up, which belongs to THIS step's write.
+      const windBias = (dirX, dirZ) => clamp(1 + (windXOld * dirX + windZOld * dirZ) * 2.2, 0.15, 2.4);
       const neighbourFireMax = Math.max(
-        stamped[left + FIELD.FIRE], stamped[right + FIELD.FIRE],
-        stamped[north + FIELD.FIRE], stamped[south + FIELD.FIRE],
+        stamped[left + FIELD.FIRE] * windBias(1, 0),
+        stamped[right + FIELD.FIRE] * windBias(-1, 0),
+        stamped[north + FIELD.FIRE] * windBias(0, 1),
+        stamped[south + FIELD.FIRE] * windBias(0, -1),
       );
       const canBurn = biomassOld > 0.012 && wetness < 0.42 && iceOld < 0.4;
       const ignitionSignal = Math.max(stamped[o + FIELD.HEAT], neighbourFireMax);
@@ -478,7 +552,7 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // disperses, unlike ash which actually falls to the ground).
       const neighbourSmoke = (stamped[left + FIELD.SMOKE] + stamped[right + FIELD.SMOKE]
         + stamped[north + FIELD.SMOKE] + stamped[south + FIELD.SMOKE]) * 0.25;
-      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, windX, windZ, safeDt, size, 1.4);
+      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, safeDt, size, 1.4);
       const smoke = Math.max(0, stamped[o + FIELD.SMOKE]
         + (neighbourSmoke - stamped[o + FIELD.SMOKE]) * safeDt * 0.6
         + smokeWindDelta
@@ -522,6 +596,8 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       next[o + FIELD.SMOKE] = smoke;
       next[o + FIELD.ASH] = ash;
       next[o + FIELD.GROUNDWATER] = groundwater;
+      next[o + FIELD.WIND_X] = windX;
+      next[o + FIELD.WIND_Z] = windZ;
     }
   }
   return next;
@@ -551,6 +627,8 @@ export function sampleWorld(state, size, x, z) {
     smoke: state[o + FIELD.SMOKE],
     ash: state[o + FIELD.ASH],
     groundwater: state[o + FIELD.GROUNDWATER],
+    windX: state[o + FIELD.WIND_X],
+    windZ: state[o + FIELD.WIND_Z],
   };
 }
 

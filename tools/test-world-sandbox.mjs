@@ -389,6 +389,90 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   assert.ok(driftedX > 10, `smoke's peak must have drifted downwind (+x) from its seed column, not stayed put (started x=10, now x=${driftedX})`);
 }
 
+// --- Wind FIELD: a real local vector, not a uniform scalar ------------------------------
+{
+  const windFieldSize = 24;
+  const windFieldEnv = {...DEFAULT_ENVIRONMENT, wind: 0.8, windDeg: 0, rain: 0}; // prevailing +x
+  let field = new Float32Array(windFieldSize * windFieldSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) field[o + FIELD.BEDROCK] = 0.1;
+  for (let tick = 0; tick < 90; tick++) field = stepWorldReference(field, windFieldSize, 1 / 30, {environment: windFieldEnv});
+  const centre = sampleWorld(field, windFieldSize, 0.5, 0.5);
+  assert.ok(centre.windX > 0.5, `local wind relaxes toward the prevailing +x direction absent any disturbance (windX=${centre.windX.toFixed(3)} after 90 steps)`);
+  assert.ok(Math.abs(centre.windZ) < 0.15, `no crosswind component was introduced (windZ=${centre.windZ.toFixed(3)})`);
+}
+
+{
+  // A single-cell gust perturbation (env.wind=0 so nothing masks it) must spread into its
+  // neighbours over time -- spatial diffusion, not a permanently isolated spike.
+  const diffuseSize = 24;
+  const diffuseEnv = {...DEFAULT_ENVIRONMENT, wind: 0, windDeg: 0, rain: 0};
+  let field = new Float32Array(diffuseSize * diffuseSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) field[o + FIELD.BEDROCK] = 0.1;
+  field[cellOffset(diffuseSize, 12, 12) + FIELD.WIND_X] = 1;
+  for (let tick = 0; tick < 40; tick++) field = stepWorldReference(field, diffuseSize, 1 / 30, {environment: diffuseEnv});
+  const neighbour = sampleWorld(field, diffuseSize, 13 / diffuseSize, 12 / diffuseSize);
+  assert.ok(neighbour.windX > 0.02, `a wind perturbation diffuses into an adjacent cell within 40 steps (neighbour windX=${neighbour.windX.toFixed(4)})`);
+}
+
+// --- Fire generates its own outflow (thermal push away from the flame) -----------------
+{
+  const thermalSize = 24;
+  const thermalEnv = {...DEFAULT_ENVIRONMENT, wind: 0, windDeg: 0, rain: 0}; // no prevailing wind to mask it
+  let field = new Float32Array(thermalSize * thermalSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) field[o + FIELD.BEDROCK] = 0.1;
+  const fireAt = cellOffset(thermalSize, 12, 12);
+  field[fireAt + FIELD.FIRE] = 1;
+  field[fireAt + FIELD.HEAT] = 1;
+  for (let tick = 0; tick < 20; tick++) field = stepWorldReference(field, thermalSize, 1 / 30, {environment: thermalEnv});
+  const east = sampleWorld(field, thermalSize, 13 / thermalSize, 12 / thermalSize);
+  const west = sampleWorld(field, thermalSize, 11 / thermalSize, 12 / thermalSize);
+  assert.ok(east.windX > 0.01, `a burning cell pushes wind outward to its east neighbour (windX=${east.windX.toFixed(4)})`);
+  assert.ok(west.windX < -0.01, `and outward to its west neighbour in the opposite direction (windX=${west.windX.toFixed(4)})`);
+}
+
+// --- Fire spreads faster downwind than upwind ------------------------------------------
+{
+  // A strong crosswind should make a fire visibly race downwind while upwind spread lags.
+  // With dense uniform fuel this asymmetry is real but SHORT-LIVED: given enough time both
+  // sides eventually catch fire regardless (IGNITE_CHANCE keeps rolling every step), so this
+  // must sample early, at a distance the front has reached on one side but not the other yet
+  // -- not "burned at all" (both sides saturate to 1.0 given enough steps either way).
+  const spreadSize = 30;
+  const spreadEnv = {...DEFAULT_ENVIRONMENT, wind: 1, windDeg: 0, rain: 0}; // blows toward +x
+  let field = new Float32Array(spreadSize * spreadSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) {
+    field[o + FIELD.BEDROCK] = 0.1;
+    field[o + FIELD.BIOMASS] = 0.4;
+  }
+  field[cellOffset(spreadSize, 15, 15) + FIELD.FIRE] = 1;
+  for (let tick = 0; tick < 15; tick++) field = stepWorldReference(field, spreadSize, 1 / 30, {environment: spreadEnv});
+  const downwindBurned = sampleWorld(field, spreadSize, 20 / spreadSize, 15 / spreadSize).fire
+    + sampleWorld(field, spreadSize, 19 / spreadSize, 15 / spreadSize).fire;
+  const upwindBurned = sampleWorld(field, spreadSize, 10 / spreadSize, 15 / spreadSize).fire
+    + sampleWorld(field, spreadSize, 11 / spreadSize, 15 / spreadSize).fire;
+  assert.ok(downwindBurned > upwindBurned, `fire reaches 5 cells downwind (+x) well before it reaches 5 cells upwind (downwind fire sum=${downwindBurned.toFixed(3)}, upwind=${upwindBurned.toFixed(3)})`);
+}
+
+// --- Snowdrift: loose snow is picked up and redeposited downwind -----------------------
+{
+  const driftSize = 24;
+  const driftEnv = {...DEFAULT_ENVIRONMENT, wind: 1, windDeg: 0, rain: 0}; // blows toward +x
+  let field = new Float32Array(driftSize * driftSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) field[o + FIELD.BEDROCK] = 0.1;
+  field[cellOffset(driftSize, 10, 12) + FIELD.SNOW] = 3;
+  const peakXAt = () => {
+    let bestX = -1, bestVal = 0;
+    for (let x = 0; x < driftSize; x++) {
+      const v = field[cellOffset(driftSize, x, 12) + FIELD.SNOW];
+      if (v > bestVal) { bestVal = v; bestX = x; }
+    }
+    return bestX;
+  };
+  for (let tick = 0; tick < 200; tick++) field = stepWorldReference(field, driftSize, 1 / 30, {environment: driftEnv});
+  const driftedX = peakXAt();
+  assert.ok(driftedX > 10, `snow's peak drifts downwind (+x) from its seed column, not just falling and staying put (started x=10, now x=${driftedX})`);
+}
+
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read> src/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read_write> dst/);

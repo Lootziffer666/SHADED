@@ -21,6 +21,7 @@ struct Cell {
   bio: vec4<f32>,
   atmo: vec4<f32>,
   combust: vec4<f32>,
+  wind: vec4<f32>,
 }
 
 struct Stamp {
@@ -102,23 +103,38 @@ fn windFlux(fromValue: f32, windAlongFromTo: f32, dt: f32, size: f32, rate: f32)
   return min(fromValue * 0.5, crossing * fromValue);
 }
 
+// windAlong: dot of the wind vector carried by ONE cell with a cardinal direction. Always the
+// FROM cell's own wind (never an average, never the TO cell's) -- mirrors
+// runtime/world-sandbox-reference.mjs's windAlong exactly, and for the same reason: a
+// directed edge's flux must be a pure function of (fromCell, direction) evaluated identically
+// no matter which cell's own delta computation calls it, or mass-conservation breaks under a
+// spatially-varying field.
+fn windAlong(wind: vec2<f32>, dirX: f32, dirZ: f32) -> f32 {
+  return wind.x * dirX + wind.y * dirZ;
+}
+
 fn windTransportDelta(
   selfValue: f32, leftValue: f32, rightValue: f32, topValue: f32, bottomValue: f32,
   hasLeft: bool, hasRight: bool, hasTop: bool, hasBottom: bool,
-  windX: f32, windZ: f32, dt: f32, size: f32, rate: f32,
+  selfWind: vec2<f32>, leftWind: vec2<f32>, rightWind: vec2<f32>, topWind: vec2<f32>, bottomWind: vec2<f32>,
+  dt: f32, size: f32, rate: f32,
 ) -> f32 {
   var delta = 0.0;
   if (hasLeft) {
-    delta += windFlux(leftValue, windX, dt, size, rate) - windFlux(selfValue, -windX, dt, size, rate);
+    delta += windFlux(leftValue, windAlong(leftWind, 1.0, 0.0), dt, size, rate)
+      - windFlux(selfValue, windAlong(selfWind, -1.0, 0.0), dt, size, rate);
   }
   if (hasRight) {
-    delta += windFlux(rightValue, -windX, dt, size, rate) - windFlux(selfValue, windX, dt, size, rate);
+    delta += windFlux(rightValue, windAlong(rightWind, -1.0, 0.0), dt, size, rate)
+      - windFlux(selfValue, windAlong(selfWind, 1.0, 0.0), dt, size, rate);
   }
   if (hasTop) {
-    delta += windFlux(topValue, windZ, dt, size, rate) - windFlux(selfValue, -windZ, dt, size, rate);
+    delta += windFlux(topValue, windAlong(topWind, 0.0, 1.0), dt, size, rate)
+      - windFlux(selfValue, windAlong(selfWind, 0.0, -1.0), dt, size, rate);
   }
   if (hasBottom) {
-    delta += windFlux(bottomValue, -windZ, dt, size, rate) - windFlux(selfValue, windZ, dt, size, rate);
+    delta += windFlux(bottomValue, windAlong(bottomWind, 0.0, -1.0), dt, size, rate)
+      - windFlux(selfValue, windAlong(selfWind, 0.0, 1.0), dt, size, rate);
   }
   return delta;
 }
@@ -147,8 +163,39 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let top = src[it];
   let bottom = src[ib];
   let dt = P.sim.x;
-  let windX = P.spare.x;
-  let windZ = P.spare.y;
+  let baseWindX = P.spare.x;
+  let baseWindZ = P.spare.y;
+
+  // --- Wind field: a real local vector, not a uniform scalar -----------------------------
+  // Mirrors runtime/world-sandbox-reference.mjs's wind-field block exactly: spatial diffusion
+  // (a gust spreads into its neighbours), relaxation toward the prevailing weather
+  // (baseWindX/Z, from P.spare -- env.wind/windDeg), and a thermal push away from nearby heat
+  // (same gradient technique as the water-surface slope above, just on HEAT). The gradient
+  // itself already vanishes away from a heat source, so no extra "is this cell on fire" gate
+  // is needed -- a neighbour cell's gradient already senses a fire next door correctly.
+  let windXOld = c.wind.x;
+  let windZOld = c.wind.y;
+  let neighbourWindX = (left.wind.x + right.wind.x + top.wind.x + bottom.wind.x) * 0.25;
+  let neighbourWindZ = (left.wind.y + right.wind.y + top.wind.y + bottom.wind.y) * 0.25;
+  let heatGradX = (right.bio.z - left.bio.z) * 0.5 * f32(size);
+  let heatGradZ = (bottom.bio.z - top.bio.z) * 0.5 * f32(size);
+  let CONVECTION_STRENGTH = 0.65;
+  let windX = windXOld
+    + (neighbourWindX - windXOld) * dt * 0.6
+    + (baseWindX - windXOld) * dt * 0.35
+    - heatGradX * CONVECTION_STRENGTH * dt;
+  let windZ = windZOld
+    + (neighbourWindZ - windZOld) * dt * 0.6
+    + (baseWindZ - windZOld) * dt * 0.35
+    - heatGradZ * CONVECTION_STRENGTH * dt;
+  // Same leapfrog discipline as everywhere else: transport (and the fire wind-bias below)
+  // reads LAST step's field (c.wind.xy == windXOld/windZOld), never the windX/windZ just
+  // computed above, which is this step's write.
+  let selfWind = vec2<f32>(windXOld, windZOld);
+  let leftWind = left.wind.xy;
+  let rightWind = right.wind.xy;
+  let topWind = top.wind.xy;
+  let bottomWind = bottom.wind.xy;
 
   var sandDelta = sandFlux(left, c) + sandFlux(right, c)
     + sandFlux(top, c) + sandFlux(bottom, c)
@@ -208,6 +255,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   snow -= melt;
   water += melt;
 
+  // Snowdrift: loose snow is picked up and redeposited downwind (real snowdrift behaviour --
+  // it piles up on the leeward side of obstacles instead of staying exactly where it landed),
+  // same conservative wind-flux machinery as the atmospheric fields, just on a ground
+  // reservoir. Slower than smoke -- snow is heavy. Uses c.atmo.w (the RAW value every cell
+  // still has in its own src[] snapshot), not the already-melted snow local var -- a neighbour
+  // computing its own incoming flux from this cell only ever sees c.atmo.w (left.atmo.w /
+  // right.atmo.w / ...), never this cell's partially-updated local variable, so using
+  // anything else here would silently break the from-cell-only cancellation the whole
+  // conservation proof depends on.
+  let snowWindDelta = windTransportDelta(c.atmo.w, left.atmo.w, right.atmo.w, top.atmo.w, bottom.atmo.w,
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.35);
+  snow = max(0.0, snow + snowWindDelta);
+
   // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
   // a lake takes time to freeze over or thaw), and feeds back into sandFlux/edgeFlow above.
   let iceTarget = 1.0 - smooth(0.30, 0.42, localTemp);
@@ -243,7 +303,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // straight into water, it has to condense and fall like everything else.
   let neighbourVapor = (left.atmo.x + right.atmo.x + top.atmo.x + bottom.atmo.x) * 0.25;
   let vaporWindDelta = windTransportDelta(c.atmo.x, left.atmo.x, right.atmo.x, top.atmo.x, bottom.atmo.x,
-    hasLeft, hasRight, hasTop, hasBottom, windX, windZ, dt, f32(size), 0.6);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6);
   var vapor = max(0.0, c.atmo.x + (neighbourVapor - c.atmo.x) * dt * 0.18
     + vaporWindDelta + evaporation + P.environment.x * dt * 0.06);
   // Condensation: colder air holds less vapor before the excess condenses into cloud (tuned to
@@ -255,7 +315,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   vapor -= condensed;
   let neighbourCloud = (left.atmo.y + right.atmo.y + top.atmo.y + bottom.atmo.y) * 0.25;
   let cloudWindDelta = windTransportDelta(cloudOld, left.atmo.y, right.atmo.y, top.atmo.y, bottom.atmo.y,
-    hasLeft, hasRight, hasTop, hasBottom, windX, windZ, dt, f32(size), 0.6);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6);
   let cloud = max(0.0, cloudOld + (neighbourCloud - cloudOld) * dt * 0.35 + cloudWindDelta - precip + condensed);
 
   // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining 0..1
@@ -264,7 +324,17 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // releasing its own heat, exactly the positive-feedback chain real combustion is, until it
   // either runs out of fuel or gets doused by wetness/water/rain.
   let biomassOld = c.bio.x;
-  let neighbourFireMax = max(max(left.combust.x, right.combust.x), max(top.combust.x, bottom.combust.x));
+  // Downwind spread should visibly outrun upwind spread -- a neighbour's fire threatens this
+  // cell more when the local wind (selfWind, i.e. last step's field) blows FROM that neighbour
+  // TOWARD here, not just from raw adjacency. Same direction convention windAlong already
+  // established: windBiasLeft>1 means wind blows away from the left neighbour, toward us.
+  let windBiasLeft = clamp(1.0 + selfWind.x * 2.2, 0.15, 2.4);
+  let windBiasRight = clamp(1.0 - selfWind.x * 2.2, 0.15, 2.4);
+  let windBiasTop = clamp(1.0 + selfWind.y * 2.2, 0.15, 2.4);
+  let windBiasBottom = clamp(1.0 - selfWind.y * 2.2, 0.15, 2.4);
+  let neighbourFireMax = max(
+    max(left.combust.x * windBiasLeft, right.combust.x * windBiasRight),
+    max(top.combust.x * windBiasTop, bottom.combust.x * windBiasBottom));
   let canBurn = biomassOld > 0.012 && wetness < 0.42 && iceOld < 0.4;
   let ignitionSignal = max(c.bio.z, neighbourFireMax);
   let igniteRate = select(0.0, max(0.0, ignitionSignal - 0.22) * 4.5, canBurn);
@@ -288,7 +358,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // unlike ash which actually falls to the ground).
   let neighbourSmoke = (left.combust.y + right.combust.y + top.combust.y + bottom.combust.y) * 0.25;
   let smokeWindDelta = windTransportDelta(c.combust.y, left.combust.y, right.combust.y, top.combust.y, bottom.combust.y,
-    hasLeft, hasRight, hasTop, hasBottom, windX, windZ, dt, f32(size), 1.4);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 1.4);
   let smoke = max(0.0, c.combust.y + (neighbourSmoke - c.combust.y) * dt * 0.6
     + smokeWindDelta + smokeRelease - c.combust.y * dt * 0.35);
 
@@ -359,6 +429,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
   next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
   next.combust = vec4<f32>(fire, smoke, ash, groundwater);
+  next.wind = vec4<f32>(windX, windZ, 0.0, 0.0);
   dst[i] = next;
 }
 `;
@@ -380,6 +451,7 @@ struct Cell {
   bio: vec4<f32>,
   atmo: vec4<f32>,
   combust: vec4<f32>,
+  wind: vec4<f32>,
 }
 
 struct Particle {
@@ -514,6 +586,7 @@ struct Cell {
   bio: vec4<f32>,
   atmo: vec4<f32>,
   combust: vec4<f32>,
+  wind: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> P: Params;
@@ -548,6 +621,7 @@ struct Cell {
   bio: vec4<f32>,
   atmo: vec4<f32>,
   combust: vec4<f32>,
+  wind: vec4<f32>,
 }
 
 struct VertexOut {
@@ -764,6 +838,7 @@ struct Cell {
   bio: vec4<f32>,
   atmo: vec4<f32>,
   combust: vec4<f32>,
+  wind: vec4<f32>,
 }
 
 struct SurfaceOut {
@@ -1093,12 +1168,18 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let corner = corners[vertexIndex];
   let bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
   let bladeWidth = 0.0028 + seed * 0.0032;
-  // Bend intensity now follows real current strength (the same edgeFlow-driven velocity
-  // that transports water), not a fixed lean -- a flooded dam-break front visibly presses
-  // grass over, calm runoff barely touches it.
+  // Bend direction now comes from two real fields, not a fixed lean constant: water current
+  // (the same edgeFlow-driven velocity that transports water -- a flooded dam-break front
+  // visibly presses grass over) AND the local wind field (cell.wind, this session's spatial
+  // wind system) -- a gust rolling across dry terrain now visibly bends grass in ITS actual
+  // local direction, not one hardcoded default lean everywhere. Water dominates when present
+  // (a real current is a much stronger physical force than a breeze); a tiny epsilon avoids
+  // normalize(0) when both are exactly zero (calm, windless grass still needs SOME rest lean).
   let flowSpeed = length(vec2<f32>(cell.water.y, cell.water.z));
-  let bend = normalize(vec3<f32>(cell.water.y, 0.0, cell.water.z) + vec3<f32>(0.34, 0.0, 0.18))
-    * bladeHeight * (0.08 + min(0.30, flowSpeed * 0.9));
+  let windSpeed = length(cell.wind.xy);
+  let bendDir3 = vec3<f32>(cell.water.y, 0.0, cell.water.z) + vec3<f32>(cell.wind.x, 0.0, cell.wind.y) * 0.5;
+  let bend = normalize(bendDir3 + vec3<f32>(0.0001, 0.0, 0.00013))
+    * bladeHeight * (0.05 + min(0.30, flowSpeed * 0.9) + min(0.20, windSpeed * 0.55));
   var world = vec3<f32>(uv.x * 2.0 - 1.0, ground, uv.y * 2.0 - 1.0);
   world += side * corner.x * bladeWidth;
   world += vec3<f32>(0.0, corner.y * bladeHeight, 0.0) + bend * corner.y * corner.y;
