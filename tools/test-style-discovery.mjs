@@ -200,7 +200,11 @@ function deepEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
   const sampleProfile = defaultStyleProfile('sample', 'sample');
   assert(validateProfile(sampleProfile), `defaultStyleProfile() validiert gegen contracts/shaded-style-profile.schema.json${validateProfile(sampleProfile) ? '' : `: ${JSON.stringify(validateProfile.errors)}`}`);
   const sampleCandidate = fromSeed(7);
-  assert(validateProfile(sampleCandidate), `fromSeed()-Kandidat validiert gegen contracts/shaded-style-profile.schema.json${validateProfile(sampleCandidate) ? '' : `: ${JSON.stringify(validateProfile.errors)}`}`);
+  // fromSeed() returns a candidate WRAPPER ({schema: 'shaded.style.candidate/v1', id, seed,
+  // profile, worldStateId, budget, sceneVersion}, see runtime/style/candidate.js), not a bare
+  // StyleProfile -- the schema this asserts against only accepts a StyleProfile (or a
+  // DiscoveryState) directly, so the embedded profile is what must be validated here.
+  assert(validateProfile(sampleCandidate.profile), `fromSeed()-Kandidat.profile validiert gegen contracts/shaded-style-profile.schema.json${validateProfile(sampleCandidate.profile) ? '' : `: ${JSON.stringify(validateProfile.errors)}`}`);
 }
 
 // --- 10. seed-profiles: strukturell verschieden, Namen intern ---
