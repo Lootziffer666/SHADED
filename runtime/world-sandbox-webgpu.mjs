@@ -1297,13 +1297,18 @@ fn skyColor(elevation: f32, screenX: f32, dayNight: f32, temperature: f32, time:
 
   let sunDist = distance(vec2<f32>(screenX, e), vec2<f32>(screenX * 0.0 + sin(dayNight * 6.2831853) * 0.7, sunElevation));
   let sunGlow = pow(max(0.0, 1.0 - sunDist * 1.3), 6.0);
-  let sunDisc = smoothstep(0.05, 0.028, sunDist);
+  // Ascending edges + explicit invert: GLSL/WGSL leave smoothstep(edge0, edge1, x)
+  // undefined when edge0 > edge1, so implementations may render the disc inconsistently
+  // or omit it. Inside the disc (small distance) should read as lit (1), outside (large
+  // distance) as unlit (0) -- the opposite of ascending smoothstep's own 0-at-low/1-at-high
+  // direction, hence the explicit 1.0 - ... inversion.
+  let sunDisc = 1.0 - smoothstep(0.028, 0.05, sunDist);
   color += vec3<f32>(1.0, 0.92, 0.72) * sunGlow * dayFactor * 0.9;
   color = mix(color, vec3<f32>(1.0, 0.98, 0.88), sunDisc * dayFactor);
 
   let moonElevation = -sunElevation;
   let moonDist = distance(vec2<f32>(screenX, e), vec2<f32>(-sin(dayNight * 6.2831853) * 0.7, moonElevation));
-  let moonDisc = smoothstep(0.035, 0.02, moonDist);
+  let moonDisc = 1.0 - smoothstep(0.02, 0.035, moonDist);
   color = mix(color, vec3<f32>(0.80, 0.83, 0.88), moonDisc * (1.0 - dayFactor) * 0.8);
 
   let starField = hash2(floor(vec2<f32>(screenX, e) * 340.0));

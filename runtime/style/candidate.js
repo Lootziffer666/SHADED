@@ -23,7 +23,7 @@ export function styleProfileFromSeed(seed, id, name) {
   return fromVector(vector, id, name);
 }
 
-export function fromSeed(seed, { worldStatePreset = 'dry', materialKind = 'stone', budget = 'FULL', sceneVersion = '1.0.0', id } = {}) {
+export function fromSeed(seed, { worldStatePreset = 'dry', materialKind = 'stone', budget = 'FULL', sceneVersion = '1.1.0', id } = {}) {
   const seedInt = seed >>> 0;
   const candidateId = id || `cand-${seedInt}`;
   const profile = styleProfileFromSeed(seedInt, candidateId, candidateId);

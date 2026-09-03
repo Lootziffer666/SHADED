@@ -7,7 +7,11 @@
 
 import { MaterialKind, createPresetWorldState, createWorldState } from '../runtime/style/world-state.js';
 
-export const SCENE_VERSION = '1.0.0';
+// Bumped from 1.0.0: the glass octahedron was replaced by a differently-shaped/identified
+// vase and another primitive's material state changed. Candidates and retained experiment
+// history key off this version to identify the scene -- leaving it unchanged would make old
+// and new renders claim the same scene version despite producing different pixels.
+export const SCENE_VERSION = '1.1.0';
 
 // SDF-Typindizes — müssen mit sandbox/passes/gbuffer.glsl.js (primDist)
 // übereinstimmen.

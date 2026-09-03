@@ -149,7 +149,11 @@ void main() {
     }
     vec3 tilt = normalize(n + vec3(hash13(cellSeed) - 0.5, hash13(cellSeed + 5.2) - 0.5, hash13(cellSeed + 9.4) - 0.5) * 1.4);
     n = normalize(mix(n, tilt, clamp(u_normalStrength, 0.0, 1.0)));
-    cavity = smoothstep(0.42, 0.28, minD) * u_normalStrength * 0.5; // dunklere Zellgrenzen
+    // Ascending edges: GLSL leaves smoothstep(edge0, edge1, x) undefined when edge0 > edge1
+    // (drivers may render the cavity mask inconsistently or omit it). The intent -- darken
+    // near cell BOUNDARIES (large minD), not near cell centers (small minD) -- is already
+    // the natural ascending direction, so no inversion is needed, just the correct order.
+    cavity = smoothstep(0.28, 0.42, minD) * u_normalStrength * 0.5; // dunklere Zellgrenzen
   }
 
   // --- Materialsemantik aus der indizierten Tabelle (Korrektur 1) ---

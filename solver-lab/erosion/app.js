@@ -41,7 +41,11 @@ function updateStatus() {
 }
 
 function runDroplets(n) {
-  const seed = Number(document.getElementById('seed-input').value) || 1;
+  // `|| 1` coerced an explicitly-chosen seed of 0 (a legitimate, allowed minimum value) to
+  // 1, so seed-zero erosion runs silently reproduced a different path than the one shown by
+  // reset. A finite-value check keeps 0 valid while still falling back for empty/garbage input.
+  const rawSeed = Number(document.getElementById('seed-input').value);
+  const seed = Number.isFinite(rawSeed) ? rawSeed : 1;
   erode(field, n, seed * 1000 + dropletsSoFar); // Seed wandert mit, damit "10 dann 100" != zwei getrennte Läufe kollidieren
   dropletsSoFar += n;
   draw();
