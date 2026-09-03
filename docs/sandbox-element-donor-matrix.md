@@ -103,6 +103,21 @@ follow the same shape (Node-testable core + thin visual layer + a verify
 script) rather than growing inside the Style Discovery Sandbox, which is
 explicitly style-only and has no solver.
 
+**Erosion × Granular coupling (`runtime/solver/erosion-granular-bridge.js`,
+`solver-lab/coupled/`)**: a thin bridge, not a third solver — a single row
+of the (top-down) erosion heightfield is a valid 1D terrain profile for the
+(side-view) Granular grid's floor. Wherever a run of the Erosion Lab
+carves height away along that row, the bridge spawns proportional SAND in
+the Granular grid directly above the freshly exposed surface, then the
+unmodified Granular `step()` takes over. Deliberately not generalized into
+a shared "world coupling" framework yet — this is the first (and so far
+only) coupling between two labs; CLAUDE.md's own anti-premature-abstraction
+rule says extract a shared pattern after a second real case needs it, not
+before. Verified by `tools/test-erosion-granular-bridge.mjs` (16 checks)
+and `tools/verify-solver-lab-coupled.js` (9 browser checks). Screenshot-
+confirmed: sand appears dusted along the hill's slope exactly where the
+terrain view shows a fresh drainage channel cut into it.
+
 ### Fluid Lab
 A 2D GPU Stable-Fluids solver with observable velocity, divergence, pressure, density, temperature and obstacles. This becomes the shared solver for smoke, steam, gas, heat and later fluid-driven particles.
 
