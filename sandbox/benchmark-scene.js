@@ -11,11 +11,13 @@ export const SCENE_VERSION = '1.0.0';
 
 // SDF-Typindizes — müssen mit sandbox/passes/gbuffer.glsl.js (primDist)
 // übereinstimmen.
-export const SDF_TYPE = Object.freeze({ SPHERE: 0, BOX: 1, TORUS: 2, OCTAHEDRON: 3, CAPSULE: 4 });
+export const SDF_TYPE = Object.freeze({ SPHERE: 0, BOX: 1, TORUS: 2, OCTAHEDRON: 3, CAPSULE: 4, REVOLUTION: 5 });
 
 // Primitivendefinitionen. params ist eine vec4-kompatible [x,y,z,w]-Liste
 // je nach sdfType (Sphere: [r], Box: [hx,hy,hz], Torus: [R,r], Octahedron:
-// [s], Capsule: [halfHeight,r]).
+// [s], Capsule: [halfHeight,r], Revolution: [baseRadius,freq,amp,halfHeight] —
+// eine sinusförmig geriffelte Profilkurve, um die Y-Achse rotiert; siehe
+// sdRevolution() in passes/gbuffer.glsl.js).
 export const BENCHMARK_PRIMITIVES = Object.freeze([
   {
     id: 'matte-sphere', label: 'gewölbte matte Kugel', materialKind: MaterialKind.STONE,
@@ -33,8 +35,8 @@ export const BENCHMARK_PRIMITIVES = Object.freeze([
     worldState: createPresetWorldState(MaterialKind.METAL, 'damaged'),
   },
   {
-    id: 'glass-octahedron', label: 'Glas/Kristall-Oktaeder', materialKind: MaterialKind.GLASS,
-    sdfType: SDF_TYPE.OCTAHEDRON, center: [2.2, 1.0, 0], params: [0.95, 0, 0, 0],
+    id: 'glass-vase', label: 'Glas-Vase (Profilrotation)', materialKind: MaterialKind.GLASS,
+    sdfType: SDF_TYPE.REVOLUTION, center: [2.2, 1.0, 0], params: [0.5, 2.5, 0.18, 0.9],
     worldState: createPresetWorldState(MaterialKind.GLASS, 'dry'),
   },
   {
