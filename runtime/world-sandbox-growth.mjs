@@ -367,11 +367,14 @@ export function stepVineTips(state, size, tips, dt, lightX, lightZ, graph) {
 // than as scripted animations triggered by name. Deliberately a simple leaky-bucket/first-order
 // model, not real plant physiology -- section 11 of the user's own plan explicitly rules out
 // simulating cellular respiration; this tracks only the variables a player could actually
-// perceive (is it thriving, stressed, blooming, dying), driven by one real input: local moisture
-// (WETNESS), the same field the root tips already read. Light/nutrients/temperature inputs are
-// real, named follow-ups (the light-field reference doc makes clear a genuine per-cell light
-// signal doesn't exist in this codebase yet) -- not faked here with an invented placeholder the
-// way vine's light target already is.
+// perceive (is it thriving, stressed, blooming, dying), driven by two real inputs: local moisture
+// (WETNESS, the same field the root tips already read) and local light (an already-combined
+// irradiance value in [0,1] -- world-sandbox-light.mjs's computeSunVisibility/computeSkyExposure
+// are the honest way to produce one; this function stays decoupled from exactly how the caller
+// got it, the same way it doesn't care how `moisture` was sampled either). Both are required, no
+// silent default -- a light-less call would silently make every plant photosynthesize in the
+// dark, which is exactly the kind of invented-physics shortcut this module has avoided
+// everywhere else. Nutrients/temperature inputs are real, named follow-ups.
 //
 // Whole-plant, not per-node: this models ONE life-state object per plant (the thing a species
 // profile, later, would attach to), separate from the growth tips/graph above. A future
@@ -399,10 +402,12 @@ export function createPlantLifeState() {
   };
 }
 
-// Advances `life` by `dt` seconds against a single real input, `moisture` (the caller samples
-// WETNESS at the plant's own position -- same field root tips already read, no new field
-// invented). Mutates `life` in place; returns nothing, matching stepGrowthTips/stepVineTips.
-export function stepPlantLifeState(life, dt, moisture) {
+// Advances `life` by `dt` seconds against two real inputs: `moisture` (the caller samples
+// WETNESS at the plant's own position -- same field root tips already read) and `light` (an
+// already-combined [0,1] irradiance value, e.g. from world-sandbox-light.mjs's
+// computeSunVisibility/computeSkyExposure -- no new field invented). Mutates `life` in place;
+// returns nothing, matching stepGrowthTips/stepVineTips.
+export function stepPlantLifeState(life, dt, moisture, light) {
   life.age += dt;
 
   if (!life.alive) {
@@ -427,12 +432,13 @@ export function stepPlantLifeState(life, dt, moisture) {
   life.stress += (stressTarget - life.stress) * Math.min(1, LIFE_STRESS_TRACK_RATE * dt);
   life.stress = Math.max(0, Math.min(1, life.stress));
 
-  // Energy production needs both water AND calm (low stress) -- photosynthesis-shaped without
-  // claiming to BE photosynthesis (no light input yet, see the module comment above); upkeep is
-  // constant, so a plant with no water eventually runs its energy down even if it isn't actively
-  // spending it on growth.
+  // Energy production needs water, light, AND calm (low stress) all at once -- photosynthesis-
+  // shaped without claiming to BE photosynthesis. A perfectly watered, perfectly calm plant
+  // sitting in total darkness (light=0) now produces nothing, same as one sitting dry in full
+  // sun -- light is a real multiplier here, not decoration; upkeep is constant regardless, so a
+  // plant with no water OR no light still runs its energy down even doing nothing.
   const calm = 1 - life.stress;
-  const produced = LIFE_ENERGY_PRODUCTION * life.water * calm * dt;
+  const produced = LIFE_ENERGY_PRODUCTION * life.water * light * calm * dt;
   life.energy = Math.max(0, Math.min(1, life.energy + produced - LIFE_ENERGY_UPKEEP * dt));
 
   // Health drains under sustained stress, recovers slowly when calm and watered -- a single bad
