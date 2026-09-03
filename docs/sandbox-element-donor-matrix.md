@@ -18,7 +18,7 @@ A source can be excellent at one layer and useless at the other two.
 
 | System | Primary donors | Why SHADED needs it | License posture |
 |---|---|---|---|
-| Granular cellular solver | GelamiSalami/GPU-Falling-Sand-CA; m4ym4y/falling-sand-shader; kody-w Falling Sand Lab | Replace simple per-cell movement with race-safe block updates; support material reactions | GelamiSalami and m4ym4y: no reusable license established in inspected root, technique only until resolved. Kody page: verify before code reuse. |
+| Granular cellular solver | GelamiSalami/GPU-Falling-Sand-CA; m4ym4y/falling-sand-shader; kody-w Falling Sand Lab; Qqwy/js1k_powder_game (reaction vocabulary: 11 elements, 50+ reactions) | Replace simple per-cell movement with race-safe block updates; support material reactions | GelamiSalami and m4ym4y: no reusable license established in inspected root, technique only until resolved. Kody page: verify before code reuse. Qqwy: no license found, technique only. **First slice implemented**: `runtime/solver/granular-grid.js` + `solver-lab/granular/`, verified by `tools/test-granular-solver.mjs` (17 checks) and `tools/verify-solver-lab-granular.js` (8 browser checks). |
 | Stable Fluids / smoke velocity field | piellardj/navier-stokes-webgl; aadebdeb/WebGL_SmokeSimulation; julesyoungberg/2d-smoke; keijiro/StableFluids; matthiasbroske/GPUStableFluids | Real advection / pressure projection for smoke, steam, heat haze and gas instead of noise-only animation | piellardj package declares ISC; aadebdeb MIT; julesyoungberg MIT; keijiro public-domain/Unlicense; matthiasbroske MIT. |
 | Coast / water surface | Babylon stylized-water thread; gameidea stylized 3D water; Seascape; PhysicsMod oceans.glsl | Depth-aware shallow/deep water, refraction, shore/crest foam, wave normals | Babylon/gameidea used as technique blueprint. Verify individual Seascape / PhysicsMod source license before copying. |
 | Dune surface dynamics | keaukraine/webgl-dunes + dunes article | Windward/leeward ripple orientation, distance fade, cheap terrain shading | MIT verified for webgl-dunes. |
@@ -93,6 +93,15 @@ Use the papers to define tests and invariants, then use open-source implementati
 ---
 
 ## Missing SHADED labs after Material / Coast / Granular
+
+**Status:** `runtime/solver/` now exists as the renderer-independent home for
+these labs (mirrors `runtime/style/`'s split from `sandbox/`). The Granular
+solver above is its first real vertical slice — WorldState (grid) → Solver
+(`step()`) → thin Renderer (`solver-lab/granular/`), same three-layer rule
+as this file's own header. The sections below remain open; each should
+follow the same shape (Node-testable core + thin visual layer + a verify
+script) rather than growing inside the Style Discovery Sandbox, which is
+explicitly style-only and has no solver.
 
 ### Fluid Lab
 A 2D GPU Stable-Fluids solver with observable velocity, divergence, pressure, density, temperature and obstacles. This becomes the shared solver for smoke, steam, gas, heat and later fluid-driven particles.

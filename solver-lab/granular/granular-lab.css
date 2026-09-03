@@ -1,0 +1,42 @@
+/* SHADED Solver Lab — Granular. Minimal, kein Framework, statisch auslieferbar. */
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 1.5rem; background: #0b0d14; color: #e8e8ee;
+  font: 15px/1.5 system-ui, sans-serif;
+}
+a { color: #8fb8ff; }
+code { background: #1a1d29; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
+
+.lab-header h1 { margin: 0 0 0.4rem; font-size: 1.4rem; }
+.lab-header p { max-width: 68ch; color: #b7b9c6; }
+
+.top-controls { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.8rem; flex-wrap: wrap; }
+.top-controls label { display: flex; gap: 0.4rem; align-items: center; color: #b7b9c6; }
+.top-controls input[type="number"] { width: 5rem; background: #1a1d29; color: #e8e8ee; border: 1px solid #2c3042; border-radius: 6px; padding: 0.3rem 0.5rem; }
+
+button {
+  background: #1a1d29; color: #e8e8ee; border: 1px solid #2c3042; border-radius: 6px;
+  padding: 0.45rem 0.9rem; cursor: pointer; font: inherit;
+}
+button:hover { border-color: #4a5170; }
+button.active { background: #2c3f6e; border-color: #4a68b8; }
+
+.lab-section { display: flex; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: flex-start; }
+
+.canvas-wrap { background: #05060a; border: 1px solid #2c3042; border-radius: 8px; padding: 0.5rem; }
+#grid-canvas {
+  width: min(720px, 90vw); height: auto; display: block;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  cursor: crosshair;
+}
+
+.side-panel { min-width: 220px; }
+.side-panel h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+.material-picker { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.hint { color: #8a8da0; font-size: 0.85em; max-width: 32ch; }
+
+.status-grid { display: grid; grid-template-columns: auto auto; gap: 0.2rem 0.8rem; margin: 0.4rem 0; }
+.status-grid dt { color: #8a8da0; }
+.status-grid dd { margin: 0; font-variant-numeric: tabular-nums; }
+#status-conservation.ok { color: #6fdc8c; }
+#status-conservation.warn { color: #e0b25a; }

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHADED Solver Lab — Granular</title>
+<link rel="stylesheet" href="granular-lab.css">
+</head>
+<body>
+<header class="lab-header">
+  <h1>SHADED Solver Lab — Granular</h1>
+  <p>Erster Beweisfeld-Ausschnitt für <code>runtime/solver/</code> (siehe <code>docs/sandbox-element-donor-matrix.md</code>,
+     „Missing SHADED labs" → Erosion/Sediment- und Reaction-Lab-Vorstufe). Block-Zellularautomat mit Margolus-Offsets,
+     unabhängig implementiert nach dem in der Donor-Matrix dokumentierten Verfahren — kein Code-Import.
+     Rein visuell hier: die Wahrheit liegt in <code>runtime/solver/granular-grid.js</code>, geprüft von
+     <code>tools/test-granular-solver.mjs</code>.</p>
+  <div class="top-controls">
+    <button id="btn-play" class="active">▶ Start</button>
+    <button id="btn-step">Einzelschritt</button>
+    <button id="btn-reset">Neu seeden</button>
+    <label>Seed <input id="seed-input" type="number" value="1" min="0" step="1"></label>
+  </div>
+</header>
+
+<section class="lab-section">
+  <div class="canvas-wrap">
+    <canvas id="grid-canvas" width="120" height="80"></canvas>
+  </div>
+  <div class="side-panel">
+    <h2>Material zum Malen</h2>
+    <div class="material-picker">
+      <button data-material="1" class="active">Sand</button>
+      <button data-material="2">Wasser</button>
+      <button data-material="3">Wand</button>
+      <button data-material="0">Löschen</button>
+    </div>
+    <p class="hint">Auf dem Grid klicken/ziehen, um Material zu malen.</p>
+
+    <h2>Live-Status</h2>
+    <dl id="status" class="status-grid">
+      <dt>Schritt</dt><dd id="status-step">0</dd>
+      <dt>Sand-Zellen</dt><dd id="status-sand">–</dd>
+      <dt>Wasser-Zellen</dt><dd id="status-water">–</dd>
+      <dt>Masse-Erhaltung</dt><dd id="status-conservation">–</dd>
+    </dl>
+    <p class="hint">Sand- und Wasserzahl dürfen sich durch Bewegung nie ändern (reine Swaps, siehe
+       <code>tools/test-granular-solver.mjs</code> Test 3) — nur durch dein eigenes Malen/Löschen.</p>
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
