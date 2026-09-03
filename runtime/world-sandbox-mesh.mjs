@@ -41,7 +41,7 @@ const DEFAULT_RADIAL_SEGMENTS = 8;
 // EARLIER node in graph.nodes (a parent always already exists, with a lower id, by the time any
 // child references it) -- so a single forward pass in id order is enough, no separate traversal
 // or visited-tracking needed.
-function computeNodeDistances(graph) {
+export function computeNodeDistances(graph) {
   const dist = new Array(graph.nodes.length).fill(0);
   for (const node of graph.nodes) {
     if (node.parentId == null) { dist[node.id] = 0; continue; }
