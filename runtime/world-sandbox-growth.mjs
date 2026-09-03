@@ -94,7 +94,18 @@ export function createRootTip(x, z, angle, energy, graph, parentNodeId) {
 // push through), and a real cost for turning away from the tip's current heading so a root
 // doesn't thrash back and forth chasing every tiny moisture gradient -- real roots have
 // directional persistence, they do not re-plan from scratch every step.
-function scoreDirection(state, size, x, z, dirX, dirZ, currentDirX, currentDirZ) {
+// `step` is the ACTUAL distance this tick would move if this direction is chosen (SPEED * dt) --
+// distinct from LOOKAHEAD, which only informs preference. Checking compaction at LOOKAHEAD alone
+// is not enough to prevent tunnelling into solid rock: LOOKAHEAD is deliberately much further out
+// than a single step so a tip can "see" a gradient coming, and at a sharp corner a direction can
+// look clear that far out while the tip's actual, much shorter real step this tick still lands
+// inside the wall. Both points must be checked -- the near one for physical validity this tick,
+// the far one for the gradient the tip is actually navigating toward.
+function scoreDirection(state, size, x, z, dirX, dirZ, currentDirX, currentDirZ, step) {
+  const nearX = x + dirX * step;
+  const nearZ = z + dirZ * step;
+  if (nearX < 0 || nearX > 1 || nearZ < 0 || nearZ > 1) return -Infinity;
+  if (sampleField(state, size, FIELD.COMPACTION, nearX, nearZ) >= COMPACTION_STOP) return -Infinity;
   const targetX = x + dirX * LOOKAHEAD;
   const targetZ = z + dirZ * LOOKAHEAD;
   if (targetX < 0 || targetX > 1 || targetZ < 0 || targetZ > 1) return -Infinity;
@@ -128,6 +139,7 @@ export function stepGrowthTips(state, size, tips, dt, random, graph) {
     }
     tip.age += dt;
 
+    const step = SPEED * dt;
     let bestScore = -Infinity;
     let bestDirX = tip.dirX;
     let bestDirZ = tip.dirZ;
@@ -136,7 +148,7 @@ export function stepGrowthTips(state, size, tips, dt, random, graph) {
       const angle = baseAngle + offset;
       const dirX = Math.cos(angle);
       const dirZ = Math.sin(angle);
-      const score = scoreDirection(state, size, tip.x, tip.z, dirX, dirZ, tip.dirX, tip.dirZ);
+      const score = scoreDirection(state, size, tip.x, tip.z, dirX, dirZ, tip.dirX, tip.dirZ, step);
       if (score > bestScore) {
         bestScore = score;
         bestDirX = dirX;
@@ -164,10 +176,20 @@ export function stepGrowthTips(state, size, tips, dt, random, graph) {
     tip.dirX = Math.cos(newAngle);
     tip.dirZ = Math.sin(newAngle);
 
-    const step = SPEED * dt;
     const newX = Math.max(0, Math.min(1, tip.x + tip.dirX * step));
     const newZ = Math.max(0, Math.min(1, tip.z + tip.dirZ * step));
     const compactionHere = sampleField(state, size, FIELD.COMPACTION, newX, newZ);
+    if (compactionHere >= COMPACTION_STOP) {
+      // The turn-rate cap means the tip's ACTUAL heading this tick can still differ from the
+      // best-scored candidate direction (a full turn toward a sharp candidate is spread over
+      // several ticks) -- scoreDirection's own near-step check validates a candidate, not
+      // necessarily the partially-turned heading this tick ends up moving along. This is the
+      // real, final "can't tunnel into solid rock" guard: hold position this tick instead of
+      // committing a move that lands in the wall regardless of why it would have. The tip has
+      // already turned further toward the safe candidate, so the next tick tries again from a
+      // heading closer to clear ground.
+      continue;
+    }
     const moistureHere = sampleField(state, size, FIELD.WETNESS, newX, newZ);
     tip.x = newX;
     tip.z = newZ;
@@ -201,4 +223,139 @@ export function stepGrowthTips(state, size, tips, dt, random, graph) {
     }
   }
   for (const tip of branched) tips.push(tip);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Vine gremlin -- "Test B: Ranke" from the user's plan. Grows freely at first, discovers a
+// solid surface (a "wall"), follows it, and can round a corner while it does, all while pulling
+// toward a light source. This world-sandbox grid is currently flat 2D (x/z only -- no vertical
+// axis, no per-cell light field: `light`, `support` etc. from the user's own WORLD FIELDS list
+// aren't real fields here yet). Two honest stand-ins, not invented physics:
+//   - "wall/support" = adjacency to a high-COMPACTION neighbour cell. COMPACTION already means
+//     "hard/rocky, resists erosion" for the rest of this sim; a solid rock band read as a
+//     climbable surface for something growing along its face is a reasonable reuse, not a new
+//     concept smuggled in under a new name.
+//   - "light source" = an explicit target point passed in by the caller, not a field the vine
+//     samples locally. SHADED has no per-cell light field yet (this sandbox's only light-like
+//     signal is the single global `env.sun` scalar used elsewhere in this file, which carries no
+//     position at all) -- a point target is the honest version of "there is a light source
+//     somewhere" until a real per-cell light field exists. Replacing this with an actual local
+//     field, once one exists, should not need to change the shape of scoreVineDirection itself.
+// No energy/branching yet -- Test B's own stated PASS criterion is purely geometric ("reaches a
+// light source along a surface"), not resource-limited growth; that's a real follow-up matching
+// root's model, not built here.
+
+const VINE_LIGHT_WEIGHT = 3.2; // reward for closing the gap toward the light target
+const VINE_SUPPORT_WEIGHT = 1.1; // reward for growing where a wall is close by
+const VINE_UNSUPPORTED_PENALTY = 1.6; // once attached, cost for drifting away from any wall
+const VINE_ATTACH_THRESHOLD = 0.5; // neighbour compaction above this counts as "found a wall"
+const VINE_TURN_COST_WEIGHT = 0.18;
+
+export function createVineTip(x, z, angle, graph, parentNodeId) {
+  const nodeId = addGraphNode(graph, x, z, nodeRadius(1), parentNodeId ?? null);
+  return {
+    x, z,
+    dirX: Math.cos(angle),
+    dirZ: Math.sin(angle),
+    attached: false,
+    alive: true,
+    nodeId,
+  };
+}
+
+// Highest COMPACTION among the cells immediately around (x,z), EXCLUDING (x,z)'s own cell --
+// "is there a wall right next to me," not "am I standing in one" (growing INTO solid rock is
+// still refused separately, same as roots).
+function neighborSupport(state, size, x, z) {
+  const cx = Math.min(size - 1, Math.max(0, Math.floor(x * size)));
+  const cz = Math.min(size - 1, Math.max(0, Math.floor(z * size)));
+  let best = 0;
+  for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dz === 0) continue;
+      const nx = cx + dx, nz = cz + dz;
+      if (nx < 0 || nx >= size || nz < 0 || nz >= size) continue;
+      const compaction = state[cellOffset(size, nx, nz) + FIELD.COMPACTION];
+      if (compaction > best) best = compaction;
+    }
+  }
+  return best;
+}
+
+// `step` is the ACTUAL per-tick move distance (see scoreDirection's own comment on the same
+// near-vs-lookahead distinction, and stepVineTips's post-turn guard below for why the near check
+// here is still only a bias, not the final tunnelling guarantee).
+function scoreVineDirection(state, size, x, z, dirX, dirZ, currentDirX, currentDirZ, lightX, lightZ, attached, step) {
+  const nearX = x + dirX * step;
+  const nearZ = z + dirZ * step;
+  if (nearX < 0 || nearX > 1 || nearZ < 0 || nearZ > 1) return -Infinity;
+  if (sampleField(state, size, FIELD.COMPACTION, nearX, nearZ) >= COMPACTION_STOP) return -Infinity;
+  const targetX = x + dirX * LOOKAHEAD;
+  const targetZ = z + dirZ * LOOKAHEAD;
+  if (targetX < 0 || targetX > 1 || targetZ < 0 || targetZ > 1) return -Infinity;
+  const ownCompaction = sampleField(state, size, FIELD.COMPACTION, targetX, targetZ);
+  if (ownCompaction >= COMPACTION_STOP) return -Infinity; // can't grow into the wall itself
+  const support = neighborSupport(state, size, targetX, targetZ);
+  const distNow = Math.hypot(x - lightX, z - lightZ);
+  const distNext = Math.hypot(targetX - lightX, targetZ - lightZ);
+  const lightGain = distNow - distNext; // positive = actually closing the gap this step
+  const turnCost = 1 - (dirX * currentDirX + dirZ * currentDirZ);
+  let score = lightGain * VINE_LIGHT_WEIGHT + support * VINE_SUPPORT_WEIGHT - turnCost * VINE_TURN_COST_WEIGHT;
+  if (attached) score -= (1 - support) * VINE_UNSUPPORTED_PENALTY;
+  return score;
+}
+
+// Same sample -> score -> move -> record loop as stepGrowthTips, with vine-specific scoring
+// (light target + wall adjacency instead of root's moisture/compaction) and no energy/branching
+// yet. `lightX`/`lightZ` is the point the vine pulls toward; `graph` persists across calls the
+// same way it does for stepGrowthTips.
+export function stepVineTips(state, size, tips, dt, lightX, lightZ, graph) {
+  for (const tip of tips) {
+    if (!tip.alive) continue;
+
+    const step = SPEED * dt;
+    let bestScore = -Infinity;
+    let bestDirX = tip.dirX;
+    let bestDirZ = tip.dirZ;
+    for (const offset of CANDIDATE_ANGLES) {
+      const baseAngle = Math.atan2(tip.dirZ, tip.dirX);
+      const angle = baseAngle + offset;
+      const dirX = Math.cos(angle);
+      const dirZ = Math.sin(angle);
+      const score = scoreVineDirection(state, size, tip.x, tip.z, dirX, dirZ, tip.dirX, tip.dirZ, lightX, lightZ, tip.attached, step);
+      if (score > bestScore) {
+        bestScore = score;
+        bestDirX = dirX;
+        bestDirZ = dirZ;
+      }
+    }
+    if (bestScore === -Infinity) {
+      tip.alive = false;
+      continue;
+    }
+
+    const currentAngle = Math.atan2(tip.dirZ, tip.dirX);
+    const targetAngle = Math.atan2(bestDirZ, bestDirX);
+    let delta = targetAngle - currentAngle;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    const maxTurn = TURN_RATE * dt;
+    const turn = Math.max(-maxTurn, Math.min(maxTurn, delta));
+    const newAngle = currentAngle + turn;
+    tip.dirX = Math.cos(newAngle);
+    tip.dirZ = Math.sin(newAngle);
+
+    const newX = Math.max(0, Math.min(1, tip.x + tip.dirX * step));
+    const newZ = Math.max(0, Math.min(1, tip.z + tip.dirZ * step));
+    // Same final tunnelling guard as stepGrowthTips: the turn-rate cap means this tick's actual
+    // heading can still differ from the validated best candidate, so re-check the ACTUAL landing
+    // point before committing to it, independent of which candidate scored best.
+    if (sampleField(state, size, FIELD.COMPACTION, newX, newZ) >= COMPACTION_STOP) continue;
+    tip.x = newX;
+    tip.z = newZ;
+
+    if (neighborSupport(state, size, tip.x, tip.z) >= VINE_ATTACH_THRESHOLD) tip.attached = true;
+
+    tip.nodeId = addGraphNode(graph, tip.x, tip.z, nodeRadius(1), tip.nodeId);
+  }
 }
