@@ -13,7 +13,8 @@ import {
   PARTICLE_COMPUTE_WGSL,
   QUERY_COMPUTE_WGSL,
   WORLD_COMPUTE_WGSL,
-  WORLD_RENDER_WGSL,
+  WORLD_SPATIAL_RENDER_WGSL,
+  PARTICLE_SPATIAL_RENDER_WGSL,
 } from '../runtime/world-sandbox-webgpu.mjs';
 
 const size = 40;
@@ -90,7 +91,11 @@ assert.match(WORLD_COMPUTE_WGSL, /atomicLoad/);
 assert.match(PARTICLE_COMPUTE_WGSL, /var<storage, read_write> particles/);
 assert.match(PARTICLE_COMPUTE_WGSL, /atomicAdd/);
 assert.match(QUERY_COMPUTE_WGSL, /local CPU query|result\[1\]/);
-assert.match(WORLD_RENDER_WGSL, /cell\.bio\.x/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /fn vsTerrain/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /fn vsWater/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /fn vsGrass/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /cell\.bio\.x/);
+assert.match(PARTICLE_SPATIAL_RENDER_WGSL, /fn project/);
 
 const [editorHtml, integrationJs, integrationCss, engineJs] = await Promise.all([
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
@@ -100,11 +105,15 @@ const [editorHtml, integrationJs, integrationCss, engineJs] = await Promise.all(
 ]);
 assert.match(editorHtml, /id="btn-world-sandbox"/);
 assert.match(editorHtml, /id="world-sandbox-canvas"/);
+assert.match(editorHtml, /id="world-sandbox-hud"/);
 assert.match(editorHtml, /id="panel-sandbox"/);
 assert.match(editorHtml, /editor\/world-sandbox\.js/);
 assert.match(integrationJs, /window\.SHADEDWorldSandbox/);
 assert.match(integrationJs, /world-sandbox-mode/);
+assert.match(integrationJs, /screenToWorld/);
+assert.match(integrationJs, /beginMultiGesture/);
 assert.match(integrationCss, /body\.world-sandbox-mode/);
+assert.match(integrationCss, /#world-sandbox-hud/);
 assert.doesNotMatch(engineJs, /document\.body\.innerHTML=.*SHADED braucht WebGL 2/);
 assert.match(engineJs, /webgl2-unavailable/);
 

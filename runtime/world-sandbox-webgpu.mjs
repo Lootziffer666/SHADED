@@ -568,9 +568,394 @@ fn fs(input: VertexOut) -> @location(0) vec4<f32> {
 }
 `;
 
+// Spatial presentation of the same CA state.  The solver remains a compact
+// 2.5D field, while this renderer turns that field into actual terrain,
+// independent water, vegetation blades and depth-tested interaction objects.
+export const WORLD_SPATIAL_RENDER_WGSL = /* wgsl */ `
+struct RenderParams {
+  resolution: vec4<f32>,
+  view: vec4<f32>,
+  body: vec4<f32>,
+  cursor: vec4<f32>,
+  camera: vec4<f32>,
+  spare0: vec4<f32>,
+  spare1: vec4<f32>,
+  spare2: vec4<f32>,
+}
+
+struct Cell {
+  terrain: vec4<f32>,
+  water: vec4<f32>,
+  bio: vec4<f32>,
+}
+
+struct SurfaceOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) world: vec3<f32>,
+  @location(1) normal: vec3<f32>,
+  @location(2) uv: vec2<f32>,
+  @location(3) terrain: vec4<f32>,
+  @location(4) water: vec4<f32>,
+  @location(5) bio: vec4<f32>,
+}
+
+struct BladeOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) local: vec2<f32>,
+  @location(1) color: vec3<f32>,
+}
+
+struct BodyOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) local: vec2<f32>,
+}
+
+@group(0) @binding(0) var<uniform> R: RenderParams;
+@group(0) @binding(1) var<storage, read> cells: array<Cell>;
+
+fn hash2(position: vec2<f32>) -> f32 {
+  return fract(sin(dot(position, vec2<f32>(127.1, 311.7))) * 43758.5453123);
+}
+
+fn gridSize() -> u32 {
+  return u32(R.resolution.z);
+}
+
+fn indexAt(position: vec2<i32>) -> u32 {
+  let size = i32(gridSize());
+  let p = clamp(position, vec2<i32>(0), vec2<i32>(size - 1));
+  return u32(p.y * size + p.x);
+}
+
+fn surfaceHeight(position: vec2<i32>, includeWater: bool) -> f32 {
+  let cell = cells[indexAt(position)];
+  return cell.terrain.x + cell.terrain.y + select(0.0, cell.water.x, includeWater);
+}
+
+fn cameraForward() -> vec3<f32> {
+  let yaw = R.view.z;
+  let pitch = R.view.w;
+  return normalize(vec3<f32>(sin(yaw) * cos(pitch), -sin(pitch), cos(yaw) * cos(pitch)));
+}
+
+fn cameraRight() -> vec3<f32> {
+  return normalize(cross(vec3<f32>(0.0, 1.0, 0.0), cameraForward()));
+}
+
+fn cameraUp() -> vec3<f32> {
+  return normalize(cross(cameraForward(), cameraRight()));
+}
+
+fn project(world: vec3<f32>) -> vec4<f32> {
+  let aspect = R.resolution.x / max(1.0, R.resolution.y);
+  let zoom = max(0.55, R.camera.x);
+  let target = vec3<f32>(0.0, R.camera.z, 0.0);
+  let delta = world - target;
+  let forward = cameraForward();
+  let viewX = dot(delta, cameraRight());
+  let viewY = dot(delta, cameraUp());
+  let viewZ = dot(delta, forward);
+  return vec4<f32>(
+    viewX / max(0.20, zoom * aspect),
+    viewY / zoom,
+    clamp(0.48 + viewZ * 0.18, 0.01, 0.99),
+    1.0
+  );
+}
+
+fn gridVertex(vertexIndex: u32) -> vec2<u32> {
+  let corners = array<vec2<u32>, 6>(
+    vec2<u32>(0u, 0u), vec2<u32>(1u, 0u), vec2<u32>(0u, 1u),
+    vec2<u32>(0u, 1u), vec2<u32>(1u, 0u), vec2<u32>(1u, 1u)
+  );
+  let edge = gridSize() - 1u;
+  let quad = vertexIndex / 6u;
+  return vec2<u32>(quad % edge, quad / edge) + corners[vertexIndex % 6u];
+}
+
+fn makeSurface(vertexIndex: u32, includeWater: bool) -> SurfaceOut {
+  let grid = gridVertex(vertexIndex);
+  let p = vec2<i32>(grid);
+  let cell = cells[indexAt(p)];
+  let uv = vec2<f32>(grid) / f32(gridSize() - 1u);
+  let verticalScale = max(0.2, R.camera.y);
+  let height = surfaceHeight(p, includeWater);
+  let spacing = 2.0 / f32(gridSize() - 1u);
+  let dhx = (surfaceHeight(p + vec2<i32>(1, 0), includeWater)
+    - surfaceHeight(p + vec2<i32>(-1, 0), includeWater)) * verticalScale;
+  let dhz = (surfaceHeight(p + vec2<i32>(0, 1), includeWater)
+    - surfaceHeight(p + vec2<i32>(0, -1), includeWater)) * verticalScale;
+  let world = vec3<f32>(uv.x * 2.0 - 1.0, height * verticalScale, uv.y * 2.0 - 1.0);
+  var output: SurfaceOut;
+  output.position = project(world);
+  output.world = world;
+  output.normal = normalize(vec3<f32>(-dhx, spacing * 2.0, -dhz));
+  output.uv = uv;
+  output.terrain = cell.terrain;
+  output.water = cell.water;
+  output.bio = cell.bio;
+  return output;
+}
+
+@vertex
+fn vsTerrain(@builtin(vertex_index) vertexIndex: u32) -> SurfaceOut {
+  return makeSurface(vertexIndex, false);
+}
+
+@vertex
+fn vsWater(@builtin(vertex_index) vertexIndex: u32) -> SurfaceOut {
+  var output = makeSurface(vertexIndex, true);
+  output.world.y += 0.0025;
+  output.position = project(output.world);
+  return output;
+}
+
+fn fieldColor(terrain: vec4<f32>, water: vec4<f32>, bio: vec4<f32>, mode: u32) -> vec3<f32> {
+  let height = terrain.x + terrain.y;
+  if (mode == 1u) {
+    let h = clamp(height * 2.15, 0.0, 1.0);
+    return mix(vec3<f32>(0.025, 0.035, 0.04), vec3<f32>(0.88, 0.91, 0.90), h);
+  }
+  if (mode == 2u) {
+    return mix(vec3<f32>(0.018, 0.028, 0.026), vec3<f32>(0.04, 0.58, 0.78), clamp(water.x * 13.0, 0.0, 1.0));
+  }
+  if (mode == 3u) {
+    return mix(vec3<f32>(0.20, 0.075, 0.025), vec3<f32>(0.08, 0.48, 0.73), terrain.w);
+  }
+  if (mode == 4u) {
+    return mix(vec3<f32>(0.025, 0.031, 0.026), vec3<f32>(0.28, 0.70, 0.18), bio.x);
+  }
+  if (mode == 5u) {
+    return vec3<f32>(0.035) + vec3<f32>(abs(water.y), length(water.yz), abs(water.z)) * 0.75;
+  }
+  return mix(vec3<f32>(0.035, 0.045, 0.055), vec3<f32>(0.88, 0.15, 0.025), bio.z);
+}
+
+@fragment
+fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
+  let mode = u32(R.view.x + 0.5);
+  let n = normalize(input.normal);
+  let sun = normalize(vec3<f32>(-0.42, 0.82, -0.31));
+  let diffuse = max(dot(n, sun), 0.0);
+  let hemi = 0.26 + 0.24 * n.y;
+  let macroNoise = hash2(floor(input.world.xz * 74.0)) - 0.5;
+  let fineNoise = hash2(floor(input.world.xz * 230.0) + 17.0) - 0.5;
+  let sandCoverage = smoothstep(0.004, 0.07, input.terrain.y);
+  let slope = clamp(1.0 - n.y, 0.0, 1.0);
+  var rock = vec3<f32>(0.235, 0.218, 0.188) + macroNoise * 0.035;
+  var sand = vec3<f32>(0.58, 0.405, 0.225) + macroNoise * 0.055 + fineNoise * 0.018;
+  sand = mix(sand, vec3<f32>(0.43, 0.31, 0.18), slope * 0.55);
+  var color = mix(rock, sand, sandCoverage);
+  let wet = clamp(input.terrain.w, 0.0, 1.0);
+  color = mix(color, color * vec3<f32>(0.43, 0.49, 0.50), wet * 0.70);
+  let groundCover = smoothstep(0.025, 0.42, input.bio.x) * (0.72 + macroNoise * 0.22);
+  color = mix(color, vec3<f32>(0.16, 0.285, 0.105), groundCover * 0.62);
+  color = mix(color, vec3<f32>(0.105, 0.075, 0.052), input.bio.z * 0.66);
+  color *= hemi + diffuse * 0.72;
+  let backLight = pow(max(dot(n, normalize(vec3<f32>(0.46, 0.42, 0.76))), 0.0), 3.0);
+  color += vec3<f32>(0.07, 0.085, 0.075) * backLight;
+  if (mode > 0u) {
+    color = fieldColor(input.terrain, input.water, input.bio, mode) * (0.35 + diffuse * 0.65);
+  }
+
+  let cursorDistance = distance(input.uv, R.cursor.xy);
+  let edgeWidth = max(0.0025, fwidth(cursorDistance) * 1.35);
+  let cursorEdge = 1.0 - smoothstep(edgeWidth, edgeWidth * 2.2, abs(cursorDistance - R.cursor.z));
+  color = mix(color, vec3<f32>(0.82, 0.91, 0.86), cursorEdge * R.cursor.w * 0.84);
+  let fog = smoothstep(0.80, 1.42, length(input.world.xz));
+  color = mix(color, vec3<f32>(0.105, 0.135, 0.125), fog * 0.40);
+  return vec4<f32>(pow(max(color, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.2)), 1.0);
+}
+
+@fragment
+fn fsWater(input: SurfaceOut) -> @location(0) vec4<f32> {
+  if (input.water.x < 0.00035 || u32(R.view.x + 0.5) != 0u) {
+    discard;
+  }
+  let flow = length(input.water.yz);
+  let wave = vec2<f32>(
+    sin(input.world.x * 31.0 + R.view.y * 2.2) + sin(input.world.z * 43.0 - R.view.y * 1.4),
+    cos(input.world.z * 29.0 - R.view.y * 1.9) + cos(input.world.x * 37.0 + R.view.y * 1.2)
+  ) * (0.018 + min(0.035, flow * 0.015));
+  let n = normalize(input.normal + vec3<f32>(wave.x, 0.0, wave.y));
+  let viewDirection = normalize(-cameraForward());
+  let sun = normalize(vec3<f32>(-0.42, 0.82, -0.31));
+  let halfVector = normalize(viewDirection + sun);
+  let fresnel = 0.10 + 0.90 * pow(1.0 - max(dot(n, viewDirection), 0.0), 4.0);
+  let specular = pow(max(dot(n, halfVector), 0.0), 78.0);
+  let depth = clamp(input.water.x * 12.0, 0.0, 1.0);
+  var color = mix(vec3<f32>(0.13, 0.47, 0.49), vec3<f32>(0.025, 0.13, 0.19), depth);
+  color = mix(color, vec3<f32>(0.38, 0.60, 0.61), fresnel * 0.42);
+  color += vec3<f32>(0.82, 0.91, 0.86) * specular * 0.72;
+  let shore = (1.0 - smoothstep(0.0014, 0.008, input.water.x)) * smoothstep(0.0003, 0.0016, input.water.x);
+  let foam = clamp(shore + smoothstep(0.35, 1.0, flow) * 0.52, 0.0, 1.0);
+  color = mix(color, vec3<f32>(0.76, 0.81, 0.72), foam * 0.64);
+  let alpha = 0.48 + depth * 0.27 + fresnel * 0.14;
+  return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), alpha);
+}
+
+@vertex
+fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instanceIndex: u32) -> BladeOut {
+  let corners = array<vec2<f32>, 6>(
+    vec2<f32>(-1.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(-0.22, 1.0),
+    vec2<f32>(-0.22, 1.0), vec2<f32>(1.0, 0.0), vec2<f32>(0.22, 1.0)
+  );
+  let size = gridSize();
+  let cellCount = size * size;
+  let cellIndex = instanceIndex % cellCount;
+  let layer = instanceIndex / cellCount;
+  let x = cellIndex % size;
+  let z = cellIndex / size;
+  let cell = cells[cellIndex];
+  let seed = hash2(vec2<f32>(f32(x) + f32(layer) * 19.7, f32(z) - f32(layer) * 31.1));
+  let visible = cell.bio.x > 0.008
+    && cell.water.x < 0.006
+    && seed < clamp(cell.bio.x * 3.8, 0.0, 0.94)
+    && u32(R.view.x + 0.5) == 0u;
+  let jitter = vec2<f32>(
+    hash2(vec2<f32>(f32(x), f32(z)) + f32(layer) * 7.3),
+    hash2(vec2<f32>(f32(z), f32(x)) + f32(layer) * 13.9)
+  ) - 0.5;
+  let uv = (vec2<f32>(f32(x), f32(z)) + vec2<f32>(0.5) + jitter * 0.78) / f32(size);
+  let ground = (cell.terrain.x + cell.terrain.y) * R.camera.y + 0.003;
+  let angle = seed * 6.2831853;
+  let side = vec3<f32>(cos(angle), 0.0, sin(angle));
+  let corner = corners[vertexIndex];
+  let bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
+  let bladeWidth = 0.0028 + seed * 0.0032;
+  let bend = normalize(vec3<f32>(cell.water.y, 0.0, cell.water.z) + vec3<f32>(0.34, 0.0, 0.18)) * bladeHeight * 0.16;
+  var world = vec3<f32>(uv.x * 2.0 - 1.0, ground, uv.y * 2.0 - 1.0);
+  world += side * corner.x * bladeWidth;
+  world += vec3<f32>(0.0, corner.y * bladeHeight, 0.0) + bend * corner.y * corner.y;
+  var output: BladeOut;
+  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), visible);
+  output.local = corner;
+  let dry = clamp(cell.bio.z * 1.8 + (1.0 - cell.terrain.w) * 0.22, 0.0, 1.0);
+  output.color = mix(vec3<f32>(0.19, 0.39, 0.10), vec3<f32>(0.43, 0.31, 0.10), dry) * (0.78 + seed * 0.32);
+  return output;
+}
+
+@fragment
+fn fsGrass(input: BladeOut) -> @location(0) vec4<f32> {
+  let edge = 1.0 - smoothstep(0.42, 1.0, abs(input.local.x));
+  if (edge < 0.04) { discard; }
+  let light = 0.54 + input.local.y * 0.46;
+  return vec4<f32>(pow(input.color * light, vec3<f32>(1.0 / 2.2)), edge);
+}
+
+@vertex
+fn vsBody(@builtin(vertex_index) vertexIndex: u32) -> BodyOut {
+  let corners = array<vec2<f32>, 6>(
+    vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0), vec2<f32>(-1.0, 1.0),
+    vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, -1.0), vec2<f32>(1.0, 1.0)
+  );
+  let corner = corners[vertexIndex];
+  let centre = vec3<f32>(R.body.x * 2.0 - 1.0, R.body.z * R.camera.y, R.body.y * 2.0 - 1.0);
+  let radius = 0.032;
+  let world = centre + cameraRight() * corner.x * radius + cameraUp() * corner.y * radius;
+  var output: BodyOut;
+  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), R.body.w > 0.5);
+  output.local = corner;
+  return output;
+}
+
+@fragment
+fn fsBody(input: BodyOut) -> @location(0) vec4<f32> {
+  let radius = length(input.local);
+  if (radius > 1.0) { discard; }
+  let sphereZ = sqrt(max(0.0, 1.0 - radius * radius));
+  let normal = normalize(vec3<f32>(input.local, sphereZ));
+  let light = 0.28 + max(dot(normal, normalize(vec3<f32>(-0.45, 0.70, 0.55))), 0.0) * 0.72;
+  let rim = pow(1.0 - sphereZ, 3.0);
+  let color = vec3<f32>(0.29, 0.31, 0.30) * light + vec3<f32>(0.18, 0.21, 0.20) * rim;
+  return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), 1.0);
+}
+`;
+
+export const PARTICLE_SPATIAL_RENDER_WGSL = /* wgsl */ `
+struct RenderParams {
+  resolution: vec4<f32>,
+  view: vec4<f32>,
+  body: vec4<f32>,
+  cursor: vec4<f32>,
+  camera: vec4<f32>,
+  spare0: vec4<f32>,
+  spare1: vec4<f32>,
+  spare2: vec4<f32>,
+}
+
+struct Particle {
+  position: vec4<f32>,
+  velocity: vec4<f32>,
+  meta: vec4<f32>,
+}
+
+struct VertexOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) local: vec2<f32>,
+  @location(1) @interpolate(flat) kind: u32,
+  @location(2) alpha: f32,
+}
+
+@group(0) @binding(0) var<uniform> R: RenderParams;
+@group(0) @binding(1) var<storage, read> particles: array<Particle>;
+
+fn cameraForward() -> vec3<f32> {
+  return normalize(vec3<f32>(sin(R.view.z) * cos(R.view.w), -sin(R.view.w), cos(R.view.z) * cos(R.view.w)));
+}
+fn cameraRight() -> vec3<f32> { return normalize(cross(vec3<f32>(0.0, 1.0, 0.0), cameraForward())); }
+fn cameraUp() -> vec3<f32> { return normalize(cross(cameraForward(), cameraRight())); }
+fn project(world: vec3<f32>) -> vec4<f32> {
+  let aspect = R.resolution.x / max(1.0, R.resolution.y);
+  let delta = world - vec3<f32>(0.0, R.camera.z, 0.0);
+  return vec4<f32>(
+    dot(delta, cameraRight()) / max(0.20, R.camera.x * aspect),
+    dot(delta, cameraUp()) / max(0.55, R.camera.x),
+    clamp(0.48 + dot(delta, cameraForward()) * 0.18, 0.01, 0.99),
+    1.0
+  );
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instanceIndex: u32) -> VertexOut {
+  let corners = array<vec2<f32>, 6>(
+    vec2<f32>(-1.0, -1.0), vec2<f32>(1.0, -1.0), vec2<f32>(-1.0, 1.0),
+    vec2<f32>(-1.0, 1.0), vec2<f32>(1.0, -1.0), vec2<f32>(1.0, 1.0)
+  );
+  let particle = particles[instanceIndex];
+  let corner = corners[vertexIndex];
+  let kind = u32(particle.meta.x + 0.5);
+  let centre = vec3<f32>(
+    particle.position.x * 2.0 - 1.0,
+    particle.position.y * R.camera.y,
+    particle.position.z * 2.0 - 1.0
+  );
+  let size = select(0.008, 0.011, kind == 1u) + clamp(particle.position.y * 0.004, 0.0, 0.006);
+  let world = centre + cameraRight() * corner.x * size + cameraUp() * corner.y * size;
+  var output: VertexOut;
+  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), particle.meta.w > 0.5);
+  output.local = corner;
+  output.kind = kind;
+  output.alpha = particle.meta.w;
+  return output;
+}
+
+@fragment
+fn fs(input: VertexOut) -> @location(0) vec4<f32> {
+  let radial = length(input.local);
+  if (radial > 1.0 || input.alpha < 0.5) { discard; }
+  var color = vec3<f32>(0.84, 0.57, 0.26);
+  if (input.kind == 1u) { color = vec3<f32>(0.37, 0.72, 0.82); }
+  else if (input.kind == 3u) { color = vec3<f32>(0.50, 0.72, 0.25); }
+  else if (input.kind == 4u) { color = vec3<f32>(0.92, 0.25, 0.045); }
+  let alpha = (1.0 - smoothstep(0.48, 1.0, radial)) * 0.88;
+  return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), alpha);
+}
+`;
+
 function assertGpuGlobals() {
   if (!globalThis.navigator?.gpu) throw new Error('WebGPU unavailable');
-  if (!globalThis.GPUBufferUsage || !globalThis.GPUMapMode || !globalThis.GPUTextureUsage) {
+  if (!globalThis.GPUBufferUsage || !globalThis.GPUMapMode || !globalThis.GPUTextureUsage || !globalThis.GPUShaderStage) {
     throw new Error('WebGPU constants unavailable');
   }
 }
@@ -615,6 +1000,7 @@ export class WebGpuWorldSandbox {
     this.simFloats = new Float32Array(32);
     this.renderFloats = new Float32Array(32);
     this.stampFloats = new Float32Array(MAX_STAMPS * 8);
+    this.depthTexture = null;
   }
 
   async initialize() {
@@ -628,8 +1014,8 @@ export class WebGpuWorldSandbox {
       checkedModule(device, 'SHADED world compute', WORLD_COMPUTE_WGSL),
       checkedModule(device, 'SHADED particle compute', PARTICLE_COMPUTE_WGSL),
       checkedModule(device, 'SHADED query compute', QUERY_COMPUTE_WGSL),
-      checkedModule(device, 'SHADED world render', WORLD_RENDER_WGSL),
-      checkedModule(device, 'SHADED particle render', PARTICLE_RENDER_WGSL),
+      checkedModule(device, 'SHADED spatial world render', WORLD_SPATIAL_RENDER_WGSL),
+      checkedModule(device, 'SHADED spatial particle render', PARTICLE_SPATIAL_RENDER_WGSL),
     ]);
     const [worldModule, particleModule, queryModule, worldRenderModule, particleRenderModule] = modules;
 
@@ -648,15 +1034,84 @@ export class WebGpuWorldSandbox {
       layout: 'auto',
       compute: {module: queryModule, entryPoint: 'main'},
     });
+    this.worldRenderBindGroupLayout = device.createBindGroupLayout({
+      label: 'SHADED spatial world bindings',
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: {type: 'uniform'},
+        },
+        {
+          binding: 1,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: {type: 'read-only-storage'},
+        },
+      ],
+    });
+    this.worldRenderPipelineLayout = device.createPipelineLayout({
+      label: 'SHADED spatial world pipeline layout',
+      bindGroupLayouts: [this.worldRenderBindGroupLayout],
+    });
+    const depthStencil = {
+      format: 'depth24plus',
+      depthWriteEnabled: true,
+      depthCompare: 'less',
+    };
     this.worldRenderPipeline = await device.createRenderPipelineAsync({
-      label: 'SHADED world field renderer',
-      layout: 'auto',
-      vertex: {module: worldRenderModule, entryPoint: 'vs'},
-      fragment: {module: worldRenderModule, entryPoint: 'fs', targets: [{format: this.format}]},
+      label: 'SHADED spatial terrain renderer',
+      layout: this.worldRenderPipelineLayout,
+      vertex: {module: worldRenderModule, entryPoint: 'vsTerrain'},
+      fragment: {module: worldRenderModule, entryPoint: 'fsTerrain', targets: [{format: this.format}]},
       primitive: {topology: 'triangle-list'},
+      depthStencil,
+    });
+    this.waterRenderPipeline = await device.createRenderPipelineAsync({
+      label: 'SHADED spatial water renderer',
+      layout: this.worldRenderPipelineLayout,
+      vertex: {module: worldRenderModule, entryPoint: 'vsWater'},
+      fragment: {
+        module: worldRenderModule,
+        entryPoint: 'fsWater',
+        targets: [{
+          format: this.format,
+          blend: {
+            color: {srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add'},
+            alpha: {srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add'},
+          },
+        }],
+      },
+      primitive: {topology: 'triangle-list'},
+      depthStencil: {...depthStencil, depthWriteEnabled: false, depthCompare: 'less-equal'},
+    });
+    this.grassRenderPipeline = await device.createRenderPipelineAsync({
+      label: 'SHADED vegetation blade renderer',
+      layout: this.worldRenderPipelineLayout,
+      vertex: {module: worldRenderModule, entryPoint: 'vsGrass'},
+      fragment: {
+        module: worldRenderModule,
+        entryPoint: 'fsGrass',
+        targets: [{
+          format: this.format,
+          blend: {
+            color: {srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add'},
+            alpha: {srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add'},
+          },
+        }],
+      },
+      primitive: {topology: 'triangle-list'},
+      depthStencil: {...depthStencil, depthCompare: 'less-equal'},
+    });
+    this.bodyRenderPipeline = await device.createRenderPipelineAsync({
+      label: 'SHADED CPU body renderer',
+      layout: this.worldRenderPipelineLayout,
+      vertex: {module: worldRenderModule, entryPoint: 'vsBody'},
+      fragment: {module: worldRenderModule, entryPoint: 'fsBody', targets: [{format: this.format}]},
+      primitive: {topology: 'triangle-list'},
+      depthStencil: {...depthStencil, depthCompare: 'less-equal'},
     });
     this.particleRenderPipeline = await device.createRenderPipelineAsync({
-      label: 'SHADED particle renderer',
+      label: 'SHADED spatial particle renderer',
       layout: 'auto',
       vertex: {module: particleRenderModule, entryPoint: 'vs'},
       fragment: {
@@ -671,6 +1126,7 @@ export class WebGpuWorldSandbox {
         }],
       },
       primitive: {topology: 'triangle-list'},
+      depthStencil: {...depthStencil, depthWriteEnabled: false, depthCompare: 'less-equal'},
     });
 
     const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
@@ -708,7 +1164,7 @@ export class WebGpuWorldSandbox {
     const worldLayout = this.worldPipeline.getBindGroupLayout(0);
     const particleLayout = this.particlePipeline.getBindGroupLayout(0);
     const queryLayout = this.queryPipeline.getBindGroupLayout(0);
-    const worldRenderLayout = this.worldRenderPipeline.getBindGroupLayout(0);
+    const worldRenderLayout = this.worldRenderBindGroupLayout;
     this.worldGroups = [0, 1].map(read => device.createBindGroup({
       label: 'SHADED world ping-pong ' + read,
       layout: worldLayout,
@@ -902,17 +1358,27 @@ export class WebGpuWorldSandbox {
   }
 
   resize() {
-    const quality = this.mobile ? 0.72 : 0.9;
+    const quality = this.mobile ? 0.92 : 1.0;
     const dpr = Math.min(devicePixelRatio || 1, 2) * quality;
     const width = Math.max(2, Math.floor(this.canvas.clientWidth * dpr));
     const height = Math.max(2, Math.floor(this.canvas.clientHeight * dpr));
-    if (this.canvas.width !== width || this.canvas.height !== height) {
+    const changed = this.canvas.width !== width || this.canvas.height !== height;
+    if (changed) {
       this.canvas.width = width;
       this.canvas.height = height;
     }
+    if (changed || !this.depthTexture) {
+      this.depthTexture?.destroy?.();
+      this.depthTexture = this.device.createTexture({
+        label: 'SHADED spatial depth',
+        size: [width, height],
+        format: 'depth24plus',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
   }
 
-  render({viewMode = 0, time = 0, body = null, cursor = null} = {}) {
+  render({viewMode = 0, time = 0, body = null, cursor = null, camera = null} = {}) {
     this.resize();
     const values = this.renderFloats;
     values.fill(0);
@@ -922,6 +1388,8 @@ export class WebGpuWorldSandbox {
     values[3] = this.particleCount;
     values[4] = viewMode;
     values[5] = time;
+    values[6] = camera?.yaw ?? -0.68;
+    values[7] = camera?.pitch ?? 0.76;
     if (body?.active) {
       values[8] = body.x;
       values[9] = body.z;
@@ -934,20 +1402,38 @@ export class WebGpuWorldSandbox {
       values[14] = cursor.radius;
       values[15] = cursor.visible === false ? 0 : 1;
     }
+    values[16] = camera?.zoom ?? 1.45;
+    values[17] = camera?.verticalScale ?? 1.55;
+    values[18] = camera?.targetY ?? 0.29;
     this.device.queue.writeBuffer(this.renderUniform, 0, values);
 
     const encoder = this.device.createCommandEncoder({label: 'SHADED world render'});
     const pass = encoder.beginRenderPass({
       colorAttachments: [{
         view: this.context.getCurrentTexture().createView(),
-        clearValue: {r: 0.008, g: 0.009, b: 0.012, a: 1},
+        clearValue: {r: 0.024, g: 0.034, b: 0.030, a: 1},
         loadOp: 'clear',
         storeOp: 'store',
       }],
+      depthStencilAttachment: {
+        view: this.depthTexture.createView(),
+        depthClearValue: 1,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      },
     });
     pass.setPipeline(this.worldRenderPipeline);
     pass.setBindGroup(0, this.worldRenderGroups[this.read]);
-    pass.draw(3);
+    pass.draw((this.size - 1) * (this.size - 1) * 6);
+    pass.setPipeline(this.waterRenderPipeline);
+    pass.setBindGroup(0, this.worldRenderGroups[this.read]);
+    pass.draw((this.size - 1) * (this.size - 1) * 6);
+    pass.setPipeline(this.grassRenderPipeline);
+    pass.setBindGroup(0, this.worldRenderGroups[this.read]);
+    pass.draw(6, this.size * this.size * 2);
+    pass.setPipeline(this.bodyRenderPipeline);
+    pass.setBindGroup(0, this.worldRenderGroups[this.read]);
+    pass.draw(6);
     pass.setPipeline(this.particleRenderPipeline);
     pass.setBindGroup(0, this.particleRenderGroup);
     pass.draw(6, this.particleCount);
@@ -956,7 +1442,7 @@ export class WebGpuWorldSandbox {
   }
 
   get label() {
-    return 'WEBGPU COMPUTE · ' + this.size + '² · '
+    return 'WEBGPU COMPUTE + SPATIAL · ' + this.size + '² · '
       + this.particleCount.toLocaleString('de-DE') + ' PARTICLES';
   }
 
@@ -972,5 +1458,6 @@ export class WebGpuWorldSandbox {
       this.queryResult,
       ...this.readbacks,
     ]) buffer?.destroy?.();
+    this.depthTexture?.destroy?.();
   }
 }
