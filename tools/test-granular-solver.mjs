@@ -106,7 +106,61 @@ function countRows(grid, y0, y1, material) {
   assert(allValid, 'alle RGBA-Bytes liegen in [0,255]');
 }
 
-// --- 8. Alle neuen Dateien parsen ------------------------------------------
+// --- 8. Rauch steigt auf (Gegenstück zur Schwerkraft) ----------------------
+{
+  const grid = createGrid(10, 30);
+  setCell(grid, 5, 25, MATERIAL.SMOKE);
+  for (let i = 0; i < 60; i++) step(grid);
+  let smokeY = -1;
+  for (let y = 0; y < grid.height; y++) for (let x = 0; x < grid.width; x++) if (getCell(grid, x, y) === MATERIAL.SMOKE) smokeY = y;
+  assert(smokeY !== -1 && smokeY < 20, `einzelne Rauchzelle steigt nach 60 Schritten sichtbar auf (Start y=25, jetzt y=${smokeY})`);
+}
+
+// --- 9. Feuer zündet angrenzendes Holz, altert zu Rauch, Rauch zerfällt ---
+{
+  const grid = createGrid(20, 20);
+  for (let y = 5; y < 15; y++) setCell(grid, 10, y, MATERIAL.WOOD); // eine Holzsäule
+  setCell(grid, 10, 5, MATERIAL.FIRE); // oben angezündet
+  const woodBefore = countMaterial(grid, MATERIAL.WOOD);
+  let sawFire = false, sawSmoke = false;
+  for (let i = 0; i < 40; i++) {
+    step(grid);
+    if (countMaterial(grid, MATERIAL.FIRE) > 0) sawFire = true;
+    if (countMaterial(grid, MATERIAL.SMOKE) > 0) sawSmoke = true;
+  }
+  const woodAfter = countMaterial(grid, MATERIAL.WOOD);
+  assert(woodAfter < woodBefore, `Feuer verzehrt angrenzendes Holz (${woodBefore} -> ${woodAfter} Holzzellen nach 40 Schritten)`);
+  assert(sawFire, 'Feuer war zwischenzeitlich sichtbar (Zündung hat stattgefunden)');
+  assert(sawSmoke, 'gealtertes Feuer wurde zu Rauch (FIRE_LIFETIME griff)');
+
+  // Ohne Brennstoff und genug Zeit zerfällt aller Rauch zu EMPTY.
+  for (let i = 0; i < 200; i++) step(grid);
+  assert(countMaterial(grid, MATERIAL.FIRE) === 0, 'kein Feuer mehr übrig, sobald das Holz aufgebraucht ist');
+  assert(countMaterial(grid, MATERIAL.SMOKE) === 0, 'aller Rauch ist nach ausreichend Schritten zu EMPTY zerfallen (SMOKE_LIFETIME griff)');
+}
+
+// --- 10. Reaktionen bleiben deterministisch bei gleichem Seed --------------
+{
+  function runFireSim(seed) {
+    const grid = createGrid(16, 16);
+    fillRandom(grid, MATERIAL.WOOD, 0.3, seed);
+    setCell(grid, 8, 8, MATERIAL.FIRE);
+    for (let i = 0; i < 25; i++) step(grid);
+    return Array.from(grid.cells).join(',');
+  }
+  assert(runFireSim(11) === runFireSim(11), 'identischer Seed erzeugt nach 25 Schritten mit Zündungen bitidentischen Endzustand');
+}
+
+// --- 11. Holz fällt/steigt nie von selbst (ohne Feuer in der Nähe) --------
+{
+  const grid = createGrid(10, 10);
+  setCell(grid, 3, 3, MATERIAL.WOOD);
+  for (let i = 0; i < 30; i++) step(grid);
+  assert(getCell(grid, 3, 3) === MATERIAL.WOOD, 'freischwebendes Holz bleibt nach 30 Schritten exakt an seiner Startposition');
+  assert(countMaterial(grid, MATERIAL.WOOD) === 1, 'und es entsteht kein zweites Holz irgendwo sonst im Grid');
+}
+
+// --- 12. Alle neuen Dateien parsen ------------------------------------------
 {
   const { execSync } = await import('node:child_process');
   const path = await import('node:path');

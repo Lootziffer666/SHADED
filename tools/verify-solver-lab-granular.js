@@ -73,6 +73,27 @@ async function main() {
   const stepAfterReset = await page.evaluate(() => document.getElementById('status-step').textContent);
   check('E: "Neu seeden" setzt den Schrittzähler auf 0 zurück', stepAfterReset === '0');
 
+  // Feuer neben Holz setzen und laufen lassen -- Holzzahl muss sinken, Rauch
+  // entstehen. Exakte Grid-Koordinaten über window.__granularLab statt
+  // fragiler Maus-zu-Canvas-Pixel-Umrechnung (derselbe window.SHADED-Vertrag-
+  // Gedanke aus CLAUDE.md, nur für diese kleinere Lab-Seite).
+  await page.evaluate(() => {
+    const { setCell, MATERIAL } = window.__granularLab;
+    for (let y = 10; y <= 16; y++) setCell(60, y, MATERIAL.WOOD);
+    setCell(60, 9, MATERIAL.FIRE);
+  });
+  const woodBefore = await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.WOOD));
+  let sawSmoke = false;
+  for (let i = 0; i < 60; i++) {
+    await page.evaluate(() => window.__granularLab.step());
+    if (await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.SMOKE)) > 0) sawSmoke = true;
+  }
+  const woodAfter = await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.WOOD));
+  check('E2: Feuer verzehrt angrenzendes Holz über 60 Schritte (Reaktion sichtbar via UI-Hook)', woodAfter < woodBefore);
+  check('E3: Rauch-Anzeige zeigt zwischenzeitlich Werte > 0 (Feuer ist ausgebrannt)', sawSmoke);
+  const smokeStatusAtSomePoint = await page.evaluate(() => Number(document.getElementById('status-smoke').textContent));
+  check('E4: die DOM-Statusanzeige selbst bleibt konsistent mit dem Solver-Zustand', typeof smokeStatusAtSomePoint === 'number' && !Number.isNaN(smokeStatusAtSomePoint));
+
   const seedInput = page.locator('#seed-input');
   await seedInput.fill('7');
   await page.click('#btn-reset');

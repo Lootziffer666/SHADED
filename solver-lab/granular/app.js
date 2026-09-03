@@ -12,6 +12,8 @@ let grid = createGrid(GRID_W, GRID_H);
 let running = true;
 let paintMaterial = MATERIAL.SAND;
 let baselineSand = 0, baselineWater = 0;
+let stepsPerSecond = Number(document.getElementById('speed-input').value);
+let lastStepMs = 0;
 
 function reseed(seedValue) {
   grid = createGrid(GRID_W, GRID_H);
@@ -35,14 +37,24 @@ function updateStatus() {
   document.getElementById('status-step').textContent = String(grid.step);
   document.getElementById('status-sand').textContent = String(sand);
   document.getElementById('status-water').textContent = String(water);
+  document.getElementById('status-wood').textContent = String(countMaterial(grid, MATERIAL.WOOD));
+  document.getElementById('status-fire').textContent = String(countMaterial(grid, MATERIAL.FIRE));
+  document.getElementById('status-smoke').textContent = String(countMaterial(grid, MATERIAL.SMOKE));
   const el = document.getElementById('status-conservation');
   const conserved = sand === baselineSand && water === baselineWater;
   el.textContent = conserved ? 'erhalten (nur Bewegung)' : `verändert (Malen/Löschen aktiv)`;
   el.className = conserved ? 'ok' : 'warn';
 }
 
-function tick() {
-  if (running) {
+// Ohne Drosselung lief das hier mit voller Bildwiederholrate (~60
+// Generationen/Sekunde) -- für einen Menschen nicht mehr als Bewegung
+// wahrnehmbar, nur als "springt sofort in den Endzustand". Das war der
+// gemeldete "Wasser nivelliert sich sofort"-Effekt: kein Solver-Bug,
+// sondern zu schnelle Wiedergabe. Jetzt zeitakkumuliert auf eine
+// einstellbare, tatsächlich beobachtbare Schrittrate gedrosselt.
+function tick(nowMs) {
+  if (running && nowMs - lastStepMs >= 1000 / stepsPerSecond) {
+    lastStepMs = nowMs;
     step(grid);
     draw();
     updateStatus();
@@ -60,6 +72,10 @@ document.getElementById('btn-step').addEventListener('click', () => { step(grid)
 document.getElementById('btn-reset').addEventListener('click', () => {
   reseed(Number(document.getElementById('seed-input').value) || 0);
 });
+document.getElementById('speed-input').addEventListener('input', (e) => {
+  stepsPerSecond = Number(e.target.value);
+  document.getElementById('speed-readout').textContent = `${stepsPerSecond} Schritte/Sek`;
+});
 
 for (const btn of document.querySelectorAll('.material-picker button')) {
   btn.addEventListener('click', () => {
@@ -76,6 +92,7 @@ function paintAt(clientX, clientY) {
   const gy = Math.floor(((clientY - rect.top) / rect.height) * GRID_H);
   setCell(grid, gx, gy, paintMaterial);
   draw();
+  updateStatus();
 }
 canvas.addEventListener('pointerdown', (e) => { painting = true; paintAt(e.clientX, e.clientY); });
 window.addEventListener('pointerup', () => { painting = false; });
@@ -83,3 +100,14 @@ canvas.addEventListener('pointermove', (e) => { if (painting) paintAt(e.clientX,
 
 reseed(Number(document.getElementById('seed-input').value) || 1);
 requestAnimationFrame(tick);
+
+// Kleiner Test-/Debug-Zugriff, gleiches Prinzip wie window.SHADED als
+// API-Vertrag für Tests und Agenten (siehe CLAUDE.md) -- exakte
+// Grid-Koordinaten statt fragiler Maus-zu-Canvas-Pixel-Umrechnung in
+// tools/verify-solver-lab-granular.js.
+window.__granularLab = {
+  MATERIAL,
+  setCell: (x, y, material) => { setCell(grid, x, y, material); draw(); updateStatus(); },
+  step: () => { step(grid); draw(); updateStatus(); },
+  countMaterial: (material) => countMaterial(grid, material),
+};

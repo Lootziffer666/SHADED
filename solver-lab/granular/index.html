@@ -19,6 +19,8 @@
     <button id="btn-step">Einzelschritt</button>
     <button id="btn-reset">Neu seeden</button>
     <label>Seed <input id="seed-input" type="number" value="1" min="0" step="1"></label>
+    <label>Tempo <input id="speed-input" type="range" min="1" max="60" value="12">
+      <span id="speed-readout">12 Schritte/Sek</span></label>
   </div>
 </header>
 
@@ -31,20 +33,28 @@
     <div class="material-picker">
       <button data-material="1" class="active">Sand</button>
       <button data-material="2">Wasser</button>
+      <button data-material="4">Holz</button>
+      <button data-material="5">Feuer</button>
       <button data-material="3">Wand</button>
       <button data-material="0">Löschen</button>
     </div>
-    <p class="hint">Auf dem Grid klicken/ziehen, um Material zu malen.</p>
+    <p class="hint">Auf dem Grid klicken/ziehen, um Material zu malen. Feuer klebt an seinem
+       Brennstoff und zündet angrenzendes Holz; ausgebranntes Feuer wird zu Rauch, Rauch steigt
+       auf und verweht irgendwann von selbst.</p>
 
     <h2>Live-Status</h2>
     <dl id="status" class="status-grid">
       <dt>Schritt</dt><dd id="status-step">0</dd>
       <dt>Sand-Zellen</dt><dd id="status-sand">–</dd>
       <dt>Wasser-Zellen</dt><dd id="status-water">–</dd>
+      <dt>Holz-Zellen</dt><dd id="status-wood">–</dd>
+      <dt>Feuer-Zellen</dt><dd id="status-fire">–</dd>
+      <dt>Rauch-Zellen</dt><dd id="status-smoke">–</dd>
       <dt>Masse-Erhaltung</dt><dd id="status-conservation">–</dd>
     </dl>
     <p class="hint">Sand- und Wasserzahl dürfen sich durch Bewegung nie ändern (reine Swaps, siehe
-       <code>tools/test-granular-solver.mjs</code> Test 3) — nur durch dein eigenes Malen/Löschen.</p>
+       <code>tools/test-granular-solver.mjs</code> Test 3) — nur durch dein eigenes Malen/Löschen.
+       Holz/Feuer/Rauch verändern sich dagegen bewusst (Verbrennungs-Reaktion, Test 9).</p>
   </div>
 </section>
 
