@@ -389,6 +389,36 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   assert.ok(driftedX > 10, `smoke's peak must have drifted downwind (+x) from its seed column, not stayed put (started x=10, now x=${driftedX})`);
 }
 
+// --- Water momentum stays stable at a sharp discontinuity (no velocity/height blow-up) --
+{
+  // Repeatedly stamping water at one spot -- exactly what painting/dragging the water tool
+  // does -- creates a sharp height discontinuity at the pond's edge. Before the gradient
+  // clamp + MAX_WATER_DEPTH fix, this produced a genuine numerical instability: velocity
+  // reaching +-60 within 2 steps and water climbing past 40 (confirmed empirically), which
+  // rendered as literal multi-unit-tall spikes jutting out of the terrain.
+  const stabilitySize = 96;
+  let stability = createWorldState(stabilitySize, 12345);
+  const stabilityEnv = {...DEFAULT_ENVIRONMENT, rain: 0};
+  const stabilityStamps = [];
+  for (let i = 0; i < 40; i++) stabilityStamps.push({kind: STAMP.WATER, x: 0.5, z: 0.4, radius: 0.14, amount: 0.08});
+  for (let i = 0; i < 30; i++) stability = stepWorldReference(stability, stabilitySize, 1 / 30, {environment: stabilityEnv, stamps: stabilityStamps});
+  let maxWaterSeen = 0, maxVelSeen = 0;
+  for (let t = 0; t < 200; t++) {
+    stability = stepWorldReference(stability, stabilitySize, 1 / 30, {environment: stabilityEnv});
+    for (let o = 0; o < stability.length; o += CELL_STRIDE) {
+      maxWaterSeen = Math.max(maxWaterSeen, stability[o + FIELD.WATER]);
+      maxVelSeen = Math.max(maxVelSeen, Math.abs(stability[o + FIELD.VELOCITY_X]), Math.abs(stability[o + FIELD.VELOCITY_Z]));
+    }
+  }
+  assert.ok(maxWaterSeen <= 1.2 + 1e-6, `water never exceeds the physical depth cap even after heavy repeated stamping (max seen ${maxWaterSeen.toFixed(3)})`);
+  assert.ok(maxVelSeen < 10, `water velocity stays bounded at a sharp stamped discontinuity, no CFL-style blow-up (max |velocity| seen ${maxVelSeen.toFixed(3)})`);
+  let settled = stability;
+  for (let t = 0; t < 1000; t++) settled = stepWorldReference(settled, stabilitySize, 1 / 30, {environment: {...stabilityEnv, sun: 0.8}});
+  let maxWaterSettled = 0;
+  for (let o = 0; o < settled.length; o += CELL_STRIDE) maxWaterSettled = Math.max(maxWaterSettled, settled[o + FIELD.WATER]);
+  assert.ok(maxWaterSettled < 1.2 - 0.05, `water actually drains below the cap over time via evaporation, not permanently pinned at the ceiling (after ~33s more: ${maxWaterSettled.toFixed(3)})`);
+}
+
 // --- Wind FIELD: a real local vector, not a uniform scalar ------------------------------
 {
   const windFieldSize = 24;

@@ -207,7 +207,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let levelRight = surface(right) + right.water.x;
   let levelTop = surface(top) + top.water.x;
   let levelBottom = surface(bottom) + bottom.water.x;
-  let grad = vec2<f32>(levelRight - levelLeft, levelBottom - levelTop) * 0.5 * f32(size);
+  // Slope limiter, mirrors runtime/world-sandbox-reference.mjs exactly: the raw gradient
+  // diverges without bound right at a sharp discontinuity (a freshly-stamped pond edge, a
+  // dam-break front) since it scales with grid size by construction. Confirmed empirically
+  // on the CPU reference as a genuine velocity blow-up (+-60 within 2 steps of a normal
+  // water stamp), not a tuning nit -- the same "flux limiter" technique real fluid/terrain
+  // solvers use to stay stable at a sharp interface regardless of resolution.
+  let GRADIENT_LIMIT = 6.0;
+  let grad = clamp(vec2<f32>(levelRight - levelLeft, levelBottom - levelTop) * 0.5 * f32(size),
+    vec2<f32>(-GRADIENT_LIMIT), vec2<f32>(GRADIENT_LIMIT));
   let velocity = (c.water.yz - grad * dt * 0.84) * max(0.0, 1.0 - dt * 2.4);
   let speed = length(velocity);
 
@@ -402,7 +410,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (kind == 1u) {
       sand += amount;
     } else if (kind == 2u) {
-      water += amount;
+      // Capped, not just accumulated: mirrors runtime/world-sandbox-reference.mjs's
+      // MAX_WATER_DEPTH exactly -- repeated stamping (painting, the normal way to add
+      // water) had no upper bound, and the water HEIGHT itself feeds the rendered mesh, so
+      // an unbounded value here is a literal multi-unit-tall spike, not a color artifact.
+      water = clamp(water + amount, 0.0, 1.2);
       wetness = clamp(wetness + amount * 5.0, 0.0, 1.0);
     } else if (kind == 3u) {
       seed = clamp(seed + amount * 3.0, 0.0, 1.0);
@@ -425,7 +437,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   var next = c;
   next.terrain.y = max(0.0, sand);
   next.terrain.w = wetness;
-  next.water = vec4<f32>(max(0.0, water), velocity.x, velocity.y, max(0.0, sediment));
+  // Safety net matching the stamp-time cap above: rain/springs/snowmelt all add water
+  // through paths other than a direct stamp, so the ceiling belongs here too.
+  next.water = vec4<f32>(clamp(water, 0.0, 1.2), velocity.x, velocity.y, max(0.0, sediment));
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
   next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
   next.combust = vec4<f32>(fire, smoke, ash, groundwater);

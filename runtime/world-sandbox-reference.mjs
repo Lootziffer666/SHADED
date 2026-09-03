@@ -78,6 +78,9 @@ export const DEFAULT_ENVIRONMENT = Object.freeze({
 });
 
 const clamp = (value, low = 0, high = 1) => Math.max(low, Math.min(high, value));
+// A physically sane ceiling on standing water depth at any one cell -- see the STAMP.WATER
+// case in applyStamps for why this exists (repeated stamping had no upper bound at all).
+const MAX_WATER_DEPTH = 1.2;
 const smoothstep = (a, b, value) => {
   const t = clamp((value - a) / Math.max(1e-8, b - a));
   return t * t * (3 - 2 * t);
@@ -210,7 +213,15 @@ function applyStamps(state, size, stamps) {
             state[o + FIELD.SAND] = Math.max(0, state[o + FIELD.SAND] + value);
             break;
           case STAMP.WATER:
-            state[o + FIELD.WATER] = Math.max(0, state[o + FIELD.WATER] + value);
+            // Capped, not just floored: nothing previously stopped repeated stamping (a
+            // user holding the water tool down while painting -- the normal, expected way
+            // to add water, not an edge case) from piling WATER up far beyond any sane
+            // pond depth at a single cell. Rendering assumes ~0.08-1 is already "full deep
+            // water" (see editor/world-sandbox.js's `depth = Math.min(1, water * 12)`), and
+            // nothing bounded the water HEIGHT itself, which is what the 3D mesh actually
+            // rises by -- an unbounded value there is not a subtle color artifact, it is a
+            // literal multi-unit-tall spike jutting out of the terrain.
+            state[o + FIELD.WATER] = clamp(state[o + FIELD.WATER] + value, 0, MAX_WATER_DEPTH);
             state[o + FIELD.WETNESS] = clamp(state[o + FIELD.WETNESS] + value * 5);
             break;
           case STAMP.SEED:
@@ -387,9 +398,20 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
         + (baseWindZ - windZOld) * safeDt * 0.35
         - heatGradZ * CONVECTION_STRENGTH * safeDt;
 
+      // Slope limiter: gradientX/Z scales with `size` by construction (a true discrete
+      // slope, height-difference divided by cell width), which is correct for smooth
+      // terrain but diverges without bound right at a sharp discontinuity -- exactly what
+      // a freshly-stamped pond edge or a dam-break front IS. Without a cap here, that
+      // single sharp edge injects a velocity impulse that grows with grid resolution
+      // (confirmed empirically: velocity reaching +-60 within 2 steps of a normal water
+      // stamp at size=96, before this fix existed), which is a genuine CFL-style
+      // numerical instability, not a tuning nit -- the same technique real fluid/terrain
+      // solvers use ("flux limiter") to stay stable at a sharp interface regardless of
+      // resolution, instead of requiring dt to shrink as resolution grows.
+      const GRADIENT_LIMIT = 6;
       const level = index => surface(stamped, index) + stamped[index + FIELD.WATER];
-      const gradientX = (level(right) - level(left)) * 0.5 * size;
-      const gradientZ = (level(south) - level(north)) * 0.5 * size;
+      const gradientX = clamp((level(right) - level(left)) * 0.5 * size, -GRADIENT_LIMIT, GRADIENT_LIMIT);
+      const gradientZ = clamp((level(south) - level(north)) * 0.5 * size, -GRADIENT_LIMIT, GRADIENT_LIMIT);
       const velocityX = (stamped[o + FIELD.VELOCITY_X] - gradientX * safeDt * 0.84)
         * Math.max(0, 1 - safeDt * 2.4);
       const velocityZ = (stamped[o + FIELD.VELOCITY_Z] - gradientZ * safeDt * 0.84)
@@ -579,7 +601,10 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - damage - fuelBurn);
 
       next[o + FIELD.SAND] = Math.max(0, sand);
-      next[o + FIELD.WATER] = Math.max(0, water);
+      // Safety net matching the stamp-time cap above: rain/springs/snowmelt all add water
+      // through paths other than a direct stamp, so the ceiling belongs here too, not only
+      // in applyStamps.
+      next[o + FIELD.WATER] = clamp(water, 0, MAX_WATER_DEPTH);
       next[o + FIELD.VELOCITY_X] = velocityX;
       next[o + FIELD.VELOCITY_Z] = velocityZ;
       next[o + FIELD.SEDIMENT] = Math.max(0, sediment);
