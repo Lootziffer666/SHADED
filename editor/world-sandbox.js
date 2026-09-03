@@ -65,6 +65,10 @@ const toolDefinitions = {
   // with env.sun in the solver, near-zero without it) -- no particle effect of its own,
   // a continuous beam/glint reads better than thrown embers for "focusing sunlight".
   focus: {kind: STAMP.FOCUS, amount: 0.05, particles: 0},
+  // "Wasserbändigen": aims water by the drag stroke's own direction (see useTool's
+  // directional handling below) instead of just dropping it in place -- the same speed-driven
+  // erosion the sim already has cuts a channel wherever this is aimed.
+  carve: {kind: STAMP.CARVE, amount: 0.03, directional: true, particleKind: 1, particles: mobile ? 20 : 46},
 };
 
 const state = {
@@ -81,6 +85,11 @@ const state = {
   backend: null,
   backendKind: '',
   pointer: {x: 0.5, z: 0.5, radius: 0.05, visible: false, down: false},
+  // Tracks the previous stamp position for directional tools (currently only "carve") so a
+  // drag stroke's own direction can be read from successive useTool() calls -- reset to null on
+  // every pointer-down so a fresh stroke never inherits direction from a previous, disconnected
+  // one.
+  toolTrail: {x: null, z: null},
   camera: {...DEFAULT_CAMERA},
   walk: {...DEFAULT_WALK},
   dayNight: 0.5,
@@ -737,9 +746,9 @@ function exit({preserveInspector = false} = {}) {
   if (state.walk.active) exitWalk();
 }
 
-function queueStamp(kind, x, z, amount, radius = state.radius) {
+function queueStamp(kind, x, z, amount, radius = state.radius, directionX = 0, directionZ = 0) {
   if (state.stamps.length >= 32) return;
-  state.stamps.push({kind, x, z, radius, amount});
+  state.stamps.push({kind, x, z, radius, amount, directionX, directionZ});
 }
 
 function queueEmitter(kind, x, z, count, strength = 1) {
@@ -768,7 +777,20 @@ function useTool(x, z) {
   }
   const tool = toolDefinitions[state.tool];
   if (!tool) return;
-  queueStamp(tool.kind, x, z, tool.amount, state.radius);
+  let directionX = 0;
+  let directionZ = 0;
+  if (tool.directional && state.toolTrail.x !== null) {
+    const dx = x - state.toolTrail.x;
+    const dz = z - state.toolTrail.z;
+    const length = Math.hypot(dx, dz);
+    if (length > 1e-4) {
+      directionX = dx / length;
+      directionZ = dz / length;
+    }
+  }
+  state.toolTrail.x = x;
+  state.toolTrail.z = z;
+  queueStamp(tool.kind, x, z, tool.amount, state.radius, directionX, directionZ);
   queueEmitter(tool.particleKind, x, z, tool.particles, state.radius / 0.05);
 }
 
@@ -1111,6 +1133,8 @@ function bindCanvas() {
     }
     Object.assign(state.pointer, pointerPosition(event), {down: true, visible: true});
     paintPointerId = event.pointerId;
+    state.toolTrail.x = null;
+    state.toolTrail.z = null;
     useTool(state.pointer.x, state.pointer.z);
     lastPaint = event.timeStamp;
   });
@@ -1290,4 +1314,9 @@ window.SHADEDWorldSandbox = {
   get camera() { return {...state.camera}; },
   get walk() { return {...state.walk}; },
   get dayNight() { return state.dayNight; },
+  // Debug-only: read-only snapshot of the stamps queued this frame, before stepOnce() drains
+  // them. Exists for tests to inspect what a real DOM interaction (a click, a drag) actually
+  // produced -- e.g. verifying a directional tool's drag-direction computation -- without
+  // racing the running simulation loop (pause first via #world-pause, then this stays stable).
+  get stamps() { return state.stamps.map(stamp => ({...stamp})); },
 };

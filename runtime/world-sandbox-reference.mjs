@@ -66,6 +66,16 @@ export const STAMP = Object.freeze({
   // stepWorldReference's igniteRate) -- no new ignition logic, just a new, physically
   // gated heat source feeding the existing one.
   FOCUS: 8,
+  // "Wasserbändigen" -- water swirled through the air, aimed by the stroke's own drag
+  // direction (directionX/directionZ on the stamp, set by the caller from successive pointer
+  // positions -- these fields already existed in the GPU stamp buffer's packing code, unused
+  // until this).
+  // Deliberately not a new erosion mechanic: this adds water (so there is something to erode)
+  // and kicks VELOCITY_X/Z hard in the aimed direction, so the speed-driven erosion term
+  // that already exists (erosion = min(sand, water * speed * ...) below) does the actual
+  // cutting -- this tool just aims the physics that is already there, the same way STAMP.FOCUS
+  // feeds the existing ignition threshold instead of adding a second one.
+  CARVE: 9,
 });
 
 export const DEFAULT_ENVIRONMENT = Object.freeze({
@@ -244,6 +254,20 @@ function applyStamps(state, size, stamps, env) {
           case STAMP.FOCUS: {
             const focusStrength = clamp(env.sun);
             state[o + FIELD.HEAT] = clamp(state[o + FIELD.HEAT] + value * focusStrength * 2.6);
+            break;
+          }
+          case STAMP.CARVE: {
+            state[o + FIELD.WATER] = clamp(state[o + FIELD.WATER] + value * 0.6, 0, MAX_WATER_DEPTH);
+            state[o + FIELD.WETNESS] = clamp(state[o + FIELD.WETNESS] + value * 3);
+            const dirX = Number(stamp.directionX) || 0;
+            const dirZ = Number(stamp.directionZ) || 0;
+            // Clamped per-stamp, not just left to accumulate -- several carve stamps can land
+            // on the same cell within one step during a fast drag, and velocity has no natural
+            // [0,1] ceiling the way HEAT/WETNESS do (clamp() defaults to that range, which
+            // would be wrong for a signed speed that legitimately exceeds 1 for a real flood
+            // surge elsewhere in this file).
+            state[o + FIELD.VELOCITY_X] = Math.max(-4, Math.min(4, state[o + FIELD.VELOCITY_X] + dirX * value * 6));
+            state[o + FIELD.VELOCITY_Z] = Math.max(-4, Math.min(4, state[o + FIELD.VELOCITY_Z] + dirZ * value * 6));
             break;
           }
           case STAMP.TRAMPLE:

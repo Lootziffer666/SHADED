@@ -462,6 +462,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   let uv = (vec2<f32>(gid.xy) + 0.5) / f32(size);
   let stampCount = min(u32(P.sim.z), 32u);
+  // STAMP.CARVE's velocity kick accumulates here rather than into the velocity local above
+  // (which was already computed from LAST step's c.water.yz before this loop runs) -- this WGSL
+  // kernel
+  // applies stamps interleaved with the rest of the step instead of as a separate pre-pass the
+  // way runtime/world-sandbox-reference.mjs's applyStamps() does, so a carve stamp's push shows
+  // up in velocity/speed/erosion starting NEXT step, not this one. One frame (~33ms at 30
+  // steps/second) of lag, not a correctness gap -- restructuring this kernel into a genuine
+  // stamp pre-pass to remove it is a larger, separately-verified change, not bundled in here.
+  var carveVelocity = vec2<f32>(0.0);
   for (var si = 0u; si < 32u; si++) {
     if (si >= stampCount) {
       break;
@@ -508,6 +517,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       // threshold combustion already uses.
       let focusStrength = clamp(P.environment.y, 0.0, 1.0);
       heat = clamp(heat + amount * focusStrength * 2.6, 0.0, 1.0);
+    } else if (kind == 9u) {
+      // "Wasserbändigen": mirrors runtime/world-sandbox-reference.mjs's STAMP.CARVE, with one
+      // deliberate timing difference from the CPU reference explained below. Adds water, then
+      // kicks velocity hard in the stroke's own drag direction (already packed into
+      // stamp.data.zw, unused until this) so the speed-driven erosion term that already exists
+      // (not a new mechanic) does the actual cutting.
+      water = clamp(water + amount * 0.6, 0.0, 1.2);
+      wetness = clamp(wetness + amount * 3.0, 0.0, 1.0);
+      carveVelocity += stamp.data.zw * amount * 6.0;
     }
   }
 
@@ -516,7 +534,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   next.terrain.w = wetness;
   // Safety net matching the stamp-time cap above: rain/springs/snowmelt all add water
   // through paths other than a direct stamp, so the ceiling belongs here too.
-  next.water = vec4<f32>(clamp(water, 0.0, 1.2), velocity.x, velocity.y, max(0.0, sediment));
+  let carriedVelocity = clamp(velocity + carveVelocity, vec2<f32>(-4.0), vec2<f32>(4.0));
+  next.water = vec4<f32>(clamp(water, 0.0, 1.2), carriedVelocity.x, carriedVelocity.y, max(0.0, sediment));
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
   next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
   next.combust = vec4<f32>(fire, smoke, ash, groundwater);

@@ -620,6 +620,53 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   }
 }
 
+// --- STAMP.CARVE ("Wasserbändigen"): aimed water cuts a channel along the drag direction ---
+// No new erosion mechanic -- this stamp only adds water and kicks VELOCITY_X/Z in the stroke's
+// own direction; the speed-driven erosion term that already exists (erosion = min(sand, water *
+// speed * ...) in stepWorldReference) does the actual cutting. Proves that end to end: dragging
+// the tool along a straight +x line should measurably lower sand ALONG that line while a
+// same-distance-from-center row the drag never touched stays untouched.
+{
+  const carveSize = 40;
+  const carveEnv = {...DEFAULT_ENVIRONMENT, rain: 0, evaporation: 0};
+  let field = new Float32Array(carveSize * carveSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) {
+    field[o + FIELD.BEDROCK] = 0.06;
+    field[o + FIELD.SAND] = 0.16;
+  }
+  const dragZ = 20;
+  const untouchedZ = 8; // far enough from dragZ that isotropic diffusion/flux can't reach it
+  const sandAlong = z => {
+    let total = 0;
+    for (let x = 12; x < 28; x++) total += field[cellOffset(carveSize, x, z) + FIELD.SAND];
+    return total;
+  };
+  const sandBeforeDrag = sandAlong(dragZ);
+  const sandBeforeUntouched = sandAlong(untouchedZ);
+
+  // Simulate a real drag: the tool is stamped once per rendered frame while the pointer sweeps
+  // along +x at a fixed z, exactly like useTool()/queueStamp() in editor/world-sandbox.js would
+  // produce, direction fixed at (1, 0) the way a straight horizontal drag resolves. 240 steps
+  // (~8s of sim time, an unhurried real drag) -- erosion is deliberately gradual here (the same
+  // speed-driven term other water already uses), so a quick flick isn't expected to gouge a
+  // canyon in under a second.
+  for (let step = 0; step < 240; step++) {
+    const x = 0.3 + (step / 240) * 0.4;
+    const stamp = {kind: STAMP.CARVE, x, z: dragZ / carveSize, radius: 2.2 / carveSize, amount: 0.03, directionX: 1, directionZ: 0};
+    field = stepWorldReference(field, carveSize, 1 / 30, {environment: carveEnv, stamps: [stamp]});
+  }
+  const sandAfterDrag = sandAlong(dragZ);
+  const sandAfterUntouched = sandAlong(untouchedZ);
+
+  assert.ok(sandAfterDrag < sandBeforeDrag - 0.005,
+    `dragging the carve tool along +x measurably erodes sand where it was aimed (${sandBeforeDrag.toFixed(4)} -> ${sandAfterDrag.toFixed(4)})`);
+  assert.ok(Math.abs(sandAfterUntouched - sandBeforeUntouched) < 0.001,
+    `a row the drag never touched stays untouched (${sandBeforeUntouched.toFixed(4)} -> ${sandAfterUntouched.toFixed(4)}), proving this is aimed erosion, not a global effect`);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) {
+    assert.ok(field[o + FIELD.SAND] >= 0, 'sand never goes negative anywhere on the grid');
+  }
+}
+
 // --- GPU cell layout: CPU's 22-float cells must be padded to the WGSL struct's real stride -
 {
   // The struct itself is the source of truth for how wide a GPU cell actually is: count its
