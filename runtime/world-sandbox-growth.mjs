@@ -359,3 +359,113 @@ export function stepVineTips(state, size, tips, dt, lightX, lightZ, graph) {
     tip.nodeId = addGraphNode(graph, tip.x, tip.z, nodeRadius(1), tip.nodeId);
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Plant life-state -- "Test C: Bloom/Wilt" from the user's plan, section 9. A plant's metabolic
+// state (water, energy, health, age, stress, growth, bloom) reacting to the world over time, so
+// events read as state SEQUENCES ("moisture up -> water up -> stress down -> growth up") rather
+// than as scripted animations triggered by name. Deliberately a simple leaky-bucket/first-order
+// model, not real plant physiology -- section 11 of the user's own plan explicitly rules out
+// simulating cellular respiration; this tracks only the variables a player could actually
+// perceive (is it thriving, stressed, blooming, dying), driven by one real input: local moisture
+// (WETNESS), the same field the root tips already read. Light/nutrients/temperature inputs are
+// real, named follow-ups (the light-field reference doc makes clear a genuine per-cell light
+// signal doesn't exist in this codebase yet) -- not faked here with an invented placeholder the
+// way vine's light target already is.
+//
+// Whole-plant, not per-node: this models ONE life-state object per plant (the thing a species
+// profile, later, would attach to), separate from the growth tips/graph above. A future
+// integration point (not built here) would let health/stress feed back into tip behaviour
+// (e.g. a stressed plant's tips stop branching) and vice versa.
+
+const LIFE_WATER_TRACK_RATE = 0.6; // how fast stored water chases ambient moisture
+const LIFE_STRESS_TRACK_RATE = 0.5; // how fast stress chases its water-derived target
+const LIFE_STRESS_WATER_THRESHOLD = 0.35; // water below this starts building stress
+const LIFE_HEALTH_STRESS_DRAIN = 0.05; // health lost per second at full sustained stress
+const LIFE_HEALTH_RECOVER_RATE = 0.03; // health regained per second when calm and watered
+const LIFE_ENERGY_PRODUCTION = 0.4; // energy gained per second at full water, zero stress
+const LIFE_ENERGY_UPKEEP = 0.06; // baseline energy spent per second just staying alive
+const LIFE_GROWTH_RATE = 0.5; // growth signal scale from (water, energy, calm)
+const LIFE_WILT_STRESS_THRESHOLD = 0.6; // stress above this reads as visibly wilting
+const LIFE_BLOOM_AGE_THRESHOLD = 30; // simulated seconds before a plant can bloom at all
+const LIFE_BLOOM_ENERGY_THRESHOLD = 0.6;
+const LIFE_BLOOM_STRESS_MAX = 0.3; // can't bloom while meaningfully stressed
+const LIFE_DEAD_DRY_RATE = 0.15; // dead wood's stored water drains toward 0 (drying, section 9)
+
+export function createPlantLifeState() {
+  return {
+    water: 0.5, energy: 0.5, health: 1, age: 0, stress: 0, growth: 0, bloom: false,
+    alive: true,
+  };
+}
+
+// Advances `life` by `dt` seconds against a single real input, `moisture` (the caller samples
+// WETNESS at the plant's own position -- same field root tips already read, no new field
+// invented). Mutates `life` in place; returns nothing, matching stepGrowthTips/stepVineTips.
+export function stepPlantLifeState(life, dt, moisture) {
+  life.age += dt;
+
+  if (!life.alive) {
+    // "Dead wood persists" (section 9): not deleted, not frozen either -- it keeps drying out
+    // and stays inert. No growth, no bloom, no metabolic recovery.
+    life.water = Math.max(0, life.water - LIFE_DEAD_DRY_RATE * dt);
+    life.growth = 0;
+    life.bloom = false;
+    return;
+  }
+
+  // Water tracks ambient moisture with inertia (a leaky bucket, not an instant copy) -- this is
+  // what makes "Regen"/"Dürre" read as a state that BUILDS over the event's duration rather than
+  // snapping the instant the rain starts or stops.
+  life.water += (moisture - life.water) * Math.min(1, LIFE_WATER_TRACK_RATE * dt);
+  life.water = Math.max(0, Math.min(1, life.water));
+
+  // Stress rises toward a target set by how far water is below the threshold, falls toward 0
+  // once water is adequate again -- this single relationship is what "Regen: stress ↓" and
+  // "Dürre: stress ↑" both fall out of, driven by the same water value, not two separate rules.
+  const stressTarget = Math.max(0, (LIFE_STRESS_WATER_THRESHOLD - life.water) / LIFE_STRESS_WATER_THRESHOLD);
+  life.stress += (stressTarget - life.stress) * Math.min(1, LIFE_STRESS_TRACK_RATE * dt);
+  life.stress = Math.max(0, Math.min(1, life.stress));
+
+  // Energy production needs both water AND calm (low stress) -- photosynthesis-shaped without
+  // claiming to BE photosynthesis (no light input yet, see the module comment above); upkeep is
+  // constant, so a plant with no water eventually runs its energy down even if it isn't actively
+  // spending it on growth.
+  const calm = 1 - life.stress;
+  const produced = LIFE_ENERGY_PRODUCTION * life.water * calm * dt;
+  life.energy = Math.max(0, Math.min(1, life.energy + produced - LIFE_ENERGY_UPKEEP * dt));
+
+  // Health drains under sustained stress, recovers slowly when calm and watered -- a single bad
+  // moment doesn't kill a plant, but sustained drought does, matching "Tod... nicht einfach
+  // delete plant" needing an actual accumulated cause, not an instant threshold trip.
+  if (life.stress > 0) {
+    life.health -= LIFE_HEALTH_STRESS_DRAIN * life.stress * dt;
+  } else if (life.water > LIFE_STRESS_WATER_THRESHOLD) {
+    life.health += LIFE_HEALTH_RECOVER_RATE * dt;
+  }
+  life.health = Math.max(0, Math.min(1, life.health));
+  if (life.health <= 0) {
+    life.alive = false;
+    life.growth = 0;
+    life.bloom = false;
+    return;
+  }
+
+  // Growth is suppressed by wilting (visible stress) even before health itself is threatened --
+  // "Welken: growth ↓" as its own earlier consequence of stress, not just a side effect of
+  // eventual health loss.
+  const wilting = life.stress > LIFE_WILT_STRESS_THRESHOLD;
+  life.growth = wilting ? 0 : LIFE_GROWTH_RATE * life.water * life.energy * calm;
+
+  // Bloom requires real maturity (age), spare capacity (energy) AND calm (low stress) all at
+  // once -- age alone or energy alone is not enough, matching the user's own conjunction
+  // ("age > threshold, energy high, ... suitable"); a bloom that starts wilting (stress climbs
+  // past the wilt threshold) closes again rather than staying open through visible distress.
+  if (!life.bloom) {
+    if (life.age > LIFE_BLOOM_AGE_THRESHOLD && life.energy > LIFE_BLOOM_ENERGY_THRESHOLD && life.stress < LIFE_BLOOM_STRESS_MAX) {
+      life.bloom = true;
+    }
+  } else if (wilting) {
+    life.bloom = false;
+  }
+}
