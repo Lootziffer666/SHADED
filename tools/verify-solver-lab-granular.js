@@ -76,9 +76,14 @@ async function main() {
   // Feuer neben Holz setzen und laufen lassen -- Holzzahl muss sinken, Rauch
   // entstehen. Exakte Grid-Koordinaten über window.__granularLab statt
   // fragiler Maus-zu-Canvas-Pixel-Umrechnung (derselbe window.SHADED-Vertrag-
-  // Gedanke aus CLAUDE.md, nur für diese kleinere Lab-Seite).
+  // Gedanke aus CLAUDE.md, nur für diese kleinere Lab-Seite). Die Umgebung
+  // wird zuerst geräumt: der Reset-Seed (1) sät zufällig auch Sand in diesem
+  // Bereich, und seit Sand Feuer ersticken kann, darf ein zufällig
+  // benachbartes Sandkorn dieses Feuer nicht vorzeitig löschen, bevor der
+  // Test überhaupt die Holz-Zündung prüfen konnte.
   await page.evaluate(() => {
     const { setCell, MATERIAL } = window.__granularLab;
+    for (let y = 7; y <= 17; y++) for (let x = 57; x <= 63; x++) setCell(x, y, MATERIAL.EMPTY);
     for (let y = 10; y <= 16; y++) setCell(60, y, MATERIAL.WOOD);
     setCell(60, 9, MATERIAL.FIRE);
   });
@@ -128,6 +133,44 @@ async function main() {
   }
   check('G: Eis neben Feuer schmilzt zu Wasser (mindestens eines von 6 Paaren)', sawWaterFromIce);
   check('G2: Dampf erscheint zwischenzeitlich (Wasser kocht oder Eis geht via Wasser weiter)', sawSteam);
+
+  // Sand erstickt Feuer -- mehrere unabhängige Paare, gleiches
+  // Robustheits-Argument wie bei G/G2 (Node-Test 20).
+  await page.evaluate(() => {
+    const { setCell, MATERIAL } = window.__granularLab;
+    for (let p = 0; p < 6; p++) {
+      const x = 10 + p * 15;
+      setCell(x, 50, MATERIAL.SAND);
+      setCell(x, 49, MATERIAL.FIRE);
+    }
+  });
+  const fireBeforeSmother = await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.FIRE));
+  let sawSmothered = false;
+  for (let i = 0; i < 20; i++) {
+    await page.evaluate(() => window.__granularLab.step());
+    if (await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.FIRE)) < fireBeforeSmother) sawSmothered = true;
+  }
+  check('H: Sand erstickt angrenzendes Feuer (mindestens eines von 6 Paaren binnen 20 Schritten)', sawSmothered);
+
+  // Die volle "brennenden Holzscheit ins Wasser werfen"-Szene: ein LOG
+  // treibt auf einem Wasserbecken, faengt Feuer, und erlischt am Wasser.
+  await page.evaluate(() => {
+    const { setCell, MATERIAL } = window.__granularLab;
+    for (let x = 90; x < 110; x++) {
+      setCell(x, 65, MATERIAL.WALL);
+      for (let y = 60; y < 65; y++) setCell(x, y, MATERIAL.WATER);
+    }
+    setCell(100, 59, MATERIAL.LOG);
+    setCell(100, 58, MATERIAL.FIRE);
+  });
+  let sawLogFire = false, sawLogExtinguished = false;
+  for (let i = 0; i < 60; i++) {
+    await page.evaluate(() => window.__granularLab.step());
+    const logIsFire = await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.FIRE)) > 0;
+    if (logIsFire) sawLogFire = true;
+    if (sawLogFire && !logIsFire) sawLogExtinguished = true;
+  }
+  check('I: ein schwimmender Baumstamm faengt Feuer und erlischt am Wasser (I2 kombiniert)', sawLogFire && sawLogExtinguished);
 
   check('Keine Konsolen-/Seitenfehler', errors.length === 0);
   if (errors.length) errors.forEach((e) => console.log('  ERROR:', e));

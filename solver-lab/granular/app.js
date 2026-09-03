@@ -37,6 +37,7 @@ function updateStatus() {
   document.getElementById('status-sand').textContent = String(sand);
   document.getElementById('status-water').textContent = String(water);
   document.getElementById('status-wood').textContent = String(countMaterial(grid, MATERIAL.WOOD));
+  document.getElementById('status-log').textContent = String(countMaterial(grid, MATERIAL.LOG));
   document.getElementById('status-fire').textContent = String(countMaterial(grid, MATERIAL.FIRE));
   document.getElementById('status-smoke').textContent = String(countMaterial(grid, MATERIAL.SMOKE));
   document.getElementById('status-ice').textContent = String(countMaterial(grid, MATERIAL.ICE));

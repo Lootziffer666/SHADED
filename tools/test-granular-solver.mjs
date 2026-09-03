@@ -214,7 +214,108 @@ function countRows(grid, y0, y1, material) {
   assert(getCell(grid, 3, 3) === MATERIAL.ICE, 'freischwebendes Eis ohne Feuer in der Nähe bleibt an Ort und Stelle');
 }
 
-// --- 16. Alle neuen Dateien parsen ------------------------------------------
+// --- 17. LOG faellt durch Luft und schwimmt auf der Wasseroberflaeche ------
+{
+  const grid = createGrid(10, 20);
+  for (let x = 0; x < grid.width; x++) {
+    setCell(grid, x, 15, MATERIAL.WALL);
+    for (let y = 10; y < 15; y++) setCell(grid, x, y, MATERIAL.WATER); // ein Wasserbecken
+  }
+  setCell(grid, 5, 2, MATERIAL.LOG); // fallen gelassen weit ueber dem Becken
+  for (let i = 0; i < 80; i++) step(grid);
+  let logY = -1;
+  for (let y = 0; y < grid.height; y++) for (let x = 0; x < grid.width; x++) if (getCell(grid, x, y) === MATERIAL.LOG) logY = y;
+  assert(logY !== -1, 'der Baumstamm existiert nach 80 Schritten noch (nicht spurlos verschwunden)');
+  assert(logY <= 10, `der Stamm sinkt nicht unter die Wasseroberflaeche (Becken beginnt bei y=10, Stamm liegt jetzt bei y=${logY})`);
+  assert(logY > 2, `der Stamm ist tatsaechlich gefallen, statt in der Luft haengen zu bleiben (Start y=2, jetzt y=${logY})`);
+}
+
+// --- 18. Ein untergetauchter LOG treibt zurueck an die Oberflaeche ---------
+{
+  const grid = createGrid(10, 20);
+  for (let x = 0; x < grid.width; x++) {
+    setCell(grid, x, 15, MATERIAL.WALL);
+    for (let y = 8; y < 15; y++) setCell(grid, x, y, MATERIAL.WATER);
+  }
+  setCell(grid, 5, 13, MATERIAL.LOG); // tief im Becken versenkt
+  for (let i = 0; i < 60; i++) step(grid);
+  let logY = -1;
+  for (let y = 0; y < grid.height; y++) for (let x = 0; x < grid.width; x++) if (getCell(grid, x, y) === MATERIAL.LOG) logY = y;
+  assert(logY !== -1 && logY < 13, `der versenkte Stamm treibt nach 60 Schritten sichtbar nach oben (Start y=13, jetzt y=${logY})`);
+}
+
+// --- 19. LOG zuendet wie WOOD, wenn Feuer angrenzt --------------------------
+{
+  // Ein einzelnes Paar ist bei IGNITE_CHANCE=0.10/Schritt kein robuster
+  // Test (10% Fehlwurf-Wahrscheinlichkeit pro Schritt macht "0 von 30
+  // Wuerfen trifft" bei ~4% nicht vernachlaessigbar, und cellRandom01 ist
+  // deterministisch an die Zellposition gebunden -- kein Seed rettet einen
+  // ungluecklichen Index) -- gleiches Robustheits-Argument wie Test 13/20.
+  // Anders als SAND (das nach dem Fallen liegen bleibt) faellt ein LOG ohne
+  // Unterlage sofort von der stationaeren Flamme weg (Test 17 zeigt genau
+  // das) -- eine WALL darunter haelt es an Ort und Stelle, exakt wie
+  // Test 13's "Wasserpfuetze ueber der Flamme" Begruendung.
+  const grid = createGrid(40, 10);
+  for (let p = 0; p < 6; p++) {
+    const x = 3 + p * 6;
+    setCell(grid, x, 6, MATERIAL.WALL);
+    setCell(grid, x, 5, MATERIAL.LOG);
+    setCell(grid, x, 4, MATERIAL.FIRE);
+  }
+  let sawLogFire = false;
+  for (let i = 0; i < 30; i++) {
+    step(grid);
+    for (let p = 0; p < 6; p++) if (getCell(grid, 3 + p * 6, 5) === MATERIAL.FIRE) sawLogFire = true;
+  }
+  assert(sawLogFire, 'mindestens einer von 6 LOG/Feuer-Paaren faengt innerhalb von 30 Schritten selbst Feuer (IGNITE_CHANCE griff)');
+}
+
+// --- 20. Feuer wird durch angrenzenden Sand erstickt ------------------------
+{
+  // Gleiches Robustheits-Argument wie Test 13 (Wasser kocht zu Dampf):
+  // mehrere unabhaengige Paare statt eines einzelnen Wuerfelwurfs.
+  const grid = createGrid(40, 10);
+  for (let p = 0; p < 6; p++) {
+    const x = 3 + p * 6;
+    setCell(grid, x, 5, MATERIAL.SAND);
+    setCell(grid, x, 4, MATERIAL.FIRE);
+  }
+  let sawSmothered = false;
+  for (let i = 0; i < 20; i++) {
+    step(grid);
+    if (countMaterial(grid, MATERIAL.FIRE) < 6) sawSmothered = true;
+  }
+  assert(sawSmothered, 'mindestens eines von 6 Sand/Feuer-Paaren erstickt innerhalb von 20 Schritten (SMOTHER_CHANCE griff, weit vor FIRE_LIFETIME=14 waere das sonst Zufall)');
+  const sandBefore = countMaterial(grid, MATERIAL.SAND);
+  for (let i = 0; i < 40; i++) step(grid);
+  assert(countMaterial(grid, MATERIAL.SAND) === sandBefore, 'der erstickende Sand selbst wird beim Ersticken nicht verbraucht');
+}
+
+// --- 21. Ein brennender Baumstamm im Wasser erlischt ------------------------
+{
+  // Die vollstaendige "brennenden Holzscheit ins Wasser werfen"-Szene:
+  // ein LOG treibt auf einem Becken, faengt Feuer, und das angrenzende
+  // Wasser loescht es -- reine Komposition der bereits einzeln getesteten
+  // Regeln (17/19 + die bestehende Wasser-loescht-Feuer-Reaktion), hier als
+  // Integrationsbeweis, dass sie tatsaechlich zusammenspielen.
+  const grid = createGrid(12, 20);
+  for (let x = 0; x < grid.width; x++) {
+    setCell(grid, x, 15, MATERIAL.WALL);
+    for (let y = 10; y < 15; y++) setCell(grid, x, y, MATERIAL.WATER);
+  }
+  setCell(grid, 6, 9, MATERIAL.LOG); // liegt auf der Oberflaeche
+  setCell(grid, 6, 8, MATERIAL.FIRE); // von oben angezuendet
+  let sawFireOnLog = false, sawExtinguished = false;
+  for (let i = 0; i < 60; i++) {
+    step(grid);
+    if (getCell(grid, 6, 9) === MATERIAL.FIRE) sawFireOnLog = true;
+    if (sawFireOnLog && countMaterial(grid, MATERIAL.FIRE) === 0) sawExtinguished = true;
+  }
+  assert(sawFireOnLog, 'der schwimmende Stamm faengt Feuer');
+  assert(sawExtinguished, 'das Feuer auf dem Stamm erlischt innerhalb von 60 Schritten, weil Wasser direkt angrenzt');
+}
+
+// --- 22. Alle neuen Dateien parsen ------------------------------------------
 {
   const { execSync } = await import('node:child_process');
   const path = await import('node:path');

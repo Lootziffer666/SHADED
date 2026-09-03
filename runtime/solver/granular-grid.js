@@ -21,21 +21,28 @@
 // Qqwy/js1k_powder_game (no license found, technique only) -- a real 2D
 // falling-sand chemistry sandbox with 11 elements and 50+ reactions. This
 // slice now covers falling solids, a spreading liquid, a rising/decaying
-// gas, and a handful of reactions (fire ignites wood; water <-> ice <->
-// steam near fire; water can extinguish fire) -- still a fraction of
+// gas, and a handful of reactions (fire ignites wood/log; water <-> ice <->
+// steam near fire; water or sand can extinguish fire; a loose LOG falls
+// through air and floats on/rises through water) -- still a fraction of
 // js1k_powder_game's vocabulary and of docs/sandbox-element-donor-matrix.md's
 // "Reaction Lab" wishlist, extended the same way: add a MATERIAL, teach
 // densityFalls/densityRises/STATIC/FLUID about it, add a reactions() rule
 // if it needs one. Never fork a second grid representation.
+//
+// LOG vs. WOOD is a deliberate split, not duplication: WOOD is the existing
+// structural material (never falls -- Test 11) used for built things, LOG is
+// a new loose one (falls, floats) for the "throw a burning log into water"
+// interaction -- same fuel/ignite rule, different movement rule, exactly the
+// "three similar lines beats a premature shared abstraction" case.
 
 export const MATERIAL = Object.freeze({
-  EMPTY: 0, SAND: 1, WATER: 2, WALL: 3, WOOD: 4, FIRE: 5, SMOKE: 6, ICE: 7, STEAM: 8,
+  EMPTY: 0, SAND: 1, WATER: 2, WALL: 3, WOOD: 4, FIRE: 5, SMOKE: 6, ICE: 7, STEAM: 8, LOG: 9,
 });
 
 export const MATERIAL_NAMES = Object.freeze({
   [MATERIAL.EMPTY]: 'empty', [MATERIAL.SAND]: 'sand', [MATERIAL.WATER]: 'water',
   [MATERIAL.WALL]: 'wall', [MATERIAL.WOOD]: 'wood', [MATERIAL.FIRE]: 'fire', [MATERIAL.SMOKE]: 'smoke',
-  [MATERIAL.ICE]: 'ice', [MATERIAL.STEAM]: 'steam',
+  [MATERIAL.ICE]: 'ice', [MATERIAL.STEAM]: 'steam', [MATERIAL.LOG]: 'log',
 });
 
 // Wie lange (in Schritten) eine Feuer-, Rauch- bzw. Dampfzelle lebt, bevor
@@ -49,6 +56,10 @@ const IGNITE_CHANCE = 0.10;
 const MELT_CHANCE = 0.16;
 const BOIL_CHANCE = 0.12;
 const EXTINGUISH_CHANCE = 0.20;
+// Sand ist dichter und trockener als Wasser -- ein direkt angrenzendes
+// Feuer wird verlaesslicher erstickt als von Wasser geloescht, statt
+// nur langsam gekuehlt zu werden.
+const SMOTHER_CHANCE = 0.35;
 
 export function createGrid(width, height) {
   const n = width * height;
@@ -108,10 +119,16 @@ const STATIC = new Set([MATERIAL.WALL, MATERIAL.WOOD, MATERIAL.ICE]); // fallen/
 const FLUID = new Set([MATERIAL.WATER, MATERIAL.SMOKE, MATERIAL.STEAM]); // weichen seitlich aus, wenn oben/unten blockiert
 
 // a fällt auf/verdrängt b, wenn a dichter ist als b (Sand > Wasser > Leer).
+// LOG ist bewusst NICHT WOOD: WOOD bleibt die strukturelle, immer statische
+// Bauholz-Zelle (Test 11), LOG ist ein loser, fallender Baumstamm, der sich
+// werfen laesst. LOG faellt durch Luft wie Sand, aber NICHT durch Wasser --
+// das genuegt bereits fuer "schwimmt auf der Oberflaeche", ganz ohne einen
+// echten Auftriebs-Koeffizienten simulieren zu muessen.
 function densityFalls(a, b) {
   if (STATIC.has(a)) return false;
   if (a === MATERIAL.SAND && (b === MATERIAL.EMPTY || b === MATERIAL.WATER)) return true;
   if (a === MATERIAL.WATER && b === MATERIAL.EMPTY) return true;
+  if (a === MATERIAL.LOG && b === MATERIAL.EMPTY) return true;
   return false;
 }
 
@@ -126,6 +143,11 @@ function densityFalls(a, b) {
 // "leichter als" keine reine Umkehr von "dichter als" ist.
 function densityRises(a, b) {
   if ((a === MATERIAL.SMOKE || a === MATERIAL.STEAM) && b === MATERIAL.EMPTY) return true;
+  // Ein untergetauchter Baumstamm treibt zurueck an die Oberflaeche, statt
+  // liegenzubleiben wo er zufaellig hineingeraten ist -- derselbe
+  // "rises past what's above it"-Mechanismus wie Rauch/Dampf durch Luft,
+  // nur LOG durch WASSER statt durch EMPTY.
+  if (a === MATERIAL.LOG && b === MATERIAL.WATER) return true;
   return false;
 }
 
@@ -180,8 +202,13 @@ function reactions(grid) {
         // daneben?" (unten bei MATERIAL.WATER) nicht korreliert entschieden
         // werden, obwohl beide dieselbe Nachbarschaft anschauen.
         const extinguished = hasNeighbor(grid, x, y, MATERIAL.WATER) && cellRandom01(grid.step, i + 3) < EXTINGUISH_CHANCE;
+        // Eigener Hash-Stream (i + 4) aus demselben Grund wie beim Loeschen
+        // durch Wasser: "erstickt der Sand das Feuer?" und "loescht das
+        // Wasser daneben?" duerfen nicht korreliert wuerfeln, nur weil beide
+        // dieselbe Nachbarschaft ansehen.
+        const smothered = hasNeighbor(grid, x, y, MATERIAL.SAND) && cellRandom01(grid.step, i + 4) < SMOTHER_CHANCE;
         const age = grid.age[i] + 1;
-        if (extinguished || age >= FIRE_LIFETIME) { nextCells[i] = MATERIAL.SMOKE; nextAge[i] = 0; }
+        if (extinguished || smothered || age >= FIRE_LIFETIME) { nextCells[i] = MATERIAL.SMOKE; nextAge[i] = 0; }
         else nextAge[i] = age;
       } else if (m === MATERIAL.SMOKE) {
         const age = grid.age[i] + 1;
@@ -191,7 +218,10 @@ function reactions(grid) {
         const age = grid.age[i] + 1;
         if (age >= STEAM_LIFETIME) { nextCells[i] = MATERIAL.EMPTY; nextAge[i] = 0; }
         else nextAge[i] = age;
-      } else if (m === MATERIAL.WOOD) {
+      } else if (m === MATERIAL.WOOD || m === MATERIAL.LOG) {
+        // Gleiche Zuendregel fuer beide Brennstoff-Materialien -- WOOD und
+        // LOG unterscheiden sich nur in der Bewegung (Baustruktur vs.
+        // werfbarer Stamm), nicht im Brandverhalten.
         if (hasNeighbor(grid, x, y, MATERIAL.FIRE) && cellRandom01(grid.step, i) < IGNITE_CHANCE) {
           nextCells[i] = MATERIAL.FIRE; nextAge[i] = 0;
         }
@@ -256,6 +286,7 @@ export const MATERIAL_COLOR = Object.freeze({
   [MATERIAL.SMOKE]: [120, 118, 112, 160],
   [MATERIAL.ICE]: [176, 214, 230, 235],
   [MATERIAL.STEAM]: [220, 224, 228, 130],
+  [MATERIAL.LOG]: [150, 100, 54, 255],
 });
 
 export function toRGBA(grid) {
