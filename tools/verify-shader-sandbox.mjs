@@ -79,7 +79,9 @@ assert.match(worldGpu, /depth24plus/);
 assert.match(worldJs, /beginMultiGesture/);
 assert.match(worldReference, /stepWorldReference/);
 assert.match(worldReference, /sandFlux/);
-assert.match(worldReference, /waterFlux/);
+// Water transport is velocity-driven (edgeFlow reads the accelerate-then-damp velocity
+// field), not the old instantaneous excess-head rule -- see world-sandbox-reference.mjs.
+assert.match(worldReference, /edgeFlow/);
 
 assert.match(sources, /WebGL SandToy/);
 assert.match(sources, /FreeStylized Sand 01/);

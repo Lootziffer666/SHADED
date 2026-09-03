@@ -166,11 +166,20 @@ function sandFlux(state, from, to, dt, rate) {
   return Math.min(state[from + FIELD.SAND] * 0.19, excess * rate * dt * 0.24);
 }
 
-function waterFlux(state, from, to, dt, rate) {
-  const fromLevel = surface(state, from) + state[from + FIELD.WATER];
-  const toLevel = surface(state, to) + state[to + FIELD.WATER];
-  const excess = Math.max(0, fromLevel - toLevel - 0.00015);
-  return Math.min(state[from + FIELD.WATER] * 0.22, excess * rate * dt * 0.25);
+// Water is no longer moved by an instantaneous "excess head -> displacement" rule (that
+// produced the reported instant leveling: no memory, no overshoot). Instead the same
+// gravity-accelerated, drag-damped velocity already computed below for erosion `speed`
+// is now the thing that actually transports water -- Höhendifferenz -> Beschleunigung ->
+// Geschwindigkeit -> Transport -> Dämpfung, not Höhendifferenz -> Wasser direkt verschieben.
+// `edgeFlow` reads last step's persisted velocity (leapfrog-style: this step's freshly
+// updated velocity only takes effect next step), so momentum genuinely carries across
+// frames and two basins can overshoot level and slosh back before damping settles them.
+function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24) {
+  const crossing = edgeVelocity * dt * size; // signed fraction of a cell width crossed toward `far`
+  if (crossing > 0) {
+    return Math.min(state[nearIndex + FIELD.WATER] * cap, crossing * state[nearIndex + FIELD.WATER]);
+  }
+  return -Math.min(state[farIndex + FIELD.WATER] * cap, -crossing * state[farIndex + FIELD.WATER]);
 }
 
 export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
@@ -194,12 +203,9 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       ];
 
       let sandDelta = 0;
-      let waterDelta = 0;
       for (const n of neighbours) {
         sandDelta += sandFlux(stamped, n, o, safeDt, env.sandRate)
           - sandFlux(stamped, o, n, safeDt, env.sandRate);
-        waterDelta += waterFlux(stamped, n, o, safeDt, env.waterRate)
-          - waterFlux(stamped, o, n, safeDt, env.waterRate);
       }
 
       const left = neighbours[0];
@@ -214,6 +220,16 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       const velocityZ = (stamped[o + FIELD.VELOCITY_Z] - gradientZ * safeDt * 0.84)
         * Math.max(0, 1 - safeDt * 2.4);
       const speed = Math.hypot(velocityX, velocityZ);
+
+      const edgeVelXRight = 0.5 * (stamped[o + FIELD.VELOCITY_X] + stamped[right + FIELD.VELOCITY_X]);
+      const edgeVelXLeft = 0.5 * (stamped[left + FIELD.VELOCITY_X] + stamped[o + FIELD.VELOCITY_X]);
+      const edgeVelZBottom = 0.5 * (stamped[o + FIELD.VELOCITY_Z] + stamped[south + FIELD.VELOCITY_Z]);
+      const edgeVelZTop = 0.5 * (stamped[north + FIELD.VELOCITY_Z] + stamped[o + FIELD.VELOCITY_Z]);
+      const flowToRight = edgeFlow(stamped, o, right, edgeVelXRight, safeDt, size);
+      const flowFromLeft = edgeFlow(stamped, left, o, edgeVelXLeft, safeDt, size);
+      const flowToBottom = edgeFlow(stamped, o, south, edgeVelZBottom, safeDt, size);
+      const flowFromTop = edgeFlow(stamped, north, o, edgeVelZTop, safeDt, size);
+      const waterDelta = flowFromLeft - flowToRight + flowFromTop - flowToBottom;
 
       let sand = Math.max(0, stamped[o + FIELD.SAND] + sandDelta);
       let water = Math.max(0, stamped[o + FIELD.WATER] + waterDelta + env.rain * safeDt * 0.018);

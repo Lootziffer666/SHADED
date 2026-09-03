@@ -62,11 +62,21 @@ fn sandFlux(a: Cell, b: Cell) -> f32 {
   return min(a.terrain.y * 0.19, excess * P.rates.x * dt * 0.24);
 }
 
-fn waterFlux(a: Cell, b: Cell) -> f32 {
-  let dt = P.sim.x;
-  let delta = surface(a) + a.water.x - surface(b) - b.water.x;
-  let excess = max(0.0, delta - 0.00015);
-  return min(a.water.x * 0.22, excess * P.rates.y * dt * 0.25);
+// Water is no longer moved by an instantaneous "excess head -> displacement" rule (that
+// produced the reported instant leveling: no memory, no overshoot). Instead the same
+// gravity-accelerated, drag-damped velocity already computed below for erosion speed
+// is now the thing that actually transports water -- Hoehendifferenz -> Beschleunigung ->
+// Geschwindigkeit -> Transport -> Daempfung, not Hoehendifferenz -> Wasser direkt verschieben.
+// edgeFlow reads last step's persisted velocity (leapfrog-style: this step's freshly
+// updated velocity only takes effect next step), so momentum genuinely carries across
+// frames and two basins can overshoot level and slosh back before damping settles them.
+fn edgeFlow(near: Cell, far: Cell, edgeVelocity: f32, dt: f32, size: f32) -> f32 {
+  let cap = 0.24;
+  let crossing = edgeVelocity * dt * size;
+  if (crossing > 0.0) {
+    return min(near.water.x * cap, crossing * near.water.x);
+  }
+  return -min(far.water.x * cap, -crossing * far.water.x);
 }
 
 fn smooth(a: f32, b: f32, value: f32) -> f32 {
@@ -99,13 +109,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     + sandFlux(top, c) + sandFlux(bottom, c)
     - sandFlux(c, left) - sandFlux(c, right)
     - sandFlux(c, top) - sandFlux(c, bottom);
-  var waterDelta = waterFlux(left, c) + waterFlux(right, c)
-    + waterFlux(top, c) + waterFlux(bottom, c)
-    - waterFlux(c, left) - waterFlux(c, right)
-    - waterFlux(c, top) - waterFlux(c, bottom);
 
   var sand = max(0.0, c.terrain.y + sandDelta);
-  var water = max(0.0, c.water.x + waterDelta + P.environment.x * dt * 0.018);
   let levelLeft = surface(left) + left.water.x;
   let levelRight = surface(right) + right.water.x;
   let levelTop = surface(top) + top.water.x;
@@ -113,6 +118,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let grad = vec2<f32>(levelRight - levelLeft, levelBottom - levelTop) * 0.5 * f32(size);
   let velocity = (c.water.yz - grad * dt * 0.84) * max(0.0, 1.0 - dt * 2.4);
   let speed = length(velocity);
+
+  let edgeVelXRight = 0.5 * (c.water.y + right.water.y);
+  let edgeVelXLeft = 0.5 * (left.water.y + c.water.y);
+  let edgeVelZBottom = 0.5 * (c.water.z + bottom.water.z);
+  let edgeVelZTop = 0.5 * (top.water.z + c.water.z);
+  let flowToRight = edgeFlow(c, right, edgeVelXRight, dt, f32(size));
+  let flowFromLeft = edgeFlow(left, c, edgeVelXLeft, dt, f32(size));
+  let flowToBottom = edgeFlow(c, bottom, edgeVelZBottom, dt, f32(size));
+  let flowFromTop = edgeFlow(top, c, edgeVelZTop, dt, f32(size));
+  var waterDelta = flowFromLeft - flowToRight + flowFromTop - flowToBottom;
+
+  var water = max(0.0, c.water.x + waterDelta + P.environment.x * dt * 0.018);
   var sediment = max(0.0, c.water.w);
   let erosion = min(sand, water * speed * (1.0 - c.terrain.z) * dt * 0.032);
   let deposition = min(sediment, sediment * dt * (0.08 + max(0.0, 0.7 - speed) * 0.24));

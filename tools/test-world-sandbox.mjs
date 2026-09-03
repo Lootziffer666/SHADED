@@ -84,6 +84,50 @@ for (let tick = 0; tick < 30; tick++) {
 const burned = sampleWorld(causal, size, target.x, target.z);
 assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
 
+// Water transport must come from the same accelerate-then-damp velocity field used for
+// erosion `speed`, not an instantaneous "excess head -> displacement" relaxation -- that
+// old rule could only ever monotonically shrink the head difference (reported as water
+// leveling instantly, with no memory). A dam-break (deep water on one half of a flat
+// floor, none on the other) must show the probe cell at the seam overshoot its eventual
+// settling depth and slosh back at least once before damping wins, the signature of a
+// real momentum-carrying transport model.
+{
+  const damSize = 24;
+  const flat = new Float32Array(damSize * damSize * 12);
+  const {cellOffset: damOffset, FIELD: damField} = await import('../runtime/world-sandbox-reference.mjs');
+  for (let z = 0; z < damSize; z++) {
+    for (let x = 0; x < damSize; x++) {
+      flat[damOffset(damSize, x, z) + damField.BEDROCK] = 0.1;
+    }
+  }
+  for (let z = 0; z < damSize; z++) {
+    for (let x = 0; x < damSize / 2; x++) {
+      flat[damOffset(damSize, x, z) + damField.WATER] = 0.3;
+    }
+  }
+  const damEnvironment = {
+    rain: 0, sun: 0.5, temperature: 0.5, evaporation: 0, permeability: 0, sandRate: 2.35, waterRate: 5.4, growthRate: 0,
+  };
+  let dam = flat;
+  const depths = [];
+  for (let tick = 0; tick < 400; tick++) {
+    dam = stepWorldReference(dam, damSize, 1 / 30, {environment: damEnvironment});
+    depths.push(sampleWorld(dam, damSize, 0.5, 0.5).waterDepth);
+  }
+  let signChanges = 0;
+  let prevDelta = 0;
+  for (let i = 1; i < depths.length; i++) {
+    const delta = depths[i] - depths[i - 1];
+    if (Math.abs(delta) < 1e-7) continue;
+    if (prevDelta !== 0 && Math.sign(delta) !== Math.sign(prevDelta)) signChanges++;
+    prevDelta = delta;
+  }
+  assert.ok(signChanges >= 3, `dam-break water depth must slosh (overshoot + settle back), not relax monotonically (sign changes: ${signChanges})`);
+  const peak = Math.max(...depths.slice(0, 100));
+  const late = depths[depths.length - 1];
+  assert.ok(peak > late + 0.01, `dam-break water must overshoot its late-time settling depth (peak ${peak.toFixed(4)} vs late ${late.toFixed(4)})`);
+}
+
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read> src/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read_write> dst/);
