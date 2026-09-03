@@ -317,7 +317,7 @@ function applyStamps(state, size, stamps, env) {
   }
 }
 
-function surface(state, offset) {
+export function surface(state, offset) {
   return state[offset + FIELD.BEDROCK] + state[offset + FIELD.SAND];
 }
 
