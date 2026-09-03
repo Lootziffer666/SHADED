@@ -123,10 +123,18 @@ fn smooth(a: f32, b: f32, value: f32) -> f32 {
 // it has once summed. Derived only from the cell's own wind + dt/size/rate, so it stays a
 // pure function of the source cell alone, which the mass-conservation guarantee requires.
 // (crossing = the per-direction fraction of a cell's stock that wind moves this step.)
-fn windOutflowScale(wind: vec2<f32>, dt: f32, size: f32, rate: f32) -> f32 {
+// reservedFraction (0..1) is the share of this cell's OWN stock that some OTHER same-step
+// conversion (precip off CLOUD, melt off SNOW, decay off SMOKE -- all computed against the
+// same pre-step stock windFlux reads) is about to remove -- mirrors
+// runtime/world-sandbox-reference.mjs's windOutflowScale exactly, including this parameter.
+// Without reserving it, wind alone could already claim up to 100% of the stock and the
+// conversion claims more on top, clamping the source to 0 while neighbours still receive the
+// FULL, un-reduced wind credit -- net mass creation in an otherwise closed system.
+fn windOutflowScale(wind: vec2<f32>, dt: f32, size: f32, rate: f32, reservedFraction: f32) -> f32 {
   let total = max(0.0, wind.x) * dt * size * rate + max(0.0, -wind.x) * dt * size * rate
     + max(0.0, wind.y) * dt * size * rate + max(0.0, -wind.y) * dt * size * rate;
-  return select(1.0, 1.0 / total, total > 1.0);
+  let budget = max(0.0, 1.0 - clamp(reservedFraction, 0.0, 1.0));
+  return select(1.0, budget / total, total > budget);
 }
 
 fn windFlux(fromValue: f32, windAlongFromTo: f32, dt: f32, size: f32, rate: f32, outflowScale: f32) -> f32 {
@@ -149,12 +157,13 @@ fn windTransportDelta(
   hasLeft: bool, hasRight: bool, hasTop: bool, hasBottom: bool,
   selfWind: vec2<f32>, leftWind: vec2<f32>, rightWind: vec2<f32>, topWind: vec2<f32>, bottomWind: vec2<f32>,
   dt: f32, size: f32, rate: f32,
+  reservedSelf: f32, reservedLeft: f32, reservedRight: f32, reservedTop: f32, reservedBottom: f32,
 ) -> f32 {
-  let scaleSelf = windOutflowScale(selfWind, dt, size, rate);
-  let scaleLeft = windOutflowScale(leftWind, dt, size, rate);
-  let scaleRight = windOutflowScale(rightWind, dt, size, rate);
-  let scaleTop = windOutflowScale(topWind, dt, size, rate);
-  let scaleBottom = windOutflowScale(bottomWind, dt, size, rate);
+  let scaleSelf = windOutflowScale(selfWind, dt, size, rate, reservedSelf);
+  let scaleLeft = windOutflowScale(leftWind, dt, size, rate, reservedLeft);
+  let scaleRight = windOutflowScale(rightWind, dt, size, rate, reservedRight);
+  let scaleTop = windOutflowScale(topWind, dt, size, rate, reservedTop);
+  let scaleBottom = windOutflowScale(bottomWind, dt, size, rate, reservedBottom);
   var delta = 0.0;
   if (hasLeft) {
     delta += windFlux(leftValue, windAlong(leftWind, 1.0, 0.0), dt, size, rate, scaleLeft)
@@ -173,6 +182,18 @@ fn windTransportDelta(
       - windFlux(selfValue, windAlong(selfWind, 0.0, 1.0), dt, size, rate, scaleSelf);
   }
   return delta;
+}
+
+// The fraction of SNOW that melt is about to remove at an arbitrary cell, computed the exact
+// same way fn main() derives it for the centre cell (localTemp from altitude + HEAT, then the
+// same rate curve melt itself uses) -- mirrors
+// runtime/world-sandbox-reference.mjs's snowMeltFraction exactly. Needed so
+// windTransportDelta can reserve the right budget at EVERY cell it touches (self and all 4
+// neighbours), not just the one fn main() happens to be sitting on this invocation.
+fn snowMeltFraction(cell: Cell, dt: f32) -> f32 {
+  let altitude = surface(cell);
+  let localTemp = clamp(P.environment.z + cell.bio.z * 0.35 - altitude * 0.6, 0.0, 1.0);
+  return min(1.0, max(0.0, localTemp - 0.46) * dt * 1.4);
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -309,7 +330,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // anything else here would silently break the from-cell-only cancellation the whole
   // conservation proof depends on.
   let snowWindDelta = windTransportDelta(c.atmo.w, left.atmo.w, right.atmo.w, top.atmo.w, bottom.atmo.w,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.35);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.35,
+    snowMeltFraction(c, dt), snowMeltFraction(left, dt), snowMeltFraction(right, dt), snowMeltFraction(top, dt), snowMeltFraction(bottom, dt));
   snow = max(0.0, snow + snowWindDelta);
 
   // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
@@ -347,7 +369,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // straight into water, it has to condense and fall like everything else.
   let neighbourVapor = (left.atmo.x + right.atmo.x + top.atmo.x + bottom.atmo.x) * 0.25;
   let vaporWindDelta = windTransportDelta(c.atmo.x, left.atmo.x, right.atmo.x, top.atmo.x, bottom.atmo.x,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6,
+    0.0, 0.0, 0.0, 0.0, 0.0);
   var vapor = max(0.0, c.atmo.x + (neighbourVapor - c.atmo.x) * dt * 0.18
     + vaporWindDelta + evaporation + P.environment.x * dt * 0.06);
   // Condensation: colder air holds less vapor before the excess condenses into cloud (tuned to
@@ -358,8 +381,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let condensed = max(0.0, vapor - saturation) * dt * 0.6;
   vapor -= condensed;
   let neighbourCloud = (left.atmo.y + right.atmo.y + top.atmo.y + bottom.atmo.y) * 0.25;
+  // precip's own rate (cloudOld * dt * 0.22, see above) is the same constant fraction at every
+  // cell this step, so reserving it needs no per-cell recomputation like melt's.
+  let precipFraction = min(1.0, dt * 0.22);
   let cloudWindDelta = windTransportDelta(cloudOld, left.atmo.y, right.atmo.y, top.atmo.y, bottom.atmo.y,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6,
+    precipFraction, precipFraction, precipFraction, precipFraction, precipFraction);
   let cloud = max(0.0, cloudOld + (neighbourCloud - cloudOld) * dt * 0.35 + cloudWindDelta - precip + condensed);
 
   // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining 0..1
@@ -401,8 +428,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // and simply thins out over time (no separate "settle" reservoir -- it just disperses,
   // unlike ash which actually falls to the ground).
   let neighbourSmoke = (left.combust.y + right.combust.y + top.combust.y + bottom.combust.y) * 0.25;
+  // Same reasoning as precipFraction above: decay's rate (dt * 0.35) is constant across the
+  // grid this step, so it needs no per-cell recomputation either.
+  let smokeDecayFraction = min(1.0, dt * 0.35);
   let smokeWindDelta = windTransportDelta(c.combust.y, left.combust.y, right.combust.y, top.combust.y, bottom.combust.y,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 1.4);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 1.4,
+    smokeDecayFraction, smokeDecayFraction, smokeDecayFraction, smokeDecayFraction, smokeDecayFraction);
   let smoke = max(0.0, c.combust.y + (neighbourSmoke - c.combust.y) * dt * 0.6
     + smokeWindDelta + smokeRelease - c.combust.y * dt * 0.35);
 
@@ -418,7 +449,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // the CPU reference's seedWindDelta exactly (mass-conserving via windTransportDelta, gentle
   // rate since seeds are a much lighter payload than snow/sand).
   let seedWindDelta = windTransportDelta(c.bio.y, left.bio.y, right.bio.y, top.bio.y, bottom.bio.y,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.5);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.5,
+    0.0, 0.0, 0.0, 0.0, 0.0);
   var seed = clamp(c.bio.y + neighbourBiomass * moistureFit * dt * 0.012 + seedWindDelta - dt * 0.0015, 0.0, 1.0);
   let fertility = 1.0 + min(0.6, ash * 1.4);
   let growth = seed * moistureFit * P.environment.y * temperatureFit

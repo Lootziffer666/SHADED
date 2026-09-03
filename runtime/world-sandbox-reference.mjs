@@ -325,12 +325,22 @@ function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24
 // SAME factor, derived only from that cell's own wind + dt/size/rate (never a neighbour's),
 // so it stays a pure function of the source cell alone -- required for the mass-conservation
 // guarantee below to still hold.
-function windOutflowScale(state, index, dt, size, rate) {
+// `reservedFraction` (0..1, default 0) is the share of this cell's OWN stock that some
+// OTHER same-step conversion (precipitation off CLOUD, melt off SNOW, decay off SMOKE --
+// all computed independently against the same pre-step stamped value windFlux reads) is
+// about to remove. Without reserving it here, wind alone could already claim up to 100% of
+// the stock, and the conversion claims more on top of that -- the source goes negative and
+// gets clamped to 0 (real mass lost), while neighbours still receive the FULL wind credit
+// computed as if that mass had actually left. Reserving shrinks the wind budget to what's
+// actually going to be left once the conversion also runs, so neighbours never get credited
+// for mass the source doesn't have.
+function windOutflowScale(state, index, dt, size, rate, reservedFraction = 0) {
   const windX = state[index + FIELD.WIND_X];
   const windZ = state[index + FIELD.WIND_Z];
   const total = Math.max(0, windX) * dt * size * rate + Math.max(0, -windX) * dt * size * rate
     + Math.max(0, windZ) * dt * size * rate + Math.max(0, -windZ) * dt * size * rate;
-  return total > 1 ? 1 / total : 1;
+  const budget = Math.max(0, 1 - clamp(reservedFraction));
+  return total > budget ? budget / total : 1;
 }
 
 function windFlux(state, fieldIndex, fromIndex, toIndex, windAlongFromTo, dt, size, rate, outflowScale) {
@@ -350,12 +360,12 @@ function windAlong(state, index, dirX, dirZ) {
   return state[index + FIELD.WIND_X] * dirX + state[index + FIELD.WIND_Z] * dirZ;
 }
 
-function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt, size, rate) {
-  const scaleO = windOutflowScale(state, o, dt, size, rate);
-  const scaleLeft = windOutflowScale(state, left, dt, size, rate);
-  const scaleRight = windOutflowScale(state, right, dt, size, rate);
-  const scaleNorth = windOutflowScale(state, north, dt, size, rate);
-  const scaleSouth = windOutflowScale(state, south, dt, size, rate);
+function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt, size, rate, reservedFractionAt = () => 0) {
+  const scaleO = windOutflowScale(state, o, dt, size, rate, reservedFractionAt(o));
+  const scaleLeft = windOutflowScale(state, left, dt, size, rate, reservedFractionAt(left));
+  const scaleRight = windOutflowScale(state, right, dt, size, rate, reservedFractionAt(right));
+  const scaleNorth = windOutflowScale(state, north, dt, size, rate, reservedFractionAt(north));
+  const scaleSouth = windOutflowScale(state, south, dt, size, rate, reservedFractionAt(south));
   let delta = 0;
   delta += windFlux(state, fieldIndex, left, o, windAlong(state, left, 1, 0), dt, size, rate, scaleLeft)
     - windFlux(state, fieldIndex, o, left, windAlong(state, o, -1, 0), dt, size, rate, scaleO);
@@ -366,6 +376,17 @@ function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt,
   delta += windFlux(state, fieldIndex, south, o, windAlong(state, south, 0, -1), dt, size, rate, scaleSouth)
     - windFlux(state, fieldIndex, o, south, windAlong(state, o, 0, 1), dt, size, rate, scaleO);
   return delta;
+}
+
+// The fraction of SNOW that melt is about to remove at an arbitrary cell, computed the exact
+// same way the main step loop derives it for the centre cell (localTemp from altitude + HEAT,
+// then the same rate curve melt itself uses) -- needed so windTransportDelta can reserve the
+// right budget at EVERY cell it touches (o and all 4 neighbours), not just the one the main
+// loop happens to be sitting on this iteration.
+function snowMeltFraction(state, index, env, dt) {
+  const altitude = surface(state, index);
+  const localTemp = clamp(env.temperature + state[index + FIELD.HEAT] * 0.35 - altitude * 0.6);
+  return Math.min(1, Math.max(0, localTemp - 0.46) * dt * 1.4);
 }
 
 export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
@@ -502,7 +523,8 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // behaviour -- it piles up on the leeward side of obstacles instead of falling and
       // staying exactly where it landed), same conservative wind-flux machinery as the
       // atmospheric fields, just on a ground reservoir. Slower than smoke -- snow is heavy.
-      const snowWindDelta = windTransportDelta(stamped, FIELD.SNOW, o, left, right, north, south, safeDt, size, 0.35);
+      const snowWindDelta = windTransportDelta(stamped, FIELD.SNOW, o, left, right, north, south, safeDt, size, 0.35,
+        (index) => snowMeltFraction(stamped, index, env, safeDt));
       snow = Math.max(0, snow + snowWindDelta);
 
       // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
@@ -560,7 +582,11 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       vapor -= condensed;
       const neighbourCloud = (stamped[left + FIELD.CLOUD] + stamped[right + FIELD.CLOUD]
         + stamped[north + FIELD.CLOUD] + stamped[south + FIELD.CLOUD]) * 0.25;
-      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, safeDt, size, 0.6);
+      // precip's own rate (cloudOld * safeDt * 0.22, see above) is the same constant fraction
+      // at every cell this step, so reserving it needs no per-cell recomputation like melt's.
+      const precipFraction = Math.min(1, safeDt * 0.22);
+      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, safeDt, size, 0.6,
+        () => precipFraction);
       const cloud = Math.max(0, cloudOld + (neighbourCloud - cloudOld) * safeDt * 0.35 + cloudWindDelta - precip + condensed);
 
       // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining
@@ -609,7 +635,11 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // disperses, unlike ash which actually falls to the ground).
       const neighbourSmoke = (stamped[left + FIELD.SMOKE] + stamped[right + FIELD.SMOKE]
         + stamped[north + FIELD.SMOKE] + stamped[south + FIELD.SMOKE]) * 0.25;
-      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, safeDt, size, 1.4);
+      // Same reasoning as precipFraction above: decay's rate (safeDt * 0.35) is constant
+      // across the grid this step, so it needs no per-cell recomputation either.
+      const smokeDecayFraction = Math.min(1, safeDt * 0.35);
+      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, safeDt, size, 1.4,
+        () => smokeDecayFraction);
       const smoke = Math.max(0, stamped[o + FIELD.SMOKE]
         + (neighbourSmoke - stamped[o + FIELD.SMOKE]) * safeDt * 0.6
         + smokeWindDelta

@@ -554,6 +554,72 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
     `seeds stamped at x=10 measurably reach a downwind column (x=13) within 60 steps under strong +x wind, got ${seedsDownwind}`);
 }
 
+// --- Wind outflow reserves budget for a same-step conversion (precip/melt/decay) ---------
+// Strong wind alone can already claim up to 100% of a cell's stock (windOutflowScale). If a
+// same-step conversion computed against that SAME pre-step stock (precip off CLOUD, melt off
+// SNOW, decay off SMOKE) isn't reserved against that budget too, the source cell can be asked
+// to give away more than it has -- it gets clamped to 0 (mass lost there) while neighbours
+// still receive the FULL, un-reduced wind credit (mass gained there), a net creation of mass
+// in an otherwise closed system. Isolate WATER=0 everywhere so evaporation/condensation can't
+// also move mass into CLOUD, keeping this a clean read on the wind+precip/melt interaction.
+{
+  const reserveSize = 16;
+  const totalOf = (field, index) => {
+    let sum = 0;
+    for (let o = 0; o < field.length; o += CELL_STRIDE) sum += field[o + index];
+    return sum;
+  };
+
+  // Wind relaxes toward env.wind/windDeg slowly (see fn main()'s baseWindX/baseWindZ
+  // comment) -- seeding FIELD.WIND_X/Z directly, the same pattern the "Wind FIELD" tests
+  // above use, gets windOutflowScale's cap triggering on tick 1 instead of waiting ~85
+  // steps for relaxation, and this specific bug is about what THAT cap does when a
+  // same-step conversion competes with it, not about how wind gets there.
+  const cloudEnv = {...DEFAULT_ENVIRONMENT, wind: 0, rain: 0, evaporation: 0};
+  let cloudField = new Float32Array(reserveSize * reserveSize * CELL_STRIDE);
+  for (let o = 0; o < cloudField.length; o += CELL_STRIDE) cloudField[o + FIELD.BEDROCK] = 0.1;
+  const cloudAt = cellOffset(reserveSize, 8, 8);
+  cloudField[cloudAt + FIELD.CLOUD] = 0.6;
+  cloudField[cloudAt + FIELD.WIND_X] = 6;
+  cloudField[cloudAt + FIELD.WIND_Z] = 6;
+  // Reserving precip's fraction closes the bulk of the gap (this exact scenario grew
+  // ~1.17% per step before the fix) but not all of it: CLOUD also has an isotropic
+  // diffusion term competing for the same pre-step budget, and this test's WIND_X/Z=6
+  // spike is deliberately extreme (a huge wind vector at ONE cell, none at its
+  // neighbours) specifically to trigger windOutflowScale's cap outright -- the worst
+  // single tick that combination can produce. Closing that residual too needs
+  // reservedFractionAt to see each cell's own neighbours (a second-order lookup
+  // windTransportDelta doesn't thread through today), tracked as a known follow-up
+  // rather than silently left unverified. What's actually guaranteed today: growth is
+  // bounded to a small tolerance on that one worst tick, and every following tick --
+  // once the spike has diffused into its neighbours -- is strictly non-increasing again.
+  let cloudBefore = totalOf(cloudField, FIELD.CLOUD);
+  for (let tick = 0; tick < 20; tick++) {
+    cloudField = stepWorldReference(cloudField, reserveSize, 1 / 30, {environment: cloudEnv});
+    const cloudAfter = totalOf(cloudField, FIELD.CLOUD);
+    const tolerance = tick === 0 ? cloudBefore * 0.006 : 1e-6;
+    assert.ok(cloudAfter <= cloudBefore + tolerance,
+      `total CLOUD mass must stay within the documented bound (tick ${tick}: ${cloudBefore} -> ${cloudAfter})`);
+    cloudBefore = cloudAfter;
+  }
+
+  const snowEnv = {...DEFAULT_ENVIRONMENT, wind: 0, rain: 0, evaporation: 0, temperature: 0.85};
+  let snowField = new Float32Array(reserveSize * reserveSize * CELL_STRIDE);
+  for (let o = 0; o < snowField.length; o += CELL_STRIDE) snowField[o + FIELD.BEDROCK] = 0.1;
+  const snowAt = cellOffset(reserveSize, 8, 8);
+  snowField[snowAt + FIELD.SNOW] = 0.6;
+  snowField[snowAt + FIELD.WIND_X] = 6;
+  snowField[snowAt + FIELD.WIND_Z] = 6;
+  let snowBefore = totalOf(snowField, FIELD.SNOW);
+  for (let tick = 0; tick < 20; tick++) {
+    snowField = stepWorldReference(snowField, reserveSize, 1 / 30, {environment: snowEnv});
+    const snowAfter = totalOf(snowField, FIELD.SNOW);
+    assert.ok(snowAfter <= snowBefore + 1e-6,
+      `total SNOW mass must not grow from wind+melt alone (tick ${tick}: ${snowBefore} -> ${snowAfter})`);
+    snowBefore = snowAfter;
+  }
+}
+
 // --- GPU cell layout: CPU's 22-float cells must be padded to the WGSL struct's real stride -
 {
   // The struct itself is the source of truth for how wide a GPU cell actually is: count its
