@@ -65,7 +65,7 @@ export const BENCHMARK_PRIMITIVES = Object.freeze([
   {
     id: 'weathered-plate', label: 'verwitterte/beschädigte Platte', materialKind: MaterialKind.METAL,
     sdfType: SDF_TYPE.BOX, center: [4.4, -1.0, 0], params: [0.85, 0.55, 0.09, 0],
-    worldState: createPresetWorldState(MaterialKind.METAL, 'damaged', { rust: 0.7, moisture: 0.35 }),
+    worldState: createPresetWorldState(MaterialKind.METAL, 'damaged', { rust: 0.7, moisture: 0.35, mud: 0.45 }),
   },
 ]);
 

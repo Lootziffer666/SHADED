@@ -35,6 +35,7 @@ uniform float u_primSnow[MAX_PRIMS];
 uniform float u_primRust[MAX_PRIMS];
 uniform float u_primHeat[MAX_PRIMS];
 uniform float u_primFire[MAX_PRIMS];
+uniform float u_primMud[MAX_PRIMS];
 
 // --- StyleProfile-Uniforms (ein Wert pro Dimension, siehe runtime/style/style-profile.js) ---
 uniform int u_lightingMode;      // 0 halfLambert, 1 banded, 2 hardCel
@@ -131,6 +132,7 @@ void main() {
   float rustAmt = u_primRust[mi];
   float heatAmt = u_primHeat[mi];
   float fireAmt = u_primFire[mi];
+  float mudAmt = u_primMud[mi];
 
   // Risse dunkeln die Normale lokal ab (Kantenschatten), unabhängig vom Stil.
   vec3 litSurfaceColor = baseColor;
@@ -191,6 +193,7 @@ void main() {
   color = mix(color, color * 0.55, wetness * 0.6);          // Nässe dunkelt & glänzt (spec bereits reflectance-gekoppelt)
   color = mix(color, vec3(0.03, 0.03, 0.03), charAmt * 0.7); // Ruß/Verkohlung Richtung Schwarz
   color = mix(color, vec3(0.55, 0.30, 0.12), rustAmt * 0.5); // Rost Richtung Orange-Braun
+  color = mix(color, vec3(0.24, 0.19, 0.11), mudAmt * 0.55); // Sediment/Schlamm Richtung erdig-matt, unterscheidbar von Rost
   color = mix(color, vec3(0.85, 0.90, 0.96), frostAmt * 0.4);
   color = mix(color, vec3(1.0), snowAmt * 0.6);
   color += u_lightColor * emission * (1.0 + fireAmt * 2.0) * mix(1.0, 1.6, heatAmt);

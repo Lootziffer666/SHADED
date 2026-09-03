@@ -216,6 +216,7 @@ export function createSandboxRenderer(canvas, { budgetTier = 'FULL' } = {}) {
     const rustAmt = new Float32Array(MAX_PRIMS);
     const heatAmt = new Float32Array(MAX_PRIMS);
     const fireAmt = new Float32Array(MAX_PRIMS);
+    const mudAmt = new Float32Array(MAX_PRIMS);
 
     for (let i = 0; i < n; i++) {
       const p = primitives[i];
@@ -227,8 +228,9 @@ export function createSandboxRenderer(canvas, { budgetTier = 'FULL' } = {}) {
       roughness[i] = r.roughness; reflectance[i] = r.reflectance; emission[i] = r.emission; damage[i] = r.damage;
       wetness[i] = r.wetness; charAmt[i] = r.charAmount; crackAmt[i] = r.crackAmount; frostAmt[i] = r.frostEdge;
       snowAmt[i] = r.snowCap; rustAmt[i] = r.rustAmount; heatAmt[i] = r.heatAmount; fireAmt[i] = r.fireAmount;
+      mudAmt[i] = r.muddiness;
     }
-    return { n, type, center, params, baseColor, roughness, reflectance, emission, damage, wetness, charAmt, crackAmt, frostAmt, snowAmt, rustAmt, heatAmt, fireAmt };
+    return { n, type, center, params, baseColor, roughness, reflectance, emission, damage, wetness, charAmt, crackAmt, frostAmt, snowAmt, rustAmt, heatAmt, fireAmt, mudAmt };
   }
 
   function u(gl_, prog, name) { return gl.getUniformLocation(prog, name); }
@@ -297,6 +299,7 @@ export function createSandboxRenderer(canvas, { budgetTier = 'FULL' } = {}) {
     gl.uniform1fv(u(gl, styleProgram, 'u_primRust'), uni.rustAmt);
     gl.uniform1fv(u(gl, styleProgram, 'u_primHeat'), uni.heatAmt);
     gl.uniform1fv(u(gl, styleProgram, 'u_primFire'), uni.fireAmt);
+    gl.uniform1fv(u(gl, styleProgram, 'u_primMud'), uni.mudAmt);
     for (const [key, spec] of Object.entries(DIMENSION_UNIFORM_MAP)) {
       const [group, field] = key.split('.');
       const raw = p[group][field];
