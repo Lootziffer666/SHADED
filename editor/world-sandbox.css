@@ -10,11 +10,13 @@
   touch-action:none;
 }
 
+/* The sandbox is a viewport capability, not a replacement shell. Keep every
+   Workspace surface above it and keep the compact HUD below Workspace chrome. */
 #world-sandbox-hud{
   position:absolute;
   left:50%;
-  bottom:22px;
-  z-index:92;
+  bottom:130px;
+  z-index:65;
   display:none;
   width:min(760px,calc(100% - 176px));
   transform:translateX(-50%);
@@ -26,6 +28,8 @@
 body.world-sandbox-mode #world-sandbox-canvas,
 body.world-sandbox-mode #world-sandbox-hud{display:block}
 
+/* Hide only scene-specific render surfaces. Workspace rail, inspector,
+   view toolbar and evidence/output dock remain owned by the Workspace shell. */
 body.world-sandbox-mode #canvas-wrap,
 body.world-sandbox-mode #spatial-viewer,
 body.world-sandbox-mode #actor-overlay,
@@ -33,13 +37,9 @@ body.world-sandbox-mode #drop-hint,
 body.world-sandbox-mode #showcase-card,
 body.world-sandbox-mode #rec,
 body.world-sandbox-mode #exit-cinema,
-body.world-sandbox-mode #world-studio,
-body.world-sandbox-mode #workspace-view-toolbar,
-body.world-sandbox-mode #workspace-bottom-dock{display:none!important}
+body.world-sandbox-mode #world-studio{display:none!important}
 
-body.world-sandbox-mode:has(#world-studio) .tool-rail,
-body.world-sandbox-mode:has(#world-studio) .inspector{display:flex!important}
-body.world-sandbox-mode .viewport-hud.hud-left{display:flex!important;z-index:90;left:76px!important}
+body.world-sandbox-mode .viewport-hud.hud-left{display:flex!important;z-index:66;left:76px!important}
 body.world-sandbox-mode .viewport-hud.hud-right{display:none!important}
 
 .world-hud-status{

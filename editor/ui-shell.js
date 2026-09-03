@@ -33,10 +33,10 @@ const WORKSPACE_THEMES = [
   { id: 'vivid-blue-orange', label: 'Vivid Blues & Orange', colors: ['#10E7DC', '#0074E1', '#1B9CE5', '#6CDAEE', '#F79E02'] },
 ];
 
-if (![...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href.includes('/editor/viewport-first.css'))) {
+if (!document.querySelector('link[data-viewport-first]')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/editor/viewport-first.css?v=8';
+  link.href = '/editor/viewport-first.css';
   link.dataset.viewportFirst = '1';
   document.head.appendChild(link);
 }
@@ -44,7 +44,7 @@ if (![...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.
 if (!document.querySelector('link[data-workspace-extra-themes]')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/editor/workspace-extra-themes.css?v=1';
+  link.href = '/editor/workspace-extra-themes.css';
   link.dataset.workspaceExtraThemes = '1';
   document.head.appendChild(link);
 }
@@ -218,7 +218,6 @@ function ensureWorkspacePanels() {
     ['panel-reconstruct', 'Reconstruct', '◇'],
     ['panel-world', 'World', '◎'],
     ['panel-worldlaws', 'Laws', '⚖'],
-    ['panel-sandbox', 'World Lab', '◉'],
     ['panel-material', 'Material', '◩'],
     ['panel-paint', 'Paint', '✎'],
     ['panel-actors', 'Actors', '♟'],
@@ -453,11 +452,10 @@ function spatialChrome() {
 function updateState() {
   const loaded = !!window.SHADED;
   const ready = !!(loaded && window.SHADED.isReady?.());
-  const webglUnavailable = document.documentElement.classList.contains('webgl2-unavailable');
   state?.classList.toggle('loaded', loaded && !ready);
   state?.classList.toggle('ready', ready);
-  if (state) state.lastElementChild.textContent = webglUnavailable ? 'WEBGL 2 FEHLT' : ready ? 'SCENE READY' : loaded ? 'ENGINE LIVE' : 'ENGINE';
-  if (viewportStatus) viewportStatus.textContent = webglUnavailable ? 'Szenenrenderer braucht WebGL 2 · Sandbox bleibt verfügbar' : ready ? 'Szene bereit · direkt im echten Renderer' : loaded ? 'Engine live · Bild laden oder Demo starten' : 'Engine wird geladen …';
+  if (state) state.lastElementChild.textContent = ready ? 'SCENE READY' : loaded ? 'ENGINE LIVE' : 'ENGINE';
+  if (viewportStatus) viewportStatus.textContent = ready ? 'Szene bereit · direkt im echten Renderer' : loaded ? 'Engine live · Bild laden oder Demo starten' : 'Engine wird geladen …';
   if (loaded) spatialChrome();
   syncWorkspaceLiveCopies();
 }
