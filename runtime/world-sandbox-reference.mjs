@@ -5,7 +5,7 @@
 // plain JavaScript so invariants can be tested without a GPU and browsers
 // without WebGPU still get a real (lower-resolution) simulation.
 
-export const CELL_STRIDE = 22;
+export const CELL_STRIDE = 24;
 
 export const FIELD = Object.freeze({
   BEDROCK: 0,
@@ -49,6 +49,19 @@ export const FIELD = Object.freeze({
   // field instead, so gusts are visibly local and directional instead of one global number.
   WIND_X: 20,
   WIND_Z: 21,
+  // Seventh reservoir set: real per-cell plant TYPE, not just a density scalar. BIOMASS/SEEDS
+  // (above) stay the growth/propagation truth; PLANT_TYPE/PLANT_AGE layer succession on top of
+  // that truth instead of duplicating it. PLANT_AGE only accumulates while a cell is an
+  // established, healthy stand (see establishedFit below) and decays back down when it isn't --
+  // a burned or drought-killed grove reverts toward early succession over time, it doesn't stay
+  // "tree" forever once the tree is gone. PLANT_TYPE escalates with sustained age (0 = grass-
+  // only/bare, 1 = flower, 2 = shrub, 3 = tree) and can step back down if age decays far enough.
+  // These reuse the WGSL Cell struct's wind.zw slots (see world-sandbox-webgpu.mjs) -- always
+  // written 0.0 there until now, genuine unused alignment padding, not a spare wind channel --
+  // so this needed no new vec4 group and CELL_STRIDE now exactly fills the struct's real width
+  // (24 = 6 vec4s) with zero padding left over.
+  PLANT_TYPE: 22,
+  PLANT_AGE: 23,
 });
 
 export const STAMP = Object.freeze({
@@ -66,6 +79,16 @@ export const STAMP = Object.freeze({
   // stepWorldReference's igniteRate) -- no new ignition logic, just a new, physically
   // gated heat source feeding the existing one.
   FOCUS: 8,
+  // "Wasserbändigen" -- water swirled through the air, aimed by the stroke's own drag
+  // direction (directionX/directionZ on the stamp, set by the caller from successive pointer
+  // positions -- these fields already existed in the GPU stamp buffer's packing code, unused
+  // until this).
+  // Deliberately not a new erosion mechanic: this adds water (so there is something to erode)
+  // and kicks VELOCITY_X/Z hard in the aimed direction, so the speed-driven erosion term
+  // that already exists (erosion = min(sand, water * speed * ...) below) does the actual
+  // cutting -- this tool just aims the physics that is already there, the same way STAMP.FOCUS
+  // feeds the existing ignition threshold instead of adding a second one.
+  CARVE: 9,
 });
 
 export const DEFAULT_ENVIRONMENT = Object.freeze({
@@ -88,6 +111,22 @@ const clamp = (value, low = 0, high = 1) => Math.max(low, Math.min(high, value))
 // A physically sane ceiling on standing water depth at any one cell -- see the STAMP.WATER
 // case in applyStamps for why this exists (repeated stamping had no upper bound at all).
 const MAX_WATER_DEPTH = 1.2;
+
+// Real per-cell plant succession stages -- see FIELD.PLANT_TYPE/PLANT_AGE's own comment for the
+// full model. Values are the literal numbers written into FIELD.PLANT_TYPE (rendering picks a
+// shape by rounding it, growth logic compares it directly), not just symbolic labels.
+export const PLANT_TYPE = Object.freeze({NONE: 0, FLOWER: 1, SHRUB: 2, TREE: 3});
+// PLANT_AGE accumulates in simulated seconds while a cell is an established stand (see
+// establishedFit in stepWorldReference) and decays otherwise. Thresholds are deliberately far
+// apart -- a flowerbed establishes in well under a minute, a shrub takes noticeably longer, and
+// a tree needs sustained good conditions over what reads as multiple in-game days (see
+// DAY_LENGTH_SECONDS in editor/world-sandbox.js), not a quick flourish -- matching "Bäume
+// brauchen Jahre Wachstum" without literally requiring real-world years to test or play.
+const PLANT_AGE_RATE = 1;
+const PLANT_AGE_DECAY = 0.6;
+const PLANT_AGE_FLOWER = 6;
+const PLANT_AGE_SHRUB = 40;
+const PLANT_AGE_TREE = 220;
 const smoothstep = (a, b, value) => {
   const t = clamp((value - a) / Math.max(1e-8, b - a));
   return t * t * (3 - 2 * t);
@@ -246,6 +285,20 @@ function applyStamps(state, size, stamps, env) {
             state[o + FIELD.HEAT] = clamp(state[o + FIELD.HEAT] + value * focusStrength * 2.6);
             break;
           }
+          case STAMP.CARVE: {
+            state[o + FIELD.WATER] = clamp(state[o + FIELD.WATER] + value * 0.6, 0, MAX_WATER_DEPTH);
+            state[o + FIELD.WETNESS] = clamp(state[o + FIELD.WETNESS] + value * 3);
+            const dirX = Number(stamp.directionX) || 0;
+            const dirZ = Number(stamp.directionZ) || 0;
+            // Clamped per-stamp, not just left to accumulate -- several carve stamps can land
+            // on the same cell within one step during a fast drag, and velocity has no natural
+            // [0,1] ceiling the way HEAT/WETNESS do (clamp() defaults to that range, which
+            // would be wrong for a signed speed that legitimately exceeds 1 for a real flood
+            // surge elsewhere in this file).
+            state[o + FIELD.VELOCITY_X] = Math.max(-4, Math.min(4, state[o + FIELD.VELOCITY_X] + dirX * value * 6));
+            state[o + FIELD.VELOCITY_Z] = Math.max(-4, Math.min(4, state[o + FIELD.VELOCITY_Z] + dirZ * value * 6));
+            break;
+          }
           case STAMP.TRAMPLE:
             state[o + FIELD.DISTURBANCE] = clamp(state[o + FIELD.DISTURBANCE] + value * 3);
             state[o + FIELD.COMPACTION] = clamp(state[o + FIELD.COMPACTION] + value * 2);
@@ -264,7 +317,7 @@ function applyStamps(state, size, stamps, env) {
   }
 }
 
-function surface(state, offset) {
+export function surface(state, offset) {
   return state[offset + FIELD.BEDROCK] + state[offset + FIELD.SAND];
 }
 
@@ -325,12 +378,22 @@ function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24
 // SAME factor, derived only from that cell's own wind + dt/size/rate (never a neighbour's),
 // so it stays a pure function of the source cell alone -- required for the mass-conservation
 // guarantee below to still hold.
-function windOutflowScale(state, index, dt, size, rate) {
+// `reservedFraction` (0..1, default 0) is the share of this cell's OWN stock that some
+// OTHER same-step conversion (precipitation off CLOUD, melt off SNOW, decay off SMOKE --
+// all computed independently against the same pre-step stamped value windFlux reads) is
+// about to remove. Without reserving it here, wind alone could already claim up to 100% of
+// the stock, and the conversion claims more on top of that -- the source goes negative and
+// gets clamped to 0 (real mass lost), while neighbours still receive the FULL wind credit
+// computed as if that mass had actually left. Reserving shrinks the wind budget to what's
+// actually going to be left once the conversion also runs, so neighbours never get credited
+// for mass the source doesn't have.
+function windOutflowScale(state, index, dt, size, rate, reservedFraction = 0) {
   const windX = state[index + FIELD.WIND_X];
   const windZ = state[index + FIELD.WIND_Z];
   const total = Math.max(0, windX) * dt * size * rate + Math.max(0, -windX) * dt * size * rate
     + Math.max(0, windZ) * dt * size * rate + Math.max(0, -windZ) * dt * size * rate;
-  return total > 1 ? 1 / total : 1;
+  const budget = Math.max(0, 1 - clamp(reservedFraction));
+  return total > budget ? budget / total : 1;
 }
 
 function windFlux(state, fieldIndex, fromIndex, toIndex, windAlongFromTo, dt, size, rate, outflowScale) {
@@ -350,12 +413,12 @@ function windAlong(state, index, dirX, dirZ) {
   return state[index + FIELD.WIND_X] * dirX + state[index + FIELD.WIND_Z] * dirZ;
 }
 
-function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt, size, rate) {
-  const scaleO = windOutflowScale(state, o, dt, size, rate);
-  const scaleLeft = windOutflowScale(state, left, dt, size, rate);
-  const scaleRight = windOutflowScale(state, right, dt, size, rate);
-  const scaleNorth = windOutflowScale(state, north, dt, size, rate);
-  const scaleSouth = windOutflowScale(state, south, dt, size, rate);
+function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt, size, rate, reservedFractionAt = () => 0) {
+  const scaleO = windOutflowScale(state, o, dt, size, rate, reservedFractionAt(o));
+  const scaleLeft = windOutflowScale(state, left, dt, size, rate, reservedFractionAt(left));
+  const scaleRight = windOutflowScale(state, right, dt, size, rate, reservedFractionAt(right));
+  const scaleNorth = windOutflowScale(state, north, dt, size, rate, reservedFractionAt(north));
+  const scaleSouth = windOutflowScale(state, south, dt, size, rate, reservedFractionAt(south));
   let delta = 0;
   delta += windFlux(state, fieldIndex, left, o, windAlong(state, left, 1, 0), dt, size, rate, scaleLeft)
     - windFlux(state, fieldIndex, o, left, windAlong(state, o, -1, 0), dt, size, rate, scaleO);
@@ -366,6 +429,17 @@ function windTransportDelta(state, fieldIndex, o, left, right, north, south, dt,
   delta += windFlux(state, fieldIndex, south, o, windAlong(state, south, 0, -1), dt, size, rate, scaleSouth)
     - windFlux(state, fieldIndex, o, south, windAlong(state, o, 0, 1), dt, size, rate, scaleO);
   return delta;
+}
+
+// The fraction of SNOW that melt is about to remove at an arbitrary cell, computed the exact
+// same way the main step loop derives it for the centre cell (localTemp from altitude + HEAT,
+// then the same rate curve melt itself uses) -- needed so windTransportDelta can reserve the
+// right budget at EVERY cell it touches (o and all 4 neighbours), not just the one the main
+// loop happens to be sitting on this iteration.
+function snowMeltFraction(state, index, env, dt) {
+  const altitude = surface(state, index);
+  const localTemp = clamp(env.temperature + state[index + FIELD.HEAT] * 0.35 - altitude * 0.6);
+  return Math.min(1, Math.max(0, localTemp - 0.46) * dt * 1.4);
 }
 
 export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
@@ -502,7 +576,8 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // behaviour -- it piles up on the leeward side of obstacles instead of falling and
       // staying exactly where it landed), same conservative wind-flux machinery as the
       // atmospheric fields, just on a ground reservoir. Slower than smoke -- snow is heavy.
-      const snowWindDelta = windTransportDelta(stamped, FIELD.SNOW, o, left, right, north, south, safeDt, size, 0.35);
+      const snowWindDelta = windTransportDelta(stamped, FIELD.SNOW, o, left, right, north, south, safeDt, size, 0.35,
+        (index) => snowMeltFraction(stamped, index, env, safeDt));
       snow = Math.max(0, snow + snowWindDelta);
 
       // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
@@ -560,7 +635,11 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       vapor -= condensed;
       const neighbourCloud = (stamped[left + FIELD.CLOUD] + stamped[right + FIELD.CLOUD]
         + stamped[north + FIELD.CLOUD] + stamped[south + FIELD.CLOUD]) * 0.25;
-      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, safeDt, size, 0.6);
+      // precip's own rate (cloudOld * safeDt * 0.22, see above) is the same constant fraction
+      // at every cell this step, so reserving it needs no per-cell recomputation like melt's.
+      const precipFraction = Math.min(1, safeDt * 0.22);
+      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, safeDt, size, 0.6,
+        () => precipFraction);
       const cloud = Math.max(0, cloudOld + (neighbourCloud - cloudOld) * safeDt * 0.35 + cloudWindDelta - precip + condensed);
 
       // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining
@@ -609,7 +688,11 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       // disperses, unlike ash which actually falls to the ground).
       const neighbourSmoke = (stamped[left + FIELD.SMOKE] + stamped[right + FIELD.SMOKE]
         + stamped[north + FIELD.SMOKE] + stamped[south + FIELD.SMOKE]) * 0.25;
-      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, safeDt, size, 1.4);
+      // Same reasoning as precipFraction above: decay's rate (safeDt * 0.35) is constant
+      // across the grid this step, so it needs no per-cell recomputation either.
+      const smokeDecayFraction = Math.min(1, safeDt * 0.35);
+      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, safeDt, size, 1.4,
+        () => smokeDecayFraction);
       const smoke = Math.max(0, stamped[o + FIELD.SMOKE]
         + (neighbourSmoke - stamped[o + FIELD.SMOKE]) * safeDt * 0.6
         + smokeWindDelta
@@ -640,7 +723,38 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
         * env.growthRate * fertility * safeDt;
       const crowding = stamped[o + FIELD.BIOMASS] ** 2 * safeDt * 0.022;
       const damage = (heat * 0.72 + Math.max(0, water - 0.12) * 0.4 + disturbance * 0.2) * safeDt;
-      const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - damage - fuelBurn);
+      // Shrubs/trees genuinely displace flowers and bare growth around them -- an established
+      // neighbour (PLANT_TYPE >= SHRUB) draws down THIS cell's biomass in proportion to its own
+      // biomass, but only while this cell hasn't itself reached shrub stage (a shrub next to a
+      // shrub is co-existing canopy, not competition the way a flower next to a shrub is).
+      const plantTypeOld = stamped[o + FIELD.PLANT_TYPE];
+      const neighbourDominance = plantTypeOld < PLANT_TYPE.SHRUB
+        ? neighbours.reduce((max, n) => Math.max(max,
+            stamped[n + FIELD.PLANT_TYPE] >= PLANT_TYPE.SHRUB ? stamped[n + FIELD.BIOMASS] : 0), 0)
+        : 0;
+      const shrubCrowding = neighbourDominance * safeDt * 0.03;
+      const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - shrubCrowding - damage - fuelBurn);
+
+      // Age only accumulates while this is a genuinely established, healthy stand -- a patch
+      // that just sprouted (low biomass) isn't "aging" as a plant yet -- and decays back down
+      // (slower than it grows, so a brief dip doesn't erase real succession) whenever it isn't,
+      // so a burned or drought-killed grove reverts toward early succession instead of staying
+      // "tree" forever once the tree itself is gone.
+      const establishedFit = smoothstep(0.32, 0.55, biomass);
+      const ageOld = stamped[o + FIELD.PLANT_AGE];
+      const age = Math.max(0, ageOld + establishedFit * safeDt * PLANT_AGE_RATE - (1 - establishedFit) * safeDt * PLANT_AGE_DECAY);
+      // Type escalates with sustained age, gated by moisture/temperature the way real
+      // succession is climate-gated (a desert flowerbed that never gets enough water stays a
+      // flowerbed forever, it doesn't spontaneously become a shrub) -- and can step back down
+      // if age decays far enough, mirroring the same reversal.
+      const canSupportShrub = moistureFit > 0.4;
+      const canSupportTree = moistureFit > 0.55 && env.temperature > 0.3;
+      let plantType = plantTypeOld;
+      if (age > PLANT_AGE_TREE && canSupportTree) plantType = PLANT_TYPE.TREE;
+      else if (age > PLANT_AGE_SHRUB && canSupportShrub) plantType = Math.max(plantType, PLANT_TYPE.SHRUB);
+      else if (age > PLANT_AGE_FLOWER) plantType = Math.max(plantType, PLANT_TYPE.FLOWER);
+      if (age < PLANT_AGE_FLOWER * 0.5) plantType = PLANT_TYPE.NONE;
+      if (biomass < 0.05) plantType = PLANT_TYPE.NONE; // nothing left standing to have a type
 
       next[o + FIELD.SAND] = Math.max(0, sand);
       // Safety net matching the stamp-time cap above: rain/springs/snowmelt all add water
@@ -655,6 +769,8 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       next[o + FIELD.DISTURBANCE] = disturbance;
       next[o + FIELD.SEEDS] = seeds;
       next[o + FIELD.BIOMASS] = biomass;
+      next[o + FIELD.PLANT_AGE] = age;
+      next[o + FIELD.PLANT_TYPE] = plantType;
       next[o + FIELD.VAPOR] = vapor;
       next[o + FIELD.CLOUD] = cloud;
       next[o + FIELD.ICE] = ice;
@@ -696,6 +812,8 @@ export function sampleWorld(state, size, x, z) {
     groundwater: state[o + FIELD.GROUNDWATER],
     windX: state[o + FIELD.WIND_X],
     windZ: state[o + FIELD.WIND_Z],
+    plantType: state[o + FIELD.PLANT_TYPE],
+    plantAge: state[o + FIELD.PLANT_AGE],
   };
 }
 

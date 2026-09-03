@@ -43,6 +43,12 @@ const DEFAULT_WALK = Object.freeze({
 });
 const WALK_SPEED = 0.052; // world units/second crossing the 0..1 desert (~19s edge to edge)
 const WALK_EYE_OFFSET = 0.052; // above sampled ground height, in the same verticalScale-adjusted units
+// Twin-stick support (left stick = move, right stick = look), standard Gamepad API mapping
+// (axes 0/1 = left stick x/y, axes 2/3 = right stick x/y) -- this is what an Xbox controller
+// reports through the browser without any extra wiring. GAMEPAD_LOOK_SPEED is rad/second at
+// full stick deflection; deadzone matches typical stick centring drift.
+const GAMEPAD_DEADZONE = 0.15;
+const GAMEPAD_LOOK_SPEED = 2.6;
 // One full day/night cycle in real seconds while walking; env.temperature swings from the hot
 // desert-day setting down into genuinely sub-freezing (see ICE's ~0.3-0.42 threshold in
 // world-sandbox-reference.mjs) territory at night, so frost forms for real, not just cosmetically.
@@ -59,6 +65,10 @@ const toolDefinitions = {
   // with env.sun in the solver, near-zero without it) -- no particle effect of its own,
   // a continuous beam/glint reads better than thrown embers for "focusing sunlight".
   focus: {kind: STAMP.FOCUS, amount: 0.05, particles: 0},
+  // "Wasserbändigen": aims water by the drag stroke's own direction (see useTool's
+  // directional handling below) instead of just dropping it in place -- the same speed-driven
+  // erosion the sim already has cuts a channel wherever this is aimed.
+  carve: {kind: STAMP.CARVE, amount: 0.03, directional: true, particleKind: 1, particles: mobile ? 20 : 46},
 };
 
 const state = {
@@ -75,6 +85,11 @@ const state = {
   backend: null,
   backendKind: '',
   pointer: {x: 0.5, z: 0.5, radius: 0.05, visible: false, down: false},
+  // Tracks the previous stamp position for directional tools (currently only "carve") so a
+  // drag stroke's own direction can be read from successive useTool() calls -- reset to null on
+  // every pointer-down so a fresh stroke never inherits direction from a previous, disconnected
+  // one.
+  toolTrail: {x: null, z: null},
   camera: {...DEFAULT_CAMERA},
   walk: {...DEFAULT_WALK},
   dayNight: 0.5,
@@ -570,22 +585,59 @@ class CpuWorldSandbox {
       const biomass = this.world[offset + FIELD.BIOMASS];
       const snowCover = this.world[offset + FIELD.SNOW];
       if (viewMode === 0 && water < 0.006 && snowCover < 0.02 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
-        const stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
+        // Real per-cell plant succession (mirrors FIELD.PLANT_TYPE in
+        // world-sandbox-reference.mjs and vsGrass/fsGrass in world-sandbox-webgpu.mjs exactly
+        // -- three renderers, one truth, same as everywhere else in this codebase). This is
+        // the path most browsers (and every headless run in this session) actually fall back
+        // to, so plant type needs to read here too, not only in the WebGPU renderer.
+        const plantType = this.world[offset + FIELD.PLANT_TYPE];
+        const isFlower = plantType > 0.5 && plantType < 1.5;
+        const isShrub = plantType > 1.5 && plantType < 2.5;
+        const isTree = plantType > 2.5;
+        let stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
+        if (isFlower) stalkHeight *= 0.75;
+        else if (isShrub) stalkHeight *= 1.6;
+        else if (isTree) stalkHeight *= 7;
         const vx = this.world[offset + FIELD.VELOCITY_X];
         const vz = this.world[offset + FIELD.VELOCITY_Z];
         const lean = Math.min(0.6, Math.hypot(vx, vz) * 2.2);
-        const base = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1], width, height, camera);
-        const top = projectWorld([
+        const groundHeight = heightAt(x, z) * verticalScale;
+        const base = projectWorld([x / (size - 1) * 2 - 1, groundHeight, z / (size - 1) * 2 - 1], width, height, camera);
+        const topWorld = [
           x / (size - 1) * 2 - 1 + vx * lean,
-          heightAt(x, z) * verticalScale + stalkHeight * (1 - lean * 0.3),
+          groundHeight + stalkHeight * (1 - lean * 0.3),
           z / (size - 1) * 2 - 1 + vz * lean,
-        ], width, height, camera);
-        context.strokeStyle = this.world[offset + FIELD.HEAT] > 0.25 ? 'rgba(119,88,38,.82)' : 'rgba(68,111,42,.88)';
-        context.lineWidth = Math.max(1, width / 900);
+        ];
+        const top = projectWorld(topWorld, width, height, camera);
+        const hot = this.world[offset + FIELD.HEAT] > 0.25;
+        context.strokeStyle = hot ? 'rgba(119,88,38,.82)'
+          : isTree ? 'rgba(77,54,26,.9)' // trunk
+            : isShrub ? 'rgba(46,84,32,.92)' // denser, darker canopy green
+              : 'rgba(68,111,42,.88)'; // grass/flower stem
+        context.lineWidth = Math.max(1, width / 900) * (isShrub ? 2.2 : isTree ? 3 : 1);
         context.beginPath();
         context.moveTo(base.x, base.y);
         context.lineTo(top.x, top.y);
         context.stroke();
+        if (isFlower && !hot) {
+          // A bright bloom dot at the tip -- the same three real bloom hues fsGrass uses, so
+          // the two renderers agree on what a flower actually looks like, not just that
+          // biomass exists there.
+          const hue = Math.abs(Math.sin((x * 12.9898 + z * 78.233) * 43758.5453) % 1);
+          const petal = hue < 0.33 ? '212,148,168' : hue < 0.66 ? '242,217,89' : '230,230,219';
+          context.fillStyle = `rgba(${petal},.92)`;
+          context.beginPath();
+          context.arc(top.x, top.y, Math.max(1.4, width / 480), 0, Math.PI * 2);
+          context.fill();
+        } else if (isTree) {
+          // A filled canopy blob above the trunk -- distinct from the single thin stalk every
+          // other stage draws, so a tree actually reads as a tree in silhouette, not a tall
+          // blade of grass.
+          context.fillStyle = 'rgba(38,84,26,.88)';
+          context.beginPath();
+          context.arc(top.x, top.y, Math.max(3, width / 130), 0, Math.PI * 2);
+          context.fill();
+        }
       }
     }
 
@@ -731,9 +783,9 @@ function exit({preserveInspector = false} = {}) {
   if (state.walk.active) exitWalk();
 }
 
-function queueStamp(kind, x, z, amount, radius = state.radius) {
+function queueStamp(kind, x, z, amount, radius = state.radius, directionX = 0, directionZ = 0) {
   if (state.stamps.length >= 32) return;
-  state.stamps.push({kind, x, z, radius, amount});
+  state.stamps.push({kind, x, z, radius, amount, directionX, directionZ});
 }
 
 function queueEmitter(kind, x, z, count, strength = 1) {
@@ -762,12 +814,43 @@ function useTool(x, z) {
   }
   const tool = toolDefinitions[state.tool];
   if (!tool) return;
-  queueStamp(tool.kind, x, z, tool.amount, state.radius);
+  let directionX = 0;
+  let directionZ = 0;
+  if (tool.directional && state.toolTrail.x !== null) {
+    const dx = x - state.toolTrail.x;
+    const dz = z - state.toolTrail.z;
+    const length = Math.hypot(dx, dz);
+    if (length > 1e-4) {
+      directionX = dx / length;
+      directionZ = dz / length;
+    }
+  }
+  state.toolTrail.x = x;
+  state.toolTrail.z = z;
+  queueStamp(tool.kind, x, z, tool.amount, state.radius, directionX, directionZ);
   queueEmitter(tool.particleKind, x, z, tool.particles, state.radius / 0.05);
 }
 
 const walkKeysHeld = new Set();
 const WALK_MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+// The Gamepad API is poll-only for axis/button state (only connect/disconnect are events), so
+// this is called fresh every updateWalk() tick rather than cached -- navigator.getGamepads()
+// itself is cheap (no browser round-trip, just reads already-polled state).
+function activeGamepad() {
+  if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  for (const pad of pads) {
+    if (pad && pad.connected) return pad;
+  }
+  return null;
+}
+
+function applyDeadzone(value, deadzone) {
+  const magnitude = Math.abs(value);
+  if (magnitude < deadzone) return 0;
+  return Math.sign(value) * (magnitude - deadzone) / (1 - deadzone);
+}
 
 function enterWalk() {
   if (state.walk.active) return;
@@ -785,7 +868,7 @@ function enterWalk() {
   panel.querySelector('#world-walk')?.classList.add('active');
   document.body.classList.add('world-walk-active');
   const gesture = document.querySelector('.world-hud-gesture');
-  if (gesture) gesture.textContent = 'WASD LAUFEN · ZIEHEN UMSEHEN · ESC VERLASSEN';
+  if (gesture) gesture.textContent = 'WASD/STICK LAUFEN · ZIEHEN/STICK UMSEHEN · ESC VERLASSEN';
 }
 
 function exitWalk() {
@@ -815,16 +898,42 @@ function updateWalk(dt) {
   if (walkKeysHeld.has('KeyS') || walkKeysHeld.has('ArrowDown')) forwardInput -= 1;
   if (walkKeysHeld.has('KeyD') || walkKeysHeld.has('ArrowRight')) strafeInput += 1;
   if (walkKeysHeld.has('KeyA') || walkKeysHeld.has('ArrowLeft')) strafeInput -= 1;
-  if (forwardInput !== 0 || strafeInput !== 0) {
-    const length = Math.hypot(forwardInput, strafeInput) || 1;
-    forwardInput /= length;
-    strafeInput /= length;
+
+  const pad = activeGamepad();
+  if (pad) {
+    // Standard Gamepad API mapping: axes 0/1 = left stick x/y, axes 2/3 = right stick x/y --
+    // exactly what a wired/wireless Xbox controller reports through the browser with no extra
+    // setup. Left stick REPLACES (not adds to) a same-axis key press when its magnitude is
+    // larger, so a half-tilted stick can still walk at half speed even with a key also held --
+    // summing them could push the combined vector past 1 and back into "always full speed."
+    const stickX = applyDeadzone(pad.axes[0] ?? 0, GAMEPAD_DEADZONE);
+    const stickY = applyDeadzone(pad.axes[1] ?? 0, GAMEPAD_DEADZONE);
+    if (Math.abs(stickX) > Math.abs(strafeInput)) strafeInput = stickX;
+    if (Math.abs(-stickY) > Math.abs(forwardInput)) forwardInput = -stickY; // stick up = negative Y
+    // Right stick: continuous look, the twin-stick counterpart to the mouse-drag gesture below.
+    const lookX = applyDeadzone(pad.axes[2] ?? 0, GAMEPAD_DEADZONE);
+    const lookY = applyDeadzone(pad.axes[3] ?? 0, GAMEPAD_DEADZONE);
+    if (lookX !== 0 || lookY !== 0) {
+      walk.yaw += lookX * GAMEPAD_LOOK_SPEED * dt;
+      walk.pitch = Math.max(-0.95, Math.min(0.95, walk.pitch - lookY * GAMEPAD_LOOK_SPEED * dt));
+    }
+  }
+
+  const inputLength = Math.hypot(forwardInput, strafeInput);
+  if (inputLength > 0.001) {
+    // Clamp to at most unit length rather than always normalizing TO unit length -- a fully
+    // digital key press (magnitude 1 on its axis) still moves at full speed and a W+D diagonal
+    // still normalizes exactly as before, but a partially-tilted analog stick now genuinely
+    // walks slower instead of snapping to full speed the instant it leaves the deadzone.
+    const clampedLength = Math.min(1, inputLength);
+    const normForward = (forwardInput / inputLength) * clampedLength;
+    const normStrafe = (strafeInput / inputLength) * clampedLength;
     // Matches cameraForward()'s (sin(yaw), .., cos(yaw)) convention in world-sandbox-webgpu.mjs,
     // so "forward" on the keyboard is exactly what the eye is looking at.
     const sinYaw = Math.sin(walk.yaw);
     const cosYaw = Math.cos(walk.yaw);
-    const moveX = sinYaw * forwardInput + cosYaw * strafeInput;
-    const moveZ = cosYaw * forwardInput - sinYaw * strafeInput;
+    const moveX = sinYaw * normForward + cosYaw * normStrafe;
+    const moveZ = cosYaw * normForward - sinYaw * normStrafe;
     walk.x = Math.max(0.015, Math.min(0.985, walk.x + moveX * WALK_SPEED * dt));
     walk.z = Math.max(0.015, Math.min(0.985, walk.z + moveZ * WALK_SPEED * dt));
   }
@@ -1061,6 +1170,8 @@ function bindCanvas() {
     }
     Object.assign(state.pointer, pointerPosition(event), {down: true, visible: true});
     paintPointerId = event.pointerId;
+    state.toolTrail.x = null;
+    state.toolTrail.z = null;
     useTool(state.pointer.x, state.pointer.z);
     lastPaint = event.timeStamp;
   });
@@ -1240,4 +1351,9 @@ window.SHADEDWorldSandbox = {
   get camera() { return {...state.camera}; },
   get walk() { return {...state.walk}; },
   get dayNight() { return state.dayNight; },
+  // Debug-only: read-only snapshot of the stamps queued this frame, before stepOnce() drains
+  // them. Exists for tests to inspect what a real DOM interaction (a click, a drag) actually
+  // produced -- e.g. verifying a directional tool's drag-direction computation -- without
+  // racing the running simulation loop (pause first via #world-pause, then this stays stable).
+  get stamps() { return state.stamps.map(stamp => ({...stamp})); },
 };

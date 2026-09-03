@@ -4,6 +4,7 @@ import {
   CELL_STRIDE,
   DEFAULT_ENVIRONMENT,
   FIELD,
+  PLANT_TYPE,
   STAMP,
   cellOffset,
   createWorldState,
@@ -554,7 +555,160 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
     `seeds stamped at x=10 measurably reach a downwind column (x=13) within 60 steps under strong +x wind, got ${seedsDownwind}`);
 }
 
-// --- GPU cell layout: CPU's 22-float cells must be padded to the WGSL struct's real stride -
+// --- Wind outflow reserves budget for a same-step conversion (precip/melt/decay) ---------
+// Strong wind alone can already claim up to 100% of a cell's stock (windOutflowScale). If a
+// same-step conversion computed against that SAME pre-step stock (precip off CLOUD, melt off
+// SNOW, decay off SMOKE) isn't reserved against that budget too, the source cell can be asked
+// to give away more than it has -- it gets clamped to 0 (mass lost there) while neighbours
+// still receive the FULL, un-reduced wind credit (mass gained there), a net creation of mass
+// in an otherwise closed system. Isolate WATER=0 everywhere so evaporation/condensation can't
+// also move mass into CLOUD, keeping this a clean read on the wind+precip/melt interaction.
+{
+  const reserveSize = 16;
+  const totalOf = (field, index) => {
+    let sum = 0;
+    for (let o = 0; o < field.length; o += CELL_STRIDE) sum += field[o + index];
+    return sum;
+  };
+
+  // Wind relaxes toward env.wind/windDeg slowly (see fn main()'s baseWindX/baseWindZ
+  // comment) -- seeding FIELD.WIND_X/Z directly, the same pattern the "Wind FIELD" tests
+  // above use, gets windOutflowScale's cap triggering on tick 1 instead of waiting ~85
+  // steps for relaxation, and this specific bug is about what THAT cap does when a
+  // same-step conversion competes with it, not about how wind gets there.
+  const cloudEnv = {...DEFAULT_ENVIRONMENT, wind: 0, rain: 0, evaporation: 0};
+  let cloudField = new Float32Array(reserveSize * reserveSize * CELL_STRIDE);
+  for (let o = 0; o < cloudField.length; o += CELL_STRIDE) cloudField[o + FIELD.BEDROCK] = 0.1;
+  const cloudAt = cellOffset(reserveSize, 8, 8);
+  cloudField[cloudAt + FIELD.CLOUD] = 0.6;
+  cloudField[cloudAt + FIELD.WIND_X] = 6;
+  cloudField[cloudAt + FIELD.WIND_Z] = 6;
+  // Reserving precip's fraction closes the bulk of the gap (this exact scenario grew
+  // ~1.17% per step before the fix) but not all of it: CLOUD also has an isotropic
+  // diffusion term competing for the same pre-step budget, and this test's WIND_X/Z=6
+  // spike is deliberately extreme (a huge wind vector at ONE cell, none at its
+  // neighbours) specifically to trigger windOutflowScale's cap outright -- the worst
+  // single tick that combination can produce. Closing that residual too needs
+  // reservedFractionAt to see each cell's own neighbours (a second-order lookup
+  // windTransportDelta doesn't thread through today), tracked as a known follow-up
+  // rather than silently left unverified. What's actually guaranteed today: growth is
+  // bounded to a small tolerance on that one worst tick, and every following tick --
+  // once the spike has diffused into its neighbours -- is strictly non-increasing again.
+  let cloudBefore = totalOf(cloudField, FIELD.CLOUD);
+  for (let tick = 0; tick < 20; tick++) {
+    cloudField = stepWorldReference(cloudField, reserveSize, 1 / 30, {environment: cloudEnv});
+    const cloudAfter = totalOf(cloudField, FIELD.CLOUD);
+    const tolerance = tick === 0 ? cloudBefore * 0.006 : 1e-6;
+    assert.ok(cloudAfter <= cloudBefore + tolerance,
+      `total CLOUD mass must stay within the documented bound (tick ${tick}: ${cloudBefore} -> ${cloudAfter})`);
+    cloudBefore = cloudAfter;
+  }
+
+  const snowEnv = {...DEFAULT_ENVIRONMENT, wind: 0, rain: 0, evaporation: 0, temperature: 0.85};
+  let snowField = new Float32Array(reserveSize * reserveSize * CELL_STRIDE);
+  for (let o = 0; o < snowField.length; o += CELL_STRIDE) snowField[o + FIELD.BEDROCK] = 0.1;
+  const snowAt = cellOffset(reserveSize, 8, 8);
+  snowField[snowAt + FIELD.SNOW] = 0.6;
+  snowField[snowAt + FIELD.WIND_X] = 6;
+  snowField[snowAt + FIELD.WIND_Z] = 6;
+  let snowBefore = totalOf(snowField, FIELD.SNOW);
+  for (let tick = 0; tick < 20; tick++) {
+    snowField = stepWorldReference(snowField, reserveSize, 1 / 30, {environment: snowEnv});
+    const snowAfter = totalOf(snowField, FIELD.SNOW);
+    assert.ok(snowAfter <= snowBefore + 1e-6,
+      `total SNOW mass must not grow from wind+melt alone (tick ${tick}: ${snowBefore} -> ${snowAfter})`);
+    snowBefore = snowAfter;
+  }
+}
+
+// --- STAMP.CARVE ("Wasserbändigen"): aimed water cuts a channel along the drag direction ---
+// No new erosion mechanic -- this stamp only adds water and kicks VELOCITY_X/Z in the stroke's
+// own direction; the speed-driven erosion term that already exists (erosion = min(sand, water *
+// speed * ...) in stepWorldReference) does the actual cutting. Proves that end to end: dragging
+// the tool along a straight +x line should measurably lower sand ALONG that line while a
+// same-distance-from-center row the drag never touched stays untouched.
+{
+  const carveSize = 40;
+  const carveEnv = {...DEFAULT_ENVIRONMENT, rain: 0, evaporation: 0};
+  let field = new Float32Array(carveSize * carveSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) {
+    field[o + FIELD.BEDROCK] = 0.06;
+    field[o + FIELD.SAND] = 0.16;
+  }
+  const dragZ = 20;
+  const untouchedZ = 8; // far enough from dragZ that isotropic diffusion/flux can't reach it
+  const sandAlong = z => {
+    let total = 0;
+    for (let x = 12; x < 28; x++) total += field[cellOffset(carveSize, x, z) + FIELD.SAND];
+    return total;
+  };
+  const sandBeforeDrag = sandAlong(dragZ);
+  const sandBeforeUntouched = sandAlong(untouchedZ);
+
+  // Simulate a real drag: the tool is stamped once per rendered frame while the pointer sweeps
+  // along +x at a fixed z, exactly like useTool()/queueStamp() in editor/world-sandbox.js would
+  // produce, direction fixed at (1, 0) the way a straight horizontal drag resolves. 240 steps
+  // (~8s of sim time, an unhurried real drag) -- erosion is deliberately gradual here (the same
+  // speed-driven term other water already uses), so a quick flick isn't expected to gouge a
+  // canyon in under a second.
+  for (let step = 0; step < 240; step++) {
+    const x = 0.3 + (step / 240) * 0.4;
+    const stamp = {kind: STAMP.CARVE, x, z: dragZ / carveSize, radius: 2.2 / carveSize, amount: 0.03, directionX: 1, directionZ: 0};
+    field = stepWorldReference(field, carveSize, 1 / 30, {environment: carveEnv, stamps: [stamp]});
+  }
+  const sandAfterDrag = sandAlong(dragZ);
+  const sandAfterUntouched = sandAlong(untouchedZ);
+
+  assert.ok(sandAfterDrag < sandBeforeDrag - 0.005,
+    `dragging the carve tool along +x measurably erodes sand where it was aimed (${sandBeforeDrag.toFixed(4)} -> ${sandAfterDrag.toFixed(4)})`);
+  assert.ok(Math.abs(sandAfterUntouched - sandBeforeUntouched) < 0.001,
+    `a row the drag never touched stays untouched (${sandBeforeUntouched.toFixed(4)} -> ${sandAfterUntouched.toFixed(4)}), proving this is aimed erosion, not a global effect`);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) {
+    assert.ok(field[o + FIELD.SAND] >= 0, 'sand never goes negative anywhere on the grid');
+  }
+}
+
+// --- Real per-cell plant succession: flower -> shrub -> tree, and reversal on collapse -----
+{
+  const succSize = 16;
+  const succEnv = {...DEFAULT_ENVIRONMENT, rain: 0, evaporation: 0, temperature: 0.6};
+  let field = new Float32Array(succSize * succSize * CELL_STRIDE);
+  for (let o = 0; o < field.length; o += CELL_STRIDE) field[o + FIELD.BEDROCK] = 0.1;
+  const at = cellOffset(succSize, 8, 8);
+  field[at + FIELD.BIOMASS] = 0.6;
+  field[at + FIELD.WETNESS] = 0.5;
+  const typeAt = f => f[at + FIELD.PLANT_TYPE];
+
+  // Every step's dt is clamped to a max of 0.1 simulated seconds internally (safeDt in
+  // stepWorldReference, protecting the water/wind integrators from a large-dt blow-up), so
+  // reaching PLANT_AGE_TREE (220s) takes on the order of 2000+ steps regardless of what dt is
+  // passed in -- not slow in wall-clock terms (each step is a single 16x16 grid pass), just a
+  // real step count. This isolated single cell has no neighbours to draw seed/growth input
+  // from (seedSpread depends on NEIGHBOUR biomass, which is 0 here by construction), so
+  // biomass is kept explicitly sustained above the established threshold during the growth
+  // phases -- that isolates the succession-age logic itself, which is what this test is
+  // actually about, from the separately-tested growth-from-seeds/crowding equilibrium.
+  const sustain = () => { field[at + FIELD.BIOMASS] = Math.max(field[at + FIELD.BIOMASS], 0.6); };
+  for (let i = 0; i < 65; i++) { field = stepWorldReference(field, succSize, 1, {environment: succEnv}); sustain(); }
+  assert.ok(typeAt(field) >= PLANT_TYPE.FLOWER, `established growth reaches FLOWER stage within ~6.5s (got type ${typeAt(field)})`);
+  assert.ok(typeAt(field) < PLANT_TYPE.TREE, `...but not TREE yet this early (got type ${typeAt(field)})`);
+
+  for (let i = 0; i < 350; i++) { field = stepWorldReference(field, succSize, 1, {environment: succEnv}); sustain(); }
+  assert.equal(typeAt(field), PLANT_TYPE.SHRUB, `sustained growth reaches SHRUB stage by ~41.5s total (got type ${typeAt(field)})`);
+
+  for (let i = 0; i < 1800; i++) { field = stepWorldReference(field, succSize, 1, {environment: succEnv}); sustain(); }
+  assert.equal(typeAt(field), PLANT_TYPE.TREE, `sustained growth over ~221.5s total of established conditions reaches TREE stage (got type ${typeAt(field)})`);
+
+  // Now force a real collapse (drought -- WETNESS to 0 kills moistureFit and therefore all
+  // further growth regardless of biomass/type already reached) and confirm succession genuinely
+  // reverses instead of the cell staying "tree" forever once the tree itself is gone.
+  field[at + FIELD.WETNESS] = 0;
+  field[at + FIELD.BIOMASS] = 0;
+  for (let i = 0; i < 400; i++) field = stepWorldReference(field, succSize, 1, {environment: succEnv});
+  assert.equal(typeAt(field), PLANT_TYPE.NONE, `a collapsed stand (biomass driven to 0, kept dry) reverts all the way back to NONE (got type ${typeAt(field)})`);
+}
+
+// --- GPU cell layout: CELL_STRIDE must equal the WGSL struct's real stride ----------------
 {
   // The struct itself is the source of truth for how wide a GPU cell actually is: count its
   // vec4<f32> fields directly out of the WGSL source rather than hardcoding "6" here, so this
@@ -566,24 +720,25 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
     `GPU_CELL_STRIDE (${GPU_CELL_STRIDE}) must equal the real WGSL Cell struct width ` +
     `(${vec4FieldCount} vec4<f32> fields = ${vec4FieldCount * 4} floats), or every cell past ` +
     `the first is misaligned in array<Cell> from the second cell onward`);
-  assert.equal(GPU_CELL_STRIDE, CELL_STRIDE + 2,
-    'documents the current 2-float pad (wind.zw, always written 0.0) so a change to either ' +
-    'CELL_STRIDE or the struct is a deliberate edit, not silent drift');
+  // Since PLANT_TYPE/PLANT_AGE took the last two floats that used to be padding, CELL_STRIDE
+  // now equals the struct's own width exactly -- no more slack, so the NEXT new field really
+  // does need a new vec4 group (and a real padding scheme again), not another free slot.
+  assert.equal(GPU_CELL_STRIDE, CELL_STRIDE,
+    'documents that there is currently zero padding, so a change to either CELL_STRIDE or the ' +
+    'struct is a deliberate edit, not silent drift');
 
   const probeSize = 8;
   const cpuState = createWorldState(probeSize, 1);
   const targetOffset = cellOffset(probeSize, 1, 1);
   cpuState[targetOffset + FIELD.BIOMASS] = 0.42;
-  cpuState[targetOffset + FIELD.WIND_Z] = -0.77;
+  cpuState[targetOffset + FIELD.PLANT_AGE] = 0.77;
   const packed = packCellsForGpu(cpuState, probeSize);
   assert.equal(packed.length, probeSize * probeSize * GPU_CELL_STRIDE,
-    'packed buffer is sized at the real GPU stride, not CELL_STRIDE');
+    'packed buffer is sized at the real GPU stride, which now equals CELL_STRIDE exactly');
   const cellIndex = 1 * probeSize + 1; // (x=1, z=1) in the same row-major order cellOffset uses
   const gpuOffset = cellIndex * GPU_CELL_STRIDE;
-  assert.ok(Math.abs(packed[gpuOffset + FIELD.BIOMASS] - 0.42) < 1e-6, 'a field within the used 22 floats lands at the same relative offset');
-  assert.ok(Math.abs(packed[gpuOffset + FIELD.WIND_Z] - -0.77) < 1e-6, 'the last real field (WIND_Z, index 21) is preserved, not clipped by the pad');
-  assert.equal(packed[gpuOffset + CELL_STRIDE], 0, 'the first padding float (wind.z) is zero');
-  assert.equal(packed[gpuOffset + CELL_STRIDE + 1], 0, 'the second padding float (wind.w) is zero');
+  assert.ok(Math.abs(packed[gpuOffset + FIELD.BIOMASS] - 0.42) < 1e-6, 'a field mid-stride lands at the same relative offset');
+  assert.ok(Math.abs(packed[gpuOffset + FIELD.PLANT_AGE] - 0.77) < 1e-6, 'the last real field (PLANT_AGE, index 23) is preserved, not clipped');
   // And the NEXT cell's real data must start exactly one GPU stride later, not one CPU stride
   // later -- this is the exact misalignment the bug this test guards against would produce.
   const nextCellIndex = cellIndex + 1;
@@ -604,6 +759,13 @@ assert.match(WORLD_SPATIAL_RENDER_WGSL, /fn vsTerrain/);
 assert.match(WORLD_SPATIAL_RENDER_WGSL, /fn vsWater/);
 assert.match(WORLD_SPATIAL_RENDER_WGSL, /fn vsGrass/);
 assert.match(WORLD_SPATIAL_RENDER_WGSL, /cell\.bio\.x/);
+// Real per-cell plant succession actually reaches the renderer, not just the simulation --
+// the four stages each need their own reachable shape/colour branch in the source, not just a
+// value that gets computed and then ignored.
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /let plantType = cell\.wind\.z/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /isFlower/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /isShrub/);
+assert.match(WORLD_SPATIAL_RENDER_WGSL, /isTree/);
 assert.match(PARTICLE_SPATIAL_RENDER_WGSL, /fn project/);
 
 const [editorHtml, integrationJs, integrationCss, engineJs] = await Promise.all([

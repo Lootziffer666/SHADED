@@ -4,15 +4,16 @@ const MAX_STAMPS = 32;
 const PARTICLE_STRIDE = 12;
 const QUERY_BYTES = 32;
 
-// The WGSL `Cell` struct below is six vec4<f32> fields (terrain/water/bio/atmo/combust/wind)
-// -- vec4<f32>'s mandatory 16-byte alignment makes that struct exactly 24 floats wide, even
-// though the CPU reference's CELL_STRIDE (world-sandbox-reference.mjs) only actually uses 22
-// of them; `wind.zw` is always written as 0.0 (see `next.wind = vec4<f32>(windX, windZ, 0.0,
-// 0.0)` in fn main()) and is genuine, deliberate padding, not a spare data channel. Uploading
-// the CPU array's 22-float cells directly at that stride (as opposed to this real 24-float
-// one) would misalign every cell in `array<Cell>` from the second cell onward -- this constant
-// and packCellsForGpu() below exist so that mistake can't happen again.
-export const GPU_CELL_STRIDE = CELL_STRIDE + 2;
+// The WGSL `Cell` struct below is six vec4<f32> fields (terrain/water/bio/atmo/combust/wind) --
+// vec4<f32>'s mandatory 16-byte alignment makes that struct exactly 24 floats wide. The CPU
+// reference's CELL_STRIDE (world-sandbox-reference.mjs) used to stop at 22, leaving wind.zw as
+// genuine unused alignment padding; PLANT_TYPE/PLANT_AGE now occupy exactly those two slots, so
+// CELL_STRIDE and the struct's real width are equal again with zero padding left over. Kept as
+// its own constant (rather than importing CELL_STRIDE directly everywhere below) so a future
+// field added to one side without the other still fails loudly here instead of silently
+// misaligning every cell in `array<Cell>` from the second cell onward -- packCellsForGpu()
+// exists for the same reason, even though it is a straight copy while the two strides match.
+export const GPU_CELL_STRIDE = CELL_STRIDE;
 
 export function packCellsForGpu(cpuState, size) {
   const packed = new Float32Array(size * size * GPU_CELL_STRIDE);
@@ -103,11 +104,6 @@ fn edgeFlow(near: Cell, far: Cell, edgeVelocity: f32, dt: f32, size: f32) -> f32
   return -min(far.water.x * cap, -crossing * far.water.x) * flowable;
 }
 
-fn smooth(a: f32, b: f32, value: f32) -> f32 {
-  let t = clamp((value - a) / max(0.000001, b - a), 0.0, 1.0);
-  return t * t * (3.0 - 2.0 * t);
-}
-
 // Airborne fields (VAPOR/CLOUD/SMOKE) drift downwind, on top of their existing isotropic
 // diffusion, via a real one-way edge flux -- mirrors runtime/world-sandbox-reference.mjs
 // exactly. edgeFlow/windFlux both derive their magnitude from a single cell's own stock, not
@@ -123,10 +119,18 @@ fn smooth(a: f32, b: f32, value: f32) -> f32 {
 // it has once summed. Derived only from the cell's own wind + dt/size/rate, so it stays a
 // pure function of the source cell alone, which the mass-conservation guarantee requires.
 // (crossing = the per-direction fraction of a cell's stock that wind moves this step.)
-fn windOutflowScale(wind: vec2<f32>, dt: f32, size: f32, rate: f32) -> f32 {
+// reservedFraction (0..1) is the share of this cell's OWN stock that some OTHER same-step
+// conversion (precip off CLOUD, melt off SNOW, decay off SMOKE -- all computed against the
+// same pre-step stock windFlux reads) is about to remove -- mirrors
+// runtime/world-sandbox-reference.mjs's windOutflowScale exactly, including this parameter.
+// Without reserving it, wind alone could already claim up to 100% of the stock and the
+// conversion claims more on top, clamping the source to 0 while neighbours still receive the
+// FULL, un-reduced wind credit -- net mass creation in an otherwise closed system.
+fn windOutflowScale(wind: vec2<f32>, dt: f32, size: f32, rate: f32, reservedFraction: f32) -> f32 {
   let total = max(0.0, wind.x) * dt * size * rate + max(0.0, -wind.x) * dt * size * rate
     + max(0.0, wind.y) * dt * size * rate + max(0.0, -wind.y) * dt * size * rate;
-  return select(1.0, 1.0 / total, total > 1.0);
+  let budget = max(0.0, 1.0 - clamp(reservedFraction, 0.0, 1.0));
+  return select(1.0, budget / total, total > budget);
 }
 
 fn windFlux(fromValue: f32, windAlongFromTo: f32, dt: f32, size: f32, rate: f32, outflowScale: f32) -> f32 {
@@ -149,12 +153,13 @@ fn windTransportDelta(
   hasLeft: bool, hasRight: bool, hasTop: bool, hasBottom: bool,
   selfWind: vec2<f32>, leftWind: vec2<f32>, rightWind: vec2<f32>, topWind: vec2<f32>, bottomWind: vec2<f32>,
   dt: f32, size: f32, rate: f32,
+  reservedSelf: f32, reservedLeft: f32, reservedRight: f32, reservedTop: f32, reservedBottom: f32,
 ) -> f32 {
-  let scaleSelf = windOutflowScale(selfWind, dt, size, rate);
-  let scaleLeft = windOutflowScale(leftWind, dt, size, rate);
-  let scaleRight = windOutflowScale(rightWind, dt, size, rate);
-  let scaleTop = windOutflowScale(topWind, dt, size, rate);
-  let scaleBottom = windOutflowScale(bottomWind, dt, size, rate);
+  let scaleSelf = windOutflowScale(selfWind, dt, size, rate, reservedSelf);
+  let scaleLeft = windOutflowScale(leftWind, dt, size, rate, reservedLeft);
+  let scaleRight = windOutflowScale(rightWind, dt, size, rate, reservedRight);
+  let scaleTop = windOutflowScale(topWind, dt, size, rate, reservedTop);
+  let scaleBottom = windOutflowScale(bottomWind, dt, size, rate, reservedBottom);
   var delta = 0.0;
   if (hasLeft) {
     delta += windFlux(leftValue, windAlong(leftWind, 1.0, 0.0), dt, size, rate, scaleLeft)
@@ -173,6 +178,18 @@ fn windTransportDelta(
       - windFlux(selfValue, windAlong(selfWind, 0.0, 1.0), dt, size, rate, scaleSelf);
   }
   return delta;
+}
+
+// The fraction of SNOW that melt is about to remove at an arbitrary cell, computed the exact
+// same way fn main() derives it for the centre cell (localTemp from altitude + HEAT, then the
+// same rate curve melt itself uses) -- mirrors
+// runtime/world-sandbox-reference.mjs's snowMeltFraction exactly. Needed so
+// windTransportDelta can reserve the right budget at EVERY cell it touches (self and all 4
+// neighbours), not just the one fn main() happens to be sitting on this invocation.
+fn snowMeltFraction(cell: Cell, dt: f32) -> f32 {
+  let altitude = surface(cell);
+  let localTemp = clamp(P.environment.z + cell.bio.z * 0.35 - altitude * 0.6, 0.0, 1.0);
+  return min(1.0, max(0.0, localTemp - 0.46) * dt * 1.4);
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -279,9 +296,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // A near-freezing but not fully frozen band with a heavily loaded cloud is the closest
   // single-cell proxy for a thunderstorm updraft/downdraft cycle this 2.5D model has --
   // marked explicitly as a first approximation, not real hail-growth physics.
-  let hailBand = smooth(0.30, 0.42, localTemp) * (1.0 - smooth(0.46, 0.58, localTemp));
+  let hailBand = smoothstep(0.30, 0.42, localTemp) * (1.0 - smoothstep(0.46, 0.58, localTemp));
   let hailing = hailBand > 0.5 && cloudOld > 0.03;
-  let snowFraction = select(1.0 - smooth(0.42, 0.58, localTemp), 1.0, hailing);
+  let snowFraction = select(1.0 - smoothstep(0.42, 0.58, localTemp), 1.0, hailing);
   let rainPart = precip * (1.0 - snowFraction);
   let snowPart = precip * snowFraction;
   let hailImpact = select(0.0, min(0.05, precip * 1.5), hailing); // ground-impact kick, not extra mass
@@ -309,12 +326,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // anything else here would silently break the from-cell-only cancellation the whole
   // conservation proof depends on.
   let snowWindDelta = windTransportDelta(c.atmo.w, left.atmo.w, right.atmo.w, top.atmo.w, bottom.atmo.w,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.35);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.35,
+    snowMeltFraction(c, dt), snowMeltFraction(left, dt), snowMeltFraction(right, dt), snowMeltFraction(top, dt), snowMeltFraction(bottom, dt));
   snow = max(0.0, snow + snowWindDelta);
 
   // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
   // a lake takes time to freeze over or thaw), and feeds back into sandFlux/edgeFlow above.
-  let iceTarget = 1.0 - smooth(0.30, 0.42, localTemp);
+  let iceTarget = 1.0 - smoothstep(0.30, 0.42, localTemp);
   let ice = clamp(iceOld + (iceTarget - iceOld) * dt * 0.5 + hailImpact * 0.4, 0.0, 1.0);
 
   let groundwaterOld = c.combust.w;
@@ -347,7 +365,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // straight into water, it has to condense and fall like everything else.
   let neighbourVapor = (left.atmo.x + right.atmo.x + top.atmo.x + bottom.atmo.x) * 0.25;
   let vaporWindDelta = windTransportDelta(c.atmo.x, left.atmo.x, right.atmo.x, top.atmo.x, bottom.atmo.x,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6,
+    0.0, 0.0, 0.0, 0.0, 0.0);
   var vapor = max(0.0, c.atmo.x + (neighbourVapor - c.atmo.x) * dt * 0.18
     + vaporWindDelta + evaporation + P.environment.x * dt * 0.06);
   // Condensation: colder air holds less vapor before the excess condenses into cloud (tuned to
@@ -358,8 +377,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let condensed = max(0.0, vapor - saturation) * dt * 0.6;
   vapor -= condensed;
   let neighbourCloud = (left.atmo.y + right.atmo.y + top.atmo.y + bottom.atmo.y) * 0.25;
+  // precip's own rate (cloudOld * dt * 0.22, see above) is the same constant fraction at every
+  // cell this step, so reserving it needs no per-cell recomputation like melt's.
+  let precipFraction = min(1.0, dt * 0.22);
   let cloudWindDelta = windTransportDelta(cloudOld, left.atmo.y, right.atmo.y, top.atmo.y, bottom.atmo.y,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.6,
+    precipFraction, precipFraction, precipFraction, precipFraction, precipFraction);
   let cloud = max(0.0, cloudOld + (neighbourCloud - cloudOld) * dt * 0.35 + cloudWindDelta - precip + condensed);
 
   // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining 0..1
@@ -401,8 +424,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // and simply thins out over time (no separate "settle" reservoir -- it just disperses,
   // unlike ash which actually falls to the ground).
   let neighbourSmoke = (left.combust.y + right.combust.y + top.combust.y + bottom.combust.y) * 0.25;
+  // Same reasoning as precipFraction above: decay's rate (dt * 0.35) is constant across the
+  // grid this step, so it needs no per-cell recomputation either.
+  let smokeDecayFraction = min(1.0, dt * 0.35);
   let smokeWindDelta = windTransportDelta(c.combust.y, left.combust.y, right.combust.y, top.combust.y, bottom.combust.y,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 1.4);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 1.4,
+    smokeDecayFraction, smokeDecayFraction, smokeDecayFraction, smokeDecayFraction, smokeDecayFraction);
   let smoke = max(0.0, c.combust.y + (neighbourSmoke - c.combust.y) * dt * 0.6
     + smokeWindDelta + smokeRelease - c.combust.y * dt * 0.35);
 
@@ -410,22 +437,60 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // burned patch regrows with (real post-fire ecology) via the growth formula below.
   let ash = max(0.0, c.combust.z + ashRelease - c.combust.z * dt * 0.015 - c.combust.z * rainPart * 4.0);
 
-  let moistureFit = smooth(0.12, 0.46, wetness)
-    * (1.0 - smooth(0.72, 1.05, wetness + water * 5.0));
+  let moistureFit = smoothstep(0.12, 0.46, wetness)
+    * (1.0 - smoothstep(0.72, 1.05, wetness + water * 5.0));
   let temperatureFit = 1.0 - clamp(abs(P.environment.z - 0.55) / 0.52, 0.0, 1.0);
   let neighbourBiomass = (left.bio.x + right.bio.x + top.bio.x + bottom.bio.x) * 0.25;
   // Seeds ride the wind, same as pollen/dandelion seeds/spores in real vegetation -- mirrors
   // the CPU reference's seedWindDelta exactly (mass-conserving via windTransportDelta, gentle
   // rate since seeds are a much lighter payload than snow/sand).
   let seedWindDelta = windTransportDelta(c.bio.y, left.bio.y, right.bio.y, top.bio.y, bottom.bio.y,
-    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.5);
+    hasLeft, hasRight, hasTop, hasBottom, selfWind, leftWind, rightWind, topWind, bottomWind, dt, f32(size), 0.5,
+    0.0, 0.0, 0.0, 0.0, 0.0);
   var seed = clamp(c.bio.y + neighbourBiomass * moistureFit * dt * 0.012 + seedWindDelta - dt * 0.0015, 0.0, 1.0);
   let fertility = 1.0 + min(0.6, ash * 1.4);
   let growth = seed * moistureFit * P.environment.y * temperatureFit
     * (1.0 - disturbance) * P.rates.z * fertility * dt;
   let crowding = c.bio.x * c.bio.x * dt * 0.022;
   let damage = (heat * 0.72 + max(0.0, water - 0.12) * 0.4 + disturbance * 0.2) * dt;
-  var biomass = clamp(c.bio.x + growth - crowding - damage - fuelBurn, 0.0, 1.0);
+  // Real per-cell plant succession, mirrors runtime/world-sandbox-reference.mjs's PLANT_TYPE/
+  // PLANT_AGE model exactly (see that file's own comment for the full explanation). c.wind.zw
+  // carries plantType/plantAge -- genuine unused alignment padding until this, not a spare wind
+  // channel, see GPU_CELL_STRIDE's own comment in this file for why that's where it lives.
+  let plantTypeOld = c.wind.z;
+  // Shrubs/trees displace flowers and bare growth around them, but only while THIS cell hasn't
+  // itself reached shrub stage (co-existing canopy, not competition).
+  let neighbourDominance = select(0.0, max(
+      max(select(0.0, left.bio.x, left.wind.z >= 2.0), select(0.0, right.bio.x, right.wind.z >= 2.0)),
+      max(select(0.0, top.bio.x, top.wind.z >= 2.0), select(0.0, bottom.bio.x, bottom.wind.z >= 2.0))
+    ), plantTypeOld < 2.0);
+  let shrubCrowding = neighbourDominance * dt * 0.03;
+  var biomass = clamp(c.bio.x + growth - crowding - shrubCrowding - damage - fuelBurn, 0.0, 1.0);
+
+  // Age only accumulates while this is a genuinely established, healthy stand and decays back
+  // down otherwise (slower than it grows), so a burned/drought-killed grove reverts toward
+  // early succession instead of staying "tree" forever once the tree itself is gone. Thresholds
+  // (6 / 40 / 220 simulated seconds) match runtime/world-sandbox-reference.mjs's PLANT_AGE_
+  // FLOWER/SHRUB/TREE constants exactly.
+  let establishedFit = smoothstep(0.32, 0.55, biomass);
+  let ageOld = c.wind.w;
+  let age = max(0.0, ageOld + establishedFit * dt * 1.0 - (1.0 - establishedFit) * dt * 0.6);
+  let canSupportShrub = moistureFit > 0.4;
+  let canSupportTree = moistureFit > 0.55 && P.environment.z > 0.3;
+  var plantType = plantTypeOld;
+  if (age > 220.0 && canSupportTree) {
+    plantType = 3.0;
+  } else if (age > 40.0 && canSupportShrub) {
+    plantType = max(plantType, 2.0);
+  } else if (age > 6.0) {
+    plantType = max(plantType, 1.0);
+  }
+  if (age < 3.0) {
+    plantType = 0.0;
+  }
+  if (biomass < 0.05) {
+    plantType = 0.0;
+  }
 
   let fixedScale = 1.0 / 4096.0;
   sand += f32(atomicLoad(&deposits[i].sand)) * fixedScale;
@@ -435,6 +500,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   let uv = (vec2<f32>(gid.xy) + 0.5) / f32(size);
   let stampCount = min(u32(P.sim.z), 32u);
+  // STAMP.CARVE's velocity kick accumulates here rather than into the velocity local above
+  // (which was already computed from LAST step's c.water.yz before this loop runs) -- this WGSL
+  // kernel
+  // applies stamps interleaved with the rest of the step instead of as a separate pre-pass the
+  // way runtime/world-sandbox-reference.mjs's applyStamps() does, so a carve stamp's push shows
+  // up in velocity/speed/erosion starting NEXT step, not this one. One frame (~33ms at 30
+  // steps/second) of lag, not a correctness gap -- restructuring this kernel into a genuine
+  // stamp pre-pass to remove it is a larger, separately-verified change, not bundled in here.
+  var carveVelocity = vec2<f32>(0.0);
   for (var si = 0u; si < 32u; si++) {
     if (si >= stampCount) {
       break;
@@ -481,6 +555,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       // threshold combustion already uses.
       let focusStrength = clamp(P.environment.y, 0.0, 1.0);
       heat = clamp(heat + amount * focusStrength * 2.6, 0.0, 1.0);
+    } else if (kind == 9u) {
+      // "Wasserbändigen": mirrors runtime/world-sandbox-reference.mjs's STAMP.CARVE, with one
+      // deliberate timing difference from the CPU reference explained below. Adds water, then
+      // kicks velocity hard in the stroke's own drag direction (already packed into
+      // stamp.data.zw, unused until this) so the speed-driven erosion term that already exists
+      // (not a new mechanic) does the actual cutting.
+      water = clamp(water + amount * 0.6, 0.0, 1.2);
+      wetness = clamp(wetness + amount * 3.0, 0.0, 1.0);
+      carveVelocity += stamp.data.zw * amount * 6.0;
     }
   }
 
@@ -489,11 +572,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   next.terrain.w = wetness;
   // Safety net matching the stamp-time cap above: rain/springs/snowmelt all add water
   // through paths other than a direct stamp, so the ceiling belongs here too.
-  next.water = vec4<f32>(clamp(water, 0.0, 1.2), velocity.x, velocity.y, max(0.0, sediment));
+  let carriedVelocity = clamp(velocity + carveVelocity, vec2<f32>(-4.0), vec2<f32>(4.0));
+  next.water = vec4<f32>(clamp(water, 0.0, 1.2), carriedVelocity.x, carriedVelocity.y, max(0.0, sediment));
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
   next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
   next.combust = vec4<f32>(fire, smoke, ash, groundwater);
-  next.wind = vec4<f32>(windX, windZ, 0.0, 0.0);
+  next.wind = vec4<f32>(windX, windZ, plantType, age);
   dst[i] = next;
 }
 `;
@@ -521,7 +605,7 @@ struct Cell {
 struct Particle {
   position: vec4<f32>,
   velocity: vec4<f32>,
-  meta: vec4<f32>,
+  payload: vec4<f32>,
 }
 
 struct Deposit {
@@ -587,20 +671,24 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       sin(angle) * (0.03 + r0 * 0.09),
       0.65 + r2 * 1.1
     );
-    particle.meta = vec4<f32>(kind, r0, 0.0, 1.0);
+    particle.payload = vec4<f32>(kind, r0, 0.0, 1.0);
   }
 
-  if (particle.meta.w < 0.5) {
+  if (particle.payload.w < 0.5) {
     particles[i] = particle;
     return;
   }
 
   let dt = P.sim.x;
-  let kind = u32(particle.meta.x + 0.5);
+  let kind = u32(particle.payload.x + 0.5);
   let drag = select(0.7, 1.8, kind == 1u);
-  particle.velocity.xyz *= max(0.0, 1.0 - drag * dt);
+  // WGSL (at least this Tint build) rejects compound assignment through a multi-component
+  // swizzle lvalue (particle.velocity.xyz *= ...) -- rebuilding the full vec4 avoids relying
+  // on that being supported at all, rather than depending on undefined/implementation-varying
+  // behaviour.
+  particle.velocity = vec4<f32>(particle.velocity.xyz * max(0.0, 1.0 - drag * dt), particle.velocity.w);
   particle.velocity.y -= 0.86 * dt;
-  particle.position.xyz += particle.velocity.xyz * dt;
+  particle.position = vec4<f32>(particle.position.xyz + particle.velocity.xyz * dt, particle.position.w);
   particle.position.w += dt;
 
   if (particle.position.x < 0.0 || particle.position.x > 1.0) {
@@ -627,7 +715,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     } else if (kind == 4u) {
       atomicAdd(&deposits[cellIndex].heat, amount);
     }
-    particle.meta.w = 0.0;
+    particle.payload.w = 0.0;
   }
   particles[i] = particle;
 }
@@ -814,7 +902,7 @@ struct RenderParams {
 struct Particle {
   position: vec4<f32>,
   velocity: vec4<f32>,
-  meta: vec4<f32>,
+  payload: vec4<f32>,
 }
 
 struct VertexOut {
@@ -839,12 +927,12 @@ fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instance
   );
   let particle = particles[instanceIndex];
   let corner = corners[vertexIndex];
-  let active = particle.meta.w;
+  let active = particle.payload.w;
   let centre = vec2<f32>(
     particle.position.x * 2.0 - 1.0,
     (1.0 - particle.position.z) * 2.0 - 1.0 + particle.position.y * 0.10
   );
-  let kind = u32(particle.meta.x + 0.5);
+  let kind = u32(particle.payload.x + 0.5);
   let pixelSize = select(2.0, 3.2, kind == 1u) + clamp(particle.position.y * 2.0, 0.0, 2.0);
   let clipSize = vec2<f32>(
     pixelSize * 2.0 / max(1.0, R.resolution.x),
@@ -921,6 +1009,10 @@ struct BladeOut {
   @builtin(position) position: vec4<f32>,
   @location(0) local: vec2<f32>,
   @location(1) color: vec3<f32>,
+  // 0..3, mirrors FIELD.PLANT_TYPE (see world-sandbox-reference.mjs) -- carried through so
+  // fsGrass can give TREE its own trunk-near-base/canopy-near-tip colour gradient instead of
+  // one flat blade colour.
+  @location(2) plantType: f32,
 }
 
 struct BodyOut {
@@ -986,8 +1078,8 @@ fn project(world: vec3<f32>) -> vec4<f32> {
     return vec4<f32>(viewX / (fovTan * aspect), viewY / fovTan, ndcDepth * viewZ, viewZ);
   }
   let zoom = max(0.55, R.camera.x);
-  let target = vec3<f32>(0.0, R.camera.z, 0.0);
-  let delta = world - target;
+  let lookTarget = vec3<f32>(0.0, R.camera.z, 0.0);
+  let delta = world - lookTarget;
   let forward = cameraForward();
   let viewX = dot(delta, cameraRight());
   let viewY = dot(delta, cameraUp());
@@ -1223,10 +1315,21 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let z = cellIndex / size;
   let cell = cells[cellIndex];
   let seed = hash2(vec2<f32>(f32(x) + f32(layer) * 19.7, f32(z) - f32(layer) * 31.1));
+  // Real per-cell plant succession (mirrors FIELD.PLANT_TYPE in world-sandbox-reference.mjs
+  // exactly -- see that file's own comment for the growth/succession model this renders).
+  let plantType = cell.wind.z;
+  let isFlower = plantType > 0.5 && plantType < 1.5;
+  let isShrub = plantType > 1.5 && plantType < 2.5;
+  let isTree = plantType > 2.5;
+  // A tree is ONE prominent shape per cell, not the usual many thin blade layers stacked on
+  // top of each other at tree scale -- that would read as a chaotic thicket of oversized
+  // blades, not a tree. Every other stage keeps the existing multi-layer blade density.
+  let layerAllowed = select(true, layer == 0u, isTree);
   let visible = cell.bio.x > 0.008
     && cell.water.x < 0.006
     && cell.atmo.w < 0.02 // snow buries grass -- it does not simply photobleach through it
     && seed < clamp(cell.bio.x * 3.8, 0.0, 0.94)
+    && layerAllowed
     && u32(R.view.x + 0.5) == 0u;
   let jitter = vec2<f32>(
     hash2(vec2<f32>(f32(x), f32(z)) + f32(layer) * 7.3),
@@ -1237,8 +1340,21 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let angle = seed * 6.2831853;
   let side = vec3<f32>(cos(angle), 0.0, sin(angle));
   let corner = corners[vertexIndex];
-  let bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
-  let bladeWidth = 0.0028 + seed * 0.0032;
+  var bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
+  var bladeWidth = 0.0028 + seed * 0.0032;
+  // Each stage gets a genuinely different silhouette, not just a colour swap: a flowerbed
+  // reads as shorter and wider (the bloom itself, not a tall stem), a shrub as noticeably
+  // bushier, and a tree as one tall, wide canopy shape rather than another thin blade.
+  if (isFlower) {
+    bladeHeight *= 0.75;
+    bladeWidth *= 1.6;
+  } else if (isShrub) {
+    bladeHeight *= 1.6;
+    bladeWidth *= 2.4;
+  } else if (isTree) {
+    bladeHeight *= 7.0;
+    bladeWidth *= 3.2;
+  }
   // Bend direction now comes from two real fields, not a fixed lean constant: water current
   // (the same edgeFlow-driven velocity that transports water -- a flooded dam-break front
   // visibly presses grass over) AND the local wind field (cell.wind, this session's spatial
@@ -1257,8 +1373,24 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   var output: BladeOut;
   output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), visible);
   output.local = corner;
+  output.plantType = plantType;
   let dry = clamp(cell.bio.z * 1.8 + (1.0 - cell.terrain.w) * 0.22, 0.0, 1.0);
-  output.color = mix(vec3<f32>(0.19, 0.39, 0.10), vec3<f32>(0.43, 0.31, 0.10), dry) * (0.78 + seed * 0.32);
+  var color = mix(vec3<f32>(0.19, 0.39, 0.10), vec3<f32>(0.43, 0.31, 0.10), dry) * (0.78 + seed * 0.32);
+  if (isFlower) {
+    // A bright bloom colour genuinely different from grass green, varied by seed so a
+    // flowerbed reads as mixed blooms rather than one uniform colour -- three real bloom
+    // hues (pink/yellow/white), not a tint of the grass colour underneath.
+    let hue = fract(seed * 3.7);
+    let petal = mix(
+      mix(vec3<f32>(0.92, 0.58, 0.68), vec3<f32>(0.95, 0.85, 0.35), step(0.33, hue)),
+      vec3<f32>(0.90, 0.90, 0.86), step(0.66, hue));
+    color = mix(color, petal, 0.7);
+  } else if (isShrub) {
+    color *= vec3<f32>(0.82, 0.92, 0.80); // denser, slightly darker canopy green
+  } else if (isTree) {
+    color = vec3<f32>(0.16, 0.34, 0.11); // canopy green -- fsGrass blends a trunk colour in near the base
+  }
+  output.color = color;
   return output;
 }
 
@@ -1267,7 +1399,14 @@ fn fsGrass(input: BladeOut) -> @location(0) vec4<f32> {
   let edge = 1.0 - smoothstep(0.42, 1.0, abs(input.local.x));
   if (edge < 0.04) { discard; }
   let light = 0.54 + input.local.y * 0.46;
-  return vec4<f32>(pow(input.color * light, vec3<f32>(1.0 / 2.2)), edge);
+  var color = input.color;
+  if (input.plantType > 2.5) {
+    // TREE: a real trunk-to-canopy gradient along the blade's own length (input.local.y is
+    // 0 at the base, 1 at the tip) instead of one flat colour top to bottom.
+    let trunk = vec3<f32>(0.30, 0.20, 0.12);
+    color = mix(trunk, input.color, smoothstep(0.12, 0.42, input.local.y));
+  }
+  return vec4<f32>(pow(color * light, vec3<f32>(1.0 / 2.2)), edge);
 }
 
 @vertex
@@ -1390,7 +1529,7 @@ struct RenderParams {
 struct Particle {
   position: vec4<f32>,
   velocity: vec4<f32>,
-  meta: vec4<f32>,
+  payload: vec4<f32>,
 }
 
 struct VertexOut {
@@ -1441,7 +1580,7 @@ fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instance
   );
   let particle = particles[instanceIndex];
   let corner = corners[vertexIndex];
-  let kind = u32(particle.meta.x + 0.5);
+  let kind = u32(particle.payload.x + 0.5);
   let centre = vec3<f32>(
     particle.position.x * 2.0 - 1.0,
     particle.position.y * R.camera.y,
@@ -1450,10 +1589,10 @@ fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instance
   let size = select(0.008, 0.011, kind == 1u) + clamp(particle.position.y * 0.004, 0.0, 0.006);
   let world = centre + cameraRight() * corner.x * size + cameraUp() * corner.y * size;
   var output: VertexOut;
-  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), particle.meta.w > 0.5);
+  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), particle.payload.w > 0.5);
   output.local = corner;
   output.kind = kind;
-  output.alpha = particle.meta.w;
+  output.alpha = particle.payload.w;
   return output;
 }
 
@@ -1489,10 +1628,25 @@ async function checkedModule(device, label, code) {
   return module;
 }
 
+// Requests the best adapter available without letting a preference hint fail the whole
+// request. powerPreference is defined by spec as advisory only, but real implementations --
+// disproportionately on mobile/single-GPU devices, where 'high-performance' has nothing more
+// powerful to hand back than the one integrated GPU it already offers by default -- have been
+// observed returning null for a specific preference that a plain, unconstrained request
+// immediately satisfies. Preferring high-performance is still worth trying first (a real win on
+// a laptop/desktop with both an integrated and a discrete GPU); it just can't be the only thing
+// tried, since "no adapter" turns the entire simulation into the much slower CPU/Canvas2D
+// fallback for a reason that was never about the hardware actually lacking WebGPU.
+async function requestBestAdapter() {
+  const preferred = await navigator.gpu.requestAdapter({powerPreference: 'high-performance'});
+  if (preferred) return preferred;
+  return navigator.gpu.requestAdapter();
+}
+
 export class WebGpuWorldSandbox {
   static async create(canvas, options = {}) {
     assertGpuGlobals();
-    const adapter = await navigator.gpu.requestAdapter({powerPreference: 'high-performance'});
+    const adapter = await requestBestAdapter();
     if (!adapter) throw new Error('No WebGPU adapter');
     const device = await adapter.requestDevice();
     const instance = new WebGpuWorldSandbox(canvas, adapter, device, options);
