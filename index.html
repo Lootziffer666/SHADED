@@ -54,6 +54,7 @@
             <span><b>WORLD LAB</b><i data-world-view-label>3D BEAUTY</i></span>
             <span class="world-hud-gesture">MALEN · 2 FINGER KAMERA</span>
           </div>
+          <div class="world-hud-error" id="world-hud-error" hidden></div>
           <div class="world-hud-controls">
             <nav class="world-hud-tools" aria-label="Welt-Werkzeuge">
               <button type="button" class="active" data-world-tool="sand" title="Sand auftragen"><span>▰</span><b>Sand</b></button>
@@ -63,6 +64,7 @@
               <button type="button" data-world-tool="heat" title="Hitze eintragen"><span>△</span><b>Hitze</b></button>
               <button type="button" data-world-tool="focus" title="Sonnenlicht bündeln — wirkt nur bei echtem Sonnenschein"><span>◎</span><b>Lupe</b></button>
               <button type="button" data-world-tool="carve" title="Wasser bändigen — in Zugrichtung schneidet es Rinnen in den Sand"><span>〜</span><b>Bändigen</b></button>
+              <button type="button" data-world-tool="root" title="Wurzel pflanzen — wächst selbstständig Richtung Feuchtigkeit (CPU-Renderer)"><span>⌿</span><b>Wurzel</b></button>
               <button type="button" data-world-tool="stone" title="Stein werfen"><span>●</span><b>Stein</b></button>
             </nav>
             <div class="world-hud-utility">
@@ -259,6 +261,7 @@
           <button type="button" data-world-tool="heat">HITZE</button>
           <button type="button" data-world-tool="focus">LUPE</button>
           <button type="button" data-world-tool="carve">BÄNDIGEN</button>
+          <button type="button" data-world-tool="root">WURZEL</button>
           <button type="button" data-world-tool="stone">STEIN</button>
         </div>
         <label class="world-brush"><span>Radius</span><input id="world-brush" type="range" min="2" max="12" step="1" value="5"><output>0.05</output></label>
