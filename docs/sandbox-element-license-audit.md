@@ -18,6 +18,7 @@ Status is intentionally conservative. **No license / unclear license means techn
 | `reindernijhoff/shadertoy` | no repository license found in inspected root; treat individual shaders as reference until separately verified | root contents / README |
 | `haubna/PhysicsMod` `oceans.glsl` | no repository license found in inspected root; technique/visual reference only | root contents |
 | `avcourt/terrain` | no repository license found in inspected root; technique/visual reference only | root contents / README |
+| `evanw/webgl-water` | MIT | `lightgl.js`, `water.js`, `renderer.js` source headers ("Copyright 2011 Evan Wallace / Released under the MIT license") | Classic heightfield water demo: ping-pong height/velocity/normal textures for wave propagation (`water.js`), refraction + Fresnel + normal-from-gradient surface shading, plus caustics/reflection via ray-tracing onto a static pool floor and primitive shapes (`renderer.js`) — that last part is scene-specific (fixed pool geometry) and needs real adaptation, not a paste, to work against SHADED's dynamic terrain heightfield. |
 
 ## Newly verified sources (KilledByAPixel / Frank Force cluster + starred-repo audit)
 
