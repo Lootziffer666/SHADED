@@ -527,6 +527,8 @@
       ],
       "category": "geometry",
       "model_version": "v2",
+      "source": "https://github.com/DepthAnything/Depth-Anything-V2",
+      "predecessor_source": "https://github.com/LiheYoung/Depth-Anything",
       "capabilities": [
         "depth",
         "confidence"
@@ -1023,6 +1025,8 @@
       ],
       "category": "perception",
       "model_version": "cpu-v1",
+      "source": "https://github.com/facebookresearch/sam2",
+      "integration_reference": "https://github.com/isl-org/Open3D/issues/4929",
       "capabilities": [
         "depth",
         "confidence"
