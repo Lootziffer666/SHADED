@@ -42,7 +42,7 @@
           "type": "object", "additionalProperties": false,
           "required": ["mode", "strength"],
           "properties": {
-            "mode": { "enum": ["smooth", "curvature", "faceted"] },
+            "mode": { "enum": ["smooth", "curvature", "faceted", "cellular"] },
             "strength": { "type": "number", "minimum": 0, "maximum": 1 }
           }
         },
