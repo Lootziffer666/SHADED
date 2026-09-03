@@ -75,10 +75,64 @@ export function cellOffset(size, x, z) {
   return (cz * size + cx) * CELL_STRIDE;
 }
 
-export function createWorldState(size = 96, seed = 0x53484144) {
+// Dune shaping (sand donor: keaukraine/webgl-dunes, MIT -- verified in docs/sandbox-element-
+// license-audit.md). The donor's live-shader technique (vSlopeCoeff from normal-vs-wind dot
+// products, stretched windward/leeward UVs) is reimplemented here as a static heightfield
+// profile, since this is a CPU/GPU-shared terrain generator, not a per-frame shader: a real
+// dune's windward face is long and gentle (sand creeping uphill grain by grain) and its
+// leeward face is short and steep (avalanching at the angle of repose), so a periodic ridge
+// gets an ASYMMETRIC profile rather than a symmetric sine wave.
+function duneProfile(t) {
+  const local = t - Math.floor(t);
+  if (local < 0.72) {
+    const u = local / 0.72;
+    return u * u * (3 - 2 * u);
+  }
+  const u = (local - 0.72) / 0.28;
+  return 1 - u * u * (3 - 2 * u);
+}
+
+function generateDunes(state, size, random, windDeg = 34) {
+  const windAngle = (windDeg * Math.PI) / 180;
+  const wind = [Math.cos(windAngle), Math.sin(windAngle)];
+  const windPerp = [-wind[1], wind[0]];
+  const warpA = random() * 1000;
+  const warpB = random() * 1000;
+  for (let z = 0; z < size; z++) {
+    for (let x = 0; x < size; x++) {
+      const nx = (x + 0.5) / size;
+      const nz = (z + 0.5) / size;
+      const o = cellOffset(size, x, z);
+      const along = nx * wind[0] + nz * wind[1];
+      const across = nx * windPerp[0] + nz * windPerp[1];
+      // Real transverse dune fields snake rather than running in perfectly straight lines.
+      const meander = Math.sin(across * 11 + warpA) * 0.035 + Math.sin(across * 23 - warpB) * 0.015;
+      const major = duneProfile((along + meander) / 0.16);
+      const minor = duneProfile((along * 3.1 + meander * 2) / 0.032) * 0.22;
+      const shape = major * 0.85 + minor * 0.15;
+      const bedrock = 0.05 + shape * 0.01;
+      const sand = 0.02 + shape * 0.24 + random() * 0.004;
+
+      state[o + FIELD.BEDROCK] = bedrock;
+      state[o + FIELD.SAND] = sand;
+      state[o + FIELD.COMPACTION] = 0.03 + random() * 0.02; // loose, wind-blown sand
+      state[o + FIELD.WETNESS] = 0;
+      state[o + FIELD.WATER] = 0;
+      state[o + FIELD.SEEDS] = 0;
+      state[o + FIELD.BIOMASS] = 0;
+    }
+  }
+}
+
+export function createWorldState(size = 96, seed = 0x53484144, options = {}) {
   if (!Number.isInteger(size) || size < 8) throw new Error('World grid size must be an integer >= 8');
   const state = new Float32Array(size * size * CELL_STRIDE);
   const random = mulberry32(seed);
+
+  if (options.terrain === 'desert') {
+    generateDunes(state, size, random, options.windDeg);
+    return state;
+  }
 
   for (let z = 0; z < size; z++) {
     for (let x = 0; x < size; x++) {

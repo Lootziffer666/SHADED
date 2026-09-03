@@ -220,6 +220,54 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   assert.ok(maxDisturbance > 0.001, `a heavy cloud in the hail band must leave a ground-impact disturbance (max disturbance: ${maxDisturbance})`);
 }
 
+// --- Desert dune terrain (sand donor: keaukraine/webgl-dunes, MIT) -------------------------
+{
+  const duneSize = 64;
+  const windDeg = 34;
+  const dunes = createWorldState(duneSize, 0x2026, {terrain: 'desert', windDeg});
+  assert.deepEqual(dunes, createWorldState(duneSize, 0x2026, {terrain: 'desert', windDeg}), 'dune generation is deterministic for a fixed seed');
+
+  const heightAt = (x, z) => {
+    const o = cellOffset(duneSize, x, z);
+    return dunes[o + FIELD.BEDROCK] + dunes[o + FIELD.SAND];
+  };
+  let totalWater = 0, totalBiomass = 0;
+  for (let o = 0; o < dunes.length; o += CELL_STRIDE) { totalWater += dunes[o + FIELD.WATER]; totalBiomass += dunes[o + FIELD.BIOMASS]; }
+  assert.equal(totalWater, 0, 'a desert preset must start bone dry, no oasis water');
+  assert.equal(totalBiomass, 0, 'a desert preset must start barren, no vegetation');
+
+  // Sample a profile along the wind direction and find the widest single rise/fall run --
+  // the donor's key physical signature is a long, gentle windward slope and a short, steep
+  // leeward slip face, i.e. the profile must NOT be a symmetric sine wave.
+  const windAngle = (windDeg * Math.PI) / 180;
+  const wind = [Math.cos(windAngle), Math.sin(windAngle)];
+  const heights = [];
+  for (let i = 0; i < duneSize * 2; i++) {
+    const t = i / (duneSize * 2);
+    const x = Math.round((0.5 + wind[0] * (t - 0.5)) * (duneSize - 1));
+    const z = Math.round((0.5 + wind[1] * (t - 0.5)) * (duneSize - 1));
+    heights.push(heightAt(Math.max(0, Math.min(duneSize - 1, x)), Math.max(0, Math.min(duneSize - 1, z))));
+  }
+  let longestRise = 0, longestFall = 0, run = 0, dir = 0;
+  for (let i = 1; i < heights.length; i++) {
+    const d = Math.sign(heights[i] - heights[i - 1]);
+    if (d === 0) continue;
+    if (d === dir) { run++; } else { run = 1; dir = d; }
+    if (dir > 0) longestRise = Math.max(longestRise, run);
+    if (dir < 0) longestFall = Math.max(longestFall, run);
+  }
+  assert.ok(longestRise > longestFall * 1.5, `windward rise must span noticeably more of the profile than the leeward fall (rise run ${longestRise}, fall run ${longestFall})`);
+
+  // A different wind direction must produce a genuinely different terrain, not just a
+  // relabeled one -- otherwise "wind-shaped" would be cosmetic.
+  const crossDunes = createWorldState(duneSize, 0x2026, {terrain: 'desert', windDeg: windDeg + 90});
+  assert.notDeepEqual(dunes, crossDunes, 'a different wind direction must reshape the dune field');
+
+  // The default (non-desert) terrain generator must be completely unaffected -- same call
+  // shape and same output as before this option existed.
+  assert.equal(stateChecksum(createWorldState(48, 7)), stateChecksum(createWorldState(48, 7, {})), 'omitting options must match passing an empty options object');
+}
+
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read> src/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read_write> dst/);

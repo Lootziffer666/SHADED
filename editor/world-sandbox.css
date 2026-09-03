@@ -10,6 +10,14 @@
   touch-action:none;
 }
 
+/* Walking needs mouse-drag on the canvas itself for look direction, but #drawer-backdrop
+   (editor/drawer-handle.css) sits in its own stacking context above the canvas whenever the
+   inspector is open, by design, to catch "click viewport to close inspector" -- raising the
+   canvas's own z-index does not out-rank a backdrop in a different stacking context, so make
+   the backdrop transparent to pointer input specifically while walking instead. */
+body.world-walk-active #world-sandbox-canvas{cursor:grab}
+body.world-walk-active #drawer-backdrop{pointer-events:none}
+
 #world-sandbox-hud{
   position:absolute;
   left:50%;

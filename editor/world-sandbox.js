@@ -4,6 +4,7 @@ import {
   FIELD,
   STAMP,
   createWorldState,
+  mulberry32,
   sampleWorld,
   stepWorldReference,
 } from '../runtime/world-sandbox-reference.mjs';
@@ -27,6 +28,27 @@ const DEFAULT_CAMERA = Object.freeze({
   verticalScale: 1.55,
   targetY: 0.29,
 });
+// Walking is a real perspective first-person mode (see project()'s R.spare0.w branch in
+// world-sandbox-webgpu.mjs), not the orbit camera relabeled -- it owns its own look yaw/pitch
+// and ground-following eye height so leaving it restores the orbit camera untouched.
+const DEFAULT_WALK = Object.freeze({
+  active: false,
+  x: 0.5,
+  z: 0.62,
+  yaw: 0,
+  pitch: 0.06,
+  eyeY: 0.09,
+  vx: 0,
+  vz: 0,
+});
+const WALK_SPEED = 0.052; // world units/second crossing the 0..1 desert (~19s edge to edge)
+const WALK_EYE_OFFSET = 0.052; // above sampled ground height, in the same verticalScale-adjusted units
+// One full day/night cycle in real seconds while walking; env.temperature swings from the hot
+// desert-day setting down into genuinely sub-freezing (see ICE's ~0.3-0.42 threshold in
+// world-sandbox-reference.mjs) territory at night, so frost forms for real, not just cosmetically.
+const DAY_LENGTH_SECONDS = 90;
+const DAY_TEMPERATURE = 0.82;
+const NIGHT_TEMPERATURE = 0.12;
 const toolDefinitions = {
   sand: {kind: STAMP.SAND, amount: 0.026, particleKind: 2, particles: mobile ? 18 : 38},
   water: {kind: STAMP.WATER, amount: 0.029, particleKind: 1, particles: mobile ? 22 : 52},
@@ -50,6 +72,9 @@ const state = {
   backendKind: '',
   pointer: {x: 0.5, z: 0.5, radius: 0.05, visible: false, down: false},
   camera: {...DEFAULT_CAMERA},
+  walk: {...DEFAULT_WALK},
+  dayNight: 0.5,
+  savedEnvironment: null,
   body: {active: false, x: 0.5, z: 0.2, y: 0.8, vx: 0, vz: 0, vy: 0, radius: 0.018, impacts: 0},
   query: {ground: 0.16, waterSurface: 0.16, waterDepth: 0, wetness: 0, biomass: 0, heat: 0, sand: 0, latencyMs: 0},
   accumulator: 0,
@@ -90,6 +115,109 @@ function projectWorld(world, width, height, camera = state.camera) {
     y: (0.5 - ndcY * 0.5) * height,
     depth: dot(delta, forward),
   };
+}
+
+// Real perspective for walk mode -- mirrors project()'s R.spare0.w branch in
+// world-sandbox-webgpu.mjs (same near/fovTan constants), unlike the orbit projection above,
+// which is deliberately non-perspective (isometric-style, no size falloff with distance).
+function walkBasis(walk) {
+  const cosPitch = Math.cos(walk.pitch);
+  const forward = [Math.sin(walk.yaw) * cosPitch, -Math.sin(walk.pitch), Math.cos(walk.yaw) * cosPitch];
+  const rightLength = Math.hypot(forward[2], forward[0]) || 1;
+  const right = [forward[2] / rightLength, 0, -forward[0] / rightLength];
+  const up = [forward[1] * right[2], forward[2] * right[0] - forward[0] * right[2], -forward[1] * right[0]];
+  return {forward, right, up};
+}
+
+const WALK_NEAR = 0.006;
+const WALK_FOV_TAN = 0.62;
+
+function projectWalk(world, width, height, walk) {
+  const {forward, right, up} = walkBasis(walk);
+  const eye = [walk.x * 2 - 1, walk.eyeY, walk.z * 2 - 1];
+  const delta = [world[0] - eye[0], world[1] - eye[1], world[2] - eye[2]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const aspect = width / Math.max(1, height);
+  const viewX = dot(delta, right);
+  const viewY = dot(delta, up);
+  const clipZ = Math.max(dot(delta, forward), WALK_NEAR);
+  const ndcX = viewX / (WALK_FOV_TAN * aspect * clipZ);
+  const ndcY = viewY / (WALK_FOV_TAN * clipZ);
+  return {
+    x: (ndcX * 0.5 + 0.5) * width,
+    y: (0.5 - ndcY * 0.5) * height,
+    depth: clipZ,
+  };
+}
+
+let skyStars = null;
+function ensureSkyStars() {
+  if (skyStars) return skyStars;
+  const random = mulberry32(0xA57);
+  skyStars = [];
+  for (let i = 0; i < 140; i++) skyStars.push({ux: random(), uy: random() * 0.62, seed: random()});
+  return skyStars;
+}
+
+// Mirrors sunElevationOf/skyColor in world-sandbox-webgpu.mjs, translated to Canvas2D
+// primitives -- an approximate gradient + disc + stars, not a physically simulated
+// atmosphere, matching the fidelity level of this whole fallback renderer.
+function drawSky(context, width, height, dayNight, temperature, time) {
+  const sunElevation = Math.sin((dayNight - 0.25) * Math.PI * 2);
+  const dayFactor = Math.max(0, Math.min(1, (sunElevation + 0.18) / 0.26));
+  const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const zenith = mix3([3, 4, 7], [41, 107, 189], dayFactor);
+  const horizon = mix3([14, 13, 23], [219, 184, 133], dayFactor); // day: warm desert dust haze; night: cold, not warm
+  const gradient = context.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, `rgb(${zenith.map(v => Math.round(v)).join(',')})`);
+  gradient.addColorStop(1, `rgb(${horizon.map(v => Math.round(v)).join(',')})`);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+
+  if (dayFactor < 0.6) {
+    const alpha = (1 - dayFactor) * 0.9;
+    context.fillStyle = `rgba(230,235,255,${alpha})`;
+    for (const star of ensureSkyStars()) {
+      const twinkle = 0.5 + 0.5 * Math.sin(time * 3 + star.seed * 60);
+      if (twinkle < 0.35) continue;
+      context.fillRect(star.ux * width, star.uy * height, 1.4, 1.4);
+    }
+  }
+
+  const sunScreenX = width * (0.5 + Math.sin(dayNight * Math.PI * 2) * 0.42);
+  const sunScreenY = height * (0.92 - Math.max(0, sunElevation) * 0.75);
+  if (dayFactor > 0.02) {
+    context.fillStyle = 'rgba(255,235,200,0.95)';
+    context.beginPath();
+    context.arc(sunScreenX, sunScreenY, Math.max(6, width * 0.018), 0, Math.PI * 2);
+    context.fill();
+  }
+  const moonScreenX = width * (0.5 - Math.sin(dayNight * Math.PI * 2) * 0.42);
+  const moonScreenY = height * (0.92 - Math.max(0, -sunElevation) * 0.75);
+  if (dayFactor < 0.85) {
+    context.fillStyle = `rgba(205,210,222,${(1 - dayFactor) * 0.85})`;
+    context.beginPath();
+    context.arc(moonScreenX, moonScreenY, Math.max(5, width * 0.013), 0, Math.PI * 2);
+    context.fill();
+  }
+
+  // Heat shimmer hint: a soft wavering line near the horizon during hot midday -- this
+  // fallback path has no offscreen texture to refract, same honest limitation as fsSky.
+  const hotFactor = Math.max(0, Math.min(1, (temperature - 0.55) / 0.4)) * dayFactor;
+  if (hotFactor > 0.02) {
+    context.save();
+    context.globalAlpha = hotFactor * 0.35;
+    context.strokeStyle = 'rgba(255,244,222,0.6)';
+    context.lineWidth = Math.max(1, height * 0.006);
+    context.beginPath();
+    const baseY = height * 0.82;
+    for (let x = 0; x <= width; x += 8) {
+      const y = baseY + Math.sin(x * 0.05 + time * 5) * height * 0.01;
+      if (x === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    }
+    context.stroke();
+    context.restore();
+  }
 }
 
 function screenToWorld(clientX, clientY) {
@@ -235,8 +363,8 @@ class CpuWorldSandbox {
     this.reset();
   }
 
-  reset(seed = 0x53484144) {
-    this.world = createWorldState(this.size, seed);
+  reset(seed = 0x53484144, options = {}) {
+    this.world = createWorldState(this.size, seed, options);
     this.particles.length = 0;
     this.deposits.length = 0;
     this.orderKey = '';
@@ -308,13 +436,14 @@ class CpuWorldSandbox {
     }
   }
 
-  render({viewMode = 0, body, cursor, camera = state.camera}) {
+  render({viewMode = 0, body, cursor, camera = state.camera, walk = null, dayNight = 0.5, temperature = 0.5, time = 0}) {
     this.resize();
     const context = this.context;
     const width = this.canvas.width;
     const height = this.canvas.height;
     const size = this.size;
     const verticalScale = camera.verticalScale;
+    const useWalk = !!walk?.active;
     const offsetAt = (x, z) => (Math.max(0, Math.min(size - 1, z)) * size
       + Math.max(0, Math.min(size - 1, x))) * CELL_STRIDE;
     const heightAt = (x, z, water = false) => {
@@ -322,27 +451,36 @@ class CpuWorldSandbox {
       return this.world[offset + FIELD.BEDROCK] + this.world[offset + FIELD.SAND]
         + (water ? this.world[offset + FIELD.WATER] : 0);
     };
-    const projected = (x, z, water = false) => projectWorld([
-      x / (size - 1) * 2 - 1,
-      heightAt(x, z, water) * verticalScale,
-      z / (size - 1) * 2 - 1,
-    ], width, height, camera);
+    const projected = (x, z, water = false) => {
+      const world = [x / (size - 1) * 2 - 1, heightAt(x, z, water) * verticalScale, z / (size - 1) * 2 - 1];
+      return useWalk ? projectWalk(world, width, height, walk) : projectWorld(world, width, height, camera);
+    };
+    const walkEye = useWalk ? [walk.x * 2 - 1, walk.eyeY, walk.z * 2 - 1] : null;
+    const walkForward = useWalk ? walkBasis(walk).forward : null;
 
-    const background = context.createLinearGradient(0, 0, 0, height);
-    background.addColorStop(0, '#18201d');
-    background.addColorStop(0.52, '#111715');
-    background.addColorStop(1, '#080b0a');
-    context.fillStyle = background;
-    context.fillRect(0, 0, width, height);
+    drawSky(context, width, height, dayNight, temperature, time);
 
-    const orderKey = `${size}:${camera.yaw.toFixed(3)}:${camera.pitch.toFixed(3)}`;
+    const orderKey = useWalk
+      ? `${size}:walk:${walk.x.toFixed(3)}:${walk.z.toFixed(3)}:${walk.yaw.toFixed(3)}:${walk.pitch.toFixed(3)}`
+      : `${size}:${camera.yaw.toFixed(3)}:${camera.pitch.toFixed(3)}`;
     if (this.orderKey !== orderKey) {
       const {forward} = cameraBasis(camera);
       this.drawOrder = [];
       for (let z = 0; z < size - 1; z++) {
         for (let x = 0; x < size - 1; x++) {
           const world = [x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1];
-          this.drawOrder.push({x, z, depth: world[0] * forward[0] + world[1] * forward[1] + world[2] * forward[2]});
+          if (useWalk) {
+            // Frustum cull: a quad whose center sits behind the eye would otherwise get
+            // clamped to the near plane in projectWalk without adjusting x/y, smearing it
+            // across the front of the screen instead of correctly vanishing.
+            const toCenter = [world[0] - walkEye[0], world[1] - walkEye[1], world[2] - walkEye[2]];
+            const viewZ = toCenter[0] * walkForward[0] + toCenter[1] * walkForward[1] + toCenter[2] * walkForward[2];
+            if (viewZ < WALK_NEAR * 4) continue;
+          }
+          const depth = useWalk
+            ? Math.hypot(world[0] - walkEye[0], world[1] - walkEye[1], world[2] - walkEye[2])
+            : world[0] * forward[0] + world[1] * forward[1] + world[2] * forward[2];
+          this.drawOrder.push({x, z, depth});
         }
       }
       this.drawOrder.sort((a, b) => b.depth - a.depth);
@@ -566,6 +704,9 @@ function exit({preserveInspector = false} = {}) {
   activePointers.clear();
   paintPointerId = null;
   orbitGesture = null;
+  walkLookGesture = null;
+  walkKeysHeld.clear();
+  if (state.walk.active) exitWalk();
 }
 
 function queueStamp(kind, x, z, amount, radius = state.radius) {
@@ -601,6 +742,81 @@ function useTool(x, z) {
   if (!tool) return;
   queueStamp(tool.kind, x, z, tool.amount, state.radius);
   queueEmitter(tool.particleKind, x, z, tool.particles, state.radius / 0.05);
+}
+
+const walkKeysHeld = new Set();
+const WALK_MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+function enterWalk() {
+  if (state.walk.active) return;
+  state.savedEnvironment = {...state.environment};
+  state.walk = {...DEFAULT_WALK, active: true};
+  state.dayNight = 0.5; // start at noon -- immediately, obviously a hot desert
+  state.body.active = false;
+  state.stamps.length = 0;
+  state.emitter = null;
+  state.scenario = null;
+  state.backend?.reset(0x64657365, {terrain: 'desert', windDeg: 34});
+  state.elapsed = 0;
+  state.accumulator = 0;
+  state.queryDivider = 0;
+  panel.querySelector('#world-walk')?.classList.add('active');
+  document.body.classList.add('world-walk-active');
+  const gesture = document.querySelector('.world-hud-gesture');
+  if (gesture) gesture.textContent = 'WASD LAUFEN · ZIEHEN UMSEHEN · ESC VERLASSEN';
+}
+
+function exitWalk() {
+  if (!state.walk.active) return;
+  state.walk.active = false;
+  if (state.savedEnvironment) {
+    state.environment = state.savedEnvironment;
+    state.savedEnvironment = null;
+  }
+  panel.querySelector('#world-walk')?.classList.remove('active');
+  document.body.classList.remove('world-walk-active');
+  const gesture = document.querySelector('.world-hud-gesture');
+  if (gesture) gesture.textContent = 'MALEN · 2 FINGER KAMERA';
+}
+
+function toggleWalk() {
+  if (state.walk.active) exitWalk();
+  else enterWalk();
+}
+
+function updateWalk(dt) {
+  const walk = state.walk;
+  if (!walk.active) return;
+  let forwardInput = 0;
+  let strafeInput = 0;
+  if (walkKeysHeld.has('KeyW') || walkKeysHeld.has('ArrowUp')) forwardInput += 1;
+  if (walkKeysHeld.has('KeyS') || walkKeysHeld.has('ArrowDown')) forwardInput -= 1;
+  if (walkKeysHeld.has('KeyD') || walkKeysHeld.has('ArrowRight')) strafeInput += 1;
+  if (walkKeysHeld.has('KeyA') || walkKeysHeld.has('ArrowLeft')) strafeInput -= 1;
+  if (forwardInput !== 0 || strafeInput !== 0) {
+    const length = Math.hypot(forwardInput, strafeInput) || 1;
+    forwardInput /= length;
+    strafeInput /= length;
+    // Matches cameraForward()'s (sin(yaw), .., cos(yaw)) convention in world-sandbox-webgpu.mjs,
+    // so "forward" on the keyboard is exactly what the eye is looking at.
+    const sinYaw = Math.sin(walk.yaw);
+    const cosYaw = Math.cos(walk.yaw);
+    const moveX = sinYaw * forwardInput + cosYaw * strafeInput;
+    const moveZ = cosYaw * forwardInput - sinYaw * strafeInput;
+    walk.x = Math.max(0.015, Math.min(0.985, walk.x + moveX * WALK_SPEED * dt));
+    walk.z = Math.max(0.015, Math.min(0.985, walk.z + moveZ * WALK_SPEED * dt));
+  }
+
+  // Day/night cycle + temperature derived from the SAME sun-elevation curve the shader uses
+  // (sunElevationOf in world-sandbox-webgpu.mjs) -- feeds straight into the simulated world,
+  // so night cold genuinely freezes standing water (ICE in world-sandbox-reference.mjs)
+  // instead of just dimming the lights.
+  state.dayNight = (state.dayNight + dt / DAY_LENGTH_SECONDS) % 1;
+  const sunElevation = Math.sin((state.dayNight - 0.25) * Math.PI * 2);
+  const dayFactor = Math.max(0, Math.min(1, (sunElevation + 0.18) / 0.26));
+  state.environment = {...state.environment, temperature: NIGHT_TEMPERATURE + (DAY_TEMPERATURE - NIGHT_TEMPERATURE) * dayFactor};
+
+  walk.eyeY = state.query.ground * state.camera.verticalScale + WALK_EYE_OFFSET;
 }
 
 function updateBody(dt) {
@@ -696,7 +912,8 @@ function stepOnce() {
   if (!state.backend) return;
   runScenarioEvents();
   updateBody(SIM_DT);
-  const queryPosition = state.body.active ? state.body : state.pointer;
+  updateWalk(SIM_DT);
+  const queryPosition = state.walk.active ? state.walk : (state.body.active ? state.body : state.pointer);
   state.queryDivider = (state.queryDivider + 1) % 2;
   const query = state.queryDivider === 0 ? {x: queryPosition.x, z: queryPosition.z} : null;
   const stamps = state.stamps.splice(0, 32);
@@ -732,6 +949,9 @@ function loop(now) {
     body: state.body,
     cursor: state.pointer,
     camera: state.camera,
+    walk: state.walk,
+    dayNight: state.dayNight,
+    temperature: state.environment.temperature,
   });
   state.frames += 1;
   if (now - state.fpsStarted >= 800) {
@@ -756,6 +976,12 @@ function clampCamera() {
   state.camera.pitch = Math.max(0.42, Math.min(1.18, state.camera.pitch));
   state.camera.zoom = Math.max(0.72, Math.min(2.35, state.camera.zoom));
 }
+
+function clampWalkLook() {
+  state.walk.pitch = Math.max(-0.95, Math.min(0.95, state.walk.pitch));
+}
+
+let walkLookGesture = null;
 
 function beginMultiGesture() {
   const pointers = [...activePointers.values()].slice(0, 2);
@@ -795,6 +1021,10 @@ function bindCanvas() {
     event.preventDefault();
     activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY, type: event.pointerType});
     canvas.setPointerCapture?.(event.pointerId);
+    if (state.walk.active) {
+      walkLookGesture = {id: event.pointerId, x: event.clientX, y: event.clientY, yaw: state.walk.yaw, pitch: state.walk.pitch};
+      return;
+    }
     if (event.pointerType === 'touch' && activePointers.size >= 2) {
       beginMultiGesture();
       return;
@@ -816,6 +1046,12 @@ function bindCanvas() {
     if (activePointers.has(event.pointerId)) {
       activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY, type: event.pointerType});
     }
+    if (walkLookGesture?.id === event.pointerId) {
+      state.walk.yaw = walkLookGesture.yaw + (event.clientX - walkLookGesture.x) * 0.0052;
+      state.walk.pitch = walkLookGesture.pitch - (event.clientY - walkLookGesture.y) * 0.0042;
+      clampWalkLook();
+      return;
+    }
     if (orbitGesture?.kind === 'multi') {
       updateMultiGesture();
       return;
@@ -834,6 +1070,7 @@ function bindCanvas() {
   });
   const release = event => {
     activePointers.delete(event.pointerId);
+    if (walkLookGesture?.id === event.pointerId) walkLookGesture = null;
     if (paintPointerId === event.pointerId) {
       paintPointerId = null;
       state.pointer.down = false;
@@ -871,6 +1108,7 @@ launch.addEventListener('click', () => {
 });
 panel.querySelector('#world-exit').addEventListener('click', exit);
 panel.querySelector('#world-reset').addEventListener('click', () => {
+  if (state.walk.active) exitWalk();
   state.backend?.reset();
   state.elapsed = 0;
   state.accumulator = 0;
@@ -880,6 +1118,7 @@ panel.querySelector('#world-reset').addEventListener('click', () => {
   state.body.active = false;
   state.scenario = null;
 });
+panel.querySelector('#world-walk')?.addEventListener('click', toggleWalk);
 panel.querySelector('#world-chain').addEventListener('click', startCauseChain);
 panel.querySelector('#world-pause').addEventListener('click', () => setPaused(!state.paused));
 panel.querySelector('#world-step').addEventListener('click', () => {
@@ -936,6 +1175,28 @@ window.addEventListener('keydown', event => {
     event.preventDefault();
     panel.querySelector('#world-pause').click();
   }
+  if (state.active && state.walk.active && WALK_MOVE_KEYS.has(event.code)) {
+    event.preventDefault();
+    walkKeysHeld.add(event.code);
+  }
+  if (event.key === 'Escape' && state.active && state.walk.active) {
+    event.preventDefault();
+    exitWalk();
+    // editor/ux-fixes.js also binds a global window Escape handler (closeChrome) that
+    // collapses the whole inspector; relying on event-phase ordering to outrun it proved
+    // unreliable, so instead correct the DOM right after this dispatch finishes, once
+    // every same-tick keydown handler (that one included) has already run.
+    queueMicrotask(() => {
+      if (!state.active) return;
+      document.body.classList.remove('inspector-collapsed');
+      document.body.classList.add('inspector-open');
+      railLaunch?.classList.add('active');
+      document.querySelectorAll('.inspector-section').forEach(section => section.classList.toggle('section-collapsed', section !== panel));
+    });
+  }
+});
+window.addEventListener('keyup', event => {
+  walkKeysHeld.delete(event.code);
 });
 
 setTool(state.tool);
@@ -948,9 +1209,13 @@ window.SHADEDWorldSandbox = {
   exit,
   startCauseChain,
   queueStamp,
+  enterWalk,
+  exitWalk,
   get active() { return state.active; },
   get backend() { return state.backendKind; },
   get query() { return {...state.query}; },
   get body() { return {...state.body}; },
   get camera() { return {...state.camera}; },
+  get walk() { return {...state.walk}; },
+  get dayNight() { return state.dayNight; },
 };

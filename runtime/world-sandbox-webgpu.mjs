@@ -721,6 +721,25 @@ fn cameraUp() -> vec3<f32> {
 
 fn project(world: vec3<f32>) -> vec4<f32> {
   let aspect = R.resolution.x / max(1.0, R.resolution.y);
+  if (R.spare0.w > 0.5) {
+    // Walk mode: real perspective from the player's eye (R.spare0.xyz), looking via the same
+    // yaw/pitch slot the orbit camera otherwise occupies (R.view.z/w) -- never both at once.
+    // w is left as the TRUE (possibly negative, behind-eye) viewZ, not clamped to the near
+    // plane -- clamping it here would hide the true depth from WebGPU's own clip-space near
+    // clipping, which runs before the perspective divide, and geometry behind the eye would
+    // get smeared across the screen at the clamped depth instead of correctly disappearing.
+    let eye = R.spare0.xyz;
+    let delta = world - eye;
+    let forward = cameraForward();
+    let viewX = dot(delta, cameraRight());
+    let viewY = dot(delta, cameraUp());
+    let viewZ = dot(delta, forward);
+    let near = 0.006;
+    let far = 3.4;
+    let fovTan = 0.62;
+    let ndcDepth = clamp((viewZ - near) / (far - near), 0.0005, 0.9995);
+    return vec4<f32>(viewX / (fovTan * aspect), viewY / fovTan, ndcDepth * viewZ, viewZ);
+  }
   let zoom = max(0.55, R.camera.x);
   let target = vec3<f32>(0.0, R.camera.z, 0.0);
   let delta = world - target;
@@ -818,9 +837,18 @@ fn fieldColor(terrain: vec4<f32>, water: vec4<f32>, bio: vec4<f32>, atmo: vec4<f
 fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
   let mode = u32(R.view.x + 0.5);
   let n = normalize(input.normal);
-  let sun = normalize(vec3<f32>(-0.42, 0.82, -0.31));
-  let diffuse = max(dot(n, sun), 0.0);
-  let hemi = 0.26 + 0.24 * n.y;
+  // Day/night: sun direction rotates with R.spare1.x (0=midnight, 0.5=noon), driving both
+  // light direction/strength here and the sky/fog gradient below from the same source of
+  // truth (sunElevationOf) -- icy night comes from this dimming and cooling the terrain, not
+  // a separate "night mode" switch.
+  let dayNight = R.spare1.x;
+  let temperature = R.spare1.y;
+  let sunElevation = sunElevationOf(dayNight);
+  let sunAzimuth = dayNight * 6.2831853;
+  let sun = normalize(vec3<f32>(cos(sunAzimuth) * (1.0 - abs(sunElevation) * 0.3), max(0.06, sunElevation), sin(sunAzimuth) * (1.0 - abs(sunElevation) * 0.3)));
+  let dayFactor = smoothstep(-0.18, 0.08, sunElevation);
+  let diffuse = max(dot(n, sun), 0.0) * (0.18 + dayFactor * 0.82);
+  let hemi = (0.09 + dayFactor * 0.17) + 0.24 * n.y * (0.35 + dayFactor * 0.65);
   let macroNoise = hash2(floor(input.world.xz * 74.0)) - 0.5;
   let fineNoise = hash2(floor(input.world.xz * 230.0) + 17.0) - 0.5;
   let sandCoverage = smoothstep(0.004, 0.07, input.terrain.y);
@@ -841,9 +869,12 @@ fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
   color = mix(color, vec3<f32>(0.62, 0.74, 0.80), icePresence * 0.62);
   let snowCoverage = smoothstep(0.006, 0.06, input.atmo.w);
   color = mix(color, vec3<f32>(0.90, 0.93, 0.95) + fineNoise * 0.02, snowCoverage * 0.88);
+  // Icy night: not just dimmer, a real cool tint (moonlight has no warmth) so a cold desert
+  // night reads as cold, not just "day with the brightness turned down."
+  color = mix(color * vec3<f32>(0.52, 0.60, 0.78), color, dayFactor);
   color *= hemi + diffuse * 0.72;
   let backLight = pow(max(dot(n, normalize(vec3<f32>(0.46, 0.42, 0.76))), 0.0), 3.0);
-  color += vec3<f32>(0.07, 0.085, 0.075) * backLight;
+  color += vec3<f32>(0.07, 0.085, 0.075) * backLight * dayFactor;
   if (mode > 0u) {
     color = fieldColor(input.terrain, input.water, input.bio, input.atmo, mode) * (0.35 + diffuse * 0.65);
   }
@@ -852,8 +883,15 @@ fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
   let edgeWidth = max(0.0025, fwidth(cursorDistance) * 1.35);
   let cursorEdge = 1.0 - smoothstep(edgeWidth, edgeWidth * 2.2, abs(cursorDistance - R.cursor.z));
   color = mix(color, vec3<f32>(0.82, 0.91, 0.86), cursorEdge * R.cursor.w * 0.84);
-  let fog = smoothstep(0.80, 1.42, length(input.world.xz));
-  color = mix(color, vec3<f32>(0.105, 0.135, 0.125), fog * 0.40);
+  // Terrain fades into the actual sky at the horizon (not a fixed haze color) -- this both
+  // sells "walk toward the horizon" and hides the finite grid's edge. Heat shimmer wavers the
+  // fog distance itself near midday, the same trick fsSky uses on its own gradient.
+  let hotFactor = clamp((temperature - 0.55) / 0.4, 0.0, 1.0) * dayFactor;
+  let shimmerJitter = sin(input.world.x * 40.0 + R.view.y * 6.0 + input.world.z * 17.0) * 0.08 * hotFactor;
+  let facing = atan2(input.world.x, input.world.z + 0.0001);
+  let horizonColor = skyColor(0.0, sin(facing + R.view.z) * 0.6, dayNight, temperature, R.view.y);
+  let fog = smoothstep(0.62 + shimmerJitter, 1.42, length(input.world.xz));
+  color = mix(color, horizonColor, fog * 0.92);
   return vec4<f32>(pow(max(color, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.2)), 1.0);
 }
 
@@ -881,14 +919,19 @@ fn fsWater(input: SurfaceOut) -> @location(0) vec4<f32> {
   let wave = (ambient + flowDir * travel) * (1.0 - frozen);
   let n = normalize(input.normal + vec3<f32>(wave.x, 0.0, wave.y));
   let viewDirection = normalize(-cameraForward());
-  let sun = normalize(vec3<f32>(-0.42, 0.82, -0.31));
+  let dayNightWater = R.spare1.x;
+  let sunElevationWater = sunElevationOf(dayNightWater);
+  let sunAzimuthWater = dayNightWater * 6.2831853;
+  let sun = normalize(vec3<f32>(cos(sunAzimuthWater) * (1.0 - abs(sunElevationWater) * 0.3), max(0.06, sunElevationWater), sin(sunAzimuthWater) * (1.0 - abs(sunElevationWater) * 0.3)));
+  let dayFactorWater = smoothstep(-0.18, 0.08, sunElevationWater);
   let halfVector = normalize(viewDirection + sun);
   let fresnel = 0.10 + 0.90 * pow(1.0 - max(dot(n, viewDirection), 0.0), 4.0);
   let specular = pow(max(dot(n, halfVector), 0.0), 78.0);
   let depth = clamp(input.water.x * 12.0, 0.0, 1.0);
   var color = mix(vec3<f32>(0.13, 0.47, 0.49), vec3<f32>(0.025, 0.13, 0.19), depth);
   color = mix(color, vec3<f32>(0.38, 0.60, 0.61), fresnel * 0.42);
-  color += vec3<f32>(0.82, 0.91, 0.86) * specular * 0.72;
+  color = mix(color * vec3<f32>(0.45, 0.55, 0.78), color, dayFactorWater);
+  color += vec3<f32>(0.82, 0.91, 0.86) * specular * 0.72 * (0.2 + dayFactorWater * 0.8);
   let shore = (1.0 - smoothstep(0.0014, 0.008, input.water.x)) * smoothstep(0.0003, 0.0016, input.water.x);
   // Turbulence streaks along the flow direction -- the visible leading-edge surge of a
   // dam-break front, not just a flat foam-by-speed blend.
@@ -983,6 +1026,77 @@ fn fsBody(input: BodyOut) -> @location(0) vec4<f32> {
   let color = vec3<f32>(0.29, 0.31, 0.30) * light + vec3<f32>(0.18, 0.21, 0.20) * rim;
   return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), 1.0);
 }
+
+fn sunElevationOf(dayNight: f32) -> f32 {
+  return sin((dayNight - 0.25) * 6.2831853);
+}
+
+// Shared sky so terrain fog fades into the SAME sky instead of a fixed haze color -- not a
+// physically simulated atmosphere, a cheap gradient + disc + stars matched to this renderer's
+// existing non-standard projection (project() is an approximate orbit/walk hybrid, not a real
+// camera matrix, so this sky is deliberately an approximation too, not a ray-traced dome).
+fn skyColor(elevation: f32, screenX: f32, dayNight: f32, temperature: f32, time: f32) -> vec3<f32> {
+  let sunElevation = sunElevationOf(dayNight);
+  let dayFactor = smoothstep(-0.18, 0.08, sunElevation);
+
+  // Heat shimmer: hot midday air near the horizon wavers -- a screen-space wobble on the sky
+  // gradient itself, since this pipeline has no offscreen render target for a real refraction
+  // post-pass. Icy night has no shimmer at all (hotFactor gated by dayFactor).
+  let hotFactor = clamp((temperature - 0.55) / 0.4, 0.0, 1.0) * dayFactor;
+  let horizonProximity = 1.0 - clamp(abs(elevation) / 0.22, 0.0, 1.0);
+  let shimmer = sin(screenX * 46.0 + time * 7.0) * 0.045 * hotFactor * horizonProximity;
+  let e = elevation + shimmer;
+
+  let dayZenith = vec3<f32>(0.16, 0.42, 0.74);
+  let dayHorizon = vec3<f32>(0.86, 0.72, 0.52); // warm desert dust haze
+  let nightZenith = vec3<f32>(0.010, 0.014, 0.028);
+  let nightHorizon = vec3<f32>(0.055, 0.050, 0.090); // icy-night horizon, cold not warm
+  let zenith = mix(nightZenith, dayZenith, dayFactor);
+  let horizon = mix(nightHorizon, dayHorizon, dayFactor);
+  let t = clamp(e * 1.6 + 0.5, 0.0, 1.0);
+  var color = mix(horizon, zenith, t * t * (3.0 - 2.0 * t));
+
+  let sunDist = distance(vec2<f32>(screenX, e), vec2<f32>(screenX * 0.0 + sin(dayNight * 6.2831853) * 0.7, sunElevation));
+  let sunGlow = pow(max(0.0, 1.0 - sunDist * 1.3), 6.0);
+  let sunDisc = smoothstep(0.05, 0.028, sunDist);
+  color += vec3<f32>(1.0, 0.92, 0.72) * sunGlow * dayFactor * 0.9;
+  color = mix(color, vec3<f32>(1.0, 0.98, 0.88), sunDisc * dayFactor);
+
+  let moonElevation = -sunElevation;
+  let moonDist = distance(vec2<f32>(screenX, e), vec2<f32>(-sin(dayNight * 6.2831853) * 0.7, moonElevation));
+  let moonDisc = smoothstep(0.035, 0.02, moonDist);
+  color = mix(color, vec3<f32>(0.80, 0.83, 0.88), moonDisc * (1.0 - dayFactor) * 0.8);
+
+  let starField = hash2(floor(vec2<f32>(screenX, e) * 340.0));
+  let twinkle = 0.5 + 0.5 * sin(time * 3.0 + starField * 62.0);
+  let stars = select(0.0, 1.0, starField > 0.9935) * twinkle * step(0.0, e) * (1.0 - dayFactor);
+  color += vec3<f32>(0.85, 0.90, 1.0) * stars;
+
+  return color;
+}
+
+struct SkyOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) ndc: vec2<f32>,
+}
+
+@vertex
+fn vsSky(@builtin(vertex_index) vertexIndex: u32) -> SkyOut {
+  let corners = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));
+  var output: SkyOut;
+  output.position = vec4<f32>(corners[vertexIndex], 0.0, 1.0);
+  output.ndc = corners[vertexIndex];
+  return output;
+}
+
+@fragment
+fn fsSky(input: SkyOut) -> @location(0) vec4<f32> {
+  let pitch = R.view.w;
+  let elevation = clamp(input.ndc.y * 0.6 + (pitch - 0.62) * 1.15, -1.0, 1.0);
+  let screenX = input.ndc.x * 0.5 + sin(R.view.z) * 0.6;
+  let color = skyColor(elevation, screenX, R.spare1.x, R.spare1.y, R.view.y);
+  return vec4<f32>(pow(color, vec3<f32>(1.0 / 2.2)), 1.0);
+}
 `;
 
 export const PARTICLE_SPATIAL_RENDER_WGSL = /* wgsl */ `
@@ -1020,6 +1134,20 @@ fn cameraRight() -> vec3<f32> { return normalize(cross(vec3<f32>(0.0, 1.0, 0.0),
 fn cameraUp() -> vec3<f32> { return normalize(cross(cameraForward(), cameraRight())); }
 fn project(world: vec3<f32>) -> vec4<f32> {
   let aspect = R.resolution.x / max(1.0, R.resolution.y);
+  if (R.spare0.w > 0.5) {
+    // Same walk-mode perspective branch as the terrain/water/grass renderer's project() --
+    // particles (dust, spray, embers) must sit in the same 3D space as everything else.
+    let delta = world - R.spare0.xyz;
+    let forward = cameraForward();
+    let viewX = dot(delta, cameraRight());
+    let viewY = dot(delta, cameraUp());
+    let viewZ = dot(delta, forward);
+    let near = 0.006;
+    let far = 3.4;
+    let fovTan = 0.62;
+    let ndcDepth = clamp((viewZ - near) / (far - near), 0.0005, 0.9995);
+    return vec4<f32>(viewX / (fovTan * aspect), viewY / fovTan, ndcDepth * viewZ, viewZ);
+  }
   let delta = world - vec3<f32>(0.0, R.camera.z, 0.0);
   return vec4<f32>(
     dot(delta, cameraRight()) / max(0.20, R.camera.x * aspect),
@@ -1174,6 +1302,14 @@ export class WebGpuWorldSandbox {
       depthWriteEnabled: true,
       depthCompare: 'less',
     };
+    this.skyRenderPipeline = await device.createRenderPipelineAsync({
+      label: 'SHADED spatial sky renderer',
+      layout: this.worldRenderPipelineLayout,
+      vertex: {module: worldRenderModule, entryPoint: 'vsSky'},
+      fragment: {module: worldRenderModule, entryPoint: 'fsSky', targets: [{format: this.format}]},
+      primitive: {topology: 'triangle-list'},
+      depthStencil: {...depthStencil, depthWriteEnabled: false, depthCompare: 'always'},
+    });
     this.worldRenderPipeline = await device.createRenderPipelineAsync({
       label: 'SHADED spatial terrain renderer',
       layout: this.worldRenderPipelineLayout,
@@ -1335,8 +1471,8 @@ export class WebGpuWorldSandbox {
     });
   }
 
-  reset(seed = 0x53484144) {
-    const initial = createWorldState(this.size, seed);
+  reset(seed = 0x53484144, options = {}) {
+    const initial = createWorldState(this.size, seed, options);
     this.device.queue.writeBuffer(this.stateBuffers[0], 0, initial);
     this.device.queue.writeBuffer(this.stateBuffers[1], 0, initial);
     this.device.queue.writeBuffer(
@@ -1494,7 +1630,7 @@ export class WebGpuWorldSandbox {
     }
   }
 
-  render({viewMode = 0, time = 0, body = null, cursor = null, camera = null} = {}) {
+  render({viewMode = 0, time = 0, body = null, cursor = null, camera = null, walk = null, dayNight = 0.5, temperature = 0.5} = {}) {
     this.resize();
     const values = this.renderFloats;
     values.fill(0);
@@ -1504,8 +1640,8 @@ export class WebGpuWorldSandbox {
     values[3] = this.particleCount;
     values[4] = viewMode;
     values[5] = time;
-    values[6] = camera?.yaw ?? -0.68;
-    values[7] = camera?.pitch ?? 0.76;
+    values[6] = walk?.active ? walk.yaw : (camera?.yaw ?? -0.68);
+    values[7] = walk?.active ? walk.pitch : (camera?.pitch ?? 0.76);
     if (body?.active) {
       values[8] = body.x;
       values[9] = body.z;
@@ -1521,6 +1657,14 @@ export class WebGpuWorldSandbox {
     values[16] = camera?.zoom ?? 1.45;
     values[17] = camera?.verticalScale ?? 1.55;
     values[18] = camera?.targetY ?? 0.29;
+    if (walk?.active) {
+      values[20] = walk.x;
+      values[21] = walk.eyeY;
+      values[22] = walk.z;
+      values[23] = 1;
+    }
+    values[24] = dayNight;
+    values[25] = temperature;
     this.device.queue.writeBuffer(this.renderUniform, 0, values);
 
     const encoder = this.device.createCommandEncoder({label: 'SHADED world render'});
@@ -1538,6 +1682,9 @@ export class WebGpuWorldSandbox {
         depthStoreOp: 'store',
       },
     });
+    pass.setPipeline(this.skyRenderPipeline);
+    pass.setBindGroup(0, this.worldRenderGroups[this.read]);
+    pass.draw(3);
     pass.setPipeline(this.worldRenderPipeline);
     pass.setBindGroup(0, this.worldRenderGroups[this.read]);
     pass.draw((this.size - 1) * (this.size - 1) * 6);

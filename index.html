@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="editor/world-studio-shell.css?v=2">
 <link rel="stylesheet" href="editor/world-studio-imports.css?v=1">
 <link rel="stylesheet" href="editor/engine-shell.css?v=1">
-<link rel="stylesheet" href="editor/world-sandbox.css?v=2">
+<link rel="stylesheet" href="editor/world-sandbox.css?v=3">
 </head>
 <body>
 <header class="topbar">
@@ -275,12 +275,13 @@
         </div>
         <div class="world-actions">
           <button type="button" class="world-chain" id="world-chain">URSACHE → WIRKUNG</button>
+          <button type="button" id="world-walk" title="Wind-geformte Dünenwüste, echte Ich-Perspektive, Tag/Nacht-Zyklus">🏜 WÜSTE LAUFEN</button>
           <button type="button" id="world-pause">PAUSE</button>
           <button type="button" id="world-step">SCHRITT</button>
           <button type="button" id="world-reset">RESET</button>
           <button type="button" id="world-exit">ZUR SZENE</button>
         </div>
-        <p class="world-note" id="world-note">Prozedurale Materialantwort; keine heruntergeladene Texturbibliothek nötig. Der Stein bleibt CPU-autorisiert, der Weltzustand wird lokal und verzögert zurückgelesen.</p>
+        <p class="world-note" id="world-note">Prozedurale Materialantwort; keine heruntergeladene Texturbibliothek nötig. Der Stein bleibt CPU-autorisiert, der Weltzustand wird lokal und verzögert zurückgelesen. In der Wüste: WASD/Pfeiltasten laufen, Ziehen schaut um, Esc verlässt.</p>
       </section>
 
       <section class="inspector-section material-section section-collapsed" id="panel-material">
@@ -370,7 +371,7 @@
 <script type="module" src="editor/world-studio-bridge-settings.js?v=1"></script>
 <script type="module" src="editor/material-preview-live.js?v=1"></script>
 <script type="module" src="editor/world-studio-expert.js?v=2"></script>
-<script type="module" src="editor/world-sandbox.js?v=3"></script>
+<script type="module" src="editor/world-sandbox.js?v=4"></script>
 
 </body>
 </html>

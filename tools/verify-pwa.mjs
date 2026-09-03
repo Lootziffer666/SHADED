@@ -22,7 +22,7 @@ const checks = [
   ["kein iframe mehr (keine zweite UI-Seite)", !/id="engine-frame"/.test(html) && !fs.existsSync(path.join(root, "editor/index.html"))],
   ["runtime modules cached offline", ["./runtime/spatial-viewer.js","./runtime/install.js","./runtime/spatial-point-cloud.mjs","./runtime/spatial-navigation.mjs","./runtime/spatial-reconstruction.mjs","./runtime/sparse-voxel-world.mjs","./runtime/surface-world-simulation.mjs"].every(file => worker.includes(`'${file}'`))],
   ["index.html cached offline", ["./index.html"].every(file => worker.includes(`'${file}'`))],
-  ["editor-Assets (CSS/JS) cached offline", ["./editor/engine-shell.css?v=1","./editor/app.js?v=9","./editor/facade.js","./editor/world-sandbox.css?v=2","./editor/world-sandbox.js?v=3"].every(file => worker.includes(`'${file}'`))],
+  ["editor-Assets (CSS/JS) cached offline", ["./editor/engine-shell.css?v=1","./editor/app.js?v=9","./editor/facade.js","./editor/world-sandbox.css?v=3","./editor/world-sandbox.js?v=4"].every(file => worker.includes(`'${file}'`))],
   ["canonical demo cached offline", ["./file_00000000974871f49fe71f6b456f9579.png","./file_00000000974871f49fe71f6b456f9579_depth.png","./file_00000000c84071f4bcd6ff9afdba7246.png"].every(file => worker.includes(`'${file}'`))],
 ];
 let failed = false;
