@@ -1628,10 +1628,25 @@ async function checkedModule(device, label, code) {
   return module;
 }
 
+// Requests the best adapter available without letting a preference hint fail the whole
+// request. powerPreference is defined by spec as advisory only, but real implementations --
+// disproportionately on mobile/single-GPU devices, where 'high-performance' has nothing more
+// powerful to hand back than the one integrated GPU it already offers by default -- have been
+// observed returning null for a specific preference that a plain, unconstrained request
+// immediately satisfies. Preferring high-performance is still worth trying first (a real win on
+// a laptop/desktop with both an integrated and a discrete GPU); it just can't be the only thing
+// tried, since "no adapter" turns the entire simulation into the much slower CPU/Canvas2D
+// fallback for a reason that was never about the hardware actually lacking WebGPU.
+async function requestBestAdapter() {
+  const preferred = await navigator.gpu.requestAdapter({powerPreference: 'high-performance'});
+  if (preferred) return preferred;
+  return navigator.gpu.requestAdapter();
+}
+
 export class WebGpuWorldSandbox {
   static async create(canvas, options = {}) {
     assertGpuGlobals();
-    const adapter = await navigator.gpu.requestAdapter({powerPreference: 'high-performance'});
+    const adapter = await requestBestAdapter();
     if (!adapter) throw new Error('No WebGPU adapter');
     const device = await adapter.requestDevice();
     const instance = new WebGpuWorldSandbox(canvas, adapter, device, options);
