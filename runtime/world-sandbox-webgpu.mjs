@@ -449,6 +449,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       water = max(0.0, water - amount * 0.08);
       disturbance = clamp(disturbance + amount * 4.0, 0.0, 1.0);
       c.terrain.z = clamp(c.terrain.z + amount * 2.5, 0.0, 1.0);
+    } else if (kind == 8u) {
+      // Magnifying glass: mirrors runtime/world-sandbox-reference.mjs's STAMP.FOCUS
+      // exactly. Unlike kind 5 (HEAT, an instant sun-independent torch), this only
+      // concentrates REAL sunlight -- its effect scales with P.environment.y (sun), so it
+      // does almost nothing at a dim/overcast setting. No new ignition logic: held
+      // steadily over dry fuel, it just lets HEAT climb toward the same ignition
+      // threshold combustion already uses.
+      let focusStrength = clamp(P.environment.y, 0.0, 1.0);
+      heat = clamp(heat + amount * focusStrength * 2.6, 0.0, 1.0);
     }
   }
 

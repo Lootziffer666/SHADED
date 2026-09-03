@@ -59,6 +59,13 @@ export const STAMP = Object.freeze({
   HEAT: 5,
   TRAMPLE: 6,
   IMPACT: 7,
+  // A magnifying glass, not a torch: unlike HEAT (an instant, sun-independent heat
+  // injection), FOCUS only concentrates REAL sunlight -- its effect scales with env.sun,
+  // so it does almost nothing on a dim/overcast setting. Held steadily over dry fuel, it
+  // lets HEAT climb toward the same ignition threshold combustion already uses (~0.22 in
+  // stepWorldReference's igniteRate) -- no new ignition logic, just a new, physically
+  // gated heat source feeding the existing one.
+  FOCUS: 8,
 });
 
 export const DEFAULT_ENVIRONMENT = Object.freeze({
@@ -191,7 +198,7 @@ export function createWorldState(size = 96, seed = 0x53484144, options = {}) {
   return state;
 }
 
-function applyStamps(state, size, stamps) {
+function applyStamps(state, size, stamps, env) {
   for (const stamp of stamps || []) {
     const radius = Math.max(1 / size, Number(stamp.radius) || 0.035);
     const amount = Number(stamp.amount) || 0;
@@ -234,6 +241,11 @@ function applyStamps(state, size, stamps) {
           case STAMP.HEAT:
             state[o + FIELD.HEAT] = clamp(state[o + FIELD.HEAT] + value * 4);
             break;
+          case STAMP.FOCUS: {
+            const focusStrength = clamp(env.sun);
+            state[o + FIELD.HEAT] = clamp(state[o + FIELD.HEAT] + value * focusStrength * 2.6);
+            break;
+          }
           case STAMP.TRAMPLE:
             state[o + FIELD.DISTURBANCE] = clamp(state[o + FIELD.DISTURBANCE] + value * 3);
             state[o + FIELD.COMPACTION] = clamp(state[o + FIELD.COMPACTION] + value * 2);
@@ -362,7 +374,7 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
   }
   const env = {...DEFAULT_ENVIRONMENT, ...(options.environment || {})};
   const stamped = source.slice();
-  applyStamps(stamped, size, options.stamps || []);
+  applyStamps(stamped, size, options.stamps || [], env);
   const next = stamped.slice();
   const safeDt = clamp(Number(dt) || 0, 0, 1 / 10);
   const windAngle = (env.windDeg * Math.PI) / 180;

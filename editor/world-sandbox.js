@@ -55,6 +55,10 @@ const toolDefinitions = {
   seed: {kind: STAMP.SEED, amount: 0.055, particleKind: 3, particles: mobile ? 10 : 24},
   dig: {kind: STAMP.DIG, amount: 0.028, particles: 0},
   heat: {kind: STAMP.HEAT, amount: 0.048, particleKind: 4, particles: mobile ? 16 : 34},
+  // A magnifying glass, not a torch: STAMP.FOCUS only concentrates real sunlight (scales
+  // with env.sun in the solver, near-zero without it) -- no particle effect of its own,
+  // a continuous beam/glint reads better than thrown embers for "focusing sunlight".
+  focus: {kind: STAMP.FOCUS, amount: 0.05, particles: 0},
 };
 
 const state = {

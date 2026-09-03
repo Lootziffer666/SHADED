@@ -460,6 +460,37 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   assert.ok(west.windX < -0.01, `and outward to its west neighbour in the opposite direction (windX=${west.windX.toFixed(4)})`);
 }
 
+// --- STAMP.FOCUS (magnifying glass): only concentrates real sunlight -------------------
+{
+  const focusSize = 20;
+  const focusStamp = {kind: STAMP.FOCUS, x: 0.5, z: 0.5, radius: 0.1, amount: 0.05};
+
+  const brightEnv = {...DEFAULT_ENVIRONMENT, sun: 1.0, rain: 0};
+  let bright = createWorldState(focusSize, 1);
+  for (let i = 0; i < 30; i++) bright = stepWorldReference(bright, focusSize, 1 / 30, {environment: brightEnv, stamps: [focusStamp]});
+  const brightHeat = sampleWorld(bright, focusSize, 0.5, 0.5).heat;
+  assert.ok(brightHeat > 0.5, `holding the magnifying glass in bright sun builds real heat (${brightHeat.toFixed(3)})`);
+
+  const dimEnv = {...DEFAULT_ENVIRONMENT, sun: 0.02, rain: 0};
+  let dim = createWorldState(focusSize, 1);
+  for (let i = 0; i < 30; i++) dim = stepWorldReference(dim, focusSize, 1 / 30, {environment: dimEnv, stamps: [focusStamp]});
+  const dimHeat = sampleWorld(dim, focusSize, 0.5, 0.5).heat;
+  assert.ok(dimHeat < 0.01, `the same tool does almost nothing without real sunlight to focus (${dimHeat.toFixed(4)})`);
+
+  // Full integration: a magnifying glass over dry fuel in daylight should genuinely
+  // ignite it, using the SAME ignition threshold combustion already has -- no new
+  // ignition logic, just a new, physically-gated heat source feeding the existing one.
+  let fuelBed = createWorldState(focusSize, 1);
+  const fuelOffset = cellOffset(focusSize, 10, 10);
+  fuelBed[fuelOffset + FIELD.BIOMASS] = 0.4;
+  let ignited = false;
+  for (let i = 0; i < 60; i++) {
+    fuelBed = stepWorldReference(fuelBed, focusSize, 1 / 30, {environment: brightEnv, stamps: [focusStamp]});
+    if (fuelBed[fuelOffset + FIELD.FIRE] > 0.05) { ignited = true; break; }
+  }
+  assert.ok(ignited, 'a magnifying glass held over dry fuel in daylight genuinely ignites a real fire within 60 steps');
+}
+
 // --- Fire spreads faster downwind than upwind ------------------------------------------
 {
   // A strong crosswind should make a fire visibly race downwind while upwind spread lags.
