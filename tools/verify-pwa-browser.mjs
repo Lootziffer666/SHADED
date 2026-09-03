@@ -44,7 +44,7 @@ try {
       '/index.html', '/runtime/install.js', '/runtime/spatial-viewer.js', '/runtime/spatial-reconstruction.mjs',
       '/runtime/sparse-voxel-world.mjs', '/runtime/surface-world-simulation.mjs',
       '/file_00000000974871f49fe71f6b456f9579.png', '/file_00000000974871f49fe71f6b456f9579_depth.png',
-      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js?v=9', '/editor/app.js?v=9', '/editor/facade.js'
+      '/file_00000000c84071f4bcd6ff9afdba7246.png', '/editor/ui-shell.js?v=10', '/editor/app.js?v=9', '/editor/facade.js'
     ];
     const hits = await Promise.all(required.map(async pathname => [pathname, !!(await cache.match(pathname))]));
     return {names, hits};
@@ -52,16 +52,15 @@ try {
   assert(cacheState.names.includes(expectedCache), `Aktiver Service-Worker-Cache ${expectedCache} fehlt`);
   assert(cacheState.hits.every(([, hit]) => hit), `Cache fehlt: ${cacheState.hits.filter(([, hit]) => !hit).map(([name]) => name).join(', ')}`);
 
-  // World Studio gated Rail/Inspector standardmäßig hinter ERWEITERT (siehe
-  // editor/world-studio-shell.css) — #btn-demo/#btn-spatial-view liegen jetzt
-  // im selben Dokument in diesen Panels statt auf der früheren eigenständigen
-  // Legacy-Seite.
-  await page.click('.world-studio-expert');
-  // World Studio's eigenes Panel startet ausgeklappt und überlappt (bewusst,
-  // siehe world-studio-shell.css) in diesem Zustand den ersten Rail-Button
-  // (Quelle) real-pixelgenau — dieselbe Öffnungslogik wie ein Rail-Klick
-  // (siehe editor/ui-shell.js openSection()) direkt anwenden statt einen
-  // Klick auf einen verdeckten Button zu erzwingen.
+  // The single-document consolidation (see CLAUDE.md invariant 1) retired the old World
+  // Studio overlay this test used to gate Rail/Inspector behind via an "ERWEITERT" toggle
+  // button (editor/world-studio-expert.js) -- that script's own target selector
+  // ('#world-studio .world-studio-head') no longer exists anywhere in index.html, so the
+  // button it tries to create is never inserted and a click on it can only ever time out.
+  // The click was already redundant: this manual override sets every piece of state the
+  // click was meant to produce (open inspector, expand the source panel, mark its rail
+  // button active) directly and unconditionally, the same open-section logic a real rail
+  // click uses (see editor/ui-shell.js openSection()).
   await page.evaluate(() => {
     document.body.classList.add('inspector-open');
     document.body.classList.remove('inspector-collapsed');
@@ -98,12 +97,10 @@ try {
     'runtime/spatial-viewer.js', 'runtime/sparse-voxel-world.mjs', 'file_00000000974871f49fe71f6b456f9579.png'
   ].map(async url => ({url, ok: (await fetch(url)).ok}))));
   assert(offlineFetches.every(result => result.ok), 'Offline-Abruf der Runtime oder Demo-Datei ist fehlgeschlagen');
-  await page.click('.world-studio-expert');
-  // World Studio's eigenes Panel startet ausgeklappt und überlappt (bewusst,
-  // siehe world-studio-shell.css) in diesem Zustand den ersten Rail-Button
-  // (Quelle) real-pixelgenau — dieselbe Öffnungslogik wie ein Rail-Klick
-  // (siehe editor/ui-shell.js openSection()) direkt anwenden statt einen
-  // Klick auf einen verdeckten Button zu erzwingen.
+  // Same retired-overlay reasoning as above (editor/world-studio-shell.css's unconditional
+  // `#world-studio{display:none!important}` keeps the whole legacy panel, including this
+  // button, permanently unreachable) -- the manual override below is what actually opens
+  // the inspector after the offline reload resets DOM state.
   await page.evaluate(() => {
     document.body.classList.add('inspector-open');
     document.body.classList.remove('inspector-collapsed');

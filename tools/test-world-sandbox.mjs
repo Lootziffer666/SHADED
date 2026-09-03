@@ -13,11 +13,13 @@ import {
   worldTotals,
 } from '../runtime/world-sandbox-reference.mjs';
 import {
+  GPU_CELL_STRIDE,
   PARTICLE_COMPUTE_WGSL,
   QUERY_COMPUTE_WGSL,
   WORLD_COMPUTE_WGSL,
   WORLD_SPATIAL_RENDER_WGSL,
   PARTICLE_SPATIAL_RENDER_WGSL,
+  packCellsForGpu,
 } from '../runtime/world-sandbox-webgpu.mjs';
 
 const size = 40;
@@ -550,6 +552,45 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   const seedsDownwind = totalSeedsAt(13);
   assert.ok(seedsDownwind > 1e-4,
     `seeds stamped at x=10 measurably reach a downwind column (x=13) within 60 steps under strong +x wind, got ${seedsDownwind}`);
+}
+
+// --- GPU cell layout: CPU's 22-float cells must be padded to the WGSL struct's real stride -
+{
+  // The struct itself is the source of truth for how wide a GPU cell actually is: count its
+  // vec4<f32> fields directly out of the WGSL source rather than hardcoding "6" here, so this
+  // test breaks (loudly) the moment someone adds a field to Cell without updating GPU_CELL_STRIDE.
+  const structMatch = WORLD_COMPUTE_WGSL.match(/struct Cell \{([^}]*)\}/);
+  assert.ok(structMatch, 'WORLD_COMPUTE_WGSL declares a struct Cell');
+  const vec4FieldCount = (structMatch[1].match(/:\s*vec4<f32>/g) || []).length;
+  assert.equal(GPU_CELL_STRIDE, vec4FieldCount * 4,
+    `GPU_CELL_STRIDE (${GPU_CELL_STRIDE}) must equal the real WGSL Cell struct width ` +
+    `(${vec4FieldCount} vec4<f32> fields = ${vec4FieldCount * 4} floats), or every cell past ` +
+    `the first is misaligned in array<Cell> from the second cell onward`);
+  assert.equal(GPU_CELL_STRIDE, CELL_STRIDE + 2,
+    'documents the current 2-float pad (wind.zw, always written 0.0) so a change to either ' +
+    'CELL_STRIDE or the struct is a deliberate edit, not silent drift');
+
+  const probeSize = 8;
+  const cpuState = createWorldState(probeSize, 1);
+  const targetOffset = cellOffset(probeSize, 1, 1);
+  cpuState[targetOffset + FIELD.BIOMASS] = 0.42;
+  cpuState[targetOffset + FIELD.WIND_Z] = -0.77;
+  const packed = packCellsForGpu(cpuState, probeSize);
+  assert.equal(packed.length, probeSize * probeSize * GPU_CELL_STRIDE,
+    'packed buffer is sized at the real GPU stride, not CELL_STRIDE');
+  const cellIndex = 1 * probeSize + 1; // (x=1, z=1) in the same row-major order cellOffset uses
+  const gpuOffset = cellIndex * GPU_CELL_STRIDE;
+  assert.ok(Math.abs(packed[gpuOffset + FIELD.BIOMASS] - 0.42) < 1e-6, 'a field within the used 22 floats lands at the same relative offset');
+  assert.ok(Math.abs(packed[gpuOffset + FIELD.WIND_Z] - -0.77) < 1e-6, 'the last real field (WIND_Z, index 21) is preserved, not clipped by the pad');
+  assert.equal(packed[gpuOffset + CELL_STRIDE], 0, 'the first padding float (wind.z) is zero');
+  assert.equal(packed[gpuOffset + CELL_STRIDE + 1], 0, 'the second padding float (wind.w) is zero');
+  // And the NEXT cell's real data must start exactly one GPU stride later, not one CPU stride
+  // later -- this is the exact misalignment the bug this test guards against would produce.
+  const nextCellIndex = cellIndex + 1;
+  cpuState[cellOffset(probeSize, 2, 1) + FIELD.SAND] = 0.9;
+  const repacked = packCellsForGpu(cpuState, probeSize);
+  assert.ok(Math.abs(repacked[nextCellIndex * GPU_CELL_STRIDE + FIELD.SAND] - 0.9) < 1e-6,
+    'the following cell is found at its own GPU-strided offset, not the CPU-strided one');
 }
 
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);

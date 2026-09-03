@@ -4,6 +4,24 @@ const MAX_STAMPS = 32;
 const PARTICLE_STRIDE = 12;
 const QUERY_BYTES = 32;
 
+// The WGSL `Cell` struct below is six vec4<f32> fields (terrain/water/bio/atmo/combust/wind)
+// -- vec4<f32>'s mandatory 16-byte alignment makes that struct exactly 24 floats wide, even
+// though the CPU reference's CELL_STRIDE (world-sandbox-reference.mjs) only actually uses 22
+// of them; `wind.zw` is always written as 0.0 (see `next.wind = vec4<f32>(windX, windZ, 0.0,
+// 0.0)` in fn main()) and is genuine, deliberate padding, not a spare data channel. Uploading
+// the CPU array's 22-float cells directly at that stride (as opposed to this real 24-float
+// one) would misalign every cell in `array<Cell>` from the second cell onward -- this constant
+// and packCellsForGpu() below exist so that mistake can't happen again.
+export const GPU_CELL_STRIDE = CELL_STRIDE + 2;
+
+export function packCellsForGpu(cpuState, size) {
+  const packed = new Float32Array(size * size * GPU_CELL_STRIDE);
+  for (let cell = 0, cellCount = size * size; cell < cellCount; cell++) {
+    packed.set(cpuState.subarray(cell * CELL_STRIDE, (cell + 1) * CELL_STRIDE), cell * GPU_CELL_STRIDE);
+  }
+  return packed;
+}
+
 export const WORLD_COMPUTE_WGSL = /* wgsl */ `
 struct Params {
   sim: vec4<f32>,
@@ -1645,7 +1663,7 @@ export class WebGpuWorldSandbox {
       size: Math.max(16, size),
       usage,
     });
-    const stateBytes = this.size * this.size * CELL_STRIDE * 4;
+    const stateBytes = this.size * this.size * GPU_CELL_STRIDE * 4;
     this.stateBuffers = [
       allocate('SHADED world state A', stateBytes),
       allocate('SHADED world state B', stateBytes),
@@ -1730,7 +1748,7 @@ export class WebGpuWorldSandbox {
   }
 
   reset(seed = 0x53484144, options = {}) {
-    const initial = createWorldState(this.size, seed, options);
+    const initial = packCellsForGpu(createWorldState(this.size, seed, options), this.size);
     this.device.queue.writeBuffer(this.stateBuffers[0], 0, initial);
     this.device.queue.writeBuffer(this.stateBuffers[1], 0, initial);
     this.device.queue.writeBuffer(
