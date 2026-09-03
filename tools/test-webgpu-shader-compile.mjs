@@ -20,6 +20,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,8 +44,9 @@ const { port } = server.address();
 
 let browser;
 try {
+  const fallbackChromium = '/opt/pw-browsers/chromium';
   browser = await chromium.launch({
-    executablePath: process.env.CHROMIUM || undefined,
+    executablePath: process.env.CHROMIUM || (existsSync(fallbackChromium) ? fallbackChromium : undefined),
     args: ['--enable-unsafe-webgpu', '--use-gl=swiftshader', '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
   });
   const page = await browser.newPage();
