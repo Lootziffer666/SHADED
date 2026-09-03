@@ -585,22 +585,59 @@ class CpuWorldSandbox {
       const biomass = this.world[offset + FIELD.BIOMASS];
       const snowCover = this.world[offset + FIELD.SNOW];
       if (viewMode === 0 && water < 0.006 && snowCover < 0.02 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
-        const stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
+        // Real per-cell plant succession (mirrors FIELD.PLANT_TYPE in
+        // world-sandbox-reference.mjs and vsGrass/fsGrass in world-sandbox-webgpu.mjs exactly
+        // -- three renderers, one truth, same as everywhere else in this codebase). This is
+        // the path most browsers (and every headless run in this session) actually fall back
+        // to, so plant type needs to read here too, not only in the WebGPU renderer.
+        const plantType = this.world[offset + FIELD.PLANT_TYPE];
+        const isFlower = plantType > 0.5 && plantType < 1.5;
+        const isShrub = plantType > 1.5 && plantType < 2.5;
+        const isTree = plantType > 2.5;
+        let stalkHeight = 0.025 + Math.sqrt(biomass) * 0.095;
+        if (isFlower) stalkHeight *= 0.75;
+        else if (isShrub) stalkHeight *= 1.6;
+        else if (isTree) stalkHeight *= 7;
         const vx = this.world[offset + FIELD.VELOCITY_X];
         const vz = this.world[offset + FIELD.VELOCITY_Z];
         const lean = Math.min(0.6, Math.hypot(vx, vz) * 2.2);
-        const base = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1], width, height, camera);
-        const top = projectWorld([
+        const groundHeight = heightAt(x, z) * verticalScale;
+        const base = projectWorld([x / (size - 1) * 2 - 1, groundHeight, z / (size - 1) * 2 - 1], width, height, camera);
+        const topWorld = [
           x / (size - 1) * 2 - 1 + vx * lean,
-          heightAt(x, z) * verticalScale + stalkHeight * (1 - lean * 0.3),
+          groundHeight + stalkHeight * (1 - lean * 0.3),
           z / (size - 1) * 2 - 1 + vz * lean,
-        ], width, height, camera);
-        context.strokeStyle = this.world[offset + FIELD.HEAT] > 0.25 ? 'rgba(119,88,38,.82)' : 'rgba(68,111,42,.88)';
-        context.lineWidth = Math.max(1, width / 900);
+        ];
+        const top = projectWorld(topWorld, width, height, camera);
+        const hot = this.world[offset + FIELD.HEAT] > 0.25;
+        context.strokeStyle = hot ? 'rgba(119,88,38,.82)'
+          : isTree ? 'rgba(77,54,26,.9)' // trunk
+            : isShrub ? 'rgba(46,84,32,.92)' // denser, darker canopy green
+              : 'rgba(68,111,42,.88)'; // grass/flower stem
+        context.lineWidth = Math.max(1, width / 900) * (isShrub ? 2.2 : isTree ? 3 : 1);
         context.beginPath();
         context.moveTo(base.x, base.y);
         context.lineTo(top.x, top.y);
         context.stroke();
+        if (isFlower && !hot) {
+          // A bright bloom dot at the tip -- the same three real bloom hues fsGrass uses, so
+          // the two renderers agree on what a flower actually looks like, not just that
+          // biomass exists there.
+          const hue = Math.abs(Math.sin((x * 12.9898 + z * 78.233) * 43758.5453) % 1);
+          const petal = hue < 0.33 ? '212,148,168' : hue < 0.66 ? '242,217,89' : '230,230,219';
+          context.fillStyle = `rgba(${petal},.92)`;
+          context.beginPath();
+          context.arc(top.x, top.y, Math.max(1.4, width / 480), 0, Math.PI * 2);
+          context.fill();
+        } else if (isTree) {
+          // A filled canopy blob above the trunk -- distinct from the single thin stalk every
+          // other stage draws, so a tree actually reads as a tree in silhouette, not a tall
+          // blade of grass.
+          context.fillStyle = 'rgba(38,84,26,.88)';
+          context.beginPath();
+          context.arc(top.x, top.y, Math.max(3, width / 130), 0, Math.PI * 2);
+          context.fill();
+        }
       }
     }
 

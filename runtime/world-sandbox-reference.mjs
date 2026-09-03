@@ -5,7 +5,7 @@
 // plain JavaScript so invariants can be tested without a GPU and browsers
 // without WebGPU still get a real (lower-resolution) simulation.
 
-export const CELL_STRIDE = 22;
+export const CELL_STRIDE = 24;
 
 export const FIELD = Object.freeze({
   BEDROCK: 0,
@@ -49,6 +49,19 @@ export const FIELD = Object.freeze({
   // field instead, so gusts are visibly local and directional instead of one global number.
   WIND_X: 20,
   WIND_Z: 21,
+  // Seventh reservoir set: real per-cell plant TYPE, not just a density scalar. BIOMASS/SEEDS
+  // (above) stay the growth/propagation truth; PLANT_TYPE/PLANT_AGE layer succession on top of
+  // that truth instead of duplicating it. PLANT_AGE only accumulates while a cell is an
+  // established, healthy stand (see establishedFit below) and decays back down when it isn't --
+  // a burned or drought-killed grove reverts toward early succession over time, it doesn't stay
+  // "tree" forever once the tree is gone. PLANT_TYPE escalates with sustained age (0 = grass-
+  // only/bare, 1 = flower, 2 = shrub, 3 = tree) and can step back down if age decays far enough.
+  // These reuse the WGSL Cell struct's wind.zw slots (see world-sandbox-webgpu.mjs) -- always
+  // written 0.0 there until now, genuine unused alignment padding, not a spare wind channel --
+  // so this needed no new vec4 group and CELL_STRIDE now exactly fills the struct's real width
+  // (24 = 6 vec4s) with zero padding left over.
+  PLANT_TYPE: 22,
+  PLANT_AGE: 23,
 });
 
 export const STAMP = Object.freeze({
@@ -98,6 +111,22 @@ const clamp = (value, low = 0, high = 1) => Math.max(low, Math.min(high, value))
 // A physically sane ceiling on standing water depth at any one cell -- see the STAMP.WATER
 // case in applyStamps for why this exists (repeated stamping had no upper bound at all).
 const MAX_WATER_DEPTH = 1.2;
+
+// Real per-cell plant succession stages -- see FIELD.PLANT_TYPE/PLANT_AGE's own comment for the
+// full model. Values are the literal numbers written into FIELD.PLANT_TYPE (rendering picks a
+// shape by rounding it, growth logic compares it directly), not just symbolic labels.
+export const PLANT_TYPE = Object.freeze({NONE: 0, FLOWER: 1, SHRUB: 2, TREE: 3});
+// PLANT_AGE accumulates in simulated seconds while a cell is an established stand (see
+// establishedFit in stepWorldReference) and decays otherwise. Thresholds are deliberately far
+// apart -- a flowerbed establishes in well under a minute, a shrub takes noticeably longer, and
+// a tree needs sustained good conditions over what reads as multiple in-game days (see
+// DAY_LENGTH_SECONDS in editor/world-sandbox.js), not a quick flourish -- matching "Bäume
+// brauchen Jahre Wachstum" without literally requiring real-world years to test or play.
+const PLANT_AGE_RATE = 1;
+const PLANT_AGE_DECAY = 0.6;
+const PLANT_AGE_FLOWER = 6;
+const PLANT_AGE_SHRUB = 40;
+const PLANT_AGE_TREE = 220;
 const smoothstep = (a, b, value) => {
   const t = clamp((value - a) / Math.max(1e-8, b - a));
   return t * t * (3 - 2 * t);
@@ -694,7 +723,38 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
         * env.growthRate * fertility * safeDt;
       const crowding = stamped[o + FIELD.BIOMASS] ** 2 * safeDt * 0.022;
       const damage = (heat * 0.72 + Math.max(0, water - 0.12) * 0.4 + disturbance * 0.2) * safeDt;
-      const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - damage - fuelBurn);
+      // Shrubs/trees genuinely displace flowers and bare growth around them -- an established
+      // neighbour (PLANT_TYPE >= SHRUB) draws down THIS cell's biomass in proportion to its own
+      // biomass, but only while this cell hasn't itself reached shrub stage (a shrub next to a
+      // shrub is co-existing canopy, not competition the way a flower next to a shrub is).
+      const plantTypeOld = stamped[o + FIELD.PLANT_TYPE];
+      const neighbourDominance = plantTypeOld < PLANT_TYPE.SHRUB
+        ? neighbours.reduce((max, n) => Math.max(max,
+            stamped[n + FIELD.PLANT_TYPE] >= PLANT_TYPE.SHRUB ? stamped[n + FIELD.BIOMASS] : 0), 0)
+        : 0;
+      const shrubCrowding = neighbourDominance * safeDt * 0.03;
+      const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - shrubCrowding - damage - fuelBurn);
+
+      // Age only accumulates while this is a genuinely established, healthy stand -- a patch
+      // that just sprouted (low biomass) isn't "aging" as a plant yet -- and decays back down
+      // (slower than it grows, so a brief dip doesn't erase real succession) whenever it isn't,
+      // so a burned or drought-killed grove reverts toward early succession instead of staying
+      // "tree" forever once the tree itself is gone.
+      const establishedFit = smoothstep(0.32, 0.55, biomass);
+      const ageOld = stamped[o + FIELD.PLANT_AGE];
+      const age = Math.max(0, ageOld + establishedFit * safeDt * PLANT_AGE_RATE - (1 - establishedFit) * safeDt * PLANT_AGE_DECAY);
+      // Type escalates with sustained age, gated by moisture/temperature the way real
+      // succession is climate-gated (a desert flowerbed that never gets enough water stays a
+      // flowerbed forever, it doesn't spontaneously become a shrub) -- and can step back down
+      // if age decays far enough, mirroring the same reversal.
+      const canSupportShrub = moistureFit > 0.4;
+      const canSupportTree = moistureFit > 0.55 && env.temperature > 0.3;
+      let plantType = plantTypeOld;
+      if (age > PLANT_AGE_TREE && canSupportTree) plantType = PLANT_TYPE.TREE;
+      else if (age > PLANT_AGE_SHRUB && canSupportShrub) plantType = Math.max(plantType, PLANT_TYPE.SHRUB);
+      else if (age > PLANT_AGE_FLOWER) plantType = Math.max(plantType, PLANT_TYPE.FLOWER);
+      if (age < PLANT_AGE_FLOWER * 0.5) plantType = PLANT_TYPE.NONE;
+      if (biomass < 0.05) plantType = PLANT_TYPE.NONE; // nothing left standing to have a type
 
       next[o + FIELD.SAND] = Math.max(0, sand);
       // Safety net matching the stamp-time cap above: rain/springs/snowmelt all add water
@@ -709,6 +769,8 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       next[o + FIELD.DISTURBANCE] = disturbance;
       next[o + FIELD.SEEDS] = seeds;
       next[o + FIELD.BIOMASS] = biomass;
+      next[o + FIELD.PLANT_AGE] = age;
+      next[o + FIELD.PLANT_TYPE] = plantType;
       next[o + FIELD.VAPOR] = vapor;
       next[o + FIELD.CLOUD] = cloud;
       next[o + FIELD.ICE] = ice;
@@ -750,6 +812,8 @@ export function sampleWorld(state, size, x, z) {
     groundwater: state[o + FIELD.GROUNDWATER],
     windX: state[o + FIELD.WIND_X],
     windZ: state[o + FIELD.WIND_Z],
+    plantType: state[o + FIELD.PLANT_TYPE],
+    plantAge: state[o + FIELD.PLANT_AGE],
   };
 }
 

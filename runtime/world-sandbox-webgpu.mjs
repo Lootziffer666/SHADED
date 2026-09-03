@@ -4,15 +4,16 @@ const MAX_STAMPS = 32;
 const PARTICLE_STRIDE = 12;
 const QUERY_BYTES = 32;
 
-// The WGSL `Cell` struct below is six vec4<f32> fields (terrain/water/bio/atmo/combust/wind)
-// -- vec4<f32>'s mandatory 16-byte alignment makes that struct exactly 24 floats wide, even
-// though the CPU reference's CELL_STRIDE (world-sandbox-reference.mjs) only actually uses 22
-// of them; `wind.zw` is always written as 0.0 (see `next.wind = vec4<f32>(windX, windZ, 0.0,
-// 0.0)` in fn main()) and is genuine, deliberate padding, not a spare data channel. Uploading
-// the CPU array's 22-float cells directly at that stride (as opposed to this real 24-float
-// one) would misalign every cell in `array<Cell>` from the second cell onward -- this constant
-// and packCellsForGpu() below exist so that mistake can't happen again.
-export const GPU_CELL_STRIDE = CELL_STRIDE + 2;
+// The WGSL `Cell` struct below is six vec4<f32> fields (terrain/water/bio/atmo/combust/wind) --
+// vec4<f32>'s mandatory 16-byte alignment makes that struct exactly 24 floats wide. The CPU
+// reference's CELL_STRIDE (world-sandbox-reference.mjs) used to stop at 22, leaving wind.zw as
+// genuine unused alignment padding; PLANT_TYPE/PLANT_AGE now occupy exactly those two slots, so
+// CELL_STRIDE and the struct's real width are equal again with zero padding left over. Kept as
+// its own constant (rather than importing CELL_STRIDE directly everywhere below) so a future
+// field added to one side without the other still fails loudly here instead of silently
+// misaligning every cell in `array<Cell>` from the second cell onward -- packCellsForGpu()
+// exists for the same reason, even though it is a straight copy while the two strides match.
+export const GPU_CELL_STRIDE = CELL_STRIDE;
 
 export function packCellsForGpu(cpuState, size) {
   const packed = new Float32Array(size * size * GPU_CELL_STRIDE);
@@ -452,7 +453,44 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     * (1.0 - disturbance) * P.rates.z * fertility * dt;
   let crowding = c.bio.x * c.bio.x * dt * 0.022;
   let damage = (heat * 0.72 + max(0.0, water - 0.12) * 0.4 + disturbance * 0.2) * dt;
-  var biomass = clamp(c.bio.x + growth - crowding - damage - fuelBurn, 0.0, 1.0);
+  // Real per-cell plant succession, mirrors runtime/world-sandbox-reference.mjs's PLANT_TYPE/
+  // PLANT_AGE model exactly (see that file's own comment for the full explanation). c.wind.zw
+  // carries plantType/plantAge -- genuine unused alignment padding until this, not a spare wind
+  // channel, see GPU_CELL_STRIDE's own comment in this file for why that's where it lives.
+  let plantTypeOld = c.wind.z;
+  // Shrubs/trees displace flowers and bare growth around them, but only while THIS cell hasn't
+  // itself reached shrub stage (co-existing canopy, not competition).
+  let neighbourDominance = select(0.0, max(
+      max(select(0.0, left.bio.x, left.wind.z >= 2.0), select(0.0, right.bio.x, right.wind.z >= 2.0)),
+      max(select(0.0, top.bio.x, top.wind.z >= 2.0), select(0.0, bottom.bio.x, bottom.wind.z >= 2.0))
+    ), plantTypeOld < 2.0);
+  let shrubCrowding = neighbourDominance * dt * 0.03;
+  var biomass = clamp(c.bio.x + growth - crowding - shrubCrowding - damage - fuelBurn, 0.0, 1.0);
+
+  // Age only accumulates while this is a genuinely established, healthy stand and decays back
+  // down otherwise (slower than it grows), so a burned/drought-killed grove reverts toward
+  // early succession instead of staying "tree" forever once the tree itself is gone. Thresholds
+  // (6 / 40 / 220 simulated seconds) match runtime/world-sandbox-reference.mjs's PLANT_AGE_
+  // FLOWER/SHRUB/TREE constants exactly.
+  let establishedFit = smoothstep(0.32, 0.55, biomass);
+  let ageOld = c.wind.w;
+  let age = max(0.0, ageOld + establishedFit * dt * 1.0 - (1.0 - establishedFit) * dt * 0.6);
+  let canSupportShrub = moistureFit > 0.4;
+  let canSupportTree = moistureFit > 0.55 && P.environment.z > 0.3;
+  var plantType = plantTypeOld;
+  if (age > 220.0 && canSupportTree) {
+    plantType = 3.0;
+  } else if (age > 40.0 && canSupportShrub) {
+    plantType = max(plantType, 2.0);
+  } else if (age > 6.0) {
+    plantType = max(plantType, 1.0);
+  }
+  if (age < 3.0) {
+    plantType = 0.0;
+  }
+  if (biomass < 0.05) {
+    plantType = 0.0;
+  }
 
   let fixedScale = 1.0 / 4096.0;
   sand += f32(atomicLoad(&deposits[i].sand)) * fixedScale;
@@ -539,7 +577,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
   next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
   next.combust = vec4<f32>(fire, smoke, ash, groundwater);
-  next.wind = vec4<f32>(windX, windZ, 0.0, 0.0);
+  next.wind = vec4<f32>(windX, windZ, plantType, age);
   dst[i] = next;
 }
 `;
@@ -971,6 +1009,10 @@ struct BladeOut {
   @builtin(position) position: vec4<f32>,
   @location(0) local: vec2<f32>,
   @location(1) color: vec3<f32>,
+  // 0..3, mirrors FIELD.PLANT_TYPE (see world-sandbox-reference.mjs) -- carried through so
+  // fsGrass can give TREE its own trunk-near-base/canopy-near-tip colour gradient instead of
+  // one flat blade colour.
+  @location(2) plantType: f32,
 }
 
 struct BodyOut {
@@ -1273,10 +1315,21 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let z = cellIndex / size;
   let cell = cells[cellIndex];
   let seed = hash2(vec2<f32>(f32(x) + f32(layer) * 19.7, f32(z) - f32(layer) * 31.1));
+  // Real per-cell plant succession (mirrors FIELD.PLANT_TYPE in world-sandbox-reference.mjs
+  // exactly -- see that file's own comment for the growth/succession model this renders).
+  let plantType = cell.wind.z;
+  let isFlower = plantType > 0.5 && plantType < 1.5;
+  let isShrub = plantType > 1.5 && plantType < 2.5;
+  let isTree = plantType > 2.5;
+  // A tree is ONE prominent shape per cell, not the usual many thin blade layers stacked on
+  // top of each other at tree scale -- that would read as a chaotic thicket of oversized
+  // blades, not a tree. Every other stage keeps the existing multi-layer blade density.
+  let layerAllowed = select(true, layer == 0u, isTree);
   let visible = cell.bio.x > 0.008
     && cell.water.x < 0.006
     && cell.atmo.w < 0.02 // snow buries grass -- it does not simply photobleach through it
     && seed < clamp(cell.bio.x * 3.8, 0.0, 0.94)
+    && layerAllowed
     && u32(R.view.x + 0.5) == 0u;
   let jitter = vec2<f32>(
     hash2(vec2<f32>(f32(x), f32(z)) + f32(layer) * 7.3),
@@ -1287,8 +1340,21 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   let angle = seed * 6.2831853;
   let side = vec3<f32>(cos(angle), 0.0, sin(angle));
   let corner = corners[vertexIndex];
-  let bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
-  let bladeWidth = 0.0028 + seed * 0.0032;
+  var bladeHeight = 0.018 + sqrt(max(0.0, cell.bio.x)) * 0.105;
+  var bladeWidth = 0.0028 + seed * 0.0032;
+  // Each stage gets a genuinely different silhouette, not just a colour swap: a flowerbed
+  // reads as shorter and wider (the bloom itself, not a tall stem), a shrub as noticeably
+  // bushier, and a tree as one tall, wide canopy shape rather than another thin blade.
+  if (isFlower) {
+    bladeHeight *= 0.75;
+    bladeWidth *= 1.6;
+  } else if (isShrub) {
+    bladeHeight *= 1.6;
+    bladeWidth *= 2.4;
+  } else if (isTree) {
+    bladeHeight *= 7.0;
+    bladeWidth *= 3.2;
+  }
   // Bend direction now comes from two real fields, not a fixed lean constant: water current
   // (the same edgeFlow-driven velocity that transports water -- a flooded dam-break front
   // visibly presses grass over) AND the local wind field (cell.wind, this session's spatial
@@ -1307,8 +1373,24 @@ fn vsGrass(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) ins
   var output: BladeOut;
   output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), visible);
   output.local = corner;
+  output.plantType = plantType;
   let dry = clamp(cell.bio.z * 1.8 + (1.0 - cell.terrain.w) * 0.22, 0.0, 1.0);
-  output.color = mix(vec3<f32>(0.19, 0.39, 0.10), vec3<f32>(0.43, 0.31, 0.10), dry) * (0.78 + seed * 0.32);
+  var color = mix(vec3<f32>(0.19, 0.39, 0.10), vec3<f32>(0.43, 0.31, 0.10), dry) * (0.78 + seed * 0.32);
+  if (isFlower) {
+    // A bright bloom colour genuinely different from grass green, varied by seed so a
+    // flowerbed reads as mixed blooms rather than one uniform colour -- three real bloom
+    // hues (pink/yellow/white), not a tint of the grass colour underneath.
+    let hue = fract(seed * 3.7);
+    let petal = mix(
+      mix(vec3<f32>(0.92, 0.58, 0.68), vec3<f32>(0.95, 0.85, 0.35), step(0.33, hue)),
+      vec3<f32>(0.90, 0.90, 0.86), step(0.66, hue));
+    color = mix(color, petal, 0.7);
+  } else if (isShrub) {
+    color *= vec3<f32>(0.82, 0.92, 0.80); // denser, slightly darker canopy green
+  } else if (isTree) {
+    color = vec3<f32>(0.16, 0.34, 0.11); // canopy green -- fsGrass blends a trunk colour in near the base
+  }
+  output.color = color;
   return output;
 }
 
@@ -1317,7 +1399,14 @@ fn fsGrass(input: BladeOut) -> @location(0) vec4<f32> {
   let edge = 1.0 - smoothstep(0.42, 1.0, abs(input.local.x));
   if (edge < 0.04) { discard; }
   let light = 0.54 + input.local.y * 0.46;
-  return vec4<f32>(pow(input.color * light, vec3<f32>(1.0 / 2.2)), edge);
+  var color = input.color;
+  if (input.plantType > 2.5) {
+    // TREE: a real trunk-to-canopy gradient along the blade's own length (input.local.y is
+    // 0 at the base, 1 at the tip) instead of one flat colour top to bottom.
+    let trunk = vec3<f32>(0.30, 0.20, 0.12);
+    color = mix(trunk, input.color, smoothstep(0.12, 0.42, input.local.y));
+  }
+  return vec4<f32>(pow(color * light, vec3<f32>(1.0 / 2.2)), edge);
 }
 
 @vertex
