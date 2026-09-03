@@ -117,11 +117,40 @@ void main() {
   vec3 worldPos = (g3.rgb - 0.5) / 0.06;
 
   // --- Normal-Stil ---
-  if (u_normalMode == 2) { // faceted: Normale auf grobe Buckets quantisieren
+  float cavity = 0.0;
+  if (u_normalMode == 1) { // curvature: bestehende Krümmungs-Vertiefung
+    cavity = curvature * u_normalStrength;
+  } else if (u_normalMode == 2) { // faceted: Normale auf grobe Buckets quantisieren
     float bucket = 4.0;
     n = normalize(floor(n * bucket + 0.5) / bucket + 1e-4);
+  } else if (u_normalMode == 3) {
+    // cellular — unregelmäßige organische Zellstruktur statt gleichmäßiger
+    // Facetten-Buckets. Inspiriert von chrxh/alien's Ästhetik organischer
+    // Partikelnetzwerke/Zellorganismen (BSD-3, siehe
+    // docs/sandbox-element-license-audit.md) — NICHT dieselbe Mechanismus-
+    // Familie wie bei VaseFX/stereogram: alien ist eine CUDA-C++-
+    // Partikelphysik-Engine, hier wird nur die visuelle Idee "organische
+    // Zellen" unabhängig als 3x3x3-Voronoi in GLSL umgesetzt.
+    vec3 cp = worldPos * 6.0;
+    vec3 ip = floor(cp);
+    vec3 fp = fract(cp);
+    float minD = 8.0;
+    vec3 cellSeed = ip;
+    for (int z = -1; z <= 1; z++) {
+      for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+          vec3 off = vec3(float(x), float(y), float(z));
+          vec3 seed = ip + off;
+          vec3 jitter = vec3(hash13(seed), hash13(seed + 91.7), hash13(seed + 43.1));
+          float d = length(fp - (off + jitter));
+          if (d < minD) { minD = d; cellSeed = seed; }
+        }
+      }
+    }
+    vec3 tilt = normalize(n + vec3(hash13(cellSeed) - 0.5, hash13(cellSeed + 5.2) - 0.5, hash13(cellSeed + 9.4) - 0.5) * 1.4);
+    n = normalize(mix(n, tilt, clamp(u_normalStrength, 0.0, 1.0)));
+    cavity = smoothstep(0.42, 0.28, minD) * u_normalStrength * 0.5; // dunklere Zellgrenzen
   }
-  float cavity = (u_normalMode == 1) ? curvature * u_normalStrength : 0.0;
 
   // --- Materialsemantik aus der indizierten Tabelle (Korrektur 1) ---
   float wetness = u_primWetness[mi];

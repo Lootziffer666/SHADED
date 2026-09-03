@@ -119,7 +119,7 @@ const DIMENSION_UNIFORM_MAP = Object.freeze({
   'rim.mode': { uniform: 'u_rimMode', map: { off: 0, soft: 1, hard: 2 } },
   'rim.width': { uniform: 'u_rimWidth' },
   'rim.hue': { uniform: 'u_rimHue' },
-  'normal.mode': { uniform: 'u_normalMode', map: { smooth: 0, curvature: 1, faceted: 2 } },
+  'normal.mode': { uniform: 'u_normalMode', map: { smooth: 0, curvature: 1, faceted: 2, cellular: 3 } },
   'normal.strength': { uniform: 'u_normalStrength' },
   'outline.mode': { uniform: 'u_outlineMode', map: { none: 0, sobel: 1 } },
   'outline.thickness': { uniform: 'u_outlineThickness' },

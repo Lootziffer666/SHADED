@@ -18,7 +18,7 @@ export const STYLE_DIMENSIONS = Object.freeze([
   { key: 'rim.mode', kind: 'categorical', options: ['off', 'soft', 'hard'] },
   { key: 'rim.width', kind: 'continuous', min: 0, max: 1 },
   { key: 'rim.hue', kind: 'continuous', min: 0, max: 1 },
-  { key: 'normal.mode', kind: 'categorical', options: ['smooth', 'curvature', 'faceted'] },
+  { key: 'normal.mode', kind: 'categorical', options: ['smooth', 'curvature', 'faceted', 'cellular'] },
   { key: 'normal.strength', kind: 'continuous', min: 0, max: 1 },
   { key: 'outline.mode', kind: 'categorical', options: ['none', 'sobel'] },
   { key: 'outline.thickness', kind: 'continuous', min: 0, max: 1 },
