@@ -216,6 +216,20 @@ void main() {
   } else if (u_paletteMode == 2) { // posterize
     float steps = max(2.0, u_paletteSteps);
     color = floor(color * steps + 0.5) / steps;
+  } else if (u_paletteMode == 3) {
+    // iridescent — layered seeded noise blends between two hues, plus a
+    // view-angle shift (real iridescence changes hue with viewing angle).
+    // Mechanism from KilledByAPixel/VaseFX's README ("layers of seeded noise
+    // drive the glaze patterns... blending between two colors"), reimplemented
+    // independently in GLSL (GPL-3.0 source, technique only; see
+    // docs/sandbox-element-license-audit.md) using this shader's own
+    // valueNoise3()/hsv2rgb(), not VaseFX code.
+    float marble = valueNoise3(worldPos * 2.0) * 0.6 + valueNoise3(worldPos * 5.0 + 7.0) * 0.4;
+    float angleShift = pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), 2.0);
+    vec3 hueA = hsv2rgb(vec3(fract(u_paletteHue + marble * 0.35), 0.55, 0.95));
+    vec3 hueB = hsv2rgb(vec3(fract(u_paletteHue + 0.5 + angleShift * 0.25), 0.6, 1.0));
+    float lum = clamp(dot(color, vec3(0.299, 0.587, 0.114)), 0.0, 1.0);
+    color = mix(hueA, hueB, angleShift) * (0.35 + lum * 0.9);
   }
 
   // --- Outline-Stil (Sobel auf Tiefe + Normale) ---

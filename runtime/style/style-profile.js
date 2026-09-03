@@ -22,7 +22,7 @@ export const STYLE_DIMENSIONS = Object.freeze([
   { key: 'normal.strength', kind: 'continuous', min: 0, max: 1 },
   { key: 'outline.mode', kind: 'categorical', options: ['none', 'sobel'] },
   { key: 'outline.thickness', kind: 'continuous', min: 0, max: 1 },
-  { key: 'palette.mode', kind: 'categorical', options: ['free', 'gradientMap', 'posterize'] },
+  { key: 'palette.mode', kind: 'categorical', options: ['free', 'gradientMap', 'posterize', 'iridescent'] },
   { key: 'palette.steps', kind: 'continuous', min: 2, max: 8, step: 1 },
   { key: 'palette.hue', kind: 'continuous', min: 0, max: 1 },
   { key: 'texture.mode', kind: 'categorical', options: ['clean', 'breakup'] },

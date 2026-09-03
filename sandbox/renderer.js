@@ -123,7 +123,7 @@ const DIMENSION_UNIFORM_MAP = Object.freeze({
   'normal.strength': { uniform: 'u_normalStrength' },
   'outline.mode': { uniform: 'u_outlineMode', map: { none: 0, sobel: 1 } },
   'outline.thickness': { uniform: 'u_outlineThickness' },
-  'palette.mode': { uniform: 'u_paletteMode', map: { free: 0, gradientMap: 1, posterize: 2 } },
+  'palette.mode': { uniform: 'u_paletteMode', map: { free: 0, gradientMap: 1, posterize: 2, iridescent: 3 } },
   'palette.steps': { uniform: 'u_paletteSteps' },
   'palette.hue': { uniform: 'u_paletteHue' },
   'texture.mode': { uniform: 'u_textureMode', map: { clean: 0, breakup: 1 } },
