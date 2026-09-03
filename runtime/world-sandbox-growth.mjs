@@ -64,9 +64,16 @@ export function createPlantGraph() {
   return {nodes: []};
 }
 
-function addGraphNode(graph, x, z, radius, parentId) {
+// `y` defaults to 0 (ground level) -- this world-sandbox grid is currently a flat x/z plane with
+// no vertical axis at all (no stepper below writes to it yet), so every node the growth/vine
+// tips create sits at y=0. Accepted as a real parameter, not omitted entirely, so the mesh format
+// (world-sandbox-mesh.mjs) is genuinely 3D-capable from the start rather than needing its vertex
+// layout revisited later: real vertical growth (roots descending, vines climbing a real height
+// axis) is a named follow-up that would only need to change what callers PASS here, not this
+// function or anything that consumes graph.nodes downstream.
+function addGraphNode(graph, x, z, radius, parentId, y = 0) {
   const id = graph.nodes.length;
-  const node = {id, x, z, radius, parentId, children: []};
+  const node = {id, x, y, z, radius, parentId, children: []};
   graph.nodes.push(node);
   if (parentId != null) graph.nodes[parentId].children.push(id);
   return id;
