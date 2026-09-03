@@ -50,9 +50,6 @@ function solveLinearSystem(A, b) {
   return M.map((row, i) => (Math.abs(row[i]) < 1e-9 ? 0 : row[n] / row[i]));
 }
 
-// Jacobi eigenvalue algorithm for a small symmetric matrix -- gives exact
-// eigenvalues/eigenvectors, not just a pivot heuristic, so "how singular"
-// and "singular in WHICH direction" are both answerable.
 function jacobiEigen(Ain, iters = 100) {
   const n = Ain.length;
   let A = Ain.map((r) => r.slice());
@@ -90,10 +87,6 @@ function jacobiEigen(Ain, iters = 100) {
   return { eigenvalues: order.map((i) => eigenvalues[i]), eigenvectors: order.map((i) => V.map((row) => row[i])) };
 }
 
-// Single-house linear system: unknowns [Lx, Ly, Tx, Ty, Tz], Lz fixed=1
-// (same as house-0's block in solveJointAnisotropic). `points` is a list
-// of { lc:[a,b,c], px:[x,y] } -- either just the 6 hexagon points, or the
-// hexagon plus repeated (possibly noisy) observations of (1,1,1).
 function solveSingleHouse(points) {
   const nUnknowns = 5;
   const AtA = Array.from({ length: nUnknowns }, () => new Array(nUnknowns).fill(0));
@@ -122,10 +115,7 @@ function solveSingleHouse(points) {
   return { scale, T, avgErr: sumErr / points.length, maxErr, eigenvalues, eigenvectors, AtA };
 }
 
-// ============================= ground truth =============================
 const TRUTH = { Lx: 2.4, Ly: 1.3, Lz: 1.0 };
-// Representative T: similar depth/offset to the real houses (T camera-z
-// around 5-20 in this run's units), keeping every corner in front of camera.
 const T_TRUE = [1.5, -3.0, 9.0];
 
 const hexPoints = HEX_LC.map((lc) => ({ lc, px: project(T_TRUE, TRUTH, lc) }));
@@ -143,7 +133,7 @@ console.log(`  condition number (|max|/|min|): ${(Math.max(...resA.eigenvalues.m
 console.log(`  smallest-eigenvalue eigenvector [Lx,Ly,Tx,Ty,Tz]: [${resA.eigenvectors[0].map((v) => v.toFixed(3))}]`);
 
 console.log('\n=== Configuration B: hexagon + 3x interior-point (1,1,1) observations (E5-style face measurement) ===');
-const interiorPoints = [0, 1, 2].map(() => ({ lc: INTERIOR_LC, px: interiorPx })); // 3 independent (here noiseless) observations, as roof/wallLight/wallDark each measure it
+const interiorPoints = [0, 1, 2].map(() => ({ lc: INTERIOR_LC, px: interiorPx }));
 const resB = solveSingleHouse([...hexPoints, ...interiorPoints]);
 console.log(`  recovered Lx=${resB.scale.Lx.toFixed(6)} Ly=${resB.scale.Ly.toFixed(6)}  Lx/Lz=${resB.scale.Lx.toFixed(3)} Ly/Lz=${resB.scale.Ly.toFixed(3)}`);
 console.log(`  avgReprojErr=${resB.avgErr.toExponential(2)}px maxReprojErr=${resB.maxErr.toExponential(2)}px`);
@@ -163,6 +153,14 @@ const resD = solveSingleHouse([...noisyHex, ...noisyInterior]);
 console.log(`  recovered Lx=${resD.scale.Lx.toFixed(3)} Ly=${resD.scale.Ly.toFixed(3)}  (truth 2.4/1.3)  avgReprojErr=${resD.avgErr.toFixed(2)}px`);
 
 const ratioOk = (s) => Math.abs(s.Lx - TRUTH.Lx) / TRUTH.Lx < 0.01 && Math.abs(s.Ly - TRUTH.Ly) / TRUTH.Ly < 0.01;
-console.log(`\nA (hex-only, noiseless) recovers true ratios within 1%: ${ratioOk(resA.scale)}`);
-console.log(`C (hex-only, +-1.5px noise) recovers true ratios within 1%: ${ratioOk(resC.scale)}`);
-console.log(`D (hex+interior, same noise) recovers true ratios within 1%: ${ratioOk(resD.scale)}`);
+const checks = {
+  noiselessHex: ratioOk(resA.scale),
+  noisyHex: ratioOk(resC.scale),
+  noisyInterior: ratioOk(resD.scale),
+};
+console.log(`\nA (hex-only, noiseless) recovers true ratios within 1%: ${checks.noiselessHex}`);
+console.log(`C (hex-only, +-1.5px noise) recovers true ratios within 1%: ${checks.noisyHex}`);
+console.log(`D (hex+interior, same noise) recovers true ratios within 1%: ${checks.noisyInterior}`);
+const pass = Object.values(checks).every(Boolean);
+console.log(`${pass ? 'PASS' : 'FAIL'}: face-quad ratio verification`);
+if (!pass) process.exitCode = 1;

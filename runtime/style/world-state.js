@@ -84,6 +84,11 @@ export const WORLD_STATE_PRESETS = Object.freeze({
   damaged: { damage: 0.6, crack: 0.55 },
   frozen: { ice: 0.6, frost: 0.7, moisture: 0.2 },
   snow: { snowCap: 0.8, ice: 0.3, frost: 0.4 },
+  // Erosion/Sedimentablagerung, nicht bloß Nässe — Verhalten von
+  // SebLague/Hydraulic-Erosion und baturinsky/worldgen studiert (Verfahren,
+  // kein Codeimport; siehe docs/sandbox-element-license-audit.md). Kein
+  // Solver hier — ein manuell gesetzter Endzustand, wie bei den anderen Presets.
+  eroded: { mud: 0.6, crack: 0.3, damage: 0.25 },
 });
 
 export const WORLD_STATE_PRESET_NAMES = Object.freeze(Object.keys(WORLD_STATE_PRESETS));

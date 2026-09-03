@@ -34,7 +34,10 @@ document.addEventListener('click', event => {
     event.preventDefault();
     event.stopImmediatePropagation();
     const target = rail.dataset.target;
-    const shouldOpen = !(rail.classList.contains('active') && body.classList.contains('inspector-open'));
+    const wasOpen = rail.classList.contains('active') && body.classList.contains('inspector-open');
+    if (target === 'panel-sandbox') window.SHADEDWorldSandbox?.enter();
+    else window.SHADEDWorldSandbox?.exit({ preserveInspector: true });
+    const shouldOpen = !wasOpen;
     closeChrome();
     if (shouldOpen) {
       rail.classList.add('active');
@@ -74,6 +77,11 @@ const previewWrap = document.getElementById('preview-wrap');
 previewWrap?.addEventListener('pointerdown', event => {
   if (event.target.closest?.('#spatial-viewer')) return;
   if (event.target.closest?.('.actor-marker')) return;
+  if (body.classList.contains('world-sandbox-mode')) {
+    closeInspector();
+    requestAnimationFrame(() => document.querySelector('.rail-btn[data-target="panel-sandbox"]')?.classList.add('active'));
+    return;
+  }
   closeChrome();
 }, true);
 

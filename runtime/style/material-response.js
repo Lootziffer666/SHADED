@@ -33,6 +33,7 @@ const WHITE = [1, 1, 1];
 const FROST_TINT = [0.80, 0.88, 0.95];
 const CHAR_TINT = [0.04, 0.03, 0.03];
 const RUST_TINT = [0.55, 0.28, 0.10];
+const SEDIMENT_TINT = [0.42, 0.34, 0.21];
 const WET_DARKEN = 0.35;
 
 // Rost betrifft laut CLAUDE.md Weltgesetz #9 metallische und hölzerne
@@ -79,6 +80,15 @@ export function deriveMaterialResponse(worldState) {
     baseColor = mixColor(baseColor, RUST_TINT, rustAmount);
     roughness = mix(roughness, 0.9, rustAmount);
     reflectance = mix(reflectance, 0.05, rustAmount);
+  }
+  // Sediment/Schlamm setzt sich als eigene Ablagerungsschicht ab — nicht nur
+  // ein Nässe-Glanzband (muddiness fließt bereits schwach in wetness ein,
+  // bekommt hier zusätzlich seine eigene erdig-matte Erscheinung, sonst
+  // bliebe das Feld visuell wirkungslos). Erdig statt rostig/rot.
+  if (muddiness > 0) {
+    baseColor = mixColor(baseColor, SEDIMENT_TINT, muddiness * 0.6);
+    roughness = mix(roughness, Math.max(roughness, 0.88), muddiness);
+    reflectance = mix(reflectance, Math.min(reflectance, 0.03), muddiness);
   }
   // Frost/Schnee hellen auf, Richtung kühles Weiß.
   if (frostEdge > 0) baseColor = mixColor(baseColor, FROST_TINT, frostEdge * 0.55);

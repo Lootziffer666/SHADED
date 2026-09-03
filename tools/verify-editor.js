@@ -74,6 +74,23 @@ const check = (label, condition) => { console.log(`${condition ? 'PASS' : 'FAIL'
     check('Theme-Wechsel setzt Earthsong sofort', themeState.id === 'earthsong' && themeState.accent === '#95CC5E');
     check('Theme-Auswahl wird persistent gespeichert', themeState.stored === 'earthsong');
 
+    await page.locator('#btn-world-sandbox').click();
+    await page.waitForFunction(() => window.SHADEDWorldSandbox?.active && !!window.SHADEDWorldSandbox?.backend, { timeout: 15000 });
+    const sandbox = await page.evaluate(() => ({
+      mode: document.body.classList.contains('world-sandbox-mode'),
+      inspector: document.body.classList.contains('inspector-open'),
+      panelOpen: !document.getElementById('panel-sandbox')?.classList.contains('section-collapsed'),
+      canvasVisible: getComputedStyle(document.getElementById('world-sandbox-canvas')).display !== 'none',
+      studioHidden: getComputedStyle(document.getElementById('world-studio')).display === 'none',
+      backend: window.SHADEDWorldSandbox.backend,
+    }));
+    check(`World Sandbox läuft IN SHADED (${sandbox.backend})`, sandbox.mode && sandbox.inspector && sandbox.panelOpen && sandbox.canvasVisible && sandbox.studioHidden);
+    await page.locator('#world-chain').click();
+    await page.waitForTimeout(350);
+    check('Ursache-Wirkungs-Replay bedient den integrierten Solver', await page.evaluate(() => Number.isFinite(window.SHADEDWorldSandbox?.query?.sand)));
+    await page.locator('#world-exit').click();
+    check('Zur Szene verlässt nur den Sandbox-Arbeitsbereich', await page.evaluate(() => !window.SHADEDWorldSandbox?.active && !document.body.classList.contains('world-sandbox-mode')));
+
     // Trigger the hidden compatibility bridge directly; the visible shell no longer exposes the old onboarding overlay.
     await page.evaluate(() => document.getElementById('world-demo')?.click());
     await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, { timeout: 15000 });

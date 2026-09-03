@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHADED Solver Lab — Granular</title>
+<link rel="stylesheet" href="../lab-common.css">
+</head>
+<body>
+<header class="lab-header">
+  <h1>SHADED Solver Lab — Granular</h1>
+  <p>Erster Beweisfeld-Ausschnitt für <code>runtime/solver/</code> (siehe <code>docs/sandbox-element-donor-matrix.md</code>,
+     „Missing SHADED labs" → Erosion/Sediment- und Reaction-Lab-Vorstufe). Block-Zellularautomat mit Margolus-Offsets,
+     unabhängig implementiert nach dem in der Donor-Matrix dokumentierten Verfahren — kein Code-Import.
+     Rein visuell hier: die Wahrheit liegt in <code>runtime/solver/granular-grid.js</code>, geprüft von
+     <code>tools/test-granular-solver.mjs</code>.</p>
+  <div class="top-controls">
+    <button id="btn-play" class="active">▶ Start</button>
+    <button id="btn-step">Einzelschritt</button>
+    <button id="btn-reset">Neu seeden</button>
+    <label>Seed <input id="seed-input" type="number" value="1" min="0" step="1"></label>
+    <label>Tempo <input id="speed-input" type="range" min="1" max="60" value="12">
+      <span id="speed-readout">12 Schritte/Sek</span></label>
+  </div>
+</header>
+
+<section class="lab-section">
+  <div class="canvas-wrap">
+    <canvas id="grid-canvas" width="120" height="80"></canvas>
+  </div>
+  <div class="side-panel">
+    <h2>Material zum Malen</h2>
+    <div class="material-picker">
+      <button data-material="1" class="active">Sand</button>
+      <button data-material="2">Wasser</button>
+      <button data-material="7">Eis</button>
+      <button data-material="4">Holz</button>
+      <button data-material="9">Baumstamm</button>
+      <button data-material="5">Feuer</button>
+      <button data-material="3">Wand</button>
+      <button data-material="0">Löschen</button>
+    </div>
+    <p class="hint">Auf dem Grid klicken/ziehen, um Material zu malen. Feuer klebt an seinem
+       Brennstoff und zündet angrenzendes Holz oder einen angrenzenden Baumstamm; ausgebranntes
+       Feuer wird zu Rauch, Rauch steigt auf und verweht. Eis schmilzt neben Feuer zu Wasser,
+       Wasser kocht neben Feuer zu Dampf (der wie Rauch aufsteigt und verweht) oder löscht das
+       Feuer, Sand erstickt es zuverlässiger. Anders als Holz (baut, fällt nie) ist ein
+       Baumstamm lose: er fällt durch Luft und schwimmt auf Wasser — zünde ihn an und wirf ihn
+       ins Becken, um ihn löschen zu sehen.</p>
+
+    <h2>Live-Status</h2>
+    <dl id="status" class="status-grid">
+      <dt>Schritt</dt><dd id="status-step">0</dd>
+      <dt>Sand-Zellen</dt><dd id="status-sand">–</dd>
+      <dt>Wasser-Zellen</dt><dd id="status-water">–</dd>
+      <dt>Holz-Zellen</dt><dd id="status-wood">–</dd>
+      <dt>Baumstamm-Zellen</dt><dd id="status-log">–</dd>
+      <dt>Feuer-Zellen</dt><dd id="status-fire">–</dd>
+      <dt>Rauch-Zellen</dt><dd id="status-smoke">–</dd>
+      <dt>Eis-Zellen</dt><dd id="status-ice">–</dd>
+      <dt>Dampf-Zellen</dt><dd id="status-steam">–</dd>
+      <dt>Masse-Erhaltung</dt><dd id="status-conservation">–</dd>
+    </dl>
+    <p class="hint">Sand- und Wasserzahl dürfen sich durch Bewegung nie ändern (reine Swaps, siehe
+       <code>tools/test-granular-solver.mjs</code> Test 3) — nur durch dein eigenes Malen/Löschen.
+       Holz/Baumstamm/Feuer/Rauch/Eis/Dampf verändern sich dagegen bewusst (Verbrennungs-,
+       Ersticken- und Wasser-&lt;-&gt;Eis-&lt;-&gt;Dampf-Reaktionen, Tests 9, 12–14 und 17–21).</p>
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -85,10 +85,15 @@ explizit vorgeschlagene **indizierte Response-Tabelle**: Pass 1 schreibt nur
 `matIndex` in den G-Buffer, Pass 2 (Style) erhält die vollen semantischen
 Kanäle als Uniform-Arrays `u_primWetness[i]`, `u_primChar[i]`,
 `u_primCrack[i]`, `u_primFrost[i]`, `u_primSnow[i]`, `u_primRust[i]`,
-`u_primHeat[i]`, `u_primFire[i]`, indiziert über `matIndex` — kein Kanal geht
-verloren, verschiedene StyleProfiles interpretieren dieselbe Semantik
-unterschiedlich (z. B. Nässe als Glanzband bei einem Stil, als reine
-Farbabdunkelung bei einem anderen).
+`u_primHeat[i]`, `u_primFire[i]`, `u_primMud[i]`, indiziert über `matIndex` —
+kein Kanal geht verloren, verschiedene StyleProfiles interpretieren dieselbe
+Semantik unterschiedlich (z. B. Nässe als Glanzband bei einem Stil, als reine
+Farbabdunkelung bei einem anderen). `muddiness` war bis zur
+Erosions-Donor-Runde (siehe `docs/sandbox-element-license-audit.md`) das
+einzige Feld, das zwar berechnet, aber nie bis zum Style-Pass durchgereicht
+wurde — `iceAmount`/`sootAmount`/`smokeAmount` bleiben bewusst weiterhin
+unverdrahtet (Eis/Ruß falten schon in frostEdge/charAmount ein, Rauch bräuchte
+einen echten Volumen-Pass statt einer Tönung).
 
 ### Korrektur 2 — drei architektonische Stufen, drei echte Draws
 

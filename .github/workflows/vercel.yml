@@ -33,18 +33,11 @@ jobs:
       - name: Install deterministic dependencies
         run: npm ci
 
-      - name: Install Python dependencies for tools/single_view_room.py
-        run: pip3 install -r tools/requirements-single-view-room.txt
-
-      - name: Install Chromium for the functional walkthrough
-        run: npx playwright install --with-deps chromium
-
-      - name: Verify contracts, spatial logic, and static PWA files
-        run: npm run check
-
-      - name: Verify the visible pipeline and the route behind the house
-        run: npm run verify:walk
-
+      # Correctness is already fully gated by the "SHADED Verify" workflow (test.yml),
+      # which runs on the exact same trigger (pull_request) and covers this same code --
+      # re-running npm run check + verify:walk here just duplicated ~9 minutes of that
+      # same work before every deploy. This job's only remaining responsibility is
+      # building and shipping the Vercel artifact.
       - name: Detect Vercel configuration
         id: configuration
         shell: bash

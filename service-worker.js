@@ -1,4 +1,4 @@
-const CACHE = 'shaded-shell-v24';
+const CACHE = 'shaded-shell-v27';
 const SHELL = [
   './',
   './index.html',
@@ -20,13 +20,13 @@ const SHELL = [
   './editor/viewport-first.css?v=8',
   './editor/drawer-handle.css?v=2',
   './editor/world-studio.css?v=1',
-  './editor/world-studio-shell.css?v=1',
+  './editor/world-studio-shell.css?v=2',
   './editor/workspace-extra-themes.css?v=1',
   './editor/world-studio-imports.css?v=1',
   './editor/engine-shell.css?v=1',
   './editor/app.js?v=9',
-  './editor/ui-shell.js?v=9',
-  './editor/ux-fixes.js?v=9',
+  './editor/ui-shell.js?v=10',
+  './editor/ux-fixes.js?v=10',
   './editor/world-room-gate.js?v=2',
   './editor/drawer-handle.js?v=3',
   './editor/world-studio.js?v=4',
@@ -38,6 +38,10 @@ const SHELL = [
   './editor/sandbox-granular.js?v=1',
   './editor/sandbox-coast.css?v=1',
   './editor/sandbox-coast.js?v=1',
+  './editor/world-sandbox.css?v=3',
+  './editor/world-sandbox.js?v=4',
+  './runtime/world-sandbox-reference.mjs',
+  './runtime/world-sandbox-webgpu.mjs',
   './editor/world-studio-v4.js?v=1',
   './editor/world-studio-bridge-settings.js?v=1',
   './editor/material-preview-live.js?v=1',
