@@ -14,6 +14,17 @@ belegte Regelgedächtnis (CORE/LEARNED/CANDIDATE) steht separat in
 [`RULES.md`](RULES.md), weil es sich unabhängig von der Methodik selbst
 verändert und nicht bei jeder Methodik-Änderung mit-diffen soll.
 
+Die tatsächlichen Primärquellen des Seed-Curriculums (REFERENCE.md Abschnitt 7)
+liegen lokal im Repo unter
+[`docs/geometry-library/`](../../../docs/geometry-library/README.md) —
+geprüft frei (Public Domain, Autoren-Self-Archiving oder CC BY-NC-SA, nie
+Piraterie oder Leihzugang), damit die „gezielte Recherche" in Abschnitt 6
+tatsächlich aus der Primärquelle passiert statt aus einer Trainingsdaten-
+Paraphrase. **Diese Bibliothek wächst mit demselben Prinzip wie `RULES.md`:**
+neue Werke kommen dazu, wenn ein echter SHADED-Failure sie konkret verlangt,
+nicht spekulativ — siehe die Wachstumsregel am Ende von
+`docs/geometry-library/README.md`.
+
 ## Auftrag
 
 Dieser Skill war der eigentliche Auftrag des Threads, der zum Branch-Namen

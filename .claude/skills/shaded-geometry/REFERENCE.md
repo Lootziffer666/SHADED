@@ -292,30 +292,53 @@ ESCALATE             Wann reicht Implikation nicht mehr; wann wird echte
                      Geometrie nötig?
 ```
 
-Fünf Seeds — bewusst klein gehalten, nicht vierzig Bücher:
+Sechs Seeds — bewusst klein gehalten, nicht vierzig Bücher. Alle lokal
+gespiegelt in [`docs/geometry-library/`](../../../docs/geometry-library/README.md)
+(Volltext, Lizenz und Download-Herkunft je Werk dokumentiert):
 
 ```text
 SEED 1  MIT OCW „Geometric Disciplines and Architecture Skills:
-        Reciprocal Methodologies" → räumliche Grundoperationen
+        Reciprocal Methodologies" (4.105) → räumliche Grundoperationen
         (Descriptive Geometry/Projection, Planar Intersections + Folding,
         Curvature, Solid/Surface, Stereotomy/Developability)
-SEED 2  Helmut Pottmann et al. — Architectural Geometry
+        Lokal: mit-ocw-4105-geometric-disciplines/
+SEED 2  Pottmann, Eigensatz, Vaxman & Wallner — Architectural Geometry
+        (Survey-Paper, nicht das kommerzielle Buch — Autoren-Self-Archiving)
+        + Pottmann & Wallner — Geometry and Freeform Architecture (2016)
         → Projektion, Ebenenbeziehungen, Schnitt, Offset, Extrusion,
         Flächenfamilien, konstruktive Formbildung
-SEED 3  George Stiny — Shape: Talking about Seeing and Doing
-        (+ MIT OCW „Introduction to Shape Grammars")
+        Lokal: pottmann-architectural-geometry-survey/
+SEED 3  MIT OCW „Introduction to Shape Grammars I" (4.540, George Stiny) —
+        Introductory Lecture Slides. **Nicht** das Buch *Shape: Talking
+        about Seeing and Doing* selbst: der einzige „freie" Zugang darüber
+        ist ein Controlled-Digital-Lending-Leihexemplar auf archive.org
+        (`access-restricted-item: true`), keine frei verteilbare Kopie —
+        siehe `docs/geometry-library/README.md`.
         → see → decompose → relate → reinterpret → transform;
         Shape Rules statt Objektlabels; Mehrdeutigkeit ist kein Fehler
+        Lokal: mit-ocw-4540-shape-grammars/
 SEED 4  Lewis F. Day — Pattern Design (1903, public domain)
         → lokale Regeln → komplexe wiederholte Gestaltung
-SEED 5  eine Dot-to-Dot-Progression (Abschnitt 8) → Sparse Evidence → Structure
+        Lokal: pattern-design-day-1903/
+SEED 5  eine Dot-to-Dot-Progression (Abschnitt 8) → Sparse Evidence →
+        Structure (konzeptionell, kein einzelnes freies Werk zum Spiegeln
+        gefunden)
+SEED 6  Shaker, Togelius & Nelson — Procedural Content Generation in Games
+        (alle 12 Kapitel, Autoren-Finalfassung frei auf pcgbook.com) —
+        vom Maintainer selbst als „Kapitel 4 fast Pflicht" markiert
+        (Fraktale/Noise für Terrain, Kapitel 5: Grammars/L-Systems für
+        Vegetation/Level)
+        Lokal: procedural-content-generation-in-games/
 ```
 
 Erweiterungskandidaten, ausdrücklich **nicht** vorab geladen, sondern erst
-zugreifbar, wenn Abschnitt 6 sie konkret verlangt:
+zugreifbar, wenn Abschnitt 6 sie konkret verlangt (Public-Domain-Grundlagen-
+texte zu deskriptiver Geometrie und Perspektive liegen bereits lokal vor,
+siehe `docs/geometry-library/README.md`: Minifie 1867, Pozzo 1707,
+Jamnitzer 1568 — aber ohne eigenen SEED-Rang, weil sie nicht aus dem
+ursprünglichen Auftrag stammen, sondern zusätzlich beim Aufbau der
+Bibliothek gefunden wurden):
 
-- Prusinkiewicz & Lindenmayer — *The Algorithmic Beauty of Plants* (frei,
-  algorithmicbotany.org) — wenn Vegetation/Wachstum tatsächlich scheitert.
 - Reas/McWilliams/LUST — *FORM+CODE* — wenn parametrische/prozedurale
   Operationen (repeat/transform/grow/simulate) fehlen.
 - Tedeschi — *AAD: Algorithms-Aided Design* — wenn Form-Finding
@@ -330,8 +353,6 @@ zugreifbar, wenn Abschnitt 6 sie konkret verlangt:
   ungewöhnliche Dächer/Ruled Surfaces/Panelisierung, kein Lehrbuch.
 - Gips — *Shape Grammars and their Uses* — wenn aus einem beobachteten
   Teilstück eine zulässige Formklasse ohne festes Objektmodell entstehen muss.
-- Shaker/Togelius/Nelson — *Procedural Content Generation in Games* (frei,
-  pcgbook.com) — Terrain/Noise/Constraints/kontrollierte Variation.
 - Robertson — *How to Draw* — für das unbewusste Experten-„Warum sieht das
   sonst falsch aus?" bei Primitive → Perspektive → Volumen → Konstruktion.
 - Matte-Painting/VFX/Set-Design (Vaz & Barron *The Invisible Art*,
