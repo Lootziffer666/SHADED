@@ -209,6 +209,17 @@ Constraint Value haben (Abschnitt 3) — sie sind es, an denen sich alles
 Fehlende später korrekt „aufhängt". Eine Erweiterung, die diese Anschlusspunkte
 verletzt, ist ein Fehler, keine Geschmacksfrage.
 
+**Konkretes Beispiel für das PREPARE-Vokabular:**
+[`docs/village-site-plan-reference/site-plan-de-anschluss.png`](../../../docs/village-site-plan-reference/site-plan-de-anschluss.png)
+(eigenes Referenzbild, siehe README dort) benennt genau diese abstrakten
+Begriffe konkret an einem Village-Site-Plan: `ANSCHLUSS NORD-WEST` /
+`ANSCHLUSS SÜD-WEST` für Fluchtlinien/Anschlusskanten, eine
+`Y-FÖRMIGE HAUPTINFRASTRUKTURTRASSE` als tragende Erschließungslogik, ein
+`ORIENTIERUNGS-/INFORMATIONSSIGNAL` als Blickfang-/Referenzpunkt. Kein
+Rekonstruktions-Fixture (die Lösung steht als Text im Bild) — eine
+Notation-Referenz dafür, wie „Constraint-Generator für den unbebauten Rest"
+in einem echten Site-Plan aussieht.
+
 ## 6. Drei Wissenszustände und der Failure-Driven-Growth-Loop
 
 ```text

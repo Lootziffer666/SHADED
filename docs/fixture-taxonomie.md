@@ -351,6 +351,19 @@ wenigsten wie die bisherige Arbeit aussehen):
 
 ---
 
+## Notation-Referenz (kein Fixture)
+
+[`docs/village-site-plan-reference/`](village-site-plan-reference/README.md)
+enthält drei eigene, bereits beschriftete Village-Site-Pläne (Gebäude-
+Positionsnamen, Maßstabsbalken, bei der deutschen Variante zusätzlich
+Erschließungs-/Anschlussvokabular). **Kein Eintrag für die Fixture-Tabelle
+oben** — die Lösung steht dort als Text im Bild, das entwertet sie als
+Rekonstruktions-Testfall. Wert haben sie als Notation-Referenz für genau die
+zwei Dinge, die der Fixture-Tabelle bisher fehlen: eine Positions-
+Namenskonvention für mehrere Baukörper in einer Szene, und ein echter
+Maßstabsbalken (0/5/10 m) — während die Skalierung der VLG-Fixtures oben laut
+Provenienz-Hinweis am Dokumentanfang noch ungemessen ist.
+
 ## 5. Ausdrücklich außerhalb dieses Dokuments
 
 - Keine Solver- oder Extraktionsänderung. Diese Taxonomie beschreibt einen Methodenraum,
