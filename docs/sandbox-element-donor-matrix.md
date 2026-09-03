@@ -18,7 +18,7 @@ A source can be excellent at one layer and useless at the other two.
 
 | System | Primary donors | Why SHADED needs it | License posture |
 |---|---|---|---|
-| Granular cellular solver | GelamiSalami/GPU-Falling-Sand-CA; m4ym4y/falling-sand-shader; kody-w Falling Sand Lab; Qqwy/js1k_powder_game (reaction vocabulary: 11 elements, 50+ reactions) | Replace simple per-cell movement with race-safe block updates; support material reactions | GelamiSalami and m4ym4y: no reusable license established in inspected root, technique only until resolved. Kody page: verify before code reuse. Qqwy: no license found, technique only. **First slice implemented**: `runtime/solver/granular-grid.js` + `solver-lab/granular/`, now covering empty/sand/water/wall/wood/fire/smoke with one reaction (fire ignites adjacent wood, ages into smoke, smoke ages into empty). Verified by `tools/test-granular-solver.mjs` (27 checks) and `tools/verify-solver-lab-granular.js` (11 browser checks). |
+| Granular cellular solver | GelamiSalami/GPU-Falling-Sand-CA; m4ym4y/falling-sand-shader; kody-w Falling Sand Lab; Qqwy/js1k_powder_game (reaction vocabulary: 11 elements, 50+ reactions) | Replace simple per-cell movement with race-safe block updates; support material reactions | GelamiSalami and m4ym4y: no reusable license established in inspected root, technique only until resolved. Kody page: verify before code reuse. Qqwy: no license found, technique only. **First slice implemented**: `runtime/solver/granular-grid.js` + `solver-lab/granular/`, now covering empty/sand/water/wall/wood/fire/smoke/ice/steam with reactions (fire ignites adjacent wood and ages into smoke; ice melts to water near fire; water boils to steam near fire or extinguishes it) -- the `water <-> ice <-> steam` example from the Reaction Lab wishlist below is now real, in this module. Verified by `tools/test-granular-solver.mjs` (32 checks) and `tools/verify-solver-lab-granular.js` (13 browser checks). |
 | Stable Fluids / smoke velocity field | piellardj/navier-stokes-webgl; aadebdeb/WebGL_SmokeSimulation; julesyoungberg/2d-smoke; keijiro/StableFluids; matthiasbroske/GPUStableFluids | Real advection / pressure projection for smoke, steam, heat haze and gas instead of noise-only animation | piellardj package declares ISC; aadebdeb MIT; julesyoungberg MIT; keijiro public-domain/Unlicense; matthiasbroske MIT. |
 | Coast / water surface | Babylon stylized-water thread; gameidea stylized 3D water; Seascape; PhysicsMod oceans.glsl | Depth-aware shallow/deep water, refraction, shore/crest foam, wave normals | Babylon/gameidea used as technique blueprint. Verify individual Seascape / PhysicsMod source license before copying. |
 | Dune surface dynamics | keaukraine/webgl-dunes + dunes article | Windward/leeward ripple orientation, distance fade, cheap terrain shading | MIT verified for webgl-dunes. |
@@ -113,6 +113,13 @@ Instanced particles with scene-depth softening. Shared emitters for dust, spray,
 Raymarched density renderer for smoke, fog and clouds. It consumes density/temperature/light fields from Fluid Lab or procedural density sources, with HQ/Balanced/Fast step budgets and temporal stabilization.
 
 ### Reaction Lab
+**Partial start, inside the Granular Lab rather than as its own instance**: `runtime/solver/granular-grid.js`'s
+`reactions()` pass now implements `water <-> ice <-> steam` and `fuel + heat -> fire -> smoke` (wood/fire/smoke)
+from the list below, using the same age-tracked, hash-seeded, double-buffered pattern as movement. Still not a
+general state graph -- each rule is hand-written per material pair. A real Reaction Lab would generalize this
+into a declarative graph other labs (Erosion, Vegetation) can also drive, instead of every lab hand-rolling its
+own reaction pass.
+
 A readable material-state graph, e.g.:
 - water <-> ice <-> steam,
 - soil + water -> mud,

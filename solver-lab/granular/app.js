@@ -11,7 +11,7 @@ const ctx = canvas.getContext('2d');
 let grid = createGrid(GRID_W, GRID_H);
 let running = true;
 let paintMaterial = MATERIAL.SAND;
-let baselineSand = 0, baselineWater = 0;
+let baselineSand = 0;
 let stepsPerSecond = Number(document.getElementById('speed-input').value);
 let lastStepMs = 0;
 
@@ -20,7 +20,6 @@ function reseed(seedValue) {
   fillRandom(grid, MATERIAL.SAND, 0.22, seedValue);
   fillRandom(grid, MATERIAL.WATER, 0.08, seedValue + 1000);
   baselineSand = countMaterial(grid, MATERIAL.SAND);
-  baselineWater = countMaterial(grid, MATERIAL.WATER);
   draw();
   updateStatus();
 }
@@ -40,9 +39,16 @@ function updateStatus() {
   document.getElementById('status-wood').textContent = String(countMaterial(grid, MATERIAL.WOOD));
   document.getElementById('status-fire').textContent = String(countMaterial(grid, MATERIAL.FIRE));
   document.getElementById('status-smoke').textContent = String(countMaterial(grid, MATERIAL.SMOKE));
+  document.getElementById('status-ice').textContent = String(countMaterial(grid, MATERIAL.ICE));
+  document.getElementById('status-steam').textContent = String(countMaterial(grid, MATERIAL.STEAM));
   const el = document.getElementById('status-conservation');
-  const conserved = sand === baselineSand && water === baselineWater;
-  el.textContent = conserved ? 'erhalten (nur Bewegung)' : `verändert (Malen/Löschen aktiv)`;
+  // Nur Sand ist noch ein reines Bewegungsmaterial (nie Teil einer
+  // Reaktion) -- seit Eis/Feuer/Wasser<->Dampf reagieren, wäre "Wasserzahl
+  // == Baseline" keine ehrliche Aussage mehr: Wasser kann durch Kochen
+  // verschwinden oder durch Schmelzen entstehen, ganz ohne dass irgendwer
+  // etwas gemalt hat.
+  const conserved = sand === baselineSand;
+  el.textContent = conserved ? 'Sand erhalten (nur Bewegung)' : 'Sand verändert (Malen/Löschen aktiv)';
   el.className = conserved ? 'ok' : 'warn';
 }
 

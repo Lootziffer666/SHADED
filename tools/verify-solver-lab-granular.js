@@ -102,6 +102,33 @@ async function main() {
   const sandSeed7B = await page.evaluate(() => document.getElementById('status-sand').textContent);
   check('F: derselbe Seed erzeugt beim erneuten Seeden dieselbe Sandmenge (deterministisch)', sandSeed7A === sandSeed7B);
 
+  // Eis -> Wasser -> Dampf: mehrere unabhängige Paare (siehe Test 13 in
+  // tools/test-granular-solver.mjs für die Begründung, warum ein einzelnes
+  // Paar unzuverlässig ist -- BOIL_CHANCE und EXTINGUISH_CHANCE konkurrieren).
+  await page.evaluate(() => {
+    const { setCell, MATERIAL } = window.__granularLab;
+    for (let p = 0; p < 6; p++) {
+      const x = 10 + p * 15;
+      setCell(x, 40, MATERIAL.ICE);
+      setCell(x, 39, MATERIAL.FIRE);
+      // Wasser braucht einen Boden, sonst fällt es sofort vom Feuer weg
+      // (siehe Node-Test 13) -- separate, verankerte Wasser/Feuer-Paare
+      // für einen zuverlässigen Dampf-Check statt nur auf geschmolzenes,
+      // frei fallendes Eiswasser zu hoffen.
+      setCell(x + 5, 41, MATERIAL.WALL);
+      setCell(x + 5, 40, MATERIAL.WATER);
+      setCell(x + 5, 39, MATERIAL.FIRE);
+    }
+  });
+  let sawWaterFromIce = false, sawSteam = false;
+  for (let i = 0; i < 40; i++) {
+    await page.evaluate(() => window.__granularLab.step());
+    if (await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.WATER)) > 0) sawWaterFromIce = true;
+    if (await page.evaluate(() => window.__granularLab.countMaterial(window.__granularLab.MATERIAL.STEAM)) > 0) sawSteam = true;
+  }
+  check('G: Eis neben Feuer schmilzt zu Wasser (mindestens eines von 6 Paaren)', sawWaterFromIce);
+  check('G2: Dampf erscheint zwischenzeitlich (Wasser kocht oder Eis geht via Wasser weiter)', sawSteam);
+
   check('Keine Konsolen-/Seitenfehler', errors.length === 0);
   if (errors.length) errors.forEach((e) => console.log('  ERROR:', e));
 

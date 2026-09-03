@@ -21,27 +21,34 @@
 // Qqwy/js1k_powder_game (no license found, technique only) -- a real 2D
 // falling-sand chemistry sandbox with 11 elements and 50+ reactions. This
 // slice now covers falling solids, a spreading liquid, a rising/decaying
-// gas, and one reaction (fire ignites adjacent wood) -- still a fraction
-// of js1k_powder_game's vocabulary, extended the same way: add a MATERIAL,
-// teach densityFalls/densityRises/isFluid about it, add a reaction() rule
+// gas, and a handful of reactions (fire ignites wood; water <-> ice <->
+// steam near fire; water can extinguish fire) -- still a fraction of
+// js1k_powder_game's vocabulary and of docs/sandbox-element-donor-matrix.md's
+// "Reaction Lab" wishlist, extended the same way: add a MATERIAL, teach
+// densityFalls/densityRises/STATIC/FLUID about it, add a reactions() rule
 // if it needs one. Never fork a second grid representation.
 
 export const MATERIAL = Object.freeze({
-  EMPTY: 0, SAND: 1, WATER: 2, WALL: 3, WOOD: 4, FIRE: 5, SMOKE: 6,
+  EMPTY: 0, SAND: 1, WATER: 2, WALL: 3, WOOD: 4, FIRE: 5, SMOKE: 6, ICE: 7, STEAM: 8,
 });
 
 export const MATERIAL_NAMES = Object.freeze({
   [MATERIAL.EMPTY]: 'empty', [MATERIAL.SAND]: 'sand', [MATERIAL.WATER]: 'water',
   [MATERIAL.WALL]: 'wall', [MATERIAL.WOOD]: 'wood', [MATERIAL.FIRE]: 'fire', [MATERIAL.SMOKE]: 'smoke',
+  [MATERIAL.ICE]: 'ice', [MATERIAL.STEAM]: 'steam',
 });
 
-// Wie lange (in Schritten) eine Feuer- bzw. Rauchzelle lebt, bevor sie
-// weiterzerfällt. Über age[] getrackt, nicht über mehrere Material-IDs pro
-// Alterstufe -- das hielte den MATERIAL-Enum klein und die Farb-/Malbar-
-// keits-Logik einfach.
+// Wie lange (in Schritten) eine Feuer-, Rauch- bzw. Dampfzelle lebt, bevor
+// sie weiterzerfällt. Über age[] getrackt, nicht über mehrere Material-IDs
+// pro Alterstufe -- das hielte den MATERIAL-Enum klein und die Farb-/
+// Malbarkeits-Logik einfach.
 const FIRE_LIFETIME = 14;
 const SMOKE_LIFETIME = 40;
+const STEAM_LIFETIME = 22; // kondensiert/verweht schneller als Rauch -- vereinfacht, kein echter Wasserkreislauf mit Regen
 const IGNITE_CHANCE = 0.10;
+const MELT_CHANCE = 0.16;
+const BOIL_CHANCE = 0.12;
+const EXTINGUISH_CHANCE = 0.20;
 
 export function createGrid(width, height) {
   const n = width * height;
@@ -97,8 +104,8 @@ export function getCell(grid, x, y) {
   return grid.cells[y * grid.width + x];
 }
 
-const STATIC = new Set([MATERIAL.WALL, MATERIAL.WOOD]); // fallen/steigen nie von selbst
-const FLUID = new Set([MATERIAL.WATER, MATERIAL.SMOKE]); // weichen seitlich aus, wenn oben/unten blockiert
+const STATIC = new Set([MATERIAL.WALL, MATERIAL.WOOD, MATERIAL.ICE]); // fallen/steigen nie von selbst
+const FLUID = new Set([MATERIAL.WATER, MATERIAL.SMOKE, MATERIAL.STEAM]); // weichen seitlich aus, wenn oben/unten blockiert
 
 // a fällt auf/verdrängt b, wenn a dichter ist als b (Sand > Wasser > Leer).
 function densityFalls(a, b) {
@@ -118,7 +125,7 @@ function densityFalls(a, b) {
 // densityFalls, nicht dieselbe Funktion mit getauschten Argumenten, weil
 // "leichter als" keine reine Umkehr von "dichter als" ist.
 function densityRises(a, b) {
-  if (a === MATERIAL.SMOKE && b === MATERIAL.EMPTY) return true;
+  if ((a === MATERIAL.SMOKE || a === MATERIAL.STEAM) && b === MATERIAL.EMPTY) return true;
   return false;
 }
 
@@ -168,22 +175,47 @@ function reactions(grid) {
       const i = y * w + x;
       const m = grid.cells[i];
       if (m === MATERIAL.FIRE) {
+        // Wasser (nicht Eis) kann Feuer vorzeitig löschen -- eigener
+        // Hash-Stream, damit "erlischt das Feuer?" und "kocht das Wasser
+        // daneben?" (unten bei MATERIAL.WATER) nicht korreliert entschieden
+        // werden, obwohl beide dieselbe Nachbarschaft anschauen.
+        const extinguished = hasNeighbor(grid, x, y, MATERIAL.WATER) && cellRandom01(grid.step, i + 3) < EXTINGUISH_CHANCE;
         const age = grid.age[i] + 1;
-        if (age >= FIRE_LIFETIME) { nextCells[i] = MATERIAL.SMOKE; nextAge[i] = 0; }
+        if (extinguished || age >= FIRE_LIFETIME) { nextCells[i] = MATERIAL.SMOKE; nextAge[i] = 0; }
         else nextAge[i] = age;
       } else if (m === MATERIAL.SMOKE) {
         const age = grid.age[i] + 1;
         if (age >= SMOKE_LIFETIME) { nextCells[i] = MATERIAL.EMPTY; nextAge[i] = 0; }
         else nextAge[i] = age;
+      } else if (m === MATERIAL.STEAM) {
+        const age = grid.age[i] + 1;
+        if (age >= STEAM_LIFETIME) { nextCells[i] = MATERIAL.EMPTY; nextAge[i] = 0; }
+        else nextAge[i] = age;
       } else if (m === MATERIAL.WOOD) {
-        const nFire = getCell(grid, x - 1, y) === MATERIAL.FIRE || getCell(grid, x + 1, y) === MATERIAL.FIRE
-          || getCell(grid, x, y - 1) === MATERIAL.FIRE || getCell(grid, x, y + 1) === MATERIAL.FIRE;
-        if (nFire && cellRandom01(grid.step, i) < IGNITE_CHANCE) { nextCells[i] = MATERIAL.FIRE; nextAge[i] = 0; }
+        if (hasNeighbor(grid, x, y, MATERIAL.FIRE) && cellRandom01(grid.step, i) < IGNITE_CHANCE) {
+          nextCells[i] = MATERIAL.FIRE; nextAge[i] = 0;
+        }
+      } else if (m === MATERIAL.ICE) {
+        // water <-> ice <-> steam (docs/sandbox-element-donor-matrix.md,
+        // "Reaction Lab" Beispielliste) -- vereinfacht auf Feuer als
+        // einzige Wärmequelle, es gibt hier kein eigenes Temperaturfeld.
+        if (hasNeighbor(grid, x, y, MATERIAL.FIRE) && cellRandom01(grid.step, i + 1) < MELT_CHANCE) {
+          nextCells[i] = MATERIAL.WATER; nextAge[i] = 0;
+        }
+      } else if (m === MATERIAL.WATER) {
+        if (hasNeighbor(grid, x, y, MATERIAL.FIRE) && cellRandom01(grid.step, i + 2) < BOIL_CHANCE) {
+          nextCells[i] = MATERIAL.STEAM; nextAge[i] = 0;
+        }
       }
     }
   }
   grid.cells = nextCells;
   grid.age = nextAge;
+}
+
+function hasNeighbor(grid, x, y, material) {
+  return getCell(grid, x - 1, y) === material || getCell(grid, x + 1, y) === material
+    || getCell(grid, x, y - 1) === material || getCell(grid, x, y + 1) === material;
 }
 
 // Ein Generationsschritt: erst Bewegung (racefreie Block-Swaps), dann
@@ -222,6 +254,8 @@ export const MATERIAL_COLOR = Object.freeze({
   [MATERIAL.WOOD]: [110, 72, 38, 255],
   [MATERIAL.FIRE]: [235, 120, 30, 255],
   [MATERIAL.SMOKE]: [120, 118, 112, 160],
+  [MATERIAL.ICE]: [176, 214, 230, 235],
+  [MATERIAL.STEAM]: [220, 224, 228, 130],
 });
 
 export function toRGBA(grid) {

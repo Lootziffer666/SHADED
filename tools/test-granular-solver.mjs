@@ -160,7 +160,61 @@ function countRows(grid, y0, y1, material) {
   assert(countMaterial(grid, MATERIAL.WOOD) === 1, 'und es entsteht kein zweites Holz irgendwo sonst im Grid');
 }
 
-// --- 12. Alle neuen Dateien parsen ------------------------------------------
+// --- 12. Eis schmilzt neben Feuer zu Wasser --------------------------------
+{
+  const grid = createGrid(10, 10);
+  setCell(grid, 5, 5, MATERIAL.ICE);
+  setCell(grid, 5, 4, MATERIAL.FIRE);
+  let sawWater = false;
+  for (let i = 0; i < 40; i++) { step(grid); if (countMaterial(grid, MATERIAL.WATER) > 0) sawWater = true; }
+  assert(sawWater, 'Eis neben Feuer wird innerhalb von 40 Schritten zu Wasser (MELT_CHANCE griff irgendwann)');
+}
+
+// --- 13. Wasser kocht neben Feuer zu Dampf, Dampf zerfällt zu EMPTY -------
+{
+  // Ohne Boden fällt das Wasser unter Schwerkraft sofort vom Feuer weg
+  // (dieselbe Fallklasse Fehler wie beim Feuer/Holz-Test zuvor) -- eine
+  // Wand darunter hält es als "Wasserpfütze über der Flamme" an Ort und
+  // Stelle. Ein einzelnes Wasser/Feuer-Paar reichte hier NICHT als Test:
+  // EXTINGUISH_CHANCE (20%/Schritt) und BOIL_CHANCE (12%/Schritt) laufen
+  // gegeneinander, und ein einzelnes Feuer kann durchs Löschen schon nach
+  // 5-6 Schritten verschwinden, bevor Kochen überhaupt oft genug würfeln
+  // durfte -- bei einem einzigen deterministischen Seed reiner Zufall, ob
+  // das trifft. Mehrere unabhängige Paare machen den Test robust, ohne die
+  // Chance künstlich hochzudrehen.
+  const grid = createGrid(40, 20);
+  for (let p = 0; p < 6; p++) {
+    const x = 3 + p * 6;
+    setCell(grid, x - 1, 16, MATERIAL.WALL); setCell(grid, x, 16, MATERIAL.WALL); setCell(grid, x + 1, 16, MATERIAL.WALL);
+    setCell(grid, x, 15, MATERIAL.WATER);
+    setCell(grid, x, 14, MATERIAL.FIRE);
+  }
+  let sawSteam = false;
+  for (let i = 0; i < 40; i++) { step(grid); if (countMaterial(grid, MATERIAL.STEAM) > 0) sawSteam = true; }
+  assert(sawSteam, 'mindestens eines von 6 Wasser/Feuer-Paaren wird innerhalb von 40 Schritten zu Dampf (BOIL_CHANCE griff irgendwann)');
+  for (let i = 0; i < 60; i++) step(grid);
+  assert(countMaterial(grid, MATERIAL.STEAM) === 0, 'aller Dampf ist nach ausreichend Schritten zu EMPTY zerfallen (STEAM_LIFETIME griff)');
+}
+
+// --- 14. Dampf steigt auf wie Rauch ----------------------------------------
+{
+  const grid = createGrid(10, 30);
+  setCell(grid, 5, 25, MATERIAL.STEAM);
+  for (let i = 0; i < 15; i++) step(grid);
+  let steamY = -1;
+  for (let y = 0; y < grid.height; y++) for (let x = 0; x < grid.width; x++) if (getCell(grid, x, y) === MATERIAL.STEAM) steamY = y;
+  assert(steamY !== -1 && steamY < 25, `einzelne Dampfzelle steigt nach 15 Schritten sichtbar auf (Start y=25, jetzt y=${steamY})`);
+}
+
+// --- 15. Eis fällt/steigt nie von selbst -----------------------------------
+{
+  const grid = createGrid(10, 10);
+  setCell(grid, 3, 3, MATERIAL.ICE);
+  for (let i = 0; i < 30; i++) step(grid);
+  assert(getCell(grid, 3, 3) === MATERIAL.ICE, 'freischwebendes Eis ohne Feuer in der Nähe bleibt an Ort und Stelle');
+}
+
+// --- 16. Alle neuen Dateien parsen ------------------------------------------
 {
   const { execSync } = await import('node:child_process');
   const path = await import('node:path');

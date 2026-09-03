@@ -33,6 +33,7 @@
     <div class="material-picker">
       <button data-material="1" class="active">Sand</button>
       <button data-material="2">Wasser</button>
+      <button data-material="7">Eis</button>
       <button data-material="4">Holz</button>
       <button data-material="5">Feuer</button>
       <button data-material="3">Wand</button>
@@ -40,7 +41,8 @@
     </div>
     <p class="hint">Auf dem Grid klicken/ziehen, um Material zu malen. Feuer klebt an seinem
        Brennstoff und zündet angrenzendes Holz; ausgebranntes Feuer wird zu Rauch, Rauch steigt
-       auf und verweht irgendwann von selbst.</p>
+       auf und verweht. Eis schmilzt neben Feuer zu Wasser, Wasser kocht neben Feuer zu Dampf
+       (der wie Rauch aufsteigt und verweht) oder löscht das Feuer vorzeitig.</p>
 
     <h2>Live-Status</h2>
     <dl id="status" class="status-grid">
@@ -50,11 +52,14 @@
       <dt>Holz-Zellen</dt><dd id="status-wood">–</dd>
       <dt>Feuer-Zellen</dt><dd id="status-fire">–</dd>
       <dt>Rauch-Zellen</dt><dd id="status-smoke">–</dd>
+      <dt>Eis-Zellen</dt><dd id="status-ice">–</dd>
+      <dt>Dampf-Zellen</dt><dd id="status-steam">–</dd>
       <dt>Masse-Erhaltung</dt><dd id="status-conservation">–</dd>
     </dl>
     <p class="hint">Sand- und Wasserzahl dürfen sich durch Bewegung nie ändern (reine Swaps, siehe
        <code>tools/test-granular-solver.mjs</code> Test 3) — nur durch dein eigenes Malen/Löschen.
-       Holz/Feuer/Rauch verändern sich dagegen bewusst (Verbrennungs-Reaktion, Test 9).</p>
+       Holz/Feuer/Rauch/Eis/Dampf verändern sich dagegen bewusst (Verbrennungs- und
+       Wasser-&lt;-&gt;Eis-&lt;-&gt;Dampf-Reaktionen, Tests 9 und 12–14).</p>
   </div>
 </section>
 
