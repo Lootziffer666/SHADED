@@ -19,6 +19,13 @@ if (!panel || !launch || !canvas) throw new Error('Integrated SHADED world sandb
 const mobile = matchMedia('(max-width: 700px)').matches;
 const SIM_DT = 1 / 30;
 const MAX_STEPS = 3;
+const DEFAULT_CAMERA = Object.freeze({
+  yaw: -0.68,
+  pitch: 0.76,
+  zoom: mobile ? 1.42 : 1.34,
+  verticalScale: 1.55,
+  targetY: 0.29,
+});
 const toolDefinitions = {
   sand: {kind: STAMP.SAND, amount: 0.026, particleKind: 2, particles: mobile ? 18 : 38},
   water: {kind: STAMP.WATER, amount: 0.029, particleKind: 1, particles: mobile ? 22 : 52},
@@ -41,6 +48,7 @@ const state = {
   backend: null,
   backendKind: '',
   pointer: {x: 0.5, z: 0.5, radius: 0.05, visible: false, down: false},
+  camera: {...DEFAULT_CAMERA},
   body: {active: false, x: 0.5, z: 0.2, y: 0.8, vx: 0, vz: 0, vy: 0, radius: 0.018, impacts: 0},
   query: {ground: 0.16, waterSurface: 0.16, waterDepth: 0, wetness: 0, biomass: 0, heat: 0, sand: 0, latencyMs: 0},
   accumulator: 0,
@@ -51,6 +59,110 @@ const state = {
   queryDivider: 0,
   scenario: null,
 };
+
+function cameraBasis(camera = state.camera) {
+  const cosPitch = Math.cos(camera.pitch);
+  const forward = [
+    Math.sin(camera.yaw) * cosPitch,
+    -Math.sin(camera.pitch),
+    Math.cos(camera.yaw) * cosPitch,
+  ];
+  const rightLength = Math.hypot(forward[2], forward[0]) || 1;
+  const right = [forward[2] / rightLength, 0, -forward[0] / rightLength];
+  const up = [
+    forward[1] * right[2],
+    forward[2] * right[0] - forward[0] * right[2],
+    -forward[1] * right[0],
+  ];
+  return {forward, right, up};
+}
+
+function projectWorld(world, width, height, camera = state.camera) {
+  const {forward, right, up} = cameraBasis(camera);
+  const delta = [world[0], world[1] - camera.targetY, world[2]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const aspect = width / Math.max(1, height);
+  const ndcX = dot(delta, right) / Math.max(0.2, camera.zoom * aspect);
+  const ndcY = dot(delta, up) / Math.max(0.55, camera.zoom);
+  return {
+    x: (ndcX * 0.5 + 0.5) * width,
+    y: (0.5 - ndcY * 0.5) * height,
+    depth: dot(delta, forward),
+  };
+}
+
+function screenToWorld(clientX, clientY) {
+  const bounds = canvas.getBoundingClientRect();
+  const aspect = bounds.width / Math.max(1, bounds.height);
+  const ndcX = ((clientX - bounds.left) / Math.max(1, bounds.width)) * 2 - 1;
+  const ndcY = 1 - ((clientY - bounds.top) / Math.max(1, bounds.height)) * 2;
+  const {forward, right, up} = cameraBasis();
+  const viewX = ndcX * state.camera.zoom * aspect;
+  const viewY = ndcY * state.camera.zoom;
+  const line = [
+    right[0] * viewX + up[0] * viewY,
+    state.camera.targetY + right[1] * viewX + up[1] * viewY,
+    right[2] * viewX + up[2] * viewY,
+  ];
+  const planeY = state.camera.targetY;
+  const distance = Math.abs(forward[1]) > 1e-5 ? (planeY - line[1]) / forward[1] : 0;
+  const worldX = line[0] + forward[0] * distance;
+  const worldZ = line[2] + forward[2] * distance;
+  return {
+    x: Math.max(0, Math.min(1, worldX * 0.5 + 0.5)),
+    z: Math.max(0, Math.min(1, worldZ * 0.5 + 0.5)),
+  };
+}
+
+function resetCamera() {
+  Object.assign(state.camera, DEFAULT_CAMERA);
+}
+
+const VIEW_MODES = [
+  {id: 0, label: '3D BEAUTY', short: '3D'},
+  {id: 2, label: 'WASSERFELD', short: 'H₂O'},
+  {id: 3, label: 'FEUCHTEFELD', short: 'WET'},
+  {id: 4, label: 'BIOMASSEFELD', short: 'BIO'},
+  {id: 1, label: 'HÖHENFELD', short: 'H'},
+];
+
+function setTool(tool) {
+  if (tool !== 'stone' && !toolDefinitions[tool]) return;
+  state.tool = tool;
+  document.querySelectorAll('[data-world-tool]').forEach(item => item.classList.toggle('active', item.dataset.worldTool === tool));
+}
+
+function setViewMode(mode) {
+  state.viewMode = Number(mode) || 0;
+  const definition = VIEW_MODES.find(item => item.id === state.viewMode)
+    || {label: 'DATENFELD', short: 'DATA'};
+  document.querySelectorAll('[data-world-view-label]').forEach(item => { item.textContent = definition.label; });
+  document.querySelectorAll('[data-world-view-cycle]').forEach(item => { item.textContent = definition.short; });
+  const select = panel?.querySelector('#world-view');
+  if (select) select.value = String(state.viewMode);
+}
+
+function setBrushRadius(value) {
+  state.radius = Number(value) / 100;
+  state.pointer.radius = state.radius;
+  document.querySelectorAll('#world-brush,[data-world-brush]').forEach(input => { input.value = String(value); });
+  const output = panel?.querySelector('#world-brush')?.parentElement?.querySelector('output');
+  if (output) output.textContent = state.radius.toFixed(2);
+}
+
+function setPaused(paused) {
+  state.paused = !!paused;
+  const panelButton = panel?.querySelector('#world-pause');
+  if (panelButton) {
+    panelButton.textContent = state.paused ? 'PLAY' : 'PAUSE';
+    panelButton.classList.toggle('active', state.paused);
+  }
+  document.querySelectorAll('[data-world-action="pause"]').forEach(button => {
+    button.textContent = state.paused ? '▶' : 'Ⅱ';
+    button.classList.toggle('active', state.paused);
+    button.title = state.paused ? 'Simulation fortsetzen' : 'Simulation pausieren';
+  });
+}
 
 function colorForCell(data, offset, mode) {
   const bedrock = data[offset + FIELD.BEDROCK];
@@ -78,15 +190,9 @@ function colorForCell(data, offset, mode) {
   r *= dark;
   g *= dark;
   b *= dark;
-  if (water > 0.0003) {
-    const depth = Math.min(1, water * 12);
-    r = r * (0.45 - depth * 0.12) + 10;
-    g = g * 0.45 + 80 - depth * 35;
-    b = b * 0.42 + 105 + depth * 35;
-  }
-  r = r * (1 - bio * 0.76) + 20 * bio;
-  g = g * (1 - bio * 0.58) + 116 * bio;
-  b = b * (1 - bio * 0.74) + 28 * bio;
+  r = r * (1 - bio * 0.68) + 43 * bio;
+  g = g * (1 - bio * 0.54) + 91 * bio;
+  b = b * (1 - bio * 0.66) + 30 * bio;
   r = r * (1 - heat * 0.45) + 245 * heat;
   g = g * (1 - heat * 0.7) + 38 * heat;
   return [r, g, b];
@@ -114,6 +220,7 @@ class CpuWorldSandbox {
     this.world = createWorldState(this.size, seed);
     this.particles.length = 0;
     this.deposits.length = 0;
+    this.orderKey = '';
   }
 
   spawn(emitter) {
@@ -173,7 +280,7 @@ class CpuWorldSandbox {
   }
 
   resize() {
-    const dpr = Math.min(devicePixelRatio || 1, 2) * (mobile ? 0.72 : 0.9);
+    const dpr = Math.min(devicePixelRatio || 1, 2) * (mobile ? 0.92 : 1);
     const width = Math.max(2, Math.floor(this.canvas.clientWidth * dpr));
     const height = Math.max(2, Math.floor(this.canvas.clientHeight * dpr));
     if (this.canvas.width !== width || this.canvas.height !== height) {
@@ -182,64 +289,147 @@ class CpuWorldSandbox {
     }
   }
 
-  render({viewMode = 0, body, cursor}) {
+  render({viewMode = 0, body, cursor, camera = state.camera}) {
     this.resize();
-    const pixels = this.image.data;
-    for (let cell = 0; cell < this.size * this.size; cell++) {
-      const rgb = colorForCell(this.world, cell * 12, viewMode);
-      const pixel = cell * 4;
-      pixels[pixel] = Math.max(0, Math.min(255, rgb[0]));
-      pixels[pixel + 1] = Math.max(0, Math.min(255, rgb[1]));
-      pixels[pixel + 2] = Math.max(0, Math.min(255, rgb[2]));
-      pixels[pixel + 3] = 255;
-    }
-    this.offscreenContext.putImageData(this.image, 0, 0);
     const context = this.context;
-    context.imageSmoothingEnabled = true;
-    context.drawImage(this.offscreen, 0, 0, this.canvas.width, this.canvas.height);
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    const size = this.size;
+    const verticalScale = camera.verticalScale;
+    const offsetAt = (x, z) => (Math.max(0, Math.min(size - 1, z)) * size
+      + Math.max(0, Math.min(size - 1, x))) * 12;
+    const heightAt = (x, z, water = false) => {
+      const offset = offsetAt(x, z);
+      return this.world[offset + FIELD.BEDROCK] + this.world[offset + FIELD.SAND]
+        + (water ? this.world[offset + FIELD.WATER] : 0);
+    };
+    const projected = (x, z, water = false) => projectWorld([
+      x / (size - 1) * 2 - 1,
+      heightAt(x, z, water) * verticalScale,
+      z / (size - 1) * 2 - 1,
+    ], width, height, camera);
+
+    const background = context.createLinearGradient(0, 0, 0, height);
+    background.addColorStop(0, '#18201d');
+    background.addColorStop(0.52, '#111715');
+    background.addColorStop(1, '#080b0a');
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+
+    const orderKey = `${size}:${camera.yaw.toFixed(3)}:${camera.pitch.toFixed(3)}`;
+    if (this.orderKey !== orderKey) {
+      const {forward} = cameraBasis(camera);
+      this.drawOrder = [];
+      for (let z = 0; z < size - 1; z++) {
+        for (let x = 0; x < size - 1; x++) {
+          const world = [x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1];
+          this.drawOrder.push({x, z, depth: world[0] * forward[0] + world[1] * forward[1] + world[2] * forward[2]});
+        }
+      }
+      this.drawOrder.sort((a, b) => b.depth - a.depth);
+      this.orderKey = orderKey;
+    }
+
     context.save();
-    for (const particle of this.particles) {
-      const x = particle.x * this.canvas.width;
-      const y = particle.z * this.canvas.height - particle.y * this.canvas.height * 0.05;
-      context.fillStyle = particle.kind === 1 ? '#78cfff'
-        : particle.kind === 2 ? '#e8ae59'
-          : particle.kind === 3 ? '#82d959' : '#ff5a1e';
-      context.globalAlpha = 0.85;
+    context.lineJoin = 'round';
+    for (const {x, z} of this.drawOrder) {
+      const p00 = projected(x, z);
+      const p10 = projected(x + 1, z);
+      const p11 = projected(x + 1, z + 1);
+      const p01 = projected(x, z + 1);
+      const offset = offsetAt(x, z);
+      const rgb = colorForCell(this.world, offset, viewMode);
+      const dx = (heightAt(x + 1, z) - heightAt(x - 1, z)) * verticalScale;
+      const dz = (heightAt(x, z + 1) - heightAt(x, z - 1)) * verticalScale;
+      const normalLength = Math.hypot(dx, 2 / size, dz) || 1;
+      const light = Math.max(0.28, (-dx * -0.42 + (2 / size) * 0.82 + -dz * -0.31) / normalLength);
+      const grain = (((x * 73856093) ^ (z * 19349663)) & 255) / 255 - 0.5;
+      const shade = 0.54 + light * 0.62 + grain * 0.055;
+      context.fillStyle = `rgb(${Math.max(0, Math.min(255, rgb[0] * shade))} ${Math.max(0, Math.min(255, rgb[1] * shade))} ${Math.max(0, Math.min(255, rgb[2] * shade))})`;
       context.beginPath();
-      context.arc(x, y, 1.5 + particle.y * 2, 0, Math.PI * 2);
+      context.moveTo(p00.x, p00.y);
+      context.lineTo(p10.x, p10.y);
+      context.lineTo(p11.x, p11.y);
+      context.lineTo(p01.x, p01.y);
+      context.closePath();
+      context.fill();
+
+      const water = this.world[offset + FIELD.WATER];
+      if (viewMode === 0 && water > 0.00035) {
+        const w00 = projected(x, z, true);
+        const w10 = projected(x + 1, z, true);
+        const w11 = projected(x + 1, z + 1, true);
+        const w01 = projected(x, z + 1, true);
+        const depth = Math.min(1, water * 12);
+        context.fillStyle = `rgba(${Math.round(42 - depth * 18)},${Math.round(120 - depth * 31)},${Math.round(137 - depth * 24)},${0.48 + depth * 0.24})`;
+        context.beginPath();
+        context.moveTo(w00.x, w00.y);
+        context.lineTo(w10.x, w10.y);
+        context.lineTo(w11.x, w11.y);
+        context.lineTo(w01.x, w01.y);
+        context.closePath();
+        context.fill();
+      }
+
+      const biomass = this.world[offset + FIELD.BIOMASS];
+      if (viewMode === 0 && water < 0.006 && biomass > 0.012 && grain + 0.5 < Math.min(0.9, biomass * 4.2)) {
+        const base = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale, z / (size - 1) * 2 - 1], width, height, camera);
+        const top = projectWorld([x / (size - 1) * 2 - 1, heightAt(x, z) * verticalScale + 0.025 + Math.sqrt(biomass) * 0.095, z / (size - 1) * 2 - 1], width, height, camera);
+        context.strokeStyle = this.world[offset + FIELD.HEAT] > 0.25 ? 'rgba(119,88,38,.82)' : 'rgba(68,111,42,.88)';
+        context.lineWidth = Math.max(1, width / 900);
+        context.beginPath();
+        context.moveTo(base.x, base.y);
+        context.lineTo(top.x, top.y);
+        context.stroke();
+      }
+    }
+
+    for (const particle of this.particles) {
+      const point = projectWorld([particle.x * 2 - 1, particle.y * verticalScale, particle.z * 2 - 1], width, height, camera);
+      context.fillStyle = particle.kind === 1 ? '#78b8c7'
+        : particle.kind === 2 ? '#d1a064'
+          : particle.kind === 3 ? '#88a95b' : '#db5c32';
+      context.globalAlpha = 0.86;
+      context.beginPath();
+      context.arc(point.x, point.y, Math.max(1.5, width / 420), 0, Math.PI * 2);
       context.fill();
     }
     context.globalAlpha = 1;
+
     if (body?.active) {
-      context.fillStyle = 'rgba(0,0,0,.35)';
+      const point = projectWorld([body.x * 2 - 1, body.y * verticalScale, body.z * 2 - 1], width, height, camera);
+      const radius = Math.max(4, width / 115);
+      const stone = context.createRadialGradient(point.x - radius * 0.35, point.y - radius * 0.45, 1, point.x, point.y, radius);
+      stone.addColorStop(0, '#9a9d96');
+      stone.addColorStop(0.55, '#555b58');
+      stone.addColorStop(1, '#202523');
+      context.fillStyle = stone;
       context.beginPath();
-      context.ellipse(body.x * this.canvas.width + 3, body.z * this.canvas.height + 4, 9, 5, 0, 0, Math.PI * 2);
-      context.fill();
-      context.fillStyle = '#696d72';
-      context.beginPath();
-      context.arc(body.x * this.canvas.width, body.z * this.canvas.height - body.y * 5, 7, 0, Math.PI * 2);
+      context.arc(point.x, point.y, radius, 0, Math.PI * 2);
       context.fill();
     }
+
     if (cursor?.visible) {
-      context.strokeStyle = 'rgba(178,207,255,.85)';
-      context.lineWidth = 1.5;
+      context.strokeStyle = 'rgba(211,230,219,.92)';
+      context.lineWidth = Math.max(1.25, width / 650);
       context.beginPath();
-      context.ellipse(
-        cursor.x * this.canvas.width,
-        cursor.z * this.canvas.height,
-        cursor.radius * this.canvas.width,
-        cursor.radius * this.canvas.height,
-        0,
-        0,
-        Math.PI * 2,
-      );
+      for (let index = 0; index <= 40; index++) {
+        const angle = index / 40 * Math.PI * 2;
+        const x = Math.max(0, Math.min(1, cursor.x + Math.cos(angle) * cursor.radius));
+        const z = Math.max(0, Math.min(1, cursor.z + Math.sin(angle) * cursor.radius));
+        const sample = sampleWorld(this.world, size, x, z);
+        const point = projectWorld([x * 2 - 1, sample.ground * verticalScale + 0.004, z * 2 - 1], width, height, camera);
+        if (index === 0) context.moveTo(point.x, point.y);
+        else context.lineTo(point.x, point.y);
+      }
+      context.closePath();
       context.stroke();
     }
     context.restore();
   }
 
   get label() {
-    return 'CPU REFERENCE · ' + this.size + '² · WEBGPU UNAVAILABLE';
+    return 'CPU REFERENCE + SPATIAL · ' + this.size + '² · WEBGPU UNAVAILABLE';
   }
 }
 
@@ -328,6 +518,9 @@ function exit({preserveInspector = false} = {}) {
   }
   state.active = false;
   state.pointer.down = false;
+  activePointers.clear();
+  paintPointerId = null;
+  orbitGesture = null;
 }
 
 function queueStamp(kind, x, z, amount, radius = state.radius) {
@@ -493,6 +686,7 @@ function loop(now) {
     time: now / 1000,
     body: state.body,
     cursor: state.pointer,
+    camera: state.camera,
   });
   state.frames += 1;
   if (now - state.fpsStarted >= 800) {
@@ -505,31 +699,102 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 function pointerPosition(event) {
-  const bounds = canvas.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / Math.max(1, bounds.width))),
-    z: Math.max(0, Math.min(1, (event.clientY - bounds.top) / Math.max(1, bounds.height))),
-  };
+  return screenToWorld(event.clientX, event.clientY);
 }
 
 let lastPaint = 0;
+const activePointers = new Map();
+let paintPointerId = null;
+let orbitGesture = null;
+
+function clampCamera() {
+  state.camera.pitch = Math.max(0.42, Math.min(1.18, state.camera.pitch));
+  state.camera.zoom = Math.max(0.72, Math.min(2.35, state.camera.zoom));
+}
+
+function beginMultiGesture() {
+  const pointers = [...activePointers.values()].slice(0, 2);
+  if (pointers.length < 2) return;
+  const midpoint = {
+    x: (pointers[0].x + pointers[1].x) * 0.5,
+    y: (pointers[0].y + pointers[1].y) * 0.5,
+  };
+  orbitGesture = {
+    kind: 'multi',
+    midpoint,
+    distance: Math.max(12, Math.hypot(pointers[1].x - pointers[0].x, pointers[1].y - pointers[0].y)),
+    camera: {...state.camera},
+  };
+  paintPointerId = null;
+  state.pointer.down = false;
+  state.pointer.visible = false;
+}
+
+function updateMultiGesture() {
+  const pointers = [...activePointers.values()].slice(0, 2);
+  if (pointers.length < 2 || orbitGesture?.kind !== 'multi') return;
+  const midpoint = {
+    x: (pointers[0].x + pointers[1].x) * 0.5,
+    y: (pointers[0].y + pointers[1].y) * 0.5,
+  };
+  const distance = Math.max(12, Math.hypot(pointers[1].x - pointers[0].x, pointers[1].y - pointers[0].y));
+  state.camera.yaw = orbitGesture.camera.yaw - (midpoint.x - orbitGesture.midpoint.x) * 0.006;
+  state.camera.pitch = orbitGesture.camera.pitch + (midpoint.y - orbitGesture.midpoint.y) * 0.0045;
+  state.camera.zoom = orbitGesture.camera.zoom * orbitGesture.distance / distance;
+  clampCamera();
+}
+
 function bindCanvas() {
   canvas.addEventListener('pointerdown', event => {
     if (!state.active) return;
+    event.preventDefault();
+    activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY, type: event.pointerType});
+    canvas.setPointerCapture?.(event.pointerId);
+    if (event.pointerType === 'touch' && activePointers.size >= 2) {
+      beginMultiGesture();
+      return;
+    }
+    const orbit = event.button === 1 || event.button === 2 || event.altKey || event.shiftKey;
+    if (orbit) {
+      orbitGesture = {kind: 'single', id: event.pointerId, x: event.clientX, y: event.clientY, camera: {...state.camera}};
+      paintPointerId = null;
+      state.pointer.down = false;
+      state.pointer.visible = false;
+      return;
+    }
     Object.assign(state.pointer, pointerPosition(event), {down: true, visible: true});
+    paintPointerId = event.pointerId;
     useTool(state.pointer.x, state.pointer.z);
-    canvas.setPointerCapture(event.pointerId);
     lastPaint = event.timeStamp;
   });
   canvas.addEventListener('pointermove', event => {
+    if (activePointers.has(event.pointerId)) {
+      activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY, type: event.pointerType});
+    }
+    if (orbitGesture?.kind === 'multi') {
+      updateMultiGesture();
+      return;
+    }
+    if (orbitGesture?.kind === 'single' && orbitGesture.id === event.pointerId) {
+      state.camera.yaw = orbitGesture.camera.yaw - (event.clientX - orbitGesture.x) * 0.006;
+      state.camera.pitch = orbitGesture.camera.pitch + (event.clientY - orbitGesture.y) * 0.0045;
+      clampCamera();
+      return;
+    }
     Object.assign(state.pointer, pointerPosition(event), {visible: true});
-    if (state.pointer.down && event.timeStamp - lastPaint > 42) {
+    if (state.pointer.down && paintPointerId === event.pointerId && event.timeStamp - lastPaint > 42) {
       useTool(state.pointer.x, state.pointer.z);
       lastPaint = event.timeStamp;
     }
   });
   const release = event => {
-    state.pointer.down = false;
+    activePointers.delete(event.pointerId);
+    if (paintPointerId === event.pointerId) {
+      paintPointerId = null;
+      state.pointer.down = false;
+    }
+    if (orbitGesture?.kind === 'single' && orbitGesture.id === event.pointerId) orbitGesture = null;
+    if (orbitGesture?.kind === 'multi' && activePointers.size < 2) orbitGesture = null;
     canvas.releasePointerCapture?.(event.pointerId);
   };
   canvas.addEventListener('pointerup', release);
@@ -537,6 +802,17 @@ function bindCanvas() {
   canvas.addEventListener('pointerleave', () => {
     if (!state.pointer.down) state.pointer.visible = false;
   });
+  canvas.addEventListener('wheel', event => {
+    if (!state.active) return;
+    event.preventDefault();
+    state.camera.zoom *= Math.exp(event.deltaY * 0.0012);
+    clampCamera();
+  }, {passive: false});
+  canvas.addEventListener('dblclick', event => {
+    event.preventDefault();
+    resetCamera();
+  });
+  canvas.addEventListener('contextmenu', event => event.preventDefault());
 }
 bindCanvas();
 
@@ -560,36 +836,42 @@ panel.querySelector('#world-reset').addEventListener('click', () => {
   state.scenario = null;
 });
 panel.querySelector('#world-chain').addEventListener('click', startCauseChain);
-panel.querySelector('#world-pause').addEventListener('click', event => {
-  state.paused = !state.paused;
-  event.currentTarget.textContent = state.paused ? 'PLAY' : 'PAUSE';
-  event.currentTarget.classList.toggle('active', state.paused);
-});
+panel.querySelector('#world-pause').addEventListener('click', () => setPaused(!state.paused));
 panel.querySelector('#world-step').addEventListener('click', () => {
   if (!state.paused) {
-    state.paused = true;
-    panel.querySelector('#world-pause').textContent = 'PLAY';
-    panel.querySelector('#world-pause').classList.add('active');
+    setPaused(true);
   }
   stepOnce();
 });
 panel.querySelector('#world-brush').addEventListener('input', event => {
-  state.radius = Number(event.target.value) / 100;
-  state.pointer.radius = state.radius;
-  const output = event.target.parentElement.querySelector('output');
-  if (output) output.textContent = state.radius.toFixed(2);
+  setBrushRadius(event.target.value);
 });
 panel.querySelector('#world-view').addEventListener('change', event => {
-  state.viewMode = Number(event.target.value);
+  setViewMode(event.target.value);
 });
 panel.querySelector('#world-speed').addEventListener('change', event => {
   state.speed = Number(event.target.value);
 });
-panel.addEventListener('click', event => {
-  const button = event.target.closest('[data-world-tool]');
-  if (!button) return;
-  state.tool = button.dataset.worldTool;
-  panel.querySelectorAll('[data-world-tool]').forEach(item => item.classList.toggle('active', item === button));
+document.querySelectorAll('[data-world-tool]').forEach(button => {
+  button.addEventListener('click', () => setTool(button.dataset.worldTool));
+});
+document.querySelectorAll('[data-world-brush]').forEach(input => {
+  input.addEventListener('input', () => setBrushRadius(input.value));
+});
+document.querySelectorAll('[data-world-view-cycle]').forEach(button => {
+  button.addEventListener('click', () => {
+    const index = VIEW_MODES.findIndex(item => item.id === state.viewMode);
+    setViewMode(VIEW_MODES[(index + 1) % VIEW_MODES.length].id);
+  });
+});
+document.querySelectorAll('[data-world-camera-reset]').forEach(button => {
+  button.addEventListener('click', resetCamera);
+});
+document.querySelectorAll('[data-world-action="pause"]').forEach(button => {
+  button.addEventListener('click', () => setPaused(!state.paused));
+});
+document.querySelectorAll('[data-world-open-panel]').forEach(button => {
+  button.addEventListener('click', () => railLaunch?.click());
 });
 panel.addEventListener('input', event => {
   const input = event.target.closest('[data-world-env]');
@@ -611,6 +893,11 @@ window.addEventListener('keydown', event => {
   }
 });
 
+setTool(state.tool);
+setViewMode(state.viewMode);
+setBrushRadius(state.radius * 100);
+setPaused(state.paused);
+
 window.SHADEDWorldSandbox = {
   enter,
   exit,
@@ -620,4 +907,5 @@ window.SHADEDWorldSandbox = {
   get backend() { return state.backendKind; },
   get query() { return {...state.query}; },
   get body() { return {...state.body}; },
+  get camera() { return {...state.camera}; },
 };
