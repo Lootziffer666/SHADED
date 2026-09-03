@@ -24,7 +24,7 @@ button.active { background: #2c3f6e; border-color: #4a68b8; }
 .lab-section { display: flex; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: flex-start; }
 
 .canvas-wrap { background: #05060a; border: 1px solid #2c3042; border-radius: 8px; padding: 0.5rem; }
-#grid-canvas {
+#grid-canvas, #height-canvas {
   width: min(720px, 90vw); height: auto; display: block;
   image-rendering: pixelated; image-rendering: crisp-edges;
   cursor: crosshair;

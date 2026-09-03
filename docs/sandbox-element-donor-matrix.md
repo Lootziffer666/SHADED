@@ -126,6 +126,12 @@ The graph updates authoritative world fields; renderers only visualize them.
 
 ### Erosion / Sediment Lab
 Couple terrain slope, water flow, loose sediment and deposition. This connects dune/sand visuals to actual world evolution instead of treating terrain as immutable decoration. `SebLague/Hydraulic-Erosion` (MIT, verified) is now the strongest available donor for this lab — previously an open gap with no credible source.
+**First slice implemented**: `runtime/solver/erosion-heightfield.js` + `solver-lab/erosion/` — droplet-based
+hydraulic erosion (Beyer's published method, independently implemented in JS, not a port of SebLague's C#).
+Verified by `tools/test-erosion-heightfield.mjs` (12 checks, incl. exact total-mass conservation to float64
+precision) and `tools/verify-solver-lab-erosion.js` (9 browser checks). Screenshot-confirmed: branching
+drainage channels carve down from hilltops after a few thousand droplets, the expected signature of the
+algorithm, not a hand-tuned visual.
 
 ### Vegetation Lab
 Growth, bending, wet/dry state, snow loading, burn/char and procedural scatter. It should read wind/moisture/temperature/light fields rather than invent its own weather controls.
