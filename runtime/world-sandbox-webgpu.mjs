@@ -20,6 +20,7 @@ struct Cell {
   water: vec4<f32>,
   bio: vec4<f32>,
   atmo: vec4<f32>,
+  combust: vec4<f32>,
 }
 
 struct Stamp {
@@ -88,6 +89,40 @@ fn smooth(a: f32, b: f32, value: f32) -> f32 {
   return t * t * (3.0 - 2.0 * t);
 }
 
+// Airborne fields (VAPOR/CLOUD/SMOKE) drift downwind, on top of their existing isotropic
+// diffusion, via a real one-way edge flux -- mirrors runtime/world-sandbox-reference.mjs
+// exactly. edgeFlow/windFlux both derive their magnitude from a single cell's own stock, not
+// a from-vs-to DIFFERENCE like sandFlux/diffusion, so at the grid's edge (where indexAt
+// clamps the "neighbour" index back to this cell's own index) they must not run at all, or
+// mass leaks out a downwind edge / gets manufactured at an upwind edge with no real neighbour
+// on the other side. Cell structs carry no index identity here, so the caller in main() passes
+// hasLeft/hasRight/hasTop/hasBottom explicitly instead of edgeFlow/windFlux detecting it.
+fn windFlux(fromValue: f32, windAlongFromTo: f32, dt: f32, size: f32, rate: f32) -> f32 {
+  let crossing = max(0.0, windAlongFromTo) * dt * size * rate;
+  return min(fromValue * 0.5, crossing * fromValue);
+}
+
+fn windTransportDelta(
+  selfValue: f32, leftValue: f32, rightValue: f32, topValue: f32, bottomValue: f32,
+  hasLeft: bool, hasRight: bool, hasTop: bool, hasBottom: bool,
+  windX: f32, windZ: f32, dt: f32, size: f32, rate: f32,
+) -> f32 {
+  var delta = 0.0;
+  if (hasLeft) {
+    delta += windFlux(leftValue, windX, dt, size, rate) - windFlux(selfValue, -windX, dt, size, rate);
+  }
+  if (hasRight) {
+    delta += windFlux(rightValue, -windX, dt, size, rate) - windFlux(selfValue, windX, dt, size, rate);
+  }
+  if (hasTop) {
+    delta += windFlux(topValue, windZ, dt, size, rate) - windFlux(selfValue, -windZ, dt, size, rate);
+  }
+  if (hasBottom) {
+    delta += windFlux(bottomValue, -windZ, dt, size, rate) - windFlux(selfValue, windZ, dt, size, rate);
+  }
+  return delta;
+}
+
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let size = gridSize();
@@ -102,12 +137,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let ir = indexAt(x + 1, z);
   let it = indexAt(x, z - 1);
   let ib = indexAt(x, z + 1);
+  let hasLeft = il != i;
+  let hasRight = ir != i;
+  let hasTop = it != i;
+  let hasBottom = ib != i;
   var c = src[i];
   let left = src[il];
   let right = src[ir];
   let top = src[it];
   let bottom = src[ib];
   let dt = P.sim.x;
+  let windX = P.spare.x;
+  let windZ = P.spare.y;
 
   var sandDelta = sandFlux(left, c) + sandFlux(right, c)
     + sandFlux(top, c) + sandFlux(bottom, c)
@@ -127,10 +168,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let edgeVelXLeft = 0.5 * (left.water.y + c.water.y);
   let edgeVelZBottom = 0.5 * (c.water.z + bottom.water.z);
   let edgeVelZTop = 0.5 * (top.water.z + c.water.z);
-  let flowToRight = edgeFlow(c, right, edgeVelXRight, dt, f32(size));
-  let flowFromLeft = edgeFlow(left, c, edgeVelXLeft, dt, f32(size));
-  let flowToBottom = edgeFlow(c, bottom, edgeVelZBottom, dt, f32(size));
-  let flowFromTop = edgeFlow(top, c, edgeVelZTop, dt, f32(size));
+  let flowToRight = select(0.0, edgeFlow(c, right, edgeVelXRight, dt, f32(size)), hasRight);
+  let flowFromLeft = select(0.0, edgeFlow(left, c, edgeVelXLeft, dt, f32(size)), hasLeft);
+  let flowToBottom = select(0.0, edgeFlow(c, bottom, edgeVelZBottom, dt, f32(size)), hasBottom);
+  let flowFromTop = select(0.0, edgeFlow(top, c, edgeVelZTop, dt, f32(size)), hasTop);
   var waterDelta = flowFromLeft - flowToRight + flowFromTop - flowToBottom;
 
   // --- Water cycle (Gas -> Kondensation -> Feuchte -> Eis -> Regen/Hagel/Schnee) ---------
@@ -172,41 +213,100 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let iceTarget = 1.0 - smooth(0.30, 0.42, localTemp);
   let ice = clamp(iceOld + (iceTarget - iceOld) * dt * 0.5 + hailImpact * 0.4, 0.0, 1.0);
 
+  let groundwaterOld = c.combust.w;
   let infiltration = min(water, P.rates.w * (1.0 - c.terrain.z) * dt * 0.035) * (1.0 - iceOld);
-  let evaporation = min(water, P.environment.w * (0.25 + P.environment.y) * dt * 0.025) * (1.0 - iceOld);
+  // Evaporation depends on local heat (a fire-scorched patch dries faster) and the vapor
+  // deficit right above it (already-humid air can't accept much more), not only P.environment.y
+  // (sun) -- the old formula never looked at the air it was evaporating into.
+  let vaporDeficit = clamp(1.0 - c.atmo.x / (0.0006 + localTemp * 0.006 + 0.000001), 0.0, 1.0);
+  let evaporation = min(water, P.environment.w * (0.25 + P.environment.y + c.bio.z * 0.6)
+    * vaporDeficit * dt * 0.025) * (1.0 - iceOld);
   water -= infiltration + evaporation;
   var wetness = clamp(c.terrain.w + infiltration * 12.0 + water * dt * 0.45
     - dt * P.environment.w * (0.18 + P.environment.y * 0.52)
     - c.bio.z * dt * 0.16, 0.0, 1.0);
 
-  // Vapor: diffuses like heat, gains this step's evaporation 1:1 (mass now carries through
-  // instead of vanishing) plus P.environment.x (rain) as an atmospheric moisture injection --
-  // rain no longer teleports straight into water, it has to condense and fall like everything
-  // else. Colder air holds less vapor before the excess condenses into cloud (tuned to the
-  // scale a small lake's evaporation actually reaches in a demo-length run, not a literal
-  // g/m3 curve -- this is a game-scale abstraction, not a weather model).
+  // Groundwater: infiltration used to just vanish. Now it seeps into a deep reservoir that
+  // spreads slowly between cells (an order of magnitude slower than surface water, no
+  // momentum) and resurfaces as a spring once the water table is high enough -- a real
+  // closed loop instead of a one-way drain.
+  let neighbourGroundwater = (left.combust.w + right.combust.w + top.combust.w + bottom.combust.w) * 0.25;
+  var groundwater = max(0.0, groundwaterOld + infiltration + (neighbourGroundwater - groundwaterOld) * dt * 0.03);
+  let springFlow = max(0.0, groundwater - 0.6) * dt * 0.4;
+  groundwater -= springFlow;
+  water += springFlow;
+
+  // Vapor: diffuses isotropically (as before) plus a real, mass-conserving wind-driven edge
+  // flux on top (windTransportDelta -- drifts downwind like real humid air), and gains this
+  // step's evaporation 1:1 (mass now carries through instead of vanishing) plus
+  // P.environment.x (rain) as an atmospheric moisture injection -- rain no longer teleports
+  // straight into water, it has to condense and fall like everything else.
   let neighbourVapor = (left.atmo.x + right.atmo.x + top.atmo.x + bottom.atmo.x) * 0.25;
+  let vaporWindDelta = windTransportDelta(c.atmo.x, left.atmo.x, right.atmo.x, top.atmo.x, bottom.atmo.x,
+    hasLeft, hasRight, hasTop, hasBottom, windX, windZ, dt, f32(size), 0.6);
   var vapor = max(0.0, c.atmo.x + (neighbourVapor - c.atmo.x) * dt * 0.18
-    + evaporation + P.environment.x * dt * 0.06);
-  let saturation = 0.0006 + localTemp * 0.006;
+    + vaporWindDelta + evaporation + P.environment.x * dt * 0.06);
+  // Condensation: colder air holds less vapor before the excess condenses into cloud (tuned to
+  // the scale a small lake's evaporation actually reaches in a demo-length run, not a literal
+  // g/m3 curve -- this is a game-scale abstraction, not a weather model). Smoke acts as
+  // condensation nuclei (real pyrocumulus effect): a smoky cell condenses more readily.
+  let saturation = (0.0006 + localTemp * 0.006) * (1.0 - min(0.5, c.combust.y * 0.3));
   let condensed = max(0.0, vapor - saturation) * dt * 0.6;
   vapor -= condensed;
-  let cloud = max(0.0, cloudOld - precip + condensed);
+  let neighbourCloud = (left.atmo.y + right.atmo.y + top.atmo.y + bottom.atmo.y) * 0.25;
+  let cloudWindDelta = windTransportDelta(cloudOld, left.atmo.y, right.atmo.y, top.atmo.y, bottom.atmo.y,
+    hasLeft, hasRight, hasTop, hasBottom, windX, windZ, dt, f32(size), 0.6);
+  let cloud = max(0.0, cloudOld + (neighbourCloud - cloudOld) * dt * 0.35 + cloudWindDelta - precip + condensed);
+
+  // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining 0..1
+  // intensity -- once heat (a HEAT stamp, or a blazing neighbour) crosses the ignition
+  // threshold on dry-enough fuel, the fire keeps itself going by consuming biomass and
+  // releasing its own heat, exactly the positive-feedback chain real combustion is, until it
+  // either runs out of fuel or gets doused by wetness/water/rain.
+  let biomassOld = c.bio.x;
+  let neighbourFireMax = max(max(left.combust.x, right.combust.x), max(top.combust.x, bottom.combust.x));
+  let canBurn = biomassOld > 0.012 && wetness < 0.42 && iceOld < 0.4;
+  let ignitionSignal = max(c.bio.z, neighbourFireMax);
+  let igniteRate = select(0.0, max(0.0, ignitionSignal - 0.22) * 4.5, canBurn);
+  let douseRate = wetness * 1.6 + water * 3.2 + iceOld * 2.5 + select(3.0, 0.05, canBurn);
+  let fire = clamp(c.combust.x + (igniteRate - douseRate * c.combust.x) * dt, 0.0, 1.0);
+  // Burn slowly enough that fuel doesn't vanish in a fraction of a second -- a real fire needs
+  // to still be blazing a few seconds from now for it to have spread anywhere.
+  let fuelBurn = min(biomassOld, (biomassOld * fire * 0.45 + fire * 0.006) * dt);
+  let heatRelease = fuelBurn * 20.0;
+  let smokeRelease = fuelBurn * 3.5;
+  let ashRelease = fuelBurn * 0.55;
 
   let neighbourHeat = (left.bio.z + right.bio.z + top.bio.z + bottom.bio.z) * 0.25;
-  var heat = clamp(c.bio.z + (neighbourHeat - c.bio.z) * dt * 0.8
+  var heat = clamp(c.bio.z + (neighbourHeat - c.bio.z) * dt * 0.8 + heatRelease
     - (0.08 + wetness * 0.55 + water * 2.0) * dt, 0.0, 1.0);
   var disturbance = clamp(c.bio.w * max(0.0, 1.0 - dt * 0.16) + hailImpact, 0.0, 1.0);
+
+  // Smoke: drifts downwind like vapor/cloud (isotropic diffusion plus the same conservative
+  // wind flux, tuned faster since a plume should visibly stretch out, not just haze in place),
+  // and simply thins out over time (no separate "settle" reservoir -- it just disperses,
+  // unlike ash which actually falls to the ground).
+  let neighbourSmoke = (left.combust.y + right.combust.y + top.combust.y + bottom.combust.y) * 0.25;
+  let smokeWindDelta = windTransportDelta(c.combust.y, left.combust.y, right.combust.y, top.combust.y, bottom.combust.y,
+    hasLeft, hasRight, hasTop, hasBottom, windX, windZ, dt, f32(size), 1.4);
+  let smoke = max(0.0, c.combust.y + (neighbourSmoke - c.combust.y) * dt * 0.6
+    + smokeWindDelta + smokeRelease - c.combust.y * dt * 0.35);
+
+  // Ash: settles where it's released, slowly washed away by rain, and boosts the fertility a
+  // burned patch regrows with (real post-fire ecology) via the growth formula below.
+  let ash = max(0.0, c.combust.z + ashRelease - c.combust.z * dt * 0.015 - c.combust.z * rainPart * 4.0);
+
   let moistureFit = smooth(0.12, 0.46, wetness)
     * (1.0 - smooth(0.72, 1.05, wetness + water * 5.0));
   let temperatureFit = 1.0 - clamp(abs(P.environment.z - 0.55) / 0.52, 0.0, 1.0);
   let neighbourBiomass = (left.bio.x + right.bio.x + top.bio.x + bottom.bio.x) * 0.25;
   var seed = clamp(c.bio.y + neighbourBiomass * moistureFit * dt * 0.012 - dt * 0.0015, 0.0, 1.0);
+  let fertility = 1.0 + min(0.6, ash * 1.4);
   let growth = seed * moistureFit * P.environment.y * temperatureFit
-    * (1.0 - disturbance) * P.rates.z * dt;
+    * (1.0 - disturbance) * P.rates.z * fertility * dt;
   let crowding = c.bio.x * c.bio.x * dt * 0.022;
   let damage = (heat * 0.72 + max(0.0, water - 0.12) * 0.4 + disturbance * 0.2) * dt;
-  var biomass = clamp(c.bio.x + growth - crowding - damage, 0.0, 1.0);
+  var biomass = clamp(c.bio.x + growth - crowding - damage - fuelBurn, 0.0, 1.0);
 
   let fixedScale = 1.0 / 4096.0;
   sand += f32(atomicLoad(&deposits[i].sand)) * fixedScale;
@@ -258,6 +358,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   next.water = vec4<f32>(max(0.0, water), velocity.x, velocity.y, max(0.0, sediment));
   next.bio = vec4<f32>(biomass, seed, heat, disturbance);
   next.atmo = vec4<f32>(vapor, cloud, ice, max(0.0, snow));
+  next.combust = vec4<f32>(fire, smoke, ash, groundwater);
   dst[i] = next;
 }
 `;
@@ -278,6 +379,7 @@ struct Cell {
   water: vec4<f32>,
   bio: vec4<f32>,
   atmo: vec4<f32>,
+  combust: vec4<f32>,
 }
 
 struct Particle {
@@ -411,6 +513,7 @@ struct Cell {
   water: vec4<f32>,
   bio: vec4<f32>,
   atmo: vec4<f32>,
+  combust: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> P: Params;
@@ -444,6 +547,7 @@ struct Cell {
   water: vec4<f32>,
   bio: vec4<f32>,
   atmo: vec4<f32>,
+  combust: vec4<f32>,
 }
 
 struct VertexOut {
@@ -659,6 +763,7 @@ struct Cell {
   water: vec4<f32>,
   bio: vec4<f32>,
   atmo: vec4<f32>,
+  combust: vec4<f32>,
 }
 
 struct SurfaceOut {
@@ -670,6 +775,7 @@ struct SurfaceOut {
   @location(4) water: vec4<f32>,
   @location(5) bio: vec4<f32>,
   @location(6) atmo: vec4<f32>,
+  @location(7) combust: vec4<f32>,
 }
 
 struct BladeOut {
@@ -787,6 +893,7 @@ fn makeSurface(vertexIndex: u32, includeWater: bool) -> SurfaceOut {
   output.water = cell.water;
   output.bio = cell.bio;
   output.atmo = cell.atmo;
+  output.combust = cell.combust;
   return output;
 }
 
@@ -878,6 +985,18 @@ fn fsTerrain(input: SurfaceOut) -> @location(0) vec4<f32> {
   if (mode > 0u) {
     color = fieldColor(input.terrain, input.water, input.bio, input.atmo, mode) * (0.35 + diffuse * 0.65);
   }
+
+  // Combustion made visible: fire reads as its own emissive light source (day or night --
+  // a real fire is not just "brighter shadow"), smoke thickens the air right above it into
+  // a grey haze, and ash left behind after the fire dies down darkens the ground toward
+  // soot instead of the burn scar vanishing without a trace once fuelBurn stops.
+  let ashPresence = smoothstep(0.02, 0.35, input.combust.z);
+  color = mix(color, vec3<f32>(0.05, 0.048, 0.045), ashPresence * 0.55);
+  let fireGlow = clamp(input.combust.x, 0.0, 1.0);
+  color = mix(color, vec3<f32>(1.0, 0.42, 0.06), fireGlow * 0.72);
+  color += vec3<f32>(1.0, 0.55, 0.12) * fireGlow * fireGlow * 0.9;
+  let smokeHaze = clamp(input.combust.y * 3.5, 0.0, 0.85);
+  color = mix(color, vec3<f32>(0.18, 0.17, 0.16), smokeHaze);
 
   let cursorDistance = distance(input.uv, R.cursor.xy);
   let edgeWidth = max(0.0025, fwidth(cursorDistance) * 1.35);
@@ -1517,6 +1636,11 @@ export class WebGpuWorldSandbox {
     values[17] = spawnCount;
     values[18] = this.particleCount;
     this.spawnCursor = (this.spawnCursor + spawnCount) % this.particleCount;
+
+    const windAngle = (environment.windDeg ?? 45) * Math.PI / 180;
+    const windStrength = environment.wind ?? 0.3;
+    values[24] = Math.cos(windAngle) * windStrength;
+    values[25] = Math.sin(windAngle) * windStrength;
 
     this.stampFloats.fill(0);
     for (let index = 0; index < Math.min(MAX_STAMPS, stamps.length); index++) {

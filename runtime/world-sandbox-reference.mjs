@@ -5,7 +5,7 @@
 // plain JavaScript so invariants can be tested without a GPU and browsers
 // without WebGPU still get a real (lower-resolution) simulation.
 
-export const CELL_STRIDE = 16;
+export const CELL_STRIDE = 20;
 
 export const FIELD = Object.freeze({
   BEDROCK: 0,
@@ -29,6 +29,16 @@ export const FIELD = Object.freeze({
   CLOUD: 13,
   ICE: 14,
   SNOW: 15,
+  // Fifth reservoir set: combustion (fuel is BIOMASS itself, not a new stock) and deep water.
+  // FIRE is a self-sustaining 0..1 intensity, not just "hot" -- see the combustion comment in
+  // stepWorldReference. SMOKE parallels VAPOR/CLOUD (drifts with wind, thins over time) but is
+  // its own reservoir since it is not water. ASH is inert burned residue that boosts future
+  // soil fertility. GROUNDWATER is where infiltration actually goes instead of vanishing --
+  // it seeps slowly between cells and can resurface as a spring instead of disappearing for good.
+  FIRE: 16,
+  SMOKE: 17,
+  ASH: 18,
+  GROUNDWATER: 19,
 });
 
 export const STAMP = Object.freeze({
@@ -50,6 +60,11 @@ export const DEFAULT_ENVIRONMENT = Object.freeze({
   sandRate: 2.35,
   waterRate: 5.4,
   growthRate: 0.21,
+  // Wind: drifts CLOUD/VAPOR/SMOKE downwind instead of leaving them pinned in place. Magnitude
+  // 0..1, direction in degrees (0 = +x). Water/sand/heat stay wind-independent -- only the
+  // airborne fields move with it.
+  wind: 0.3,
+  windDeg: 45,
 });
 
 const clamp = (value, low = 0, high = 1) => Math.max(low, Math.min(high, value));
@@ -238,7 +253,14 @@ function sandFlux(state, from, to, dt, rate) {
 // `edgeFlow` reads last step's persisted velocity (leapfrog-style: this step's freshly
 // updated velocity only takes effect next step), so momentum genuinely carries across
 // frames and two basins can overshoot level and slosh back before damping settles them.
+// At the grid's edge, cellOffset clamps the "neighbour" index to the cell's own index --
+// near===far there. Unlike sandFlux (a pure a-vs-b DIFFERENCE, which is exactly 0 when
+// a===b, so boundaries are naturally inert), edgeFlow's velocity-driven magnitude does NOT
+// collapse to zero just because near===far, so without this guard a boundary cell would
+// compute a real nonzero "flow to itself": mass leaving through a downwind edge with no
+// neighbour to credit it to, or mass appearing from a phantom upwind "mirror" of itself.
 function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24) {
+  if (nearIndex === farIndex) return 0;
   const crossing = edgeVelocity * dt * size; // signed fraction of a cell width crossed toward `far`
   if (crossing > 0) {
     const flowable = 1 - state[nearIndex + FIELD.ICE]; // frozen water does not transport
@@ -246,6 +268,33 @@ function edgeFlow(state, nearIndex, farIndex, edgeVelocity, dt, size, cap = 0.24
   }
   const flowable = 1 - state[farIndex + FIELD.ICE];
   return -Math.min(state[farIndex + FIELD.WATER] * cap, -crossing * state[farIndex + FIELD.WATER]) * flowable;
+}
+
+// Airborne fields (VAPOR/CLOUD/SMOKE) drift downwind, on top of their existing isotropic
+// diffusion, via a real one-way edge flux -- same shape and same symmetric-computation
+// guarantee as sandFlux/edgeFlow above (a pure function of (from,to,state) evaluated
+// identically from both cells' perspectives, so what one cell loses the other gains exactly).
+// A first, direction-blind attempt at this ("relax toward a wind-weighted neighbour average")
+// looked plausible but was NOT mass-conserving: unlike isotropic diffusion, a biased average's
+// pairwise gain/loss don't cancel, since the weight from A->B differs from B->A by design.
+// windFlux only returns nonzero when wind actually blows `from` toward `to` this direction.
+// Same boundary guard as edgeFlow above, for the same reason: windFlux's magnitude depends
+// only on the source cell's own stock, not a from-vs-to difference, so a clamped self-
+// neighbour at the grid edge would otherwise leak mass out (downwind edge) or manufacture it
+// from nothing (upwind edge) instead of correctly acting as a closed, no-flux boundary.
+function windFlux(state, fieldIndex, fromIndex, toIndex, windAlongFromTo, dt, size, rate) {
+  if (fromIndex === toIndex) return 0;
+  const crossing = Math.max(0, windAlongFromTo) * dt * size * rate;
+  return Math.min(state[fromIndex + fieldIndex] * 0.5, crossing * state[fromIndex + fieldIndex]);
+}
+
+function windTransportDelta(state, fieldIndex, o, left, right, north, south, windX, windZ, dt, size, rate) {
+  let delta = 0;
+  delta += windFlux(state, fieldIndex, left, o, windX, dt, size, rate) - windFlux(state, fieldIndex, o, left, -windX, dt, size, rate);
+  delta += windFlux(state, fieldIndex, right, o, -windX, dt, size, rate) - windFlux(state, fieldIndex, o, right, windX, dt, size, rate);
+  delta += windFlux(state, fieldIndex, north, o, windZ, dt, size, rate) - windFlux(state, fieldIndex, o, north, -windZ, dt, size, rate);
+  delta += windFlux(state, fieldIndex, south, o, -windZ, dt, size, rate) - windFlux(state, fieldIndex, o, south, windZ, dt, size, rate);
+  return delta;
 }
 
 export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
@@ -257,6 +306,10 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
   applyStamps(stamped, size, options.stamps || []);
   const next = stamped.slice();
   const safeDt = clamp(Number(dt) || 0, 0, 1 / 10);
+  const windAngle = (env.windDeg * Math.PI) / 180;
+  const windStrength = clamp(env.wind);
+  const windX = Math.cos(windAngle) * windStrength;
+  const windZ = Math.sin(windAngle) * windStrength;
 
   for (let z = 0; z < size; z++) {
     for (let x = 0; x < size; x++) {
@@ -337,8 +390,14 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       const iceTarget = 1 - smoothstep(0.30, 0.42, localTemp);
       const ice = clamp(iceOld + (iceTarget - iceOld) * safeDt * 0.5 + hailImpact * 0.4);
 
+      const groundwaterOld = stamped[o + FIELD.GROUNDWATER];
       const infiltration = Math.min(water, env.permeability * (1 - stamped[o + FIELD.COMPACTION]) * safeDt * 0.035) * (1 - iceOld);
-      const evaporation = Math.min(water, env.evaporation * (0.25 + env.sun) * safeDt * 0.025) * (1 - iceOld);
+      // Evaporation now depends on local heat (a fire-scorched patch dries faster) and on the
+      // vapor deficit right above it (already-humid air can't accept much more), not only the
+      // global sun slider -- the old formula never looked at the air it was evaporating into.
+      const vaporDeficit = clamp(1 - stamped[o + FIELD.VAPOR] / (0.0006 + localTemp * 0.006 + 1e-6));
+      const evaporation = Math.min(water, env.evaporation * (0.25 + env.sun + stamped[o + FIELD.HEAT] * 0.6)
+        * vaporDeficit * safeDt * 0.025) * (1 - iceOld);
       water -= infiltration + evaporation;
       const wetness = clamp(stamped[o + FIELD.WETNESS]
         + infiltration * 12
@@ -346,39 +405,104 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
         - safeDt * env.evaporation * (0.18 + env.sun * 0.52)
         - stamped[o + FIELD.HEAT] * safeDt * 0.16);
 
-      // Vapor: diffuses like heat, gains this step's evaporation 1:1 (mass now carries through
-      // instead of vanishing) plus env.rain as an atmospheric moisture injection -- `rain` no
-      // longer teleports straight into `water`, it has to condense and fall like everything else.
-      const neighbourVapor = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.VAPOR], 0) * 0.25;
+      // Groundwater: infiltration used to just vanish. Now it seeps into a deep reservoir that
+      // spreads slowly between cells (an order of magnitude slower than surface water, no
+      // momentum) and resurfaces as a spring once the water table is high enough -- a real
+      // closed loop instead of a one-way drain.
+      const neighbourGroundwater = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.GROUNDWATER], 0) * 0.25;
+      let groundwater = Math.max(0, groundwaterOld + infiltration
+        + (neighbourGroundwater - groundwaterOld) * safeDt * 0.03);
+      const springFlow = Math.max(0, groundwater - 0.6) * safeDt * 0.4;
+      groundwater -= springFlow;
+      water += springFlow;
+
+      // Vapor: diffuses isotropically (as before) plus a real, mass-conserving wind-driven
+      // edge flux on top (windTransportDelta -- drifts downwind like real humid air), and
+      // gains this step's evaporation 1:1 (mass now carries through instead of vanishing)
+      // plus env.rain as an atmospheric moisture injection -- `rain` no longer teleports
+      // straight into `water`, it has to condense and fall like everything else.
+      const neighbourVapor = (stamped[left + FIELD.VAPOR] + stamped[right + FIELD.VAPOR]
+        + stamped[north + FIELD.VAPOR] + stamped[south + FIELD.VAPOR]) * 0.25;
+      const vaporWindDelta = windTransportDelta(stamped, FIELD.VAPOR, o, left, right, north, south, windX, windZ, safeDt, size, 0.6);
       let vapor = Math.max(0, stamped[o + FIELD.VAPOR]
         + (neighbourVapor - stamped[o + FIELD.VAPOR]) * safeDt * 0.18
+        + vaporWindDelta
         + evaporation
         + env.rain * safeDt * 0.06);
       // Condensation: colder air holds less vapor before the excess condenses into cloud.
       // Tuned to the actual scale a small lake's evaporation reaches within a demo-length
       // run (a peak of roughly 0.01 over ~100s of sim time at default settings), not to a
       // literal g/m3 saturation curve -- this is a game-scale abstraction, not a weather model.
-      const saturation = 0.0006 + localTemp * 0.006;
+      // Smoke acts as condensation nuclei (real pyrocumulus effect): a smoky cell condenses
+      // more readily, slightly lowering the threshold instead of needing its own cloud rule.
+      const saturation = (0.0006 + localTemp * 0.006) * (1 - Math.min(0.5, stamped[o + FIELD.SMOKE] * 0.3));
       const condensed = Math.max(0, vapor - saturation) * safeDt * 0.6;
       vapor -= condensed;
-      const cloud = Math.max(0, cloudOld - precip + condensed);
+      const neighbourCloud = (stamped[left + FIELD.CLOUD] + stamped[right + FIELD.CLOUD]
+        + stamped[north + FIELD.CLOUD] + stamped[south + FIELD.CLOUD]) * 0.25;
+      const cloudWindDelta = windTransportDelta(stamped, FIELD.CLOUD, o, left, right, north, south, windX, windZ, safeDt, size, 0.6);
+      const cloud = Math.max(0, cloudOld + (neighbourCloud - cloudOld) * safeDt * 0.35 + cloudWindDelta - precip + condensed);
+
+      // --- Combustion: BIOMASS is the fuel, not a separate stock. FIRE is a self-sustaining
+      // 0..1 intensity -- once heat (a HEAT stamp, or a blazing neighbour) crosses the ignition
+      // threshold on dry-enough fuel, the fire keeps itself going by consuming biomass and
+      // releasing its own heat, exactly the positive-feedback chain real combustion is, until
+      // it either runs out of fuel or gets doused by wetness/water/rain.
+      const biomassOld = stamped[o + FIELD.BIOMASS];
+      const neighbourFireMax = Math.max(
+        stamped[left + FIELD.FIRE], stamped[right + FIELD.FIRE],
+        stamped[north + FIELD.FIRE], stamped[south + FIELD.FIRE],
+      );
+      const canBurn = biomassOld > 0.012 && wetness < 0.42 && iceOld < 0.4;
+      const ignitionSignal = Math.max(stamped[o + FIELD.HEAT], neighbourFireMax);
+      const igniteRate = canBurn ? Math.max(0, ignitionSignal - 0.22) * 4.5 : 0;
+      const douseRate = wetness * 1.6 + water * 3.2 + iceOld * 2.5 + (canBurn ? 0.05 : 3.0);
+      const fire = clamp(stamped[o + FIELD.FIRE] + (igniteRate - douseRate * stamped[o + FIELD.FIRE]) * safeDt);
+      // Burn slowly enough that fuel doesn't vanish in a fraction of a second -- a real fire
+      // needs to still be blazing a few seconds from now for it to have spread anywhere.
+      const fuelBurn = Math.min(biomassOld, (biomassOld * fire * 0.45 + fire * 0.006) * safeDt);
+      const heatRelease = fuelBurn * 20.0;
+      const smokeRelease = fuelBurn * 3.5;
+      const ashRelease = fuelBurn * 0.55;
 
       const neighbourHeat = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.HEAT], 0) * 0.25;
       const heat = clamp(stamped[o + FIELD.HEAT]
         + (neighbourHeat - stamped[o + FIELD.HEAT]) * safeDt * 0.8
+        + heatRelease
         - (0.08 + wetness * 0.55 + water * 2.0) * safeDt);
       const disturbance = clamp(stamped[o + FIELD.DISTURBANCE] * Math.max(0, 1 - safeDt * 0.16) + hailImpact);
+
+      // Smoke: drifts downwind like vapor/cloud (isotropic diffusion plus the same conservative
+      // wind flux, tuned faster since a plume should visibly stretch out, not just haze in
+      // place), and simply thins out over time (no separate "settle" reservoir -- it just
+      // disperses, unlike ash which actually falls to the ground).
+      const neighbourSmoke = (stamped[left + FIELD.SMOKE] + stamped[right + FIELD.SMOKE]
+        + stamped[north + FIELD.SMOKE] + stamped[south + FIELD.SMOKE]) * 0.25;
+      const smokeWindDelta = windTransportDelta(stamped, FIELD.SMOKE, o, left, right, north, south, windX, windZ, safeDt, size, 1.4);
+      const smoke = Math.max(0, stamped[o + FIELD.SMOKE]
+        + (neighbourSmoke - stamped[o + FIELD.SMOKE]) * safeDt * 0.6
+        + smokeWindDelta
+        + smokeRelease
+        - stamped[o + FIELD.SMOKE] * safeDt * 0.35);
+
+      // Ash: settles where it's released, slowly washed away by rain, and boosts the fertility
+      // a burned patch regrows with (real post-fire ecology) via the growth formula below.
+      const ash = Math.max(0, stamped[o + FIELD.ASH] + ashRelease
+        - stamped[o + FIELD.ASH] * safeDt * 0.015
+        - stamped[o + FIELD.ASH] * rainPart * 4);
+
       const moistureFit = smoothstep(0.12, 0.46, wetness)
         * (1 - smoothstep(0.72, 1.05, wetness + water * 5));
       const temperatureFit = 1 - clamp(Math.abs(env.temperature - 0.55) / 0.52);
       const neighbourBiomass = neighbours.reduce((sum, n) => sum + stamped[n + FIELD.BIOMASS], 0) * 0.25;
       const seedSpread = neighbourBiomass * moistureFit * safeDt * 0.012;
       const seeds = clamp(stamped[o + FIELD.SEEDS] + seedSpread - safeDt * 0.0015);
+      const fertility = 1 + Math.min(0.6, ash * 1.4);
       const growth = seeds * moistureFit * env.sun * temperatureFit * (1 - disturbance)
-        * env.growthRate * safeDt;
+        * env.growthRate * fertility * safeDt;
       const crowding = stamped[o + FIELD.BIOMASS] ** 2 * safeDt * 0.022;
       const damage = (heat * 0.72 + Math.max(0, water - 0.12) * 0.4 + disturbance * 0.2) * safeDt;
-      const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - damage);
+      const biomass = clamp(stamped[o + FIELD.BIOMASS] + growth - crowding - damage - fuelBurn);
 
       next[o + FIELD.SAND] = Math.max(0, sand);
       next[o + FIELD.WATER] = Math.max(0, water);
@@ -394,6 +518,10 @@ export function stepWorldReference(source, size, dt = 1 / 30, options = {}) {
       next[o + FIELD.CLOUD] = cloud;
       next[o + FIELD.ICE] = ice;
       next[o + FIELD.SNOW] = snow;
+      next[o + FIELD.FIRE] = fire;
+      next[o + FIELD.SMOKE] = smoke;
+      next[o + FIELD.ASH] = ash;
+      next[o + FIELD.GROUNDWATER] = groundwater;
     }
   }
   return next;
@@ -419,11 +547,18 @@ export function sampleWorld(state, size, x, z) {
     cloud: state[o + FIELD.CLOUD],
     ice: state[o + FIELD.ICE],
     snow: state[o + FIELD.SNOW],
+    fire: state[o + FIELD.FIRE],
+    smoke: state[o + FIELD.SMOKE],
+    ash: state[o + FIELD.ASH],
+    groundwater: state[o + FIELD.GROUNDWATER],
   };
 }
 
 export function worldTotals(state) {
-  const totals = {sand: 0, water: 0, sediment: 0, biomass: 0, vapor: 0, cloud: 0, snow: 0};
+  const totals = {
+    sand: 0, water: 0, sediment: 0, biomass: 0, vapor: 0, cloud: 0, snow: 0,
+    fire: 0, smoke: 0, ash: 0, groundwater: 0,
+  };
   for (let o = 0; o < state.length; o += CELL_STRIDE) {
     totals.sand += state[o + FIELD.SAND];
     totals.water += state[o + FIELD.WATER];
@@ -432,6 +567,10 @@ export function worldTotals(state) {
     totals.vapor += state[o + FIELD.VAPOR];
     totals.cloud += state[o + FIELD.CLOUD];
     totals.snow += state[o + FIELD.SNOW];
+    totals.fire += state[o + FIELD.FIRE];
+    totals.smoke += state[o + FIELD.SMOKE];
+    totals.ash += state[o + FIELD.ASH];
+    totals.groundwater += state[o + FIELD.GROUNDWATER];
   }
   return totals;
 }

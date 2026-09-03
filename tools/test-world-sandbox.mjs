@@ -268,6 +268,127 @@ assert.ok(burned.biomass < grown.biomass, 'sustained heat must damage biomass');
   assert.equal(stateChecksum(createWorldState(48, 7)), stateChecksum(createWorldState(48, 7, {})), 'omitting options must match passing an empty options object');
 }
 
+// --- Boundary mass leak regression -----------------------------------------------------
+// edgeFlow/windFlux both derive their magnitude from a single cell's own stock, not a
+// from-vs-to DIFFERENCE like sandFlux/diffusion -- so at the grid's edge, where cellOffset
+// clamps the "neighbour" index back to the cell's own index, they must explicitly refuse to
+// transport (near===far), or mass leaks out a downwind edge / gets manufactured at an
+// upwind edge with no real neighbour on the other side. This is the sharpest possible check:
+// a lake that touches the boundary on all sides, with wind blowing diagonally across it.
+{
+  const edgeSize = 20;
+  const edgeState = new Float32Array(edgeSize * edgeSize * CELL_STRIDE);
+  for (let o = 0; o < edgeState.length; o += CELL_STRIDE) {
+    edgeState[o + FIELD.BEDROCK] = 0.1;
+    edgeState[o + FIELD.WATER] = 0.2;
+    edgeState[o + FIELD.VAPOR] = 0.02;
+  }
+  const edgeEnv = {...DEFAULT_ENVIRONMENT, rain: 0, permeability: 0, evaporation: 0, wind: 1, windDeg: 45};
+  let edgeWorld = edgeState;
+  const before = worldTotals(edgeWorld);
+  const beforeSum = before.water + before.vapor + before.cloud + before.snow;
+  for (let tick = 0; tick < 300; tick++) edgeWorld = stepWorldReference(edgeWorld, edgeSize, 1 / 30, {environment: edgeEnv});
+  const after = worldTotals(edgeWorld);
+  const afterSum = after.water + after.vapor + after.cloud + after.snow;
+  assert.ok(
+    Math.abs(afterSum - beforeSum) < Math.max(1e-6, beforeSum * 1e-4),
+    `a lake and vapor field touching every grid edge under diagonal wind must not leak mass at the boundary (before ${beforeSum}, after ${afterSum})`,
+  );
+}
+
+// --- Combustion: BIOMASS is fuel, FIRE is self-sustaining -----------------------------
+{
+  const fireSize = 32;
+  function dryFuelWorld() {
+    const w = new Float32Array(fireSize * fireSize * CELL_STRIDE);
+    for (let o = 0; o < w.length; o += CELL_STRIDE) {
+      w[o + FIELD.BEDROCK] = 0.1;
+      w[o + FIELD.BIOMASS] = 0.15;
+      w[o + FIELD.WETNESS] = 0.05;
+    }
+    return w;
+  }
+  const fireEnv = {...DEFAULT_ENVIRONMENT, rain: 0, sun: 0.6, wind: 0};
+  const ignite = [{kind: STAMP.HEAT, x: 0.5, z: 0.5, radius: 0.05, amount: 0.15}];
+
+  // A. A single ignition point spreads into neighbouring fuel (a real chain reaction), then
+  //    self-extinguishes once fuel runs out -- not a fixed-radius scorch mark.
+  let fire = dryFuelWorld();
+  for (let tick = 0; tick < 5; tick++) fire = stepWorldReference(fire, fireSize, 1 / 30, {environment: fireEnv, stamps: ignite});
+  const biomassAfterIgnition = worldTotals(fire).biomass;
+  let peakFire = 0;
+  for (let tick = 0; tick < 300; tick++) {
+    fire = stepWorldReference(fire, fireSize, 1 / 30, {environment: fireEnv});
+    peakFire = Math.max(peakFire, worldTotals(fire).fire);
+  }
+  const settled = worldTotals(fire);
+  assert.ok(peakFire > 20, `an ignited dry fuel bed must spread into a real chain reaction, not stay pinned to one cell (peak total fire: ${peakFire.toFixed(2)})`);
+  assert.ok(settled.biomass < biomassAfterIgnition * 0.5, `a spreading fire must consume a substantial share of the fuel bed, not just the ignition point (before spread ${biomassAfterIgnition.toFixed(2)}, after ${settled.biomass.toFixed(2)})`);
+  assert.ok(settled.fire < 0.01, `fire must self-extinguish once fuel runs out, not burn forever (final total fire: ${settled.fire})`);
+  assert.ok(settled.ash > 0, 'a burned fuel bed must leave ash residue behind');
+
+  // B. Water/wetness actively douses an already-raging fire, not just prevents ignition.
+  let raging = dryFuelWorld();
+  for (let tick = 0; tick < 5; tick++) raging = stepWorldReference(raging, fireSize, 1 / 30, {environment: fireEnv, stamps: ignite});
+  for (let tick = 0; tick < 60; tick++) raging = stepWorldReference(raging, fireSize, 1 / 30, {environment: fireEnv});
+  const beforeDouse = worldTotals(raging).fire;
+  const douse = [{kind: STAMP.WATER, x: 0.5, z: 0.5, radius: 0.6, amount: 0.3}];
+  for (let tick = 0; tick < 10; tick++) raging = stepWorldReference(raging, fireSize, 1 / 30, {environment: fireEnv, stamps: douse});
+  const afterDouse = worldTotals(raging).fire;
+  assert.ok(beforeDouse > 5, `sanity: fire must actually be raging before the dousing test (${beforeDouse})`);
+  assert.ok(afterDouse < beforeDouse * 0.5, `dumping water on a raging fire must actively suppress it, not just block new ignition (before ${beforeDouse.toFixed(2)}, after ${afterDouse.toFixed(2)})`);
+
+  // C. A wet fuel bed must refuse to ignite at all, even under sustained heat.
+  const wetWorld = dryFuelWorld();
+  for (let o = 0; o < wetWorld.length; o += CELL_STRIDE) { wetWorld[o + FIELD.WETNESS] = 0.6; wetWorld[o + FIELD.WATER] = 0.05; }
+  let wet = wetWorld;
+  for (let tick = 0; tick < 10; tick++) wet = stepWorldReference(wet, fireSize, 1 / 30, {environment: fireEnv, stamps: [{kind: STAMP.HEAT, x: 0.5, z: 0.5, radius: 0.05, amount: 0.3}]});
+  assert.equal(worldTotals(wet).fire, 0, 'wet fuel must refuse to ignite even under a strong heat stamp');
+}
+
+// --- Groundwater: infiltration goes somewhere instead of vanishing --------------------
+{
+  const gwSize = 24;
+  const gwEnv = {...DEFAULT_ENVIRONMENT, permeability: 0.5, rain: 0};
+  let gw = createWorldState(gwSize, 3);
+  for (let tick = 0; tick < 300; tick++) gw = stepWorldReference(gw, gwSize, 1 / 30, {environment: gwEnv});
+  assert.ok(worldTotals(gw).groundwater > 0, 'high permeability over a real run must build up a real groundwater reservoir, not discard infiltration');
+
+  // A saturated water table resurfaces as a spring instead of accumulating forever.
+  const springState = new Float32Array(gwSize * gwSize * CELL_STRIDE);
+  for (let o = 0; o < springState.length; o += CELL_STRIDE) {
+    springState[o + FIELD.BEDROCK] = 0.1;
+    springState[o + FIELD.GROUNDWATER] = 0.9;
+  }
+  let spring = springState;
+  const beforeSpring = worldTotals(spring);
+  for (let tick = 0; tick < 60; tick++) spring = stepWorldReference(spring, gwSize, 1 / 30, {environment: {...DEFAULT_ENVIRONMENT, permeability: 0, rain: 0}});
+  const afterSpring = worldTotals(spring);
+  assert.ok(afterSpring.water > beforeSpring.water, 'a saturated water table must resurface as a spring, raising surface water');
+  assert.ok(afterSpring.groundwater < beforeSpring.groundwater, 'water resurfacing as a spring must actually leave the groundwater reservoir');
+}
+
+// --- Wind: drifts airborne fields (smoke here, cheapest to seed cleanly) downwind -------
+{
+  const windSize = 32;
+  const windState = new Float32Array(windSize * windSize * CELL_STRIDE);
+  for (let o = 0; o < windState.length; o += CELL_STRIDE) windState[o + FIELD.BEDROCK] = 0.1;
+  windState[cellOffset(windSize, 10, 16) + FIELD.SMOKE] = 5;
+  const windEnv = {...DEFAULT_ENVIRONMENT, wind: 1, windDeg: 0, rain: 0}; // blows toward +x
+  let wind = windState;
+  const peakXAt = tick => {
+    let bestX = -1, bestVal = 0;
+    for (let x = 0; x < windSize; x++) {
+      const v = wind[cellOffset(windSize, x, 16) + FIELD.SMOKE];
+      if (v > bestVal) { bestVal = v; bestX = x; }
+    }
+    return bestX;
+  };
+  for (let tick = 0; tick < 180; tick++) wind = stepWorldReference(wind, windSize, 1 / 30, {environment: windEnv});
+  const driftedX = peakXAt();
+  assert.ok(driftedX > 10, `smoke's peak must have drifted downwind (+x) from its seed column, not stayed put (started x=10, now x=${driftedX})`);
+}
+
 assert.match(WORLD_COMPUTE_WGSL, /@compute\s+@workgroup_size\(8, 8, 1\)/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read> src/);
 assert.match(WORLD_COMPUTE_WGSL, /var<storage, read_write> dst/);

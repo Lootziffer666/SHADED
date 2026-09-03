@@ -306,6 +306,9 @@ function colorForCell(data, offset, mode) {
   const cloud = data[offset + FIELD.CLOUD];
   const ice = data[offset + FIELD.ICE];
   const snow = data[offset + FIELD.SNOW];
+  const fire = data[offset + FIELD.FIRE];
+  const smoke = data[offset + FIELD.SMOKE];
+  const ash = data[offset + FIELD.ASH];
   const height = bedrock + sand;
   if (mode === 1) {
     const v = Math.round(Math.min(1, height * 2.1) * 255);
@@ -339,6 +342,21 @@ function colorForCell(data, offset, mode) {
   r = r * (1 - snowCoverage * 0.88) + 230 * snowCoverage * 0.88;
   g = g * (1 - snowCoverage * 0.88) + 237 * snowCoverage * 0.88;
   b = b * (1 - snowCoverage * 0.88) + 242 * snowCoverage * 0.88;
+  // Combustion made visible on the beauty view too, same rule as the WGSL fsTerrain: ash
+  // darkens the burned ground toward soot, fire is its own emissive glow (not a shadow-lit
+  // patch), smoke thickens the air above it into a grey haze.
+  const ashPresence = Math.min(1, Math.max(0, (ash - 0.02) / 0.33));
+  r = r * (1 - ashPresence * 0.55) + 13 * ashPresence * 0.55;
+  g = g * (1 - ashPresence * 0.55) + 12 * ashPresence * 0.55;
+  b = b * (1 - ashPresence * 0.55) + 11 * ashPresence * 0.55;
+  const fireGlow = Math.min(1, Math.max(0, fire));
+  r = r * (1 - fireGlow * 0.72) + 255 * fireGlow * 0.72 + 255 * fireGlow * fireGlow * 0.35;
+  g = g * (1 - fireGlow * 0.72) + 107 * fireGlow * 0.72 + 140 * fireGlow * fireGlow * 0.35;
+  b = b * (1 - fireGlow * 0.72) + 15 * fireGlow * 0.72 + 31 * fireGlow * fireGlow * 0.35;
+  const smokeHaze = Math.min(0.85, smoke * 3.5);
+  r = r * (1 - smokeHaze) + 46 * smokeHaze;
+  g = g * (1 - smokeHaze) + 43 * smokeHaze;
+  b = b * (1 - smokeHaze) + 41 * smokeHaze;
   return [r, g, b];
 }
 
