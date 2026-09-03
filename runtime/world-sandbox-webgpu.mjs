@@ -103,11 +103,6 @@ fn edgeFlow(near: Cell, far: Cell, edgeVelocity: f32, dt: f32, size: f32) -> f32
   return -min(far.water.x * cap, -crossing * far.water.x) * flowable;
 }
 
-fn smooth(a: f32, b: f32, value: f32) -> f32 {
-  let t = clamp((value - a) / max(0.000001, b - a), 0.0, 1.0);
-  return t * t * (3.0 - 2.0 * t);
-}
-
 // Airborne fields (VAPOR/CLOUD/SMOKE) drift downwind, on top of their existing isotropic
 // diffusion, via a real one-way edge flux -- mirrors runtime/world-sandbox-reference.mjs
 // exactly. edgeFlow/windFlux both derive their magnitude from a single cell's own stock, not
@@ -300,9 +295,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // A near-freezing but not fully frozen band with a heavily loaded cloud is the closest
   // single-cell proxy for a thunderstorm updraft/downdraft cycle this 2.5D model has --
   // marked explicitly as a first approximation, not real hail-growth physics.
-  let hailBand = smooth(0.30, 0.42, localTemp) * (1.0 - smooth(0.46, 0.58, localTemp));
+  let hailBand = smoothstep(0.30, 0.42, localTemp) * (1.0 - smoothstep(0.46, 0.58, localTemp));
   let hailing = hailBand > 0.5 && cloudOld > 0.03;
-  let snowFraction = select(1.0 - smooth(0.42, 0.58, localTemp), 1.0, hailing);
+  let snowFraction = select(1.0 - smoothstep(0.42, 0.58, localTemp), 1.0, hailing);
   let rainPart = precip * (1.0 - snowFraction);
   let snowPart = precip * snowFraction;
   let hailImpact = select(0.0, min(0.05, precip * 1.5), hailing); // ground-impact kick, not extra mass
@@ -336,7 +331,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   // Ice: relaxes toward a target frozen fraction set by local temperature (not instant --
   // a lake takes time to freeze over or thaw), and feeds back into sandFlux/edgeFlow above.
-  let iceTarget = 1.0 - smooth(0.30, 0.42, localTemp);
+  let iceTarget = 1.0 - smoothstep(0.30, 0.42, localTemp);
   let ice = clamp(iceOld + (iceTarget - iceOld) * dt * 0.5 + hailImpact * 0.4, 0.0, 1.0);
 
   let groundwaterOld = c.combust.w;
@@ -441,8 +436,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // burned patch regrows with (real post-fire ecology) via the growth formula below.
   let ash = max(0.0, c.combust.z + ashRelease - c.combust.z * dt * 0.015 - c.combust.z * rainPart * 4.0);
 
-  let moistureFit = smooth(0.12, 0.46, wetness)
-    * (1.0 - smooth(0.72, 1.05, wetness + water * 5.0));
+  let moistureFit = smoothstep(0.12, 0.46, wetness)
+    * (1.0 - smoothstep(0.72, 1.05, wetness + water * 5.0));
   let temperatureFit = 1.0 - clamp(abs(P.environment.z - 0.55) / 0.52, 0.0, 1.0);
   let neighbourBiomass = (left.bio.x + right.bio.x + top.bio.x + bottom.bio.x) * 0.25;
   // Seeds ride the wind, same as pollen/dandelion seeds/spores in real vegetation -- mirrors
@@ -553,7 +548,7 @@ struct Cell {
 struct Particle {
   position: vec4<f32>,
   velocity: vec4<f32>,
-  meta: vec4<f32>,
+  payload: vec4<f32>,
 }
 
 struct Deposit {
@@ -619,20 +614,24 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       sin(angle) * (0.03 + r0 * 0.09),
       0.65 + r2 * 1.1
     );
-    particle.meta = vec4<f32>(kind, r0, 0.0, 1.0);
+    particle.payload = vec4<f32>(kind, r0, 0.0, 1.0);
   }
 
-  if (particle.meta.w < 0.5) {
+  if (particle.payload.w < 0.5) {
     particles[i] = particle;
     return;
   }
 
   let dt = P.sim.x;
-  let kind = u32(particle.meta.x + 0.5);
+  let kind = u32(particle.payload.x + 0.5);
   let drag = select(0.7, 1.8, kind == 1u);
-  particle.velocity.xyz *= max(0.0, 1.0 - drag * dt);
+  // WGSL (at least this Tint build) rejects compound assignment through a multi-component
+  // swizzle lvalue (particle.velocity.xyz *= ...) -- rebuilding the full vec4 avoids relying
+  // on that being supported at all, rather than depending on undefined/implementation-varying
+  // behaviour.
+  particle.velocity = vec4<f32>(particle.velocity.xyz * max(0.0, 1.0 - drag * dt), particle.velocity.w);
   particle.velocity.y -= 0.86 * dt;
-  particle.position.xyz += particle.velocity.xyz * dt;
+  particle.position = vec4<f32>(particle.position.xyz + particle.velocity.xyz * dt, particle.position.w);
   particle.position.w += dt;
 
   if (particle.position.x < 0.0 || particle.position.x > 1.0) {
@@ -659,7 +658,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     } else if (kind == 4u) {
       atomicAdd(&deposits[cellIndex].heat, amount);
     }
-    particle.meta.w = 0.0;
+    particle.payload.w = 0.0;
   }
   particles[i] = particle;
 }
@@ -846,7 +845,7 @@ struct RenderParams {
 struct Particle {
   position: vec4<f32>,
   velocity: vec4<f32>,
-  meta: vec4<f32>,
+  payload: vec4<f32>,
 }
 
 struct VertexOut {
@@ -871,12 +870,12 @@ fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instance
   );
   let particle = particles[instanceIndex];
   let corner = corners[vertexIndex];
-  let active = particle.meta.w;
+  let active = particle.payload.w;
   let centre = vec2<f32>(
     particle.position.x * 2.0 - 1.0,
     (1.0 - particle.position.z) * 2.0 - 1.0 + particle.position.y * 0.10
   );
-  let kind = u32(particle.meta.x + 0.5);
+  let kind = u32(particle.payload.x + 0.5);
   let pixelSize = select(2.0, 3.2, kind == 1u) + clamp(particle.position.y * 2.0, 0.0, 2.0);
   let clipSize = vec2<f32>(
     pixelSize * 2.0 / max(1.0, R.resolution.x),
@@ -1018,8 +1017,8 @@ fn project(world: vec3<f32>) -> vec4<f32> {
     return vec4<f32>(viewX / (fovTan * aspect), viewY / fovTan, ndcDepth * viewZ, viewZ);
   }
   let zoom = max(0.55, R.camera.x);
-  let target = vec3<f32>(0.0, R.camera.z, 0.0);
-  let delta = world - target;
+  let lookTarget = vec3<f32>(0.0, R.camera.z, 0.0);
+  let delta = world - lookTarget;
   let forward = cameraForward();
   let viewX = dot(delta, cameraRight());
   let viewY = dot(delta, cameraUp());
@@ -1422,7 +1421,7 @@ struct RenderParams {
 struct Particle {
   position: vec4<f32>,
   velocity: vec4<f32>,
-  meta: vec4<f32>,
+  payload: vec4<f32>,
 }
 
 struct VertexOut {
@@ -1473,7 +1472,7 @@ fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instance
   );
   let particle = particles[instanceIndex];
   let corner = corners[vertexIndex];
-  let kind = u32(particle.meta.x + 0.5);
+  let kind = u32(particle.payload.x + 0.5);
   let centre = vec3<f32>(
     particle.position.x * 2.0 - 1.0,
     particle.position.y * R.camera.y,
@@ -1482,10 +1481,10 @@ fn vs(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instance
   let size = select(0.008, 0.011, kind == 1u) + clamp(particle.position.y * 0.004, 0.0, 0.006);
   let world = centre + cameraRight() * corner.x * size + cameraUp() * corner.y * size;
   var output: VertexOut;
-  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), particle.meta.w > 0.5);
+  output.position = select(vec4<f32>(-4.0, -4.0, 0.99, 1.0), project(world), particle.payload.w > 0.5);
   output.local = corner;
   output.kind = kind;
-  output.alpha = particle.meta.w;
+  output.alpha = particle.payload.w;
   return output;
 }
 
