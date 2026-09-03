@@ -11,8 +11,19 @@
 // a real resistance signal, not a new invented one) and never writes classification back into
 // it -- a tip's own path is its own state, not a second material truth layered under the grid's.
 //
+// The plant itself is a GRAPH, not a mesh (the user's own architecture note, section 2): a tip
+// moving is really a tip appending a node to a permanent parent/child structure and re-pointing
+// itself at the new node. A tip's x/z is a cursor into that graph, not the plant's only record --
+// this is what lets a future sweep/tube renderer (section 5), pruning, or "dead wood persists"
+// life-state (section 9) exist later without re-deriving geometry from a discarded path. Nodes
+// are never removed once created; a branch forks a NEW node off the branching tip's own current
+// node (shared parent), it does not copy that tip's position into an unrelated second node --
+// that's what makes the graph an actual fork, not two coincidentally-overlapping lines.
+//
 // This is the FIRST slice, not the finished vision: vine climbing/light-seeking and the
-// bloom/wilt state machine (Tests B and C) are real follow-ups, not built here yet.
+// bloom/wilt state machine (Tests B and C) are real follow-ups, not built here yet, and this
+// module has no sweep/mesh geometry, no wind hierarchy, and no life-state machine -- those are
+// later phases in the user's own roadmap (sections 5-9), not silently pre-empted here.
 
 import {FIELD, cellOffset, mulberry32} from './world-sandbox-reference.mjs';
 
@@ -28,20 +39,53 @@ const BRANCH_CHANCE_PER_SECOND = 0.12;
 const BRANCH_ENERGY_SHARE = 0.4; // fraction of the parent's energy handed to a new branch
 const COMPACTION_STOP = 0.85; // ground this hard simply can't be pushed through further
 
+// Radius is a placeholder model for now (energy alone, no species profile yet -- section 12 of
+// the user's plan) -- good enough for a future sweep/tube renderer to taper a root toward its
+// growing tip, not a claim that this is the final radius law.
+const RADIUS_BASE = 0.004;
+const RADIUS_ENERGY_GAIN = 0.01;
+function nodeRadius(energy) {
+  return RADIUS_BASE + RADIUS_ENERGY_GAIN * Math.max(0, Math.min(1, energy));
+}
+
 function sampleField(state, size, field, x, z) {
   const cx = Math.min(size - 1, Math.max(0, Math.floor(x * size)));
   const cz = Math.min(size - 1, Math.max(0, Math.floor(z * size)));
   return state[cellOffset(size, cx, cz) + field];
 }
 
-export function createRootTip(x, z, angle, energy = 1) {
+// A permanent record of every position a tip (or its branches) has ever occupied, as parent-
+// linked nodes -- the "PLANT GRAPH" from the user's own diagram, not yet the full
+// stem/branch/root/leaf/flower typing, just the shared skeleton every later phase (sweep
+// geometry, wind hierarchy, life-state) will need. Nodes are appended, never removed or
+// mutated in place; `id` always equals the node's own index in `graph.nodes`, so a parentId is
+// a direct, stable array index, not a lookup key that can drift.
+export function createPlantGraph() {
+  return {nodes: []};
+}
+
+function addGraphNode(graph, x, z, radius, parentId) {
+  const id = graph.nodes.length;
+  const node = {id, x, z, radius, parentId, children: []};
+  graph.nodes.push(node);
+  if (parentId != null) graph.nodes[parentId].children.push(id);
+  return id;
+}
+
+// `graph` and `parentNodeId` are required: a tip's very first position is itself a graph node
+// (parentNodeId=null for a freshly-planted seed, or an existing node's id when this tip is a
+// branch forking off another tip's current position -- see the branch call site below).
+export function createRootTip(x, z, angle, energy, graph, parentNodeId) {
+  const clampedEnergy = Math.max(0, Math.min(1, energy));
+  const nodeId = addGraphNode(graph, x, z, nodeRadius(clampedEnergy), parentNodeId ?? null);
   return {
     x, z,
     dirX: Math.cos(angle),
     dirZ: Math.sin(angle),
-    energy: Math.max(0, Math.min(1, energy)),
+    energy: clampedEnergy,
     age: 0,
     alive: true,
+    nodeId,
   };
 }
 
@@ -62,9 +106,12 @@ function scoreDirection(state, size, x, z, dirX, dirZ, currentDirX, currentDirZ)
 }
 
 // Advances every living tip in `tips` by `dt` seconds against `state` (the same WorldState
-// stepWorldReference operates on), mutating tips in place and appending any newly-branched tips
-// to the array. Returns nothing -- callers own the array's lifetime (removing dead tips,
-// capping total count, etc.), the same way editor/world-sandbox.js already owns state.particles.
+// stepWorldReference operates on), mutating tips in place, appending a graph node for every
+// tip's new position (and for every newly-branched tip's starting position) to `graph`, and
+// appending any newly-branched tips to the `tips` array. Returns nothing -- callers own the
+// array's lifetime (removing dead tips, capping total count, etc.), the same way
+// editor/world-sandbox.js already owns state.particles; `graph` is expected to persist for the
+// plant's whole lifetime, not be recreated per step.
 //
 // `random` is a REQUIRED () => [0,1) function (mulberry32(seed) from world-sandbox-reference.mjs
 // is the project's own standard one), not Math.random() with a silent fallback -- growth is
@@ -72,7 +119,7 @@ function scoreDirection(state, size, x, z, dirX, dirZ, currentDirX, currentDirZ)
 // golden oracle" simulation, and a hidden dependency on the platform's own unseeded RNG would
 // quietly break that for exactly the subsystem meant to prove branching only happens with
 // enough energy, not just "sometimes."
-export function stepGrowthTips(state, size, tips, dt, random) {
+export function stepGrowthTips(state, size, tips, dt, random, graph) {
   const branched = [];
   for (const tip of tips) {
     if (!tip.alive || tip.energy <= 0) {
@@ -129,6 +176,16 @@ export function stepGrowthTips(state, size, tips, dt, random) {
     tip.energy -= travelled * ENERGY_COST_PER_UNIT * (1 + compactionHere * ENERGY_COST_COMPACTION_MULT);
     if (moistureHere > 0.3) tip.energy += FEED_RATE * dt;
     tip.energy = Math.max(0, Math.min(1, tip.energy));
+
+    // The tip actually grew this step -- record it in the permanent graph as a child of the
+    // node it was just standing on, then re-point the tip at that new node. A tip's own
+    // position is now derived FROM the graph, not a parallel truth that happens to agree with
+    // it. Recorded even when this step's energy spend kills the tip: it still physically grew
+    // to this point before running out -- that segment is real, not a phantom last half-step
+    // the graph never heard about (matches "dead wood persists" in the user's own plan, section
+    // 9 -- a graph that silently drops a tip's final position couldn't support that later).
+    tip.nodeId = addGraphNode(graph, tip.x, tip.z, nodeRadius(tip.energy), tip.nodeId);
+
     if (tip.energy <= 0) {
       tip.alive = false;
       continue;
@@ -138,7 +195,9 @@ export function stepGrowthTips(state, size, tips, dt, random) {
       const branchAngle = newAngle + (random() < 0.5 ? 1 : -1) * (0.6 + random() * 0.5);
       const branchEnergy = tip.energy * BRANCH_ENERGY_SHARE;
       tip.energy -= branchEnergy;
-      branched.push(createRootTip(tip.x, tip.z, branchAngle, branchEnergy));
+      // The branch forks off the SAME node the parent tip just grew to -- a real fork with two
+      // children of one node, not two lines that merely happen to start at the same coordinates.
+      branched.push(createRootTip(tip.x, tip.z, branchAngle, branchEnergy, graph, tip.nodeId));
     }
   }
   for (const tip of branched) tips.push(tip);
