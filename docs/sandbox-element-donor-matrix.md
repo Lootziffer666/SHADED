@@ -23,6 +23,10 @@ A source can be excellent at one layer and useless at the other two.
 | Coast / water surface | Babylon stylized-water thread; gameidea stylized 3D water; Seascape; PhysicsMod oceans.glsl | Depth-aware shallow/deep water, refraction, shore/crest foam, wave normals | Babylon/gameidea used as technique blueprint. Verify individual Seascape / PhysicsMod source license before copying. |
 | Dune surface dynamics | keaukraine/webgl-dunes + dunes article | Windward/leeward ripple orientation, distance fade, cheap terrain shading | MIT verified for webgl-dunes. |
 | Soft particle intersection | keaukraine soft-particles article | Dust, sand spray, smoke, mist, foam spray without hard geometry clipping | Technique reimplementation; keep independent SHADED shader path. |
+| Terrain erosion / sediment | SebLague/Hydraulic-Erosion | Fills the previously-open Erosion/Sediment Lab gap: erosion grounded in published methods (firespark.de, ranmantaru.com), not an ad-hoc shader trick | MIT, verified in repo root — safe to adapt. |
+| Terrain generation | baturinsky/worldgen | Voronoi-less approach: gradient noise from summed ellipses + a tectonic-plate (`crust`/`noise`) simulation that produces mountains at plate boundaries, instead of one flat noise layer | MIT, verified in repo root. |
+| Soft-body / granular particle physics | chrxh/alien | CUDA particle engine unifying soft bodies, fluids, heat, damage and adhesion in one solver; complements Particles4All (which is fluid/rigid-body-focused via PBD) | BSD-3-Clause, verified in repo root — most permissive donor found so far for this layer. |
+| Rigid-body / contact solver | erincatto/box3d | Modern 3D rigid-body engine (Box2D author): continuous collision, contact events, character mover, height fields, deterministic replay | MIT, verified in repo root. |
 
 ### Granular algorithm target
 
@@ -112,7 +116,7 @@ A readable material-state graph, e.g.:
 The graph updates authoritative world fields; renderers only visualize them.
 
 ### Erosion / Sediment Lab
-Couple terrain slope, water flow, loose sediment and deposition. This connects dune/sand visuals to actual world evolution instead of treating terrain as immutable decoration.
+Couple terrain slope, water flow, loose sediment and deposition. This connects dune/sand visuals to actual world evolution instead of treating terrain as immutable decoration. `SebLague/Hydraulic-Erosion` (MIT, verified) is now the strongest available donor for this lab — previously an open gap with no credible source.
 
 ### Vegetation Lab
 Growth, bending, wet/dry state, snow loading, burn/char and procedural scatter. It should read wind/moisture/temperature/light fields rather than invent its own weather controls.
