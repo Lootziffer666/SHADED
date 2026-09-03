@@ -28,6 +28,17 @@ export class PreferenceModel {
     for (const dim of STYLE_DIMENSIONS) {
       if (!this.state[dim.key]) {
         this.state[dim.key] = dim.kind === 'categorical' ? newCategoricalState(dim) : newContinuousState();
+      } else if (dim.kind === 'categorical') {
+        // Hydrate options a saved state predates (e.g. restored from localStorage before
+        // 'cellular'/'iridescent' existed as STYLE_DIMENSIONS choices) -- the dimension key
+        // itself is already present so the branch above never runs, but s.options is
+        // missing the new option entirely. A later vote comparing against it would read
+        // undefined, produce NaN through the Elo update, and persist NaN (serialized as
+        // null), silently corrupting that entry from then on.
+        const options = this.state[dim.key].options;
+        for (const opt of dim.options) {
+          if (!(opt in options)) options[opt] = ELO_INITIAL;
+        }
       }
     }
   }

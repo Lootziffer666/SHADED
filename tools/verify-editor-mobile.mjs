@@ -33,16 +33,26 @@ try {
   await page.goto('http://localhost:8941/index.html', { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.SHADED, undefined, { timeout: 15000 });
 
-  const idle = await page.evaluate(() => ({ inspector: document.body.classList.contains('inspector-open'), active: document.querySelectorAll('.rail-btn.active').length, directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')), timeline: !!document.getElementById('timeline-dock'), storyButton: !!document.getElementById('tool-story') }));
+  const idle = await page.evaluate(() => ({
+    inspector: document.body.classList.contains('inspector-open'),
+    active: document.querySelectorAll('.rail-btn.active').length,
+    directViewportCss: [...document.styleSheets].some(sheet => sheet.href?.includes('viewport-first.css')),
+    workspaceToolbar: !!document.getElementById('workspace-view-toolbar'),
+    bottomDock: !!document.getElementById('workspace-bottom-dock'),
+    reconstruct: !!document.getElementById('panel-reconstruct'),
+    worldStudioHidden: getComputedStyle(document.getElementById('world-studio')).display === 'none',
+  }));
   check('Startzustand hat keinen offenen Inspector', !idle.inspector);
-  check('Timeline-DOM ist vollständig entfernt', !idle.timeline);
-  check('Story-Werkzeug ist vollständig entfernt', !idle.storyButton);
   check('Startzustand hat kein scheinbar aktives Werkzeug', idle.active === 0);
   check('Viewport-first CSS ist direkt geladen', idle.directViewportCss);
+  check('Workspace-Toolbar ist vorhanden', idle.workspaceToolbar);
+  check('Reconstruct-Workspace ist vorhanden', idle.reconstruct);
+  check('Altes World-Studio-Overlay ist visuell ersetzt', idle.worldStudioHidden);
+  check('Desktop-Bottom-Dock bleibt auf Mobile bewusst verborgen', idle.bottomDock && await page.locator('#workspace-bottom-dock').isHidden());
 
   const viewport = await page.locator('.viewport').boundingBox();
-  check(`Viewport nutzt nahezu volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
-  check(`Viewport nutzt nahezu volle Höhe (${viewport?.height}px)`, viewport && viewport.height >= 835);
+  check(`Viewport nutzt volle Breite (${viewport?.width}px)`, viewport && viewport.width >= 385);
+  check(`Viewport lässt nur die mobile Workspace-Rail frei (${viewport?.height}px)`, viewport && viewport.height >= 740);
 
   const sandboxLaunch = page.locator('#btn-world-sandbox');
   check('Sandbox ist im mobilen SHADED-Topbar erreichbar', await sandboxLaunch.isVisible());
@@ -63,38 +73,24 @@ try {
   await page.locator('#world-exit').click();
   check('Mobile Rückkehr stellt den SHADED-Editor wieder her', await page.evaluate(() => !window.SHADEDWorldSandbox?.active && !document.body.classList.contains('world-sandbox-mode')));
 
-  // World Studio owns the default UX. The legacy rail is intentionally hidden until ERWEITERT.
+  // New mobile shell exposes workspaces directly; no ERWEITERT gate.
   const sourceButton = page.locator('.rail-btn[data-target="panel-source"]');
-  const expertButton = page.locator('.world-studio-expert');
-  await expertButton.waitFor({ state: 'visible', timeout: 15000 });
-  check('Legacy-Werkzeugleiste ist im Basis-Modus verborgen', await sourceButton.isHidden());
-
-  await expertButton.click();
   await sourceButton.waitFor({ state: 'visible', timeout: 10000 });
-  check('ERWEITERT blendet die Einzelwerkzeuge ein', true);
-
+  check('Workspace-Rail ist direkt erreichbar', true);
   await sourceButton.click({ timeout: 10000 });
   check('Quelle öffnet Inspector', await page.evaluate(() => document.body.classList.contains('inspector-open')));
   await sourceButton.click({ timeout: 10000 });
   check('Zweiter Tap auf Quelle schließt Inspector vollständig', await page.evaluate(() => !document.body.classList.contains('inspector-open')));
 
-  await expertButton.click();
-  check('BASIS blendet Legacy-Werkzeuge wieder aus', await sourceButton.isHidden());
-
-  // Der echte Demo-Button muss den produktiven Importpfad bedienen.
+  // Hidden compatibility bridge still owns import/generation runtime.
   await page.evaluate(() => { document.getElementById('world-demo')?.click(); });
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().hasImage, undefined, { timeout: 10000 });
-  check('World Studio lädt das Demo-Bild direkt', true);
+  check('Demo bleibt über die Runtime-Bridge verdrahtet', true);
 
-  // Die räumliche Pipeline wird mit einem winzigen echten PNG-Fixture gefahren. Die kanonische
-  // Demo ist hochauflösend; deren vollständige Materialanalyse blockiert schwache CI-CPUs minutenlang
-  // und testet hier nicht mehr Verhalten als ein kleines Bild.
   await page.locator('#world-file').setInputFiles({ name: 'ci-spatial-fixture.png', mimeType: 'image/png', buffer: CI_SCENE_PNG });
   await page.waitForFunction(() => document.getElementById('world-file-title')?.textContent === 'ci-spatial-fixture.png', undefined, { timeout: 10000 });
   check('Kleines CI-Bild übernimmt denselben 1-Bild-Workflow', true);
 
-  // Browser-Testserver hat keine lokale GPU-Bridge; der Flow muss deshalb ohne Dialog
-  // in den Software-Fallback gehen und trotzdem eine räumliche Welt öffnen.
   await page.evaluate(() => { document.getElementById('world-generate')?.click(); });
   await page.waitForFunction(() => window.SHADEDWorldStudio?.state?.().worldReady, undefined, { timeout: 60000 });
   check('1-Bild-Workflow wird auch ohne GPU-Bridge fertig', true);
@@ -106,8 +102,11 @@ try {
   });
   check(`RAUM hat Dreiecksgeometrie (${roomState.triangles} Dreiecke)`, roomState.triangles > 10);
 
-  // Korrekturfläche bleibt ein echtes Werkzeug, liegt aber bewusst hinter ERWEITERT.
-  await expertButton.click();
+  // Paint workspace remains directly reachable from the horizontal rail.
+  await page.evaluate(() => {
+    const viewer = document.getElementById('spatial-viewer');
+    if (viewer && !viewer.hidden) document.getElementById('spatial-close')?.click();
+  });
   const paintButton = page.locator('.rail-btn[data-target="panel-paint"]');
   await paintButton.waitFor({ state: 'visible', timeout: 10000 });
   await paintButton.click({ timeout: 10000 });
@@ -121,7 +120,7 @@ try {
   const diagnostic = await page.evaluate(() => ({
     world: window.SHADEDWorldStudio?.state?.() || null,
     status: document.getElementById('world-status')?.textContent || '',
-    stages: [...document.querySelectorAll('.world-progress-row')].map(row => ({ stage: row.dataset.stage, className: row.className, status: row.querySelector('small')?.textContent || '' }))
+    inspector: document.body.classList.contains('inspector-open'),
   })).catch(() => null);
   check(`Unerwarteter Fehler: ${error.message}${diagnostic ? ` | ${JSON.stringify(diagnostic)}` : ''}`, false);
 }
