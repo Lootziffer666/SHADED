@@ -251,8 +251,17 @@ Alle vier Workflows einzeln gelesen:
   (Redundanz — `test.yml` läuft exakt denselben `npm run check` bereits auf jedem PR);
   verbleibender `push`-Trigger liefert weiterhin schnelles Feedback auf einen reinen Push
   vor Existenz eines PRs.
-- **`.github/workflows/test.yml`**, **`vercel.yml`**, **`rtx-spatial.yml`** — **Absichtlich
-  unverändert**, keine Redundanz/Altlast gefunden.
+- **`.github/workflows/vercel.yml`**, **`rtx-spatial.yml`** — **Absichtlich unverändert**,
+  keine Redundanz/Altlast gefunden.
+- **`.github/workflows/test.yml`** — **Ersetzt** (Nachtrag, per Live-CI-Check auf PR #90
+  gefunden, nicht Teil der ursprünglichen vier-Workflows-Durchsicht): `npm run check`
+  scheiterte auf jedem Push/PR an `tools/test-webgpu-shader-compile.mjs`
+  ("browserType.launch: Executable doesn't exist") — die Playwright-Chromium-Binary war
+  nie installiert. Der Fix existierte bereits auf dem Geschwister-Branch
+  `claude/village-cube-reconstruction-review` (dort divergierten beide Branches, bevor
+  er landete); hier nachgezogen: `npx playwright install chromium` vor `npm run check`,
+  identischer Schritt/Kommentar wie dort. **`no-legacy-ui.yml`** hatte denselben Bruch
+  (fehlte hier ebenfalls) — gleicher Fix ergänzt.
 
 ---
 

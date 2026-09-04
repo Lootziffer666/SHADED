@@ -25,6 +25,12 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    # ubuntu-latest already ships the system libraries Playwright Chromium needs.
+    # Avoid `--with-deps`: it performs a fresh apt transaction on every run and
+    # made browser verification depend on Ubuntu mirror availability.
+    - name: Install Playwright Chromium
+      run: npx playwright install chromium
+
     - name: Run runtime contracts and deterministic tests
       run: npm run check
 
