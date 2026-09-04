@@ -23,12 +23,14 @@ export const DEFAULT_WALK = Object.freeze({
   vz: 0,
 });
 
-export function cameraBasis(camera = DEFAULT_CAMERA) {
-  const cosPitch = Math.cos(camera.pitch);
+// Shared by cameraBasis/walkBasis: both cameras (orbit and walk) build an
+// orthonormal forward/right/up frame from nothing but yaw+pitch.
+function basisFromYawPitch(yaw, pitch) {
+  const cosPitch = Math.cos(pitch);
   const forward = [
-    Math.sin(camera.yaw) * cosPitch,
-    -Math.sin(camera.pitch),
-    Math.cos(camera.yaw) * cosPitch,
+    Math.sin(yaw) * cosPitch,
+    -Math.sin(pitch),
+    Math.cos(yaw) * cosPitch,
   ];
   const rightLength = Math.hypot(forward[2], forward[0]) || 1;
   const right = [forward[2] / rightLength, 0, -forward[0] / rightLength];
@@ -40,21 +42,12 @@ export function cameraBasis(camera = DEFAULT_CAMERA) {
   return {forward, right, up};
 }
 
+export function cameraBasis(camera = DEFAULT_CAMERA) {
+  return basisFromYawPitch(camera.yaw, camera.pitch);
+}
+
 export function walkBasis(walk = DEFAULT_WALK) {
-  const cosPitch = Math.cos(walk.pitch);
-  const forward = [
-    Math.sin(walk.yaw) * cosPitch,
-    -Math.sin(walk.pitch),
-    Math.cos(walk.yaw) * cosPitch,
-  ];
-  const rightLength = Math.hypot(forward[2], forward[0]) || 1;
-  const right = [forward[2] / rightLength, 0, -forward[0] / rightLength];
-  const up = [
-    forward[1] * right[2],
-    forward[2] * right[0] - forward[0] * right[2],
-    -forward[1] * right[0],
-  ];
-  return {forward, right, up};
+  return basisFromYawPitch(walk.yaw, walk.pitch);
 }
 
 export function projectWorld(world, width, height, camera = DEFAULT_CAMERA) {
