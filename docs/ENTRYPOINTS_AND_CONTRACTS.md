@@ -2,49 +2,51 @@
 
 Status: **canonical for `architecture/ui-zero-contracts`**.
 
-This document exists because presentation DOM had become an accidental API. That is no longer allowed.
+This branch deliberately has no authored production/editor UI. Capability is documented first;
+presentation can be rebuilt later as a replaceable client.
 
 ## Rule zero: DOM is not an API
 
 A button, panel, selector, CSS class or hidden element is never a runtime contract.
 
-If logic needs an operation, expose a function, method, event or data contract. If a future UI needs that operation, it calls the contract. It does **not** keep an old button alive, hidden or visible, just so code can click it.
-
-Engine-created hidden compatibility nodes may exist internally while old runtime code is decomposed, but no new UI or bridge may depend on their existence. They are implementation debt, not public surface.
+If logic needs an operation, expose a function, method, event or data contract. A future UI calls
+that contract. It does not keep an old element alive so code can click it.
 
 ## Canonical browser entry points
 
-| Entry point | Responsibility | Visible UI allowed? |
+| Entry point | Responsibility | Authored editor UI? |
 |---|---|---|
-| `index.html` | Boots the runtime and owns the render surface. | **No authored controls on this branch.** |
-| `runtime/shaded-engine.mjs` | Canonical scene/material/runtime truth. Creates `window.SHADED`. | No editor UI dependency. |
-| `integrations/headless-orchestrator.js` | Exposes the existing automation bridge as `window.SHADED_ORCHESTRATOR` without loading `editor/app.js`. | No. |
-| `editor/facade.js` | Thin adapter over the public `window.SHADED` API. No shader/material reimplementation. | No. |
-| `service-worker.js` | Caches the runtime host and runtime/contract modules. | No. |
+| `index.html` | Boots the runtime and owns the render host. | No |
+| `runtime/shaded-engine.mjs` | Canonical scene/material/runtime truth; creates `window.SHADED`. | No |
+| `integrations/scene-runtime-facade.js` | UI-free adapter over `window.SHADED`. | No |
+| `integrations/headless-orchestrator.js` | Creates `window.SHADED_ORCHESTRATOR`. | No |
+| `integrations/world-sandbox-runtime.js` | Creates `window.SHADEDWorldSandbox`. | No |
+| `service-worker.js` | Offline cache for the runtime host/contracts. | No |
+
+The deleted `editor/` tree is not an entry point, cache target or compatibility layer.
 
 ## Stable public engine contract: `window.SHADED`
 
-The invariant contract already used by tests, integrations and agents remains the source of truth. Existing names are not renamed merely because the UI is being rebuilt.
+Repository code and external automation currently rely on:
 
-Core stable methods/properties currently relied on by the repository:
+- `erstellen()`
+- `applyAct(id)`
+- `getParams()` / `setParams(partial)`
+- `setTime(...)`
+- `isReady()`
+- `getMaterialTypeAt(u, v)`
+- `story`
+- `loadDemo()`
+- `loadImageFile(file, isMaterial)`
+- `addActor(...)`
+- `intrinsic`
 
-- `erstellen()` — create/build the active scene.
-- `applyAct(id)` — apply a named world/story act.
-- `getParams()` / `setParams(partial)` — read/write high-level world/render parameters.
-- `setTime(...)` — drive explicit runtime time where supported.
-- `isReady()` — readiness boundary for callers.
-- `getMaterialTypeAt(u, v)` — canonical material query backed by the same classification truth as rendering.
-- `story` — storyboard contract.
-- `loadDemo()` — load the canonical demo assets when available.
-- `loadImageFile(file, isMaterial)` — install scene/material input without UI mediation.
-- `addActor(...)` — add a SWIFT-compatible actor overlay and return its handle.
-- `intrinsic` — material/light separation contract (`state`, strength/set/accept/reset/clear/sample operations as implemented by the engine).
+The engine may extend this surface. UI code must not reach into engine internals to avoid adding a
+named contract.
 
-Additional runtime capabilities may extend `window.SHADED`; UI code must feature-detect optional extensions rather than reaching into engine internals.
+## Stable headless scene contract: `window.SHADED_ORCHESTRATOR`
 
-## Stable headless contract: `window.SHADED_ORCHESTRATOR`
-
-`integrations/headless-orchestrator.js` exposes exactly the orchestration surface that used to be mixed into `editor/app.js`:
+Exposed by `integrations/headless-orchestrator.js` through `SceneRuntimeFacade`:
 
 - `loadProject(project, assets)`
 - `exportProject()`
@@ -53,61 +55,159 @@ Additional runtime capabilities may extend `window.SHADED`; UI code must feature
 - `getDebugSnapshot()`
 - `isReady()`
 
-This bridge delegates to `SceneEditorFacade`; it does not reproduce engine logic.
+The facade owns no rendering/material implementation. It delegates to the actual `window.SHADED`
+contract.
+
+## World Sandbox decomposition
+
+The former `editor/world-sandbox.js` mixed five separate responsibilities:
+
+1. simulation/controller state,
+2. CPU fallback simulation + particles,
+3. rendering/camera math,
+4. browser input/event binding,
+5. editor HUD/panel/inspector wiring.
+
+It was deleted after the reusable pieces were extracted.
+
+### Canonical modules
+
+| Module | Contract |
+|---|---|
+| `runtime/world-sandbox-reference.mjs` | CPU reference world laws and state layout |
+| `runtime/world-sandbox-webgpu.mjs` | WebGPU compute/render backend |
+| `runtime/world-sandbox-camera.mjs` | Pure orbit/walk projection and screen/world transforms |
+| `runtime/world-sandbox-cpu-backend.mjs` | CPU stepping, particle/deposit feedback and optional Canvas2D render adapter |
+| `runtime/world-sandbox-browser-backend.mjs` | Browser canvas backend selection; WebGPU with explicit CPU fallback policy |
+| `runtime/world-sandbox-runtime.mjs` | DOM-free controller and fixed-step orchestration |
+| `integrations/world-sandbox-runtime.js` | Browser-global public API |
+
+### `window.SHADEDWorldSandbox`
+
+The public bridge currently exposes:
+
+**Lifecycle/state**
+- `enter()` / `exit()`
+- `reset(seed, options)`
+- `snapshot()`
+- `active`, `backend`, `query`, `body`, `camera`, `walk`, `dayNight`, `stamps`, `world`
+
+**World control**
+- `setTool(tool)`
+- `setViewMode(mode)`
+- `setBrushRadius(radius)` — normalized world radius, not a DOM slider value
+- `setSpeed(speed)`
+- `setPaused(paused)`
+- `setEnvironment(partial)`
+
+**Tools**
+- `setPointer(x, z, options)`
+- `beginToolStroke(x, z)`
+- `continueToolStroke(x, z)`
+- `endToolStroke()`
+- `useTool(x, z)`
+- `queueStamp(...)`
+- `queueEmitter(...)`
+- `launchStone(x, z)`
+
+**Navigation/camera**
+- `enterWalk()` / `exitWalk()` / `toggleWalk()`
+- `lookWalk(delta)`
+- `orbitCamera(delta)`
+- `resetCamera()`
+- `walkInputFromGamepad(pad)`
+
+**Stepping/render**
+- `step(input)`
+- `advance(seconds, input)`
+- `render(time)`
+- `startRealtime(options)` / `stopRealtime()`
+- `attachCanvas(canvas, options)`
+
+**Deterministic replay**
+- `startCauseChain()`
+
+A future UI is allowed to turn pointer/gamepad/keyboard gestures into these calls. The runtime is
+not allowed to discover those controls itself.
+
+## CPU fallback contract
+
+The old `CpuWorldSandbox` class mixed solver state and a Canvas2D renderer. It is now split
+semantically inside `runtime/world-sandbox-cpu-backend.mjs`:
+
+- `CpuWorldSandboxBackend` runs the actual reference solver, airborne particles and particle
+  deposits without any canvas.
+- `CpuCanvasWorldSandboxBackend` adds rendering only when an explicit canvas is supplied.
+
+The CPU path is therefore usable in Node/headless tests without inventing invisible DOM.
+
+## Browser backend/fallback contract
+
+`BrowserWorldSandboxBackend.create(canvas, options)` tries WebGPU when requested. If WebGPU cannot
+start, it uses the real CPU/Canvas backend.
+
+A WebGPU canvas may not be reusable as Canvas2D. Therefore late fallback accepts an explicit
+`replaceCanvas(oldCanvas)` callback from the presentation client. The runtime never clones or
+replaces DOM by itself.
+
+## Input contract
+
+Input polling/event binding was not preserved as runtime code.
+
+Pure input semantics were preserved:
+
+- analog deadzone mapping,
+- standard gamepad axis -> forward/strafe/look mapping,
+- analog magnitude preservation,
+- walk movement and look,
+- camera orbit/projection/screen-to-world math.
+
+Keyboard, pointer, touch, stylus and gamepad event listeners belong to future input adapters.
+
+## Preserved cause/effect behavior
+
+The extraction keeps:
+
+- sand/water/seed/dig/heat/focus/carve tool semantics,
+- directional `STAMP.CARVE`,
+- particle -> physical deposit feedback,
+- stone rigid-body-ish fall/contact/buoyancy/impact stamps,
+- walk state,
+- day/night -> temperature -> actual world-state coupling,
+- deterministic cause-chain replay,
+- CPU reference query sampling,
+- WebGPU backend compatibility,
+- Canvas fallback visualization and debug field modes.
+
+## What was intentionally destroyed
+
+- `editor/world-sandbox.js`
+- World Studio overlays/panels
+- topbar/rail/inspector/drawer code
+- editor CSS
+- duplicate mobile/desktop sandbox toolbars
+- UI event plumbing
+- tests whose only purpose was proving old buttons/selectors existed
+- `gui.html`
+
+Git history remains the archive. Deleted presentation is not a migration target.
 
 ## Schema/data contracts
 
-These are contracts independent of any UI and survive UI replacement:
+These survive presentation replacement:
 
 - `contracts/shaded-scene-project.schema.json`
 - `contracts/shaded-spatial-provider.schema.json`
 - `contracts/shaded-style-profile.schema.json`
 - `contracts/shaded-technique-registry.schema.json`
-- Provider/channel/provenance conventions documented under `docs/` and consumed by runtime/tools.
 
 The schemas define data. HTML IDs do not.
 
-## World Sandbox: capability kept, host quarantined
+## Rebuild condition for a future UI
 
-The sandbox solver stack is **not deleted**:
+A new control must be explainable as:
 
-- `runtime/world-sandbox-reference.mjs`
-- `runtime/world-sandbox-webgpu.mjs`
-- `runtime/world-sandbox-light.mjs`
-- `runtime/world-sandbox-growth.mjs`
-- `runtime/world-sandbox-mesh.mjs`
-- related solver modules/tests
+> user gesture -> named contract call -> state/result -> render
 
-However, `editor/world-sandbox.js` currently starts by requiring presentation elements (`#panel-sandbox`, `#btn-world-sandbox`, a rail button and `#world-sandbox-canvas`) and throws if its host is missing. That means the file currently mixes capability/controller/render/input/UI binding.
-
-Therefore it is intentionally **not loaded by `index.html` on this branch**.
-
-Re-entry condition: split the sandbox into a DOM-independent runtime/controller API plus a new UI binding. The new binding may call methods such as start/pause/setTool/setBrush/setEnvironment/query; it may not require legacy panel IDs to make the simulation exist.
-
-## Quarantined presentation modules
-
-The following may remain in git temporarily as donor/reference code, but they are **not active entry points** and must not be reattached wholesale:
-
-- `editor/app.js` (UI wiring mixed with the old orchestrator exposure)
-- `editor/ui-shell.js`
-- `editor/ux-fixes.js`
-- `editor/drawer-handle.js`
-- `editor/world-room-gate.js`
-- `editor/world-studio.js`
-- `editor/world-studio-v4.js`
-- `editor/world-studio-expert.js`
-- `editor/world-studio-bridge-settings.js`
-- `editor/material-preview-live.js`
-- legacy World Studio/editor CSS
-
-Useful logic must be extracted behind a named contract first. Presentation markup/styles are not migration targets.
-
-## Rebuild order
-
-1. Keep this UI-zero host bootable.
-2. Extract capability APIs from modules that currently require DOM controls.
-3. Add tests against those APIs without clicking UI.
-4. Build a new UI from zero against those contracts.
-5. Delete quarantined presentation files once their useful capability code has been extracted or proven redundant.
-
-The UI is a client of SHADED. It is not SHADED's nervous system.
+If implementing the control requires restoring an old selector/ID so hidden code starts working,
+the boundary is wrong.

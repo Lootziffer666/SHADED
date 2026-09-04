@@ -4,37 +4,61 @@ Branch: `architecture/ui-zero-contracts`
 
 ## Purpose
 
-Remove the accumulated editor presentation from the running application long enough to expose the actual engine boundaries. A broken/absent authoring UI is preferable to preserving accidental DOM contracts.
+The old production/editor UI is deleted. This branch exists to make runtime boundaries real before
+any new authoring surface is built.
+
+A few hours with no UI is cheaper than another year of hidden DOM acting as architecture.
 
 ## Hard rules
 
-1. `index.html` is a **runtime host**, not an editor composition.
-2. No legacy World Studio, topbar/rail/inspector shell, drawer or hidden legacy panel is loaded by the host.
-3. `display:none` is not a migration strategy. Hidden presentation elements are not kept as API adapters.
-4. Code that needs an action receives a function/API/event. It does not receive a fake visible button, a hidden button or a selector to an old panel.
-5. Runtime code may temporarily create internal compatibility stubs while it is decomposed, but no new code may depend on those stubs as a public contract.
-6. New UI work starts from contracts in `docs/ENTRYPOINTS_AND_CONTRACTS.md`, not by re-enabling quarantined modules.
-7. `editor/world-sandbox.js` is not reattached until simulation/controller behavior is separable from its current DOM host requirements.
-8. Legacy UI files can be mined for useful behavior, then the behavior is moved behind a contract. Their markup/CSS structure has no preservation value.
+1. `index.html` is a runtime host, not an editor composition.
+2. The production `editor/` tree does not exist on this branch.
+3. `display:none`, hidden controls and transparent compatibility buttons are not migration tools.
+4. Runtime capability must be callable without authored DOM.
+5. A future UI calls named contracts; runtime never searches for the UI.
+6. `window.SHADED`, `window.SHADED_ORCHESTRATOR` and `window.SHADEDWorldSandbox` are the browser
+   contract surfaces.
+7. An explicit canvas/render target may be passed to a renderer. A selector for a legacy canvas
+   may not be baked into runtime code.
+8. Input adapters may translate keyboard/pointer/touch/gamepad events into runtime calls. The
+   runtime does not install presentation event listeners.
+9. Deleted UI may be mined from git history for behavior only. Copying its DOM/CSS structure back
+   into production is prohibited.
+10. Solver/research labs are separate development artifacts and are not production UI.
 
-## What must remain alive while the UI is gone
+## World Sandbox result
 
-- `window.SHADED`
-- canonical material/classification truth
-- scene load/create APIs
-- actor/intrinsic/story contracts
-- headless `window.SHADED_ORCHESTRATOR`
-- provider/schema contracts
-- solver and WebGPU/reference simulation modules and their tests
+`editor/world-sandbox.js` is gone.
 
-## Definition of done for the next UI
+Its useful pieces now live behind:
 
-The replacement UI is allowed to exist only when every control can be described as:
+- `runtime/world-sandbox-runtime.mjs`
+- `runtime/world-sandbox-cpu-backend.mjs`
+- `runtime/world-sandbox-camera.mjs`
+- `runtime/world-sandbox-browser-backend.mjs`
+- `runtime/world-sandbox-reference.mjs`
+- `runtime/world-sandbox-webgpu.mjs`
+- `integrations/world-sandbox-runtime.js`
 
-> user gesture → named contract call → state/result → render
+The old file's panel/HUD/rail/DOM event plumbing was intentionally not migrated.
 
-and not:
+## Definition of done for a future UI
 
-> user gesture → DOM element expected by old code → side effect nobody can name.
+Every control must have a sentence of this shape:
 
-Run `node tools/verify-no-legacy-ui.mjs` before merging UI work.
+> This gesture calls `<contract method>` with `<data>`, observes `<state/result>`, then renders
+> `<presentation>`.
+
+If the sentence instead contains "find this old element", "click this hidden button" or "toggle
+this legacy class", the design fails.
+
+## Guard
+
+Run:
+
+```bash
+npm run check
+```
+
+`tools/verify-no-legacy-ui.mjs` rejects restoration of the deleted production editor tree and
+authored controls in the runtime host.

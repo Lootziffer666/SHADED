@@ -1,4 +1,4 @@
-const CACHE = 'shaded-runtime-v1';
+const CACHE = 'shaded-runtime-v2';
 const SHELL = [
   './',
   './index.html',
@@ -12,8 +12,15 @@ const SHELL = [
   './runtime/actor-bridge.mjs',
   './runtime/weather-particles.mjs',
   './runtime/player-fire.mjs',
+  './runtime/world-sandbox-reference.mjs',
+  './runtime/world-sandbox-webgpu.mjs',
+  './runtime/world-sandbox-camera.mjs',
+  './runtime/world-sandbox-cpu-backend.mjs',
+  './runtime/world-sandbox-browser-backend.mjs',
+  './runtime/world-sandbox-runtime.mjs',
+  './integrations/scene-runtime-facade.js',
   './integrations/headless-orchestrator.js',
-  './editor/facade.js'
+  './integrations/world-sandbox-runtime.js'
 ];
 
 self.addEventListener('install', (event) => {

@@ -1,8 +1,7 @@
-import { SceneEditorFacade } from '../editor/facade.js';
+import {SceneRuntimeFacade} from './scene-runtime-facade.js';
 
-// Contract-only bridge. No buttons, panels, selectors or presentation logic live here.
-// It preserves the existing headless orchestration surface while editor/app.js is quarantined.
-const facade = new SceneEditorFacade();
+// Stable automation bridge. It depends on window.SHADED, never on authored DOM.
+const facade = new SceneRuntimeFacade();
 
 window.SHADED_ORCHESTRATOR = Object.freeze({
   loadProject: (project, assets) => facade.loadProject(project, assets),

@@ -1,13 +1,16 @@
-name: No Legacy UI
+name: UI Zero Contracts
 
 on:
   push:
   pull_request:
 
 jobs:
-  contract-guard:
+  contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify legacy UI is not an active contract
-        run: node tools/verify-no-legacy-ui.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts
+      - run: npm run check
