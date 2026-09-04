@@ -17,6 +17,7 @@
 import { touchState, isTouchDevice } from "../ui/touchControls.js";
 import { gamepadState, pollGamepad } from "./gamepad.js";
 import { S } from "./settings.js";
+import { overlayState } from "../ui/overlay.js";
 
 export const input = {
     // Movement axes, camera-relative, already normalised to a unit disc.
@@ -68,8 +69,11 @@ export function initInput(canvas, hooks) {
     canvas.addEventListener("click", () => {
         // Pointer lock is a desktop-mouse concept; touch devices drive look
         // through the twin-stick overlay instead, and requesting it there
-        // just produces an unwanted permission prompt.
-        if (!input.locked && !isTouchDevice()) canvas.requestPointerLock();
+        // just produces an unwanted permission prompt. Also skipped while
+        // the settings panel is up: it released the pointer for a free
+        // cursor, and a click meant for one of its controls must not
+        // immediately recapture the mouse.
+        if (!input.locked && !isTouchDevice() && !overlayState.open) canvas.requestPointerLock();
     });
 
     document.addEventListener("pointerlockchange", () => {

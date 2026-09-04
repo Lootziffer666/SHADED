@@ -1,208 +1,151 @@
 /**
- * Settings + performance overlay. Hidden by default, toggled with F1 / backtick.
+ * Settings + performance panel — a real object in the world, not a screen
+ * overlay. F1 / backtick / the touch gear button / gamepad Start summons a
+ * plane a metre in front of the player, billboarded to face the camera, with
+ * the whole control tree projected onto it via `@babylonjs/gui`'s
+ * `AdvancedDynamicTexture.CreateForMesh`. Closing it just hides the mesh.
  *
- * This is the only UI in the demo. It is built once from `SCHEMA`; the readouts
- * refresh on a 4 Hz timer rather than per frame, because formatting numbers into
- * strings 90 times a second is steady garbage for no benefit. The frame graph
- * redraws at 20 Hz — fast enough to watch a hitch appear, cheap enough to
- * ignore.
+ * Interaction needs a free cursor, so opening the panel releases pointer
+ * lock; `overlayState.open` is exported so input.js's click-to-relock
+ * handler can back off while it's up, or a click meant for a checkbox would
+ * also recapture the mouse.
  */
 
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import {
+    AdvancedDynamicTexture, StackPanel, ScrollViewer, TextBlock, Slider,
+    Checkbox, Button, Grid, Control,
+} from "@babylonjs/gui";
+
 import { S, SCHEMA, set, applyPreset } from "../core/settings.js";
-import { stats, systemMs, FrameGraph, spikes, resetSpikes } from "../core/perf.js";
+import { stats, systemMs, spikes, resetSpikes } from "../core/perf.js";
 
-const CSS = `
-#ov {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 80;
-  width: 336px; display: none;
-  font: 400 11px/1.5 ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
-  color: #cddaea;
-  background: rgba(8, 12, 19, 0.86);
-  backdrop-filter: blur(18px) saturate(1.2);
-  border-left: 1px solid rgba(143, 196, 232, 0.14);
-  overflow-y: auto; overscroll-behavior: contain;
-  padding: 14px 16px 40px;
-}
-#ov.show { display: block; }
-#ov::-webkit-scrollbar { width: 8px; }
-#ov::-webkit-scrollbar-thumb { background: rgba(143,196,232,0.16); border-radius: 4px; }
+/** Shared with input.js so an open panel doesn't also re-request pointer lock on click. */
+export const overlayState = { open: false };
 
-#ov h2 {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase;
-  color: #6f8296; margin: 20px 0 8px; padding-bottom: 6px;
-  border-bottom: 1px solid rgba(143, 196, 232, 0.10);
-}
-#ov h2:first-child { margin-top: 0; }
+const PANEL_W = 1.35; // metres
+const PANEL_H = 1.95;
+const TEX_W = 900;
+const TEX_H = 1300;
+/** Distance and vertical offset the panel floats at in front of the camera. */
+const FLOAT_DIST = 1.15;
+const FLOAT_DROP = 0.12;
 
-#ov .hdr {
-  display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 12px;
-}
-#ov .hdr b { font-size: 11px; font-weight: 600; letter-spacing: 0.3em; color: #e6eff8; }
-#ov .hdr i { font-style: normal; font-size: 9px; letter-spacing: 0.14em; color: #55677a; }
-
-#ov canvas { width: 100%; height: 66px; display: block;
-  background: rgba(0,0,0,0.32); border: 1px solid rgba(143,196,232,0.10); border-radius: 3px; }
-
-#ov .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin-top: 8px; }
-#ov .num { display: flex; justify-content: space-between; }
-#ov .num span:first-child { color: #6f8296; }
-#ov .num span:last-child { font-variant-numeric: tabular-nums; color: #dbe6f2; }
-#ov .num.warn span:last-child { color: #e8b04f; }
-#ov .num.bad  span:last-child { color: #e8734f; }
-
-#ov .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
-#ov .row > label { flex: 0 0 108px; color: #8fa3b8; cursor: default; }
-#ov .row > .val { flex: 0 0 46px; text-align: right; font-variant-numeric: tabular-nums; color: #dbe6f2; }
-
-#ov input[type=range] { flex: 1; -webkit-appearance: none; appearance: none;
-  height: 2px; background: rgba(143,196,232,0.18); border-radius: 2px; outline: none; }
-#ov input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
-  width: 10px; height: 10px; border-radius: 50%; background: #8fc4e8; cursor: grab;
-  box-shadow: 0 0 8px rgba(143,196,232,0.5); }
-#ov input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; background: #eaf4ff; }
-
-#ov .tog { flex: 1; display: flex; align-items: center; justify-content: flex-end; }
-#ov .sw { width: 26px; height: 14px; border-radius: 7px; background: rgba(143,196,232,0.16);
-  position: relative; cursor: pointer; transition: background 140ms ease; }
-#ov .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px;
-  border-radius: 50%; background: #7d8ea3; transition: transform 140ms cubic-bezier(0.4,0,0.2,1), background 140ms ease; }
-#ov .sw.on { background: rgba(143,196,232,0.34); }
-#ov .sw.on::after { transform: translateX(12px); background: #eaf4ff; }
-
-#ov select { flex: 1; background: rgba(0,0,0,0.35); color: #dbe6f2;
-  border: 1px solid rgba(143,196,232,0.16); border-radius: 3px; padding: 2px 5px;
-  font: inherit; outline: none; cursor: pointer; }
-
-#ov .presets { display: flex; gap: 6px; margin-top: 4px; }
-#ov .presets button { flex: 1; background: rgba(143,196,232,0.07); color: #8fa3b8;
-  border: 1px solid rgba(143,196,232,0.14); border-radius: 3px; padding: 5px 0;
-  font: inherit; letter-spacing: 0.08em; cursor: pointer; transition: all 140ms ease; }
-#ov .presets button:hover { background: rgba(143,196,232,0.14); color: #dbe6f2; }
-#ov .presets button.on { background: rgba(143,196,232,0.22); color: #eaf4ff; border-color: rgba(143,196,232,0.4); }
-
-#ov .budget { margin-top: 4px; }
-#ov .budget .num span:last-child { color: #9fb4c8; }
-
-#ov .nums.one { grid-template-columns: 1fr; gap: 1px; }
-/* white-space: pre so the sign-padding in fmt2 survives — without it the
-   columns shift by a character every time a coordinate crosses zero. */
-#ov .cam .num span:last-child { color: #a9d3ef; letter-spacing: 0.02em; white-space: pre; }
-#ov .pose { margin-top: 7px; padding: 6px 7px; border-radius: 3px;
-  background: rgba(0,0,0,0.34); border: 1px solid rgba(143,196,232,0.10);
-  color: #7f93a8; font-size: 10px; line-height: 1.45; word-break: break-all;
-  user-select: text; cursor: text; }
-`;
+const ROW_H = 42;
+const LABEL_W = 340;
+const FONT = 24;
+const FONT_SMALL = 20;
 
 export class Overlay {
     /**
      * @param {{ rig?: import("../core/camera.js").CameraRig,
      *           character?: import("../character/controller.js").CharacterController }} [refs]
-     *   Live systems the debug readouts sample. Optional so the overlay can be
-     *   constructed before they exist; see `attach()`.
+     * @param {import("@babylonjs/core/scene").Scene} scene
      */
-    constructor(refs) {
-        const style = document.createElement("style");
-        style.textContent = CSS;
-        document.head.appendChild(style);
-
-        const el = document.createElement("div");
-        el.id = "ov";
-        document.body.appendChild(el);
-        this.el = el;
-
-        this.visible = false;
-
-        // --------------------------------------------------------- header
-        const hdr = document.createElement("div");
-        hdr.className = "hdr";
-        hdr.innerHTML = "<b>SNOWFLOW</b><i>F1 to close</i>";
-        el.appendChild(hdr);
-
-        // ----------------------------------------------------- frame graph
-        const cv = document.createElement("canvas");
-        cv.width = 304;
-        cv.height = 66;
-        el.appendChild(cv);
-        this.graph = new FrameGraph(cv);
-
-        // --------------------------------------------------------- numbers
-        const nums = document.createElement("div");
-        nums.className = "nums";
-        el.appendChild(nums);
-
-        /** @type {Record<string, HTMLElement>} */
-        this.readouts = {};
-        this._mkNum(nums, "fps", "fps");
-        this._mkNum(nums, "fpsLow", "1% low");
-        this._mkNum(nums, "median", "median");
-        this._mkNum(nums, "p99", "99th");
-        this._mkNum(nums, "gpu", "gpu ms");
-        this._mkNum(nums, "draws", "draws");
-        this._mkNum(nums, "tris", "tris");
-        this._mkNum(nums, "spikes", "spikes");
-        this._mkNum(nums, "res", "res");
-
-        // ---------------------------------------------------- frame budget
-        const bh = document.createElement("h2");
-        bh.textContent = "Frame budget";
-        el.appendChild(bh);
-        const budget = document.createElement("div");
-        budget.className = "nums budget";
-        el.appendChild(budget);
-        this.budgetEl = budget;
-        /** @type {Map<string, HTMLElement>} */
-        this.budgetRows = new Map();
-
-        // --------------------------------------------------------- camera
-        // Debug readout for framing a view and reproducing it later: everything
-        // the pose line below needs, in the units the rig actually stores.
+    constructor(refs, scene) {
+        this.scene = scene;
         this.rig = refs?.rig ?? null;
         this.character = refs?.character ?? null;
 
-        const ch = document.createElement("h2");
-        ch.textContent = "Camera";
-        el.appendChild(ch);
-        const cam = document.createElement("div");
-        cam.className = "nums one cam";
-        el.appendChild(cam);
-        this._mkNum(cam, "camPos", "eye");
-        this._mkNum(cam, "camAng", "yaw / pitch");
-        this._mkNum(cam, "camArm", "arm / fov");
-        this._mkNum(cam, "chrPos", "player");
-        this._mkNum(cam, "chrMot", "speed / facing");
+        this.mesh = MeshBuilder.CreatePlane("settingsPanel", { width: PANEL_W, height: PANEL_H }, scene);
+        this.mesh.isVisible = false;
+        this.mesh.isPickable = true;
+        this.mesh.renderingGroupId = 2;
+        this.mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
 
-        const pose = document.createElement("div");
-        pose.className = "pose";
-        pose.textContent = "—";
-        el.appendChild(pose);
+        const adt = AdvancedDynamicTexture.CreateForMesh(this.mesh, TEX_W, TEX_H, true);
+        adt.background = "#0a0f16";
+        this.adt = adt;
+
+        const scroll = new ScrollViewer("settingsScroll");
+        scroll.width = 1;
+        scroll.height = 1;
+        scroll.barColor = "#8fc4e8";
+        scroll.barBackground = "rgba(143,196,232,0.12)";
+        scroll.thickness = 0;
+        adt.addControl(scroll);
+
+        const root = new StackPanel("settingsRoot");
+        root.width = TEX_W - 40 + "px";
+        root.isVertical = true;
+        root.paddingTopInPixels = 20;
+        root.paddingBottomInPixels = 40;
+        root.spacing = 2;
+        scroll.addControl(root);
+        this.root = root;
+
+        // --------------------------------------------------------- header
+        const hdr = this._mkHeaderText("SNOWFLOW  ·  press F1 to close");
+        root.addControl(hdr);
+
+        // --------------------------------------------------------- perf
+        this._addGroupHeader("Performance");
+        const numsGrid = this._mkNumGrid();
+        root.addControl(numsGrid.grid);
+        this.readouts = numsGrid.readouts;
+        this._mkNum(numsGrid, "fps", "fps");
+        this._mkNum(numsGrid, "fpsLow", "1% low");
+        this._mkNum(numsGrid, "median", "median");
+        this._mkNum(numsGrid, "p99", "99th");
+        this._mkNum(numsGrid, "gpu", "gpu ms");
+        this._mkNum(numsGrid, "draws", "draws");
+        this._mkNum(numsGrid, "tris", "tris");
+        this._mkNum(numsGrid, "spikes", "spikes");
+        this._mkNum(numsGrid, "res", "res");
+
+        this._addGroupHeader("Frame budget");
+        this.budgetGrid = this._mkNumGrid();
+        root.addControl(this.budgetGrid.grid);
+        /** @type {Map<string, TextBlock>} */
+        this.budgetRows = new Map();
+
+        // ------------------------------------------------------- camera
+        this._addGroupHeader("Camera");
+        const camGrid = this._mkNumGrid();
+        root.addControl(camGrid.grid);
+        this._mkNum(camGrid, "camPos", "eye");
+        this._mkNum(camGrid, "camAng", "yaw / pitch");
+        this._mkNum(camGrid, "camArm", "arm / fov");
+        this._mkNum(camGrid, "chrPos", "player");
+        this._mkNum(camGrid, "chrMot", "speed / facing");
+        Object.assign(this.readouts, camGrid.readouts);
+
+        const pose = new TextBlock("pose");
+        pose.text = "—";
+        pose.color = "#7f93a8";
+        pose.fontSize = FONT_SMALL - 4;
+        pose.textWrapping = true;
+        pose.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        pose.height = "90px";
+        pose.paddingTopInPixels = 6;
+        root.addControl(pose);
         this.poseEl = pose;
 
-        const pb = document.createElement("div");
-        pb.className = "presets";
-        el.appendChild(pb);
-        const copy = document.createElement("button");
-        copy.textContent = "copy pose";
-        copy.onclick = () => this._copyPose(copy);
-        pb.appendChild(copy);
+        const copyBtn = Button.CreateSimpleButton("copyPose", "copy pose");
+        this._styleButton(copyBtn);
+        copyBtn.height = "44px";
+        copyBtn.onPointerClickObservable.add(() => this._copyPose(copyBtn));
+        root.addControl(copyBtn);
 
-        // -------------------------------------------------------- presets
-        const ph = document.createElement("h2");
-        ph.textContent = "Quality";
-        el.appendChild(ph);
-        const pr = document.createElement("div");
-        pr.className = "presets";
-        el.appendChild(pr);
+        // ------------------------------------------------------- presets
+        this._addGroupHeader("Quality");
+        const presetRow = new StackPanel("presets");
+        presetRow.isVertical = false;
+        presetRow.height = "44px";
+        presetRow.spacing = 8;
+        root.addControl(presetRow);
         this.presetBtns = {};
         for (const name of ["ultra", "high", "balanced"]) {
-            const b = document.createElement("button");
-            b.textContent = name;
-            b.onclick = () => {
+            const b = Button.CreateSimpleButton("preset_" + name, name);
+            this._styleButton(b);
+            b.widthInPixels = (TEX_W - 40 - 16) / 3;
+            b.onPointerClickObservable.add(() => {
                 applyPreset(name);
                 this._syncPresets();
                 this._syncWidgets();
-            };
-            pr.appendChild(b);
+            });
+            presetRow.addControl(b);
             this.presetBtns[name] = b;
         }
         this._syncPresets();
@@ -212,119 +155,193 @@ export class Overlay {
         this.widgets = [];
         for (let g = 0; g < SCHEMA.length; g++) this._mkGroup(SCHEMA[g]);
 
-        // Cached number formatting so the 4 Hz refresh reuses one buffer path.
-        this._lastText = Object.create(null);
         this._acc = 0;
-        this._graphAcc = 0;
         this._camAcc = 0;
         this._pose = "";
+        this.visible = false;
     }
 
-    /**
-     * Late-bind the systems the camera readout samples.
-     * @param {{ rig?: any, character?: any }} refs
-     */
-    attach(refs) {
-        if (refs.rig) this.rig = refs.rig;
-        if (refs.character) this.character = refs.character;
+    // --------------------------------------------------------------- build
+
+    _mkHeaderText(text) {
+        const t = new TextBlock("hdr");
+        t.text = text;
+        t.color = "#e6eff8";
+        t.fontSize = FONT + 4;
+        t.height = "50px";
+        t.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        return t;
     }
 
-    _mkNum(parent, key, label) {
-        const d = document.createElement("div");
-        d.className = "num";
-        const a = document.createElement("span");
-        a.textContent = label;
-        const b = document.createElement("span");
-        b.textContent = "—";
-        d.appendChild(a);
-        d.appendChild(b);
-        parent.appendChild(d);
-        this.readouts[key] = b;
-        this.readouts[key + "_row"] = d;
+    _addGroupHeader(text) {
+        const t = new TextBlock("h_" + text);
+        t.text = text.toUpperCase();
+        t.color = "#6f8296";
+        t.fontSize = FONT_SMALL - 2;
+        t.height = "40px";
+        t.paddingTopInPixels = 14;
+        t.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        this.root.addControl(t);
+    }
+
+    /** A grid of label/value rows — one stat per row, label left / value right. */
+    _mkNumGrid() {
+        const grid = new Grid("nums");
+        grid.width = 1;
+        grid.addColumnDefinition(0.5);
+        grid.addColumnDefinition(0.5);
+        return { grid, readouts: Object.create(null), _row: 0 };
+    }
+
+    _mkNum(g, key, label) {
+        const row = g._row;
+        g.grid.addRowDefinition(ROW_H, true);
+        const lab = new TextBlock();
+        lab.text = label;
+        lab.color = "#6f8296";
+        lab.fontSize = FONT_SMALL;
+        lab.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        const val = new TextBlock();
+        val.text = "—";
+        val.color = "#dbe6f2";
+        val.fontSize = FONT_SMALL;
+        val.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        g.grid.addControl(lab, row, 0);
+        g.grid.addControl(val, row, 1);
+        g._row++;
+        g.grid.heightInPixels = g._row * ROW_H;
+        g.readouts[key] = val;
+        g.readouts[key + "_row"] = lab;
     }
 
     _mkGroup(group) {
-        const h = document.createElement("h2");
-        h.textContent = group.group;
-        this.el.appendChild(h);
-
+        this._addGroupHeader(group.group);
         for (let i = 0; i < group.items.length; i++) {
             const it = group.items[i];
-            const row = document.createElement("div");
-            row.className = "row";
-            const lab = document.createElement("label");
-            lab.textContent = it.l;
-            row.appendChild(lab);
+            const row = new Grid();
+            row.height = ROW_H + "px";
+            row.addColumnDefinition(LABEL_W, true);
+            row.addColumnDefinition(1);
+
+            const lab = new TextBlock();
+            lab.text = it.l;
+            lab.color = "#8fa3b8";
+            lab.fontSize = FONT_SMALL;
+            lab.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+            row.addControl(lab, 0, 0);
 
             if (it.t === "f") {
-                const r = document.createElement("input");
-                r.type = "range";
-                r.min = String(it.min);
-                r.max = String(it.max);
-                r.step = String(it.step);
-                r.value = String(S[it.k]);
-                const v = document.createElement("span");
-                v.className = "val";
-                v.textContent = fmtNum(S[it.k], it.step);
-                r.oninput = () => {
-                    const n = parseFloat(r.value);
+                const wrap = new StackPanel();
+                wrap.isVertical = false;
+                wrap.height = 1;
+
+                const s = new Slider();
+                s.minimum = it.min;
+                s.maximum = it.max;
+                s.value = S[it.k];
+                s.step = it.step;
+                s.widthInPixels = TEX_W - 40 - LABEL_W - 100;
+                s.heightInPixels = ROW_H;
+                s.color = "#8fc4e8";
+                s.background = "rgba(143,196,232,0.18)";
+                s.onValueChangedObservable.add((n) => {
                     set(it.k, n);
-                    v.textContent = fmtNum(n, it.step);
-                };
-                row.appendChild(r);
-                row.appendChild(v);
+                    v.text = fmtNum(n, it.step);
+                });
+
+                const v = new TextBlock();
+                v.text = fmtNum(S[it.k], it.step);
+                v.color = "#dbe6f2";
+                v.fontSize = FONT_SMALL;
+                v.widthInPixels = 90;
+                v.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+
+                wrap.addControl(s);
+                wrap.addControl(v);
+                row.addControl(wrap, 0, 1);
+
                 this.widgets.push({
                     k: it.k,
                     sync: () => {
-                        r.value = String(S[it.k]);
-                        v.textContent = fmtNum(S[it.k], it.step);
+                        s.value = S[it.k];
+                        v.text = fmtNum(S[it.k], it.step);
                     },
                 });
             } else if (it.t === "b") {
-                const wrap = document.createElement("div");
-                wrap.className = "tog";
-                const sw = document.createElement("div");
-                sw.className = "sw" + (S[it.k] ? " on" : "");
-                sw.onclick = () => {
-                    const n = !S[it.k];
-                    set(it.k, n);
-                    sw.classList.toggle("on", n);
-                };
-                wrap.appendChild(sw);
-                row.appendChild(wrap);
-                this.widgets.push({
-                    k: it.k,
-                    sync: () => sw.classList.toggle("on", !!S[it.k]),
-                });
+                const cb = new Checkbox();
+                cb.widthInPixels = 34;
+                cb.heightInPixels = 34;
+                cb.isChecked = !!S[it.k];
+                cb.color = "#eaf4ff";
+                cb.background = "rgba(143,196,232,0.16)";
+                cb.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                cb.onIsCheckedChangedObservable.add((v) => set(it.k, v));
+                row.addControl(cb, 0, 1);
+                this.widgets.push({ k: it.k, sync: () => (cb.isChecked = !!S[it.k]) });
             } else if (it.t === "e") {
-                const sel = document.createElement("select");
-                for (let o = 0; o < it.opts.length; o++) {
-                    const op = document.createElement("option");
-                    op.value = it.opts[o];
-                    op.textContent = it.opts[o];
-                    sel.appendChild(op);
-                }
-                sel.value = String(S[it.k]);
-                sel.onchange = () => set(it.k, sel.value);
-                row.appendChild(sel);
-                this.widgets.push({ k: it.k, sync: () => (sel.value = String(S[it.k])) });
+                const wrap = new StackPanel();
+                wrap.isVertical = false;
+                wrap.height = 1;
+                wrap.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+
+                const val = new TextBlock();
+                val.text = String(S[it.k]);
+                val.color = "#dbe6f2";
+                val.fontSize = FONT_SMALL;
+                val.widthInPixels = 140;
+                val.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+
+                const step = (dir) => {
+                    const idx = it.opts.indexOf(S[it.k]);
+                    const next = it.opts[(idx + dir + it.opts.length) % it.opts.length];
+                    set(it.k, next);
+                    val.text = String(next);
+                };
+                const prev = Button.CreateSimpleButton("prev_" + it.k, "‹");
+                this._styleButton(prev, true);
+                prev.onPointerClickObservable.add(() => step(-1));
+                const next = Button.CreateSimpleButton("next_" + it.k, "›");
+                this._styleButton(next, true);
+                next.onPointerClickObservable.add(() => step(1));
+
+                wrap.addControl(prev);
+                wrap.addControl(val);
+                wrap.addControl(next);
+                row.addControl(wrap, 0, 1);
+                this.widgets.push({ k: it.k, sync: () => (val.text = String(S[it.k])) });
             } else if (it.t === "s") {
                 // Static status row: no `S` key behind it, nothing to click —
-                // used for structural systems that can't be toggled at
-                // runtime (see the "Core (always on)" group in settings.js).
-                const badge = document.createElement("span");
-                badge.className = "val";
-                badge.textContent = "always on";
-                row.appendChild(badge);
+                // structural systems that can't be toggled at runtime. See
+                // the "Core (always on)" group in settings.js.
+                const badge = new TextBlock();
+                badge.text = "always on";
+                badge.color = "#5c8fb0";
+                badge.fontSize = FONT_SMALL;
+                badge.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                row.addControl(badge, 0, 1);
             }
 
-            this.el.appendChild(row);
+            this.root.addControl(row);
+        }
+    }
+
+    _styleButton(b, small) {
+        b.color = "#8fa3b8";
+        b.background = "rgba(143,196,232,0.10)";
+        b.thickness = 1;
+        b.cornerRadius = 4;
+        b.fontSize = small ? FONT : FONT_SMALL;
+        if (b.textBlock) b.textBlock.color = "#dbe6f2";
+        if (small) {
+            b.widthInPixels = 44;
+            b.heightInPixels = ROW_H;
         }
     }
 
     _syncPresets() {
         for (const k in this.presetBtns) {
-            this.presetBtns[k].classList.toggle("on", S.preset === k);
+            const on = S.preset === k;
+            this.presetBtns[k].background = on ? "rgba(143,196,232,0.30)" : "rgba(143,196,232,0.10)";
         }
     }
 
@@ -332,10 +349,31 @@ export class Overlay {
         for (let i = 0; i < this.widgets.length; i++) this.widgets[i].sync();
     }
 
+    // ------------------------------------------------------------- runtime
+
+    /** Show/hide the panel, and hand pointer control to a free cursor while it's up. */
     toggle() {
         this.visible = !this.visible;
-        this.el.classList.toggle("show", this.visible);
-        if (this.visible) this._syncWidgets();
+        this.mesh.isVisible = this.visible;
+        overlayState.open = this.visible;
+        if (this.visible) {
+            this._syncWidgets();
+            this._place();
+            if (document.pointerLockElement) document.exitPointerLock();
+        }
+    }
+
+    /** Float the panel in front of the camera, slightly below eye line. */
+    _place() {
+        const rig = this.rig;
+        if (!rig) return;
+        const cam = rig.camera;
+        const f = rig.forward;
+        this.mesh.position.set(
+            cam.position.x + f.x * FLOAT_DIST,
+            cam.position.y + f.y * FLOAT_DIST - FLOAT_DROP,
+            cam.position.z + f.z * FLOAT_DIST
+        );
     }
 
     /**
@@ -345,14 +383,8 @@ export class Overlay {
     update(dtMs, engine) {
         if (!this.visible) return;
 
-        this._graphAcc += dtMs;
-        if (this._graphAcc >= 50) {
-            this._graphAcc = 0;
-            this.graph.draw();
-        }
+        this._place();
 
-        // Camera refreshes faster than the perf numbers — at 4 Hz you can't tell
-        // which way you nudged the rig.
         this._camAcc += dtMs;
         if (this._camAcc >= 100) {
             this._camAcc = 0;
@@ -368,31 +400,27 @@ export class Overlay {
         this._txt(r.fpsLow, stats.fpsLow.toFixed(0));
         this._txt(r.median, stats.median.toFixed(2));
         this._txt(r.p99, stats.p99.toFixed(2));
-        // A dash rather than 0.00 when the adapter has no timestamp query: an
-        // unavailable number and a zero one are not the same claim.
         this._txt(r.gpu, stats.gpuMs > 0 ? stats.gpuMs.toFixed(2) : "—");
         this._txt(r.draws, String(stats.drawCalls));
         this._txt(r.tris, fmtK(stats.triangles));
         this._txt(r.spikes, String(spikes.count));
         this._txt(r.res, engine.getRenderWidth() + "x" + engine.getRenderHeight());
 
-        r.fps_row.className = "num" + (stats.fps < 60 ? " bad" : stats.fps < 88 ? " warn" : "");
-        r.fpsLow_row.className = "num" + (stats.fpsLow < 60 ? " bad" : stats.fpsLow < 75 ? " warn" : "");
-        r.spikes_row.className = "num" + (spikes.count > 0 ? " warn" : "");
+        r.fps.color = stats.fps < 60 ? "#e8734f" : stats.fps < 88 ? "#e8b04f" : "#dbe6f2";
+        r.fpsLow.color = stats.fpsLow < 60 ? "#e8734f" : stats.fpsLow < 75 ? "#e8b04f" : "#dbe6f2";
+        r.spikes.color = spikes.count > 0 ? "#e8b04f" : "#dbe6f2";
 
-        // Per-system costs — rows are created lazily and then only mutated.
         for (const name in systemMs) {
             let row = this.budgetRows.get(name);
             if (!row) {
-                this._mkNum(this.budgetEl, "sys_" + name, name);
-                row = this.readouts["sys_" + name];
+                this._mkNum(this.budgetGrid, "sys_" + name, name);
+                row = this.budgetGrid.readouts["sys_" + name];
                 this.budgetRows.set(name, row);
             }
             this._txt(row, systemMs[name].toFixed(2));
         }
     }
 
-    // ------------------------------------------------------------- camera
     _updateCamera() {
         const rig = this.rig;
         const r = this.readouts;
@@ -403,8 +431,6 @@ export class Overlay {
 
         const p = rig.camera.position;
         this._txt(r.camPos, fmt2(p.x) + "  " + fmt2(p.y) + "  " + fmt2(p.z));
-        // Yaw wrapped to a compass reading; pitch signed, positive = looking
-        // down, which is the rig's own convention.
         this._txt(
             r.camAng,
             wrapDeg(rig.yaw * RAD).toFixed(1) + "°  " + signDeg(rig.pitch * RAD)
@@ -432,7 +458,6 @@ export class Overlay {
         this._txt(this.poseEl, this._pose);
     }
 
-    /** A one-liner that reproduces the current pose. Paste it into the console. */
     _poseScript() {
         const rig = this.rig;
         if (!rig) return "—";
@@ -454,12 +479,10 @@ export class Overlay {
     _copyPose(btn) {
         const text = this._pose || this._poseScript();
         const done = (ok) => {
-            btn.textContent = ok ? "copied" : "see console";
+            btn.textBlock.text = ok ? "copied" : "see console";
             if (!ok) console.log(text);
-            setTimeout(() => (btn.textContent = "copy pose"), 1200);
+            setTimeout(() => (btn.textBlock.text = "copy pose"), 1200);
         };
-        // Clipboard access can be refused (no focus, insecure context); the
-        // console fallback still gets the pose out.
         try {
             navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
         } catch {
@@ -467,11 +490,11 @@ export class Overlay {
         }
     }
 
-    /** Only touch the DOM when the string actually changed. */
+    /** Only touch a control when the string actually changed. */
     _txt(el, s) {
         if (el._v !== s) {
             el._v = s;
-            el.textContent = s;
+            el.text = s;
         }
     }
 
@@ -482,7 +505,6 @@ export class Overlay {
 
 const RAD = 180 / Math.PI;
 
-/** Fixed-width two-decimal metres, sign-padded so columns don't jitter. */
 function fmt2(v) {
     const s = v.toFixed(2);
     return v < 0 ? s : " " + s;
