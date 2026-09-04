@@ -33,6 +33,15 @@ export const touchState = {
     spellHeld2: false,
 };
 
+/** Below this fraction of the stick's radius, input reads as centred/idle — big enough that a
+ *  thumb resting near centre doesn't leak tiny unintended drift into movement/look. */
+const STICK_DEADZONE = 0.16;
+/** The pointer has to travel this fraction of the zone's own radius (not the full radius) to
+ *  reach full deflection — i.e. full deflection is reached at DRAG_RADIUS * r, well inside the
+ *  zone's edge, so an imprecise thumb still reaches max tilt without needing to drag all the way
+ *  to (or past) the physical edge of the stick. */
+const DRAG_RADIUS = 0.72;
+
 export function isTouchDevice() {
     if (typeof navigator === "undefined") return false;
     return (
@@ -47,14 +56,14 @@ const CSS = `
 #tc .cluster {
   position: absolute;
   bottom: max(16px, env(safe-area-inset-bottom) + 10px);
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
 }
 #tc .cluster.left { left: max(16px, env(safe-area-inset-left) + 10px); }
 #tc .cluster.right { right: max(16px, env(safe-area-inset-right) + 10px); align-items: flex-end; }
 
 #tc .stick-zone {
   position: relative; pointer-events: auto; touch-action: none;
-  width: clamp(112px, 30vmin, 172px); height: clamp(112px, 30vmin, 172px);
+  width: clamp(150px, 38vmin, 220px); height: clamp(150px, 38vmin, 220px);
 }
 #tc .stick-base {
   position: absolute; inset: 0; border-radius: 50%;
@@ -71,7 +80,7 @@ const CSS = `
 }
 #tc .stick-zone.active .stick-knob { background: rgba(234, 244, 255, 0.85); }
 
-#tc .row { display: flex; gap: 8px; }
+#tc .row { display: flex; gap: 10px; }
 
 #tc button {
   pointer-events: auto; touch-action: none; -webkit-touch-callout: none;
@@ -98,8 +107,8 @@ const CSS = `
 }
 
 @media (orientation: landscape) and (max-height: 420px) {
-  #tc .cluster { gap: 6px; }
-  #tc .row { gap: 6px; }
+  #tc .cluster { gap: 12px; }
+  #tc .row { gap: 8px; }
 }
 `;
 
@@ -110,7 +119,7 @@ function setupStick(zoneEl, knobEl, onChange, onEnd) {
 
     const move = (e) => {
         if (e.pointerId !== activeId) return;
-        const r = zoneEl.clientWidth / 2;
+        const r = (zoneEl.clientWidth / 2) * DRAG_RADIUS;
         let nx = (e.clientX - originX) / r;
         let ny = (e.clientY - originY) / r;
         const len = Math.hypot(nx, ny);
@@ -118,7 +127,8 @@ function setupStick(zoneEl, knobEl, onChange, onEnd) {
             nx /= len;
             ny /= len;
         }
-        knobEl.style.transform = `translate(${nx * r * 0.62}px, ${ny * r * 0.62}px)`;
+        const knobTravel = (zoneEl.clientWidth / 2) * 0.62;
+        knobEl.style.transform = `translate(${nx * knobTravel}px, ${ny * knobTravel}px)`;
         onChange(nx, ny, Math.min(len, 1));
     };
 
@@ -216,7 +226,7 @@ export function initTouchControls(_canvas, hooks) {
         moveZone,
         moveKnob,
         (nx, ny, len) => {
-            touchState.moveActive = len > 0.08;
+            touchState.moveActive = len > STICK_DEADZONE;
             touchState.moveX = nx;
             touchState.moveZ = -ny; // stick-up is forward
         },
@@ -233,7 +243,7 @@ export function initTouchControls(_canvas, hooks) {
         lookZone,
         lookKnob,
         (nx, ny, len) => {
-            touchState.lookActive = len > 0.08;
+            touchState.lookActive = len > STICK_DEADZONE;
             touchState.lookX = nx;
             touchState.lookY = ny;
         },
