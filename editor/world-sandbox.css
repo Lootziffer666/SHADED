@@ -65,6 +65,22 @@ body.world-sandbox-mode .viewport-hud.hud-right{display:none!important}
 .world-hud-status b{color:var(--ws-accent,var(--green));font-weight:750}
 .world-hud-status i{font-style:normal;color:var(--ws-active-text,var(--text))}
 
+/* Real WebGPU-init failures used to only surface inside the collapsed inspector panel
+   (#world-note) -- a device with genuinely working WebGPU could silently fall back to the CPU
+   solver with no visible reason on the always-on canvas HUD. This mirrors that same reason here,
+   where it's actually seen without opening the inspector. */
+.world-hud-error{
+  margin:0 10px 6px;
+  padding:5px 9px;
+  border-radius:8px;
+  background:color-mix(in srgb,#d94a3a 22%,transparent);
+  border:1px solid color-mix(in srgb,#d94a3a 55%,transparent);
+  color:#ffd9d1;
+  font:600 8px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.04em;
+  text-shadow:0 1px 4px #000;
+}
+
 .world-hud-controls{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;

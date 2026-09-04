@@ -9,6 +9,7 @@ import {
   stepWorldReference,
 } from '../runtime/world-sandbox-reference.mjs';
 import {WebGpuWorldSandbox} from '../runtime/world-sandbox-webgpu.mjs';
+import {createPlantGraph, createRootTip, stepGrowthTips} from '../runtime/world-sandbox-growth.mjs';
 
 const panel = document.getElementById('panel-sandbox');
 const launch = document.getElementById('btn-world-sandbox');
@@ -274,8 +275,10 @@ const VIEW_MODES = [
   {id: 1, label: 'HÖHENFELD', short: 'H'},
 ];
 
+const SPECIAL_TOOLS = new Set(['stone', 'root']); // handled directly in useTool(), not through toolDefinitions/queueStamp
+
 function setTool(tool) {
-  if (tool !== 'stone' && !toolDefinitions[tool]) return;
+  if (!SPECIAL_TOOLS.has(tool) && !toolDefinitions[tool]) return;
   state.tool = tool;
   document.querySelectorAll('[data-world-tool]').forEach(item => item.classList.toggle('active', item.dataset.worldTool === tool));
 }
@@ -397,6 +400,10 @@ class CpuWorldSandbox {
     this.image = this.offscreenContext.createImageData(this.size, this.size);
     this.particles = [];
     this.deposits = [];
+    // Growth-agent plants (world-sandbox-growth.mjs): {graph, tips, random}. Additive overlay
+    // only -- see useTool()'s own comment on why this never touches classGrid/material truth.
+    this.plants = [];
+    this.plantSeedCounter = 0;
     this.reset();
   }
 
@@ -404,7 +411,23 @@ class CpuWorldSandbox {
     this.world = createWorldState(this.size, seed, options);
     this.particles.length = 0;
     this.deposits.length = 0;
+    this.plants.length = 0;
+    this.plantSeedCounter = 0;
     this.orderKey = '';
+  }
+
+  // Spawns a single root-tip growth agent at (x, z) (normalized [0,1] world coordinates, same
+  // convention this.world's own grid uses). Each plant gets its own deterministic RNG stream
+  // (mulberry32, this project's standard) seeded from a per-instance counter, not shared platform
+  // randomness -- so replaying the same sequence of spawns/steps reproduces the same growth,
+  // matching world-sandbox-growth.mjs's own "CPU reference is the deterministic golden oracle"
+  // discipline.
+  spawnPlant(x, z) {
+    const graph = createPlantGraph();
+    const random = mulberry32(0x504c414e + this.plantSeedCounter++);
+    const angle = random() * Math.PI * 2; // same deterministic stream the tip's own growth will use, not Math.random()
+    const tip = createRootTip(x, z, angle, 1, graph, null);
+    this.plants.push({graph, tips: [tip], random});
   }
 
   spawn(emitter) {
@@ -458,6 +481,10 @@ class CpuWorldSandbox {
     this.world = stepWorldReference(this.world, this.size, dt, {stamps: allStamps, environment});
     this.spawn(emitter);
     this.integrateParticles(dt);
+    // Growth agents step AFTER the world itself, against the just-updated WETNESS/COMPACTION --
+    // same ordering relationship spawn()/integrateParticles() already have to stepWorldReference
+    // (react to this tick's world, not last tick's).
+    for (const plant of this.plants) stepGrowthTips(this.world, this.size, plant.tips, dt, plant.random, plant.graph);
     if (query) {
       this.onQuery({...sampleWorld(this.world, this.size, query.x, query.z), latencyMs: 0});
     }
@@ -641,6 +668,34 @@ class CpuWorldSandbox {
       }
     }
 
+    // Growth-agent plants (world-sandbox-growth.mjs): each graph edge drawn as a line segment
+    // running along the terrain surface (roots don't rise above ground) -- same unconditional
+    // projectWorld() convention particles/body/cursor already use below, not a new one. No wind
+    // yet (world-sandbox-wind.mjs exists and is tested/proven separately, tools/verify-world-
+    // sandbox-wind-render.mjs) and no dedicated WebGPU render path (CPU backend only for now) --
+    // both real, named follow-ups, not silently implied as finished here.
+    context.lineCap = 'round';
+    for (const plant of this.plants) {
+      for (const node of plant.graph.nodes) {
+        if (node.parentId == null) continue;
+        const parent = plant.graph.nodes[node.parentId];
+        const gx0 = Math.max(0, Math.min(size - 1, Math.round(parent.x * (size - 1))));
+        const gz0 = Math.max(0, Math.min(size - 1, Math.round(parent.z * (size - 1))));
+        const gx1 = Math.max(0, Math.min(size - 1, Math.round(node.x * (size - 1))));
+        const gz1 = Math.max(0, Math.min(size - 1, Math.round(node.z * (size - 1))));
+        const groundY0 = heightAt(gx0, gz0) * verticalScale;
+        const groundY1 = heightAt(gx1, gz1) * verticalScale;
+        const p0 = projectWorld([parent.x * 2 - 1, groundY0 + 0.0015, parent.z * 2 - 1], width, height, camera);
+        const p1 = projectWorld([node.x * 2 - 1, groundY1 + 0.0015, node.z * 2 - 1], width, height, camera);
+        context.strokeStyle = 'rgba(107,71,38,.88)'; // root brown
+        context.lineWidth = Math.max(1, node.radius * width * 3.2);
+        context.beginPath();
+        context.moveTo(p0.x, p0.y);
+        context.lineTo(p1.x, p1.y);
+        context.stroke();
+      }
+    }
+
     for (const particle of this.particles) {
       const point = projectWorld([particle.x * 2 - 1, particle.y * verticalScale, particle.z * 2 - 1], width, height, camera);
       context.fillStyle = particle.kind === 1 ? '#78b8c7'
@@ -715,6 +770,19 @@ function reportError(error) {
 
 function activateCpuFallback(error) {
   reportError(error);
+  // The real cause (error.message) previously only reached #world-note, inside the collapsed
+  // inspector panel -- a device whose WebGPU genuinely works could still silently fall back to
+  // the CPU solver with no visible reason on the always-on canvas HUD (confirmed against a real
+  // WebGPU capability report: adapter/device/context all succeed, full feature set, yet the app
+  // still fell back -- so whatever's actually failing is somewhere in this app's own shader/
+  // pipeline/buffer setup, not a genuine "no WebGPU" case, and that specific reason needs to be
+  // visible without opening the inspector to ever get diagnosed). Mirrors the same message onto
+  // the HUD overlay that's visible immediately on entering World Sandbox mode.
+  const hudError = document.getElementById('world-hud-error');
+  if (hudError) {
+    hudError.textContent = 'WEBGPU-FEHLER (Fallback auf CPU-Solver): ' + error.message;
+    hudError.hidden = false;
+  }
   if (state.backendKind === 'cpu') return;
   const previousBackend = state.backend;
   state.backendKind = 'cpu';
@@ -810,6 +878,17 @@ function launchStone(x = state.pointer.x, z = state.pointer.z) {
 function useTool(x, z) {
   if (state.tool === 'stone') {
     launchStone(x, z);
+    return;
+  }
+  if (state.tool === 'root') {
+    // Root-tip growth (world-sandbox-growth.mjs) is an additive overlay, the same relationship
+    // actors/particles already have to classGrid/getMaterialTypeAt: it reads live WETNESS/
+    // COMPACTION from the running world to decide where to grow, but never writes back into it
+    // and never touches material classification. CPU-backend only for now (this.plants lives on
+    // CpuWorldSandbox) -- optional chaining means the WebGPU backend simply doesn't spawn
+    // anything yet rather than throwing; a real WebGPU-side growth/render path is a named
+    // follow-up, not silently faked here.
+    state.backend?.spawnPlant?.(x, z);
     return;
   }
   const tool = toolDefinitions[state.tool];
@@ -1342,6 +1421,12 @@ window.SHADEDWorldSandbox = {
   exit,
   startCauseChain,
   queueStamp,
+  // Forwards directly to the CPU backend's own spawnPlant(x, z) -- same reason queueStamp is
+  // exposed here: lets tests drive a real, live growth-agent spawn without racing a canvas
+  // click/drag (this panel's own documented pre-existing click-interception issue in headless
+  // testing, noted elsewhere in this file's history for the carve tool). A no-op on the WebGPU
+  // backend (no growth-agent render path there yet).
+  spawnPlant: (x, z) => state.backend?.spawnPlant?.(x, z),
   enterWalk,
   exitWalk,
   get active() { return state.active; },
@@ -1356,4 +1441,17 @@ window.SHADEDWorldSandbox = {
   // produced -- e.g. verifying a directional tool's drag-direction computation -- without
   // racing the running simulation loop (pause first via #world-pause, then this stays stable).
   get stamps() { return state.stamps.map(stamp => ({...stamp})); },
+  // Debug-only: read-only snapshot of the CPU backend's growth-agent plants (world-sandbox-
+  // growth.mjs), one entry per spawned plant with its own node count and living-tip count --
+  // exists for tests to confirm a spawn + simulation steps actually grew a graph, without
+  // reaching into CpuWorldSandbox's own private fields. Empty on the WebGPU backend (no
+  // growth-agent render path there yet, see useTool()'s own comment on this).
+  get plants() {
+    const backend = state.backend;
+    if (!backend?.plants) return [];
+    return backend.plants.map(plant => ({
+      nodeCount: plant.graph.nodes.length,
+      livingTips: plant.tips.filter(tip => tip.alive).length,
+    }));
+  },
 };

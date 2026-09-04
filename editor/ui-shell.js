@@ -450,6 +450,19 @@ function spatialChrome() {
   return viewer._shadedSpatialChrome;
 }
 
+// Real bug found via a live user report (RAUM button "does nothing"): the MutationObserver
+// below relays a specific, actionable message (e.g. world-studio.js's "load an image first")
+// from #editor-status into this same viewportStatus element -- but updateState() here runs on
+// an unconditional 750ms interval and always overwrote viewportStatus with its own generic
+// engine-state text, stomping that message within well under a second (confirmed empirically:
+// the relay wrote the message at 6ms, updateState() overwrote it again at 473ms). A user who
+// didn't happen to be staring at that exact instant would see only the generic text and
+// reasonably conclude the button "did nothing." statusHoldUntil is a short grace window: while
+// it hasn't elapsed, updateState() leaves viewportStatus alone instead of reclaiming it on
+// every tick.
+let statusHoldUntil = 0;
+const STATUS_HOLD_MS = 4000; // long enough to actually read a short status line
+
 function updateState() {
   const loaded = !!window.SHADED;
   const ready = !!(loaded && window.SHADED.isReady?.());
@@ -457,7 +470,9 @@ function updateState() {
   state?.classList.toggle('loaded', loaded && !ready);
   state?.classList.toggle('ready', ready);
   if (state) state.lastElementChild.textContent = webglUnavailable ? 'WEBGL 2 FEHLT' : ready ? 'SCENE READY' : loaded ? 'ENGINE LIVE' : 'ENGINE';
-  if (viewportStatus) viewportStatus.textContent = webglUnavailable ? 'Szenenrenderer braucht WebGL 2 · Sandbox bleibt verfügbar' : ready ? 'Szene bereit · direkt im echten Renderer' : loaded ? 'Engine live · Bild laden oder Demo starten' : 'Engine wird geladen …';
+  if (viewportStatus && performance.now() >= statusHoldUntil) {
+    viewportStatus.textContent = webglUnavailable ? 'Szenenrenderer braucht WebGL 2 · Sandbox bleibt verfügbar' : ready ? 'Szene bereit · direkt im echten Renderer' : loaded ? 'Engine live · Bild laden oder Demo starten' : 'Engine wird geladen …';
+  }
   if (loaded) spatialChrome();
   syncWorkspaceLiveCopies();
 }
@@ -471,14 +486,20 @@ roomButton?.addEventListener('click', () => {
   setInspector(false);
   document.querySelectorAll('.rail-btn').forEach(button => button.classList.remove('active'));
   const button = document.getElementById('btn-spatial-view');
-  if (!button) { if (viewportStatus) viewportStatus.textContent = 'Raumansicht ist in diesem Engine-Zustand nicht verfügbar.'; return; }
+  if (!button) {
+    if (viewportStatus) { viewportStatus.textContent = 'Raumansicht ist in diesem Engine-Zustand nicht verfügbar.'; statusHoldUntil = performance.now() + STATUS_HOLD_MS; }
+    return;
+  }
   button.click();
   spatialChrome()?.closePanels();
 });
 
 if (editorStatus && 'MutationObserver' in window) {
   new MutationObserver(() => {
-    if (viewportStatus && editorStatus.textContent) viewportStatus.textContent = editorStatus.textContent.replace(/^[✅⚠️🧠]\s*/, '');
+    if (viewportStatus && editorStatus.textContent) {
+      viewportStatus.textContent = editorStatus.textContent.replace(/^[✅⚠️🧠]\s*/, '');
+      statusHoldUntil = performance.now() + STATUS_HOLD_MS; // see updateState()'s own comment
+    }
     syncWorkspaceLiveCopies();
   }).observe(editorStatus, { childList: true, characterData: true, subtree: true });
 }
