@@ -10,8 +10,19 @@
  * geometrically flush and fully transparent, the real dune field (with its
  * own footprints/wake/spell marks) shows straight through, and only actual
  * player interaction (sand piled or dug, standing water, growth) fades the
- * overlay in. A large fixed area (60m, centred on spawn) rather than a
- * small boxed-off patch — you are standing in it from the first frame.
+ * overlay in.
+ *
+ * The whole point is that this has to work wherever the player actually is,
+ * not just in one fixed patch — so the window re-centres on the player once
+ * they wander far enough from its middle, the same "follow the player, not
+ * the whole map" shape terrain/deformation.js's own deform buffer already
+ * uses. Snowflow's baked dune field stays the unmovable bedrock underneath;
+ * this is the reactive soil layer on top of it, and it travels with you.
+ * Re-centring is a hard reset (a fresh patch generated at the new spot, the
+ * old one's marks left behind) rather than a true scroll — simpler, and
+ * consistent with every other mark in this world (footprints, wake, spell
+ * carving) already being something that fades rather than something that's
+ * remembered forever.
  *
  * Step 1 of the revival: the simulation runs, is visible in real 3D, and is
  * touchable with one tool (sand) via aim + click. Multi-tool selection and
@@ -35,7 +46,9 @@ import { CELL_STRIDE, FIELD } from "./world-sandbox-reference.mjs";
 import { colorForCell } from "./world-sandbox-cpu-backend.mjs";
 
 const SIZE = 64; // field grid resolution
-const WORLD_SPAN = 60; // metres — a real chunk of the walkable world, not a token patch
+// 80m — matches terrain/deformation.js's own COVERAGE constant, so the soil
+// layer and the snow deformation buffer it sits above cover the same scale.
+const WORLD_SPAN = 80; // metres
 const HEIGHT_SCALE = 1.6; // metres per normalised height-delta unit
 const WATER_HEIGHT_SCALE = 1.1;
 const LIFT = 0.025; // metres, keeps the overlay a hair above the real terrain (avoids z-fighting)
@@ -46,6 +59,8 @@ const MAX_VEG = 900;
 const MAX_PARTICLES = 600;
 /** How fast a changed cell fades the overlay in from fully transparent. */
 const VISIBILITY_GAIN = 6;
+/** Metres from the window's centre the player can roam before it re-centres on them. */
+const RECENTER_MARGIN = 26;
 
 const _scale = new Vector3();
 const _rot = Quaternion.Identity();
@@ -80,6 +95,7 @@ export class SandboxRenderer {
         this._toolWasDown = false;
         this._aiming = false;
 
+        this._updateWorldPositions();
         this._captureBaseline();
         this._refresh();
     }
@@ -92,21 +108,15 @@ export class SandboxRenderer {
         const positions = new Float32Array(n * 3);
         const uvs = new Float32Array(n * 2);
         const indices = new Uint32Array((size - 1) * (size - 1) * 6);
-        const worldX = new Float32Array(n);
-        const worldZ = new Float32Array(n);
 
         for (let z = 0; z < size; z++) {
             for (let x = 0; x < size; x++) {
                 const i = z * size + x;
-                const lx = (x / (size - 1) - 0.5) * WORLD_SPAN;
-                const lz = (z / (size - 1) - 0.5) * WORLD_SPAN;
-                positions[i * 3] = lx;
+                positions[i * 3] = (x / (size - 1) - 0.5) * WORLD_SPAN;
                 positions[i * 3 + 1] = 0;
-                positions[i * 3 + 2] = lz;
+                positions[i * 3 + 2] = (z / (size - 1) - 0.5) * WORLD_SPAN;
                 uvs[i * 2] = x / (size - 1);
                 uvs[i * 2 + 1] = z / (size - 1);
-                worldX[i] = this.origin.x + lx;
-                worldZ[i] = this.origin.z + lz;
             }
         }
         let ii = 0;
@@ -147,8 +157,11 @@ export class SandboxRenderer {
         this._positions = positions;
         this._normals = new Float32Array(n * 3);
         this._colors = new Float32Array(n * 4).fill(1);
-        this._worldX = worldX;
-        this._worldZ = worldZ;
+        // Filled by _updateWorldPositions() — depends on `origin`, which can
+        // change on re-centre, so it's kept separate from the local (fixed)
+        // vertex offsets in `_positions`.
+        this._worldX = new Float32Array(n);
+        this._worldZ = new Float32Array(n);
         this._baseHeight = new Float32Array(n);
     }
 
@@ -249,6 +262,19 @@ export class SandboxRenderer {
     }
 
     /**
+     * Recompute each vertex's world-space X/Z from its fixed local offset
+     * (`_positions`' X/Z never change, only Y does) and the current origin.
+     * Called at construction and again on every re-centre.
+     */
+    _updateWorldPositions() {
+        const n = SIZE * SIZE;
+        for (let i = 0; i < n; i++) {
+            this._worldX[i] = this.origin.x + this._positions[i * 3];
+            this._worldZ[i] = this.origin.z + this._positions[i * 3 + 2];
+        }
+    }
+
+    /**
      * Sample the real terrain's height at every vertex, and record the
      * sandbox field's own starting ground level per cell — everything the
      * per-frame refresh renders is a delta from these two baselines, which
@@ -273,9 +299,44 @@ export class SandboxRenderer {
 
     // ------------------------------------------------------------ runtime
 
-    /** @param {number} dt seconds */
-    update(dt) {
+    /**
+     * @param {number} dt seconds
+     * @param {number} [playerX] current player world X — re-centres the
+     *   window on the player once they've wandered far enough from its
+     *   middle, so the soil layer is live wherever they actually are.
+     * @param {number} [playerZ]
+     */
+    update(dt, playerX, playerZ) {
+        if (playerX !== undefined && playerZ !== undefined) {
+            const dx = playerX - this.origin.x;
+            const dz = playerZ - this.origin.z;
+            if (Math.hypot(dx, dz) > RECENTER_MARGIN) this._recenter(playerX, playerZ);
+        }
         this.runtime.advance(dt, {});
+        this._refresh();
+    }
+
+    /**
+     * Re-anchor the whole patch on a new world position: a fresh field
+     * state (seeded off the new location, so different spots don't all
+     * regenerate the same look), the meshes moved to match, and both
+     * baselines recaptured against the new origin. A hard cut, not a
+     * scroll — see the class doc comment for why that's an acceptable
+     * trade for now.
+     */
+    _recenter(px, pz) {
+        this.origin.set(px, this.terrain3d.heightAt(px, pz), pz);
+        this.terrain.position.copyFrom(this.origin);
+        this.water.position.copyFrom(this.origin);
+        this.veg.position.copyFrom(this.origin);
+        this.particleMesh.position.copyFrom(this.origin);
+
+        this._updateWorldPositions();
+
+        const seed = (Math.floor(px * 131) ^ Math.floor(pz * 131) ^ 0x53484144) >>> 0;
+        this.runtime.reset(seed || 1);
+
+        this._captureBaseline();
         this._refresh();
     }
 

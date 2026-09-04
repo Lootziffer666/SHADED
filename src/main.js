@@ -281,7 +281,7 @@ async function boot() {
         spray.update(dt, rig.camera.position);
         if (S.enableSandbox) {
             sandbox.handleInput(rig.camera, toolDown);
-            sandbox.update(dt);
+            sandbox.update(dt, character.position.x, character.position.z);
         }
         const tVfx = performance.now();
 
