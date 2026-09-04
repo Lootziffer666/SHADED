@@ -8,20 +8,23 @@
 const DIALOGUE_CPS = 42; // Zeichen pro Sekunde, Schreibmaschinen-Tempo
 let dialogueBeats = [], dialogueIndex = -1, dialogueRevealChars = 0;
 
+// Reine Präsentation: dialogueBeats/dialogueIndex/dialogueRevealChars (der eigentliche
+// Dialog-Zustand) existieren unabhängig davon, ob diese DOM-Elemente da sind (Rule zero:
+// DOM is not an API) -- ein Host ohne sie liest denselben Zustand über window.SHADED.dialogue.current().
 function dialogueShowCurrent(){
   const box=document.getElementById('dialogue-box');
   const speakerEl=document.getElementById('dialogue-speaker');
   const textEl=document.getElementById('dialogue-text');
   const hintEl=document.getElementById('dialogue-hint');
-  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length){ box.classList.add('hidden'); return; }
+  if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length){ box?.classList.add('hidden'); return; }
   const beat=dialogueBeats[dialogueIndex];
-  box.classList.remove('hidden');
-  if(beat.type==='direction'){ speakerEl.textContent=''; speakerEl.className='direction'; }
-  else { speakerEl.textContent=beat.speaker||''; speakerEl.className=''; }
+  box?.classList.remove('hidden');
+  if(beat.type==='direction'){ if(speakerEl){ speakerEl.textContent=''; speakerEl.className='direction'; } }
+  else if(speakerEl){ speakerEl.textContent=beat.speaker||''; speakerEl.className=''; }
   const full=beat.text||'';
-  textEl.textContent=full.slice(0, Math.floor(dialogueRevealChars));
+  if(textEl) textEl.textContent=full.slice(0, Math.floor(dialogueRevealChars));
   const complete=dialogueRevealChars>=full.length;
-  hintEl.textContent = !complete ? '' : (dialogueIndex>=dialogueBeats.length-1 ? '■ Ende (Leertaste/Klick)' : '▶ weiter (Leertaste/Klick)');
+  if(hintEl) hintEl.textContent = !complete ? '' : (dialogueIndex>=dialogueBeats.length-1 ? '■ Ende (Leertaste/Klick)' : '▶ weiter (Leertaste/Klick)');
 }
 function dialogueTick(dt){
   if(dialogueIndex<0||dialogueIndex>=dialogueBeats.length) return;
@@ -30,7 +33,7 @@ function dialogueTick(dt){
 }
 function dialogueGoto(index){
   dialogueIndex=index; dialogueRevealChars=0;
-  if(dialogueIndex>=dialogueBeats.length){ dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); return; }
+  if(dialogueIndex>=dialogueBeats.length){ dialogueIndex=-1; document.getElementById('dialogue-box')?.classList.add('hidden'); return; }
   const beat=dialogueBeats[dialogueIndex];
   if(beat.type==='lens'){ window.SHADED.lens.set(beat.n|0); dialogueGoto(dialogueIndex+1); return; }
   if(beat.type==='sound-emit'){ const at=beat.at||[0.5,0.5]; window.SHADED.sound.emit(at[0],at[1],beat.strength==null?1:beat.strength); dialogueGoto(dialogueIndex+1); return; }
@@ -43,8 +46,8 @@ function dialogueAdvance(){
   if(dialogueRevealChars<full.length){ dialogueRevealChars=full.length; dialogueShowCurrent(); return; } // erst: Text sofort komplett zeigen
   dialogueGoto(dialogueIndex+1); // dann erst: naechster Beat
 }
-function dialogueSkip(){ dialogueBeats=[]; dialogueIndex=-1; document.getElementById('dialogue-box').classList.add('hidden'); }
-document.getElementById('dialogue-box').addEventListener('click', dialogueAdvance);
+function dialogueSkip(){ dialogueBeats=[]; dialogueIndex=-1; document.getElementById('dialogue-box')?.classList.add('hidden'); }
+document.getElementById('dialogue-box')?.addEventListener('click', dialogueAdvance);
 window.addEventListener('keydown', e=>{
   if(dialogueIndex>=0 && (e.key===' '||e.key==='Enter')){ e.preventDefault(); dialogueAdvance(); }
 });

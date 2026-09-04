@@ -46,10 +46,12 @@ assert.throws(
 
 const engine = readFileSync(new URL('../runtime/shaded-engine.mjs', import.meta.url), 'utf8');
 const viewer = readFileSync(new URL('../runtime/spatial-viewer.js', import.meta.url), 'utf8');
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(engine, /return buildRelativePointCloud\(/, 'die aktive API ruft den getesteten Operator auf');
 assert.match(viewer, /visible:'POINTS',state:'VOXELS',meshRendered:false/, 'die Laufzeit-API nennt die sichtbare Darstellung');
-assert.match(html, /SHADED erzeugt hier keine Tiefe selbst/, 'die sichtbare Eingabehilfe verspricht keinen Tiefenprovider');
-assert.match(html, /id="spatial-representation"/, 'die Raumansicht zeigt ihren Darstellungstyp');
+// Die beiden Zusicherungen gegen index.html-Text/-DOM ("SHADED erzeugt hier keine Tiefe selbst"-
+// Hinweistext, #spatial-representation) prüften die inzwischen gelöschte Editor-Oberfläche
+// (architecture/ui-zero-contracts, docs/UI_ZERO.md) -- der heutige UI-lose index.html hat keine
+// dieser Zeichenketten/Elemente mehr, und die eigentliche Provenienz-Zusicherung steht bereits
+// oben (cloud.depth.provider, camera.source etc.), unabhängig von jeder Präsentation.
 
 console.log('✅ Aktiver RGB+Tiefe→POINTS-Pfad bleibt relativ und ehrlich gekennzeichnet');

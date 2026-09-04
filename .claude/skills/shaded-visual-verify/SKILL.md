@@ -5,7 +5,17 @@ description: Pflicht-Workflow zur visuellen Verifikation von SHADED nach jeder S
 
 # SHADED visuell verifizieren
 
-## Ablauf
+**Bekannter, offener Bruch (`architecture/ui-zero-contracts`):** `tools/verify.js` treibt die
+Szene aktuell über gelöschte DOM-Elemente (`#f-scene`/`#f-mat` File-Inputs, `.topbar` fürs
+Screenshot-Clipping, `#world-studio`-Onboarding-Panel) — keins davon existiert im heutigen
+38-zeiligen UI-losen `index.html` mehr. Das Skript kann auf diesem Branch aktuell NICHT laufen,
+bis es umgebaut ist, `window.SHADED.loadImageFile(file, isMat)` (nimmt bereits ein File/Blob
+direkt entgegen) statt `page.setInputFiles('#f-scene', ...)` zu benutzen und ohne `.topbar`-
+Clipping/`#world-studio`-Ausblendung auszukommen. Siehe `UI_ZERO_REMNANT_AUDIT.md` für den Stand.
+Bis zum Umbau ersetzt eine manuelle Prüfung über `window.SHADED` (`loadImageFile`, `erstellen`,
+`applyAct`, `setTime`) plus eigene Screenshots dieses Skript.
+
+## Ablauf (Ziel-/Vorher-Zustand, siehe Warnung oben)
 
 ```bash
 npm i playwright           # einmalig; NICHT committen (.gitignore deckt das ab)

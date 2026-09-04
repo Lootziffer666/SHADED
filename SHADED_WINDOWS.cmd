@@ -28,7 +28,7 @@ timeout /t 1 /nobreak >nul
 goto WAIT
 
 :OPEN
-start "" "http://127.0.0.1:49666/editor/"
+start "" "http://127.0.0.1:49666/"
 echo SHADED wurde im Browser geoeffnet.
 echo Das Bridge-Fenster offen lassen, solange DA3/V2 lokal genutzt werden sollen.
 exit /b 0

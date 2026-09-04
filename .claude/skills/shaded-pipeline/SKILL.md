@@ -5,8 +5,13 @@ description: Architekturwissen für Änderungen an SHADEDs Analyse-Pipeline, Ren
 
 # SHADED-Pipeline: Wo was lebt
 
-Die aktuelle Runtime liegt in `index.html`. Reihenfolge im File: CSS → Sidebar-DOM → JS
-(Palette/Params → Shader-Quelltext → GL-Setup → Analyse → Storyboard → Blitze → UI → Render-Loop → `window.SHADED`).
+`architecture/ui-zero-contracts` hat die authored Editor-Oberfläche entfernt (siehe `docs/UI_ZERO.md`):
+`index.html` ist heute ein 38-zeiliger UI-loser Runtime-Host ohne Sidebar-DOM und ohne inline
+Shader-/Analyse-Code. Die eigentliche Runtime liegt in `runtime/shaded-engine.mjs` (von
+`index.html` per `<script type="module">` geladen). Reihenfolge in dieser Datei: Palette/Params →
+Shader-Quelltext → GL-Setup → Analyse → Storyboard → Blitze → Render-Loop → `window.SHADED`
+(kein UI-Abschnitt mehr; verbleibende DOM-Kopplung im engine-File selbst ist ein bekannter,
+in Arbeit befindlicher Fund, siehe `UI_ZERO_REMNANT_AUDIT.md`).
 
 **Wichtig:** Der heutige große Fragmentshader ist eine funktionierende Ausgangsimplementierung, aber keine dauerhafte Systemgrenze. Die verbindliche Zielarchitektur steht in [`docs/rendergraph-lastverteilung.md`](../../../docs/rendergraph-lastverteilung.md).
 

@@ -1,8 +1,12 @@
 name: UI Zero Contracts
 
+# pull_request deliberately omitted: "SHADED Verify" (test.yml) already runs the exact same
+# `npm run check` on every pull_request, so this workflow would just duplicate that same run on
+# every PR (the same class of redundant-CI issue vercel.yml's own comment documents fixing).
+# This workflow's remaining, non-duplicate value is fast feedback on a plain push to a feature
+# branch, before a PR exists at all -- test.yml's push trigger is restricted to main only.
 on:
   push:
-  pull_request:
 
 jobs:
   contracts:

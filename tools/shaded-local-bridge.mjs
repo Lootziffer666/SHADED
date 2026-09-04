@@ -256,7 +256,8 @@ async function generate(req, res) {
 
 function safeStaticPath(urlPath) {
   let pathname = decodeURIComponent((urlPath || '/').split('?')[0]);
-  if (pathname === '/') pathname = '/editor/';
+  // index.html is the zero-UI runtime host at the repo root now -- the deleted editor/ directory
+  // is not a redirect target any more.
   if (pathname.endsWith('/')) pathname += 'index.html';
   const candidate = path.resolve(root, `.${pathname}`);
   if (!candidate.startsWith(root + path.sep)) return null;
@@ -303,7 +304,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`SHADED local bridge: http://${host}:${port}/editor/`);
+  console.log(`SHADED local bridge: http://${host}:${port}/`);
   console.log('1 Bild -> DA3 -> V2 -> Software -> Maps -> Point Cloud -> Spiegelwelt -> Raymarch-Paket.');
   console.log('Keine Vorab-Doctors: ausfuehren, nur bei echtem Fehler weiterfallen.');
 });

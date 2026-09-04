@@ -768,23 +768,12 @@ assert.match(WORLD_SPATIAL_RENDER_WGSL, /isShrub/);
 assert.match(WORLD_SPATIAL_RENDER_WGSL, /isTree/);
 assert.match(PARTICLE_SPATIAL_RENDER_WGSL, /fn project/);
 
-const [editorHtml, integrationJs, integrationCss, engineJs] = await Promise.all([
-  readFile(new URL('../index.html', import.meta.url), 'utf8'),
-  readFile(new URL('../editor/world-sandbox.js', import.meta.url), 'utf8'),
-  readFile(new URL('../editor/world-sandbox.css', import.meta.url), 'utf8'),
-  readFile(new URL('../runtime/shaded-engine.mjs', import.meta.url), 'utf8'),
-]);
-assert.match(editorHtml, /id="btn-world-sandbox"/);
-assert.match(editorHtml, /id="world-sandbox-canvas"/);
-assert.match(editorHtml, /id="world-sandbox-hud"/);
-assert.match(editorHtml, /id="panel-sandbox"/);
-assert.match(editorHtml, /editor\/world-sandbox\.js/);
-assert.match(integrationJs, /window\.SHADEDWorldSandbox/);
-assert.match(integrationJs, /world-sandbox-mode/);
-assert.match(integrationJs, /screenToWorld/);
-assert.match(integrationJs, /beginMultiGesture/);
-assert.match(integrationCss, /body\.world-sandbox-mode/);
-assert.match(integrationCss, /#world-sandbox-hud/);
+// The former editor/world-sandbox.js + .css (and the old index.html's authored HUD/panel DOM
+// they backed -- #btn-world-sandbox, #world-sandbox-hud, #panel-sandbox, .world-sandbox-mode)
+// are gone on architecture/ui-zero-contracts (docs/UI_ZERO.md); window.SHADEDWorldSandbox's own
+// contract behaviour is covered by tools/test-world-sandbox-runtime.mjs instead, which reaches
+// it through integrations/world-sandbox-runtime.js without asserting on any deleted DOM/CSS.
+const engineJs = await readFile(new URL('../runtime/shaded-engine.mjs', import.meta.url), 'utf8');
 assert.doesNotMatch(engineJs, /document\.body\.innerHTML=.*SHADED braucht WebGL 2/);
 assert.match(engineJs, /webgl2-unavailable/);
 
