@@ -122,7 +122,7 @@ Import → eingebautes Backend (deterministische Baseline) in analyze()
 → shading + Konfidenz auf Unit 8, Provenienz INFERRED
 → Quellbild und Unit 0 unangetastet
 → GENAU EIN Weltgesetz rechnet auf Albedo: Nässe
-→ A/B über window.SHADED.intrinsic.setStrength(0..1), Regler im Editor
+→ A/B über window.SHADED.intrinsic.setStrength(0..1) -- reiner API-Aufruf, kein UI-Regler mehr (architecture/ui-zero-contracts hat die authored Editor-Oberfläche entfernt; ein künftiger Client ruft denselben Vertrag)
 → Nutzer akzeptiert / verwirft / bestätigt (USER_APPROVED)
 → Metadaten persistieren im Projektvertrag
 ```

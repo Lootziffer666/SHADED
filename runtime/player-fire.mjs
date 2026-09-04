@@ -6,9 +6,13 @@
 // window.SHADED-API an (Invariante 5); für Zustand ohne öffentlichen Platz (CUR-Referenz,
 // Weltzeit, das gemeinsame `fires`/`player`-Objekt) über window.SHADED_ENGINE_INTERNAL
 // (siehe runtime/actor-bridge.mjs für den Präzedenzfall dieses Musters).
+// ov/ovx: das Overlay-Canvas ist der eigentliche Render-Ziel-Adapter (siehe
+// runtime/shaded-engine.mjs createEngineDOM()) -- gehört zur später folgenden Kategorie-3-
+// Umstellung (expliziter Host->Adapter->Engine-Übergabe statt DOM-Lookup), noch nicht hier.
 const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
-const setStatus=s=>document.getElementById('status').textContent=s;
+// Reine Statuszeile -- Rule zero: DOM is not an API, degradiert ohne Element zum No-op.
+const setStatus=s=>{ const el=document.getElementById('status'); if(el) el.textContent=s; };
 
 if(!window.SHADED) throw new Error('player-fire.mjs: window.SHADED fehlt — muss nach shaded-engine.mjs geladen werden');
 if(!window.SHADED_ENGINE_INTERNAL) throw new Error('player-fire.mjs: window.SHADED_ENGINE_INTERNAL fehlt — muss nach shaded-engine.mjs geladen werden');
@@ -185,12 +189,15 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 
-document.getElementById('btn-fire').onclick=()=>{
+// Fachliche Fähigkeit ist window.SHADED.fire.ignite (bereits real & exportiert) -- dieser Button
+// schaltet nur den optionalen Klick-zum-Entzünden-Modus um, eine reine Präsentations-/Eingabe-
+// Verdrahtung, kein zweiter Weg, Feuer zu entzünden.
+const btnFire=document.getElementById('btn-fire');
+if(btnFire) btnFire.onclick=()=>{
   fireToolActive=!fireToolActive;
   ov.classList.toggle('firetool',fireToolActive);
-  const b=document.getElementById('btn-fire');
-  b.classList.toggle('active',fireToolActive);
-  b.textContent=fireToolActive?'🔥 Klicke in die Szene':'🔥 Feuer-Tool';
+  btnFire.classList.toggle('active',fireToolActive);
+  btnFire.textContent=fireToolActive?'🔥 Klicke in die Szene':'🔥 Feuer-Tool';
 };
 ov.addEventListener('click',e=>{
   if(!fireToolActive||!window.SHADED.isReady())return;

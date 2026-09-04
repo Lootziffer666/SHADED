@@ -377,7 +377,7 @@ Notation per module: **API** (real exports), **Implemented**, **Limitations**,
   become authoritative state.
 - **Disposition:** KEEP effects; route through `WorldFields` → effect uniforms.
 
-### 2.2 Actors / dialogue / storyboard / director (`editor/`, `window.SHADED`)
+### 2.2 Actors / dialogue / storyboard / director (`runtime/actor-bridge.mjs`, `runtime/dialogue-engine.mjs`, `window.SHADED`)
 - `addActor`, `story.board()`, SWIFT sprites — these are **render-decoration**
   (CLAUDE.md invariant 2: actors never change `classGrid`/material truth).
 - **Disposition:** KEEP. The kernel's `SceneGraph` gains an `ACTOR`/`LIGHT`/

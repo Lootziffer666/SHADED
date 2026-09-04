@@ -5,6 +5,14 @@
 **Method:** Direct code inspection (`grep`, `read`, `node --check`, live test execution)  
 **Basis:** Not README claims — every finding is traceable to a file and line range or a test run.
 
+> **Historisch:** pinned auf einen Commit vor dem UI-Zero-Pivot
+> (`architecture/ui-zero-contracts`, siehe `docs/UI_ZERO.md`). Das damalige
+> Monolith-`index.html` und die gesamte `editor/`-Baumstruktur, die dieser Audit
+> beschreibt, existieren im aktuellen Repo-Zustand nicht mehr — `index.html` ist heute
+> ein 38-zeiliger UI-loser Runtime-Host. Als Snapshot des damaligen Zustands (samt
+> Commit-Pin) bleibt dieses Dokument als Historie erhalten, nicht als aktuelle
+> Beschreibung.
+
 ---
 
 ## 0. Bottom Line

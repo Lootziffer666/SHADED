@@ -1,52 +1,35 @@
-// SceneEditorFacade — the ONE small, stable surface the rest of the editor talks to.
-// Everything else in editor/ only ever calls methods on this class, never touches
-// engine internals directly. This mirrors two things at once:
-//   - Capybara's core idea (github.com/d-liya/capybara_2d_engine): a big engine
-//     hides behind one small, documented, agent-friendly facade (their `Game.ts`).
-//   - SHADED's own existing rule for `window.SHADED` itself (CLAUDE.md: "API-Vertrag
-//     für Tests und Agenten ... nie entfernen oder umbenennen, nur erweitern").
-//
-// The facade never reimplements SHADED — it only calls the real, already-stable
-// `window.SHADED` API. Since the SHADED-is-the-editor consolidation, the engine
-// (runtime/shaded-engine.mjs) runs in the SAME document as the editor shell, so
-// `win`/`doc` resolve to the top-level window/document by default. An iframe
-// element can still be passed in (e.g. for isolated tests) — the facade doesn't
-// care which realm `window.SHADED` actually lives in.
-export class SceneEditorFacade {
-  constructor(iframeEl = null) {
-    this.iframe = iframeEl;
-    // Eigene, kleine Buchführung für headless Orchestrierung (tools/orchestrate.js,
-    // Real Golden Run R-08/R-09) — getrennt von der interaktiven ActorPlacer-Fassade,
-    // aber beide rufen exakt dieselbe `window.SHADED.addActor()`-Wahrheit auf, keine
-    // zweite Render-/Klassifikations-Logik.
+// UI-free adapter over the stable window.SHADED contract.
+// This used to live in editor/facade.js; the behavior survives, the editor dependency does not.
+
+export class SceneRuntimeFacade {
+  constructor(realm = null) {
+    this.realm = realm;
     this.actorBundles = [];
     this._nextBundleId = 1;
   }
 
   get win() {
-    return this.iframe ? this.iframe.contentWindow : window;
+    return this.realm?.contentWindow || this.realm?.window || globalThis.window;
   }
 
   get doc() {
-    return this.iframe ? this.iframe.contentDocument : document;
+    return this.realm?.contentDocument || this.realm?.document || globalThis.document;
   }
 
   isEngineLoaded() {
-    return !!(this.win && this.win.SHADED);
+    return !!this.win?.SHADED;
   }
 
   isReady() {
     return this.isEngineLoaded() && this.win.SHADED.isReady();
   }
 
-  /** Loads SHADED's own canonical demo scene + marker pair (same-origin fetch, see index.html's #btn-demo). */
   loadDemo() {
     if (!this.isEngineLoaded()) return Promise.reject(new Error('SHADED-Engine ist noch nicht geladen.'));
     if (typeof this.win.SHADED.loadDemo === 'function') return this.win.SHADED.loadDemo();
     return Promise.reject(new Error('Diese SHADED-Engine unterstützt das Laden der Demo nicht.'));
   }
 
-  /** Resolves only after the engine has decoded and installed the scene image. */
   loadSceneFile(file) {
     if (!this.isEngineLoaded()) return Promise.reject(new Error('SHADED-Engine ist noch nicht geladen.'));
     return Promise.resolve(this.win.SHADED.loadImageFile(file, false));
@@ -66,18 +49,17 @@ export class SceneEditorFacade {
   }
 
   setParams(partial) {
-    this.win.SHADED.setParams(partial);
+    return this.win.SHADED.setParams(partial);
   }
 
   applyAct(id) {
-    this.win.SHADED.applyAct(id);
+    return this.win.SHADED.applyAct(id);
   }
 
   getMaterialTypeAt(u, v) {
     return this.win.SHADED.getMaterialTypeAt(u, v);
   }
 
-  /** Resolves once the embedded engine has finished `erstellen()` (window.SHADED.isReady() === true). */
   waitUntilReady(timeoutMs = 20000) {
     return new Promise((resolve, reject) => {
       const start = performance.now();
@@ -92,21 +74,16 @@ export class SceneEditorFacade {
     });
   }
 
-  /**
-   * Fügt einen SWIFT-Sprite-Actor über die reale `window.SHADED.addActor()`-Schnittstelle
-   * hinzu (dieselbe Engine-Methode wie ActorPlacer, siehe Klassenkommentar oben). Tracks
-   * das Ergebnis in `this.actorBundles` für `getRuntimeStatus`/`getDebugSnapshot`/`exportProject`.
-   */
   async addActorBundle(sheetFile, manifestFile, opts = {}) {
     const manifestText = await manifestFile.text();
     let manifest;
     try {
       manifest = JSON.parse(manifestText);
-    } catch (e) {
-      throw new Error(`Manifest ist kein gültiges JSON: ${e.message}`);
+    } catch (error) {
+      throw new Error(`Manifest ist kein gültiges JSON: ${error.message}`);
     }
     const animNames = Object.keys(manifest.animations || {});
-    if (animNames.length === 0) throw new Error('Manifest enthält keine "animations".');
+    if (!animNames.length) throw new Error('Manifest enthält keine "animations".');
 
     const sheetUrl = URL.createObjectURL(sheetFile);
     const x = opts.x ?? 0.5;
@@ -114,8 +91,11 @@ export class SceneEditorFacade {
     const scale = opts.scale ?? 1;
     const anim = opts.anim && animNames.includes(opts.anim) ? opts.anim : animNames[0];
     const depthLayer = opts.depthLayer || 'mid';
-
-    const handle = this.win.SHADED.addActor({ image: sheetUrl, manifest: manifestText, x, y, scale, anim, depthLayer });
+    const handle = this.win.SHADED.addActor({
+      image: sheetUrl,
+      manifest: manifestText,
+      x, y, scale, anim, depthLayer,
+    });
 
     const entry = {
       id: this._nextBundleId++,
@@ -127,11 +107,6 @@ export class SceneEditorFacade {
     return entry;
   }
 
-  /**
-   * Materialschicht (docs/neuronale-materialien-svbrdf-pbr.md): Licht/Material-Trennung.
-   * Reine Durchreiche auf `window.SHADED.intrinsic` — der Editor rechnet hier nichts
-   * selbst und kennt weder Shading-Feld noch Materialklassen.
-   */
   getIntrinsicState() {
     if (!this.isEngineLoaded() || !this.win.SHADED.intrinsic) return null;
     return this.win.SHADED.intrinsic.state();
@@ -152,13 +127,6 @@ export class SceneEditorFacade {
     return this.win.SHADED.intrinsic.reset();
   }
 
-  /**
-   * Lädt ein Shading-Feld (URL, Blob-URL oder File) und übergibt es der Engine.
-   * Das `<img>` wird bewusst im ENGINE-Realm erzeugt (`this.doc`), nicht im
-   * Editor-Realm: `resampleShading()` zeichnet es auf ein Engine-Canvas, und
-   * realm-fremde Objekte scheitern an genau solchen Prüfungen — dieselbe Falle,
-   * die ActorPlacer schon bei `addActor` umgeht.
-   */
   async setIntrinsicFromImage(source, meta = {}) {
     if (!this.isReady() || !this.win.SHADED.intrinsic) return false;
     const url = typeof source === 'string' ? source : URL.createObjectURL(source);
@@ -169,13 +137,12 @@ export class SceneEditorFacade {
         img.onerror = () => reject(new Error(`Shading-Feld nicht ladbar: ${url}`));
         img.src = url;
       });
-      return this.win.SHADED.intrinsic.set({ ...meta, shading: img });
+      return this.win.SHADED.intrinsic.set({...meta, shading: img});
     } finally {
       if (typeof source !== 'string') URL.revokeObjectURL(url);
     }
   }
 
-  /** Reiner Laufzeit-Status, ausschließlich aus echten Engine-/Buchführungswerten — nichts erfunden. */
   getRuntimeStatus() {
     return {
       engineLoaded: this.isEngineLoaded(),
@@ -186,24 +153,17 @@ export class SceneEditorFacade {
     };
   }
 
-  /** Erweiterter Debug-Snapshot für headless Orchestrierung/Beweisführung (tools/orchestrate.js). */
   getDebugSnapshot() {
-    const status = this.getRuntimeStatus();
     return {
-      ...status,
+      ...this.getRuntimeStatus(),
       params: this.isReady() ? this.getParams() : null,
-      actors: this.actorBundles.map(({ id, label, x, y, scale, anim, depthLayer }) => ({ id, label, x, y, scale, anim, depthLayer })),
+      actors: this.actorBundles.map(({id, label, x, y, scale, anim, depthLayer}) => ({
+        id, label, x, y, scale, anim, depthLayer,
+      })),
       storyboard: this.isEngineLoaded() ? this.win.SHADED.story.board() : [],
-      // `intrinsic` kommt bereits aus getRuntimeStatus() – nicht doppelt abfragen.
     };
   }
 
-  /**
-   * Baut ein `shaded.scene-project/v1`-Projektobjekt (contracts/shaded-scene-project.schema.json)
-   * aus dem aktuellen Live-Zustand. Kann die ursprünglichen Bild-/Manifest-Bytes NICHT erneut
-   * emittieren (die Engine hält sie nicht als abrufbare Dateien vor) — `assetRefs` sind rein
-   * informativ; ein erneutes `loadProject()` braucht wieder echte Dateien.
-   */
   exportProject() {
     if (!this.isReady()) {
       throw new Error('exportProject() verlangt eine bereits erstellte Szene (erst create()/waitUntilReady()).');
@@ -211,11 +171,11 @@ export class SceneEditorFacade {
     const project = {
       schema: 'shaded.scene-project/v1',
       params: this.getParams(),
-      actors: this.actorBundles.map(({ label, x, y, scale, anim, depthLayer }) => ({ label, x, y, scale, anim, depthLayer })),
+      actors: this.actorBundles.map(({label, x, y, scale, anim, depthLayer}) => ({
+        label, x, y, scale, anim, depthLayer,
+      })),
       storyboard: this.win.SHADED.story.board(),
     };
-    // Materialschicht: nur Metadaten. Das Shading-Feld selbst ist ein Bildartefakt
-    // und wird — wie Sprite-Sheets — beim Laden wieder out-of-band übergeben.
     const intrinsic = this.getIntrinsicState();
     if (intrinsic) {
       project.intrinsic = {
@@ -232,12 +192,6 @@ export class SceneEditorFacade {
     return project;
   }
 
-  /**
-   * Lädt ein `shaded.scene-project/v1`-Projekt end-to-end: Szene(+Zweitbild) laden, `create()`,
-   * auf Ready warten, Parameter setzen, Actors hinzufügen, Storyboard übernehmen. `assets` liefert
-   * die echten File-Objekte (Projekt-JSON kann keine Bilddaten tragen) — `sceneFile` ist Pflicht,
-   * `actorFiles[i]` muss zu `project.actors[i]` passen.
-   */
   async loadProject(project, assets = {}) {
     if (!assets.sceneFile) {
       throw new Error('loadProject() braucht assets.sceneFile (echtes File-Objekt, kein Pfad/String).');
@@ -253,7 +207,7 @@ export class SceneEditorFacade {
     const actorFiles = assets.actorFiles || [];
     for (let i = 0; i < actorSpecs.length; i++) {
       const files = actorFiles[i];
-      if (!files || !files.sheetFile || !files.manifestFile) {
+      if (!files?.sheetFile || !files?.manifestFile) {
         throw new Error(`loadProject(): fehlende Sprite-/Manifest-Dateien für Actor #${i} ("${actorSpecs[i].label || '?'}").`);
       }
       await this.addActorBundle(files.sheetFile, files.manifestFile, actorSpecs[i]);
@@ -262,12 +216,9 @@ export class SceneEditorFacade {
     if (project.storyboard) {
       const board = this.win.SHADED.story.board();
       board.length = 0;
-      project.storyboard.forEach((step) => board.push(step));
+      project.storyboard.forEach(step => board.push(step));
     }
 
-    // Materialschicht wiederherstellen. Ein fremdes Shading-Feld muss über
-    // assets.intrinsicShading erneut geliefert werden — sonst gilt das
-    // eingebaute Backend, und nur Stärke/Nutzerentscheidung werden übernommen.
     if (project.intrinsic && this.win.SHADED.intrinsic) {
       if (assets.intrinsicShading) {
         const meta = {
@@ -278,11 +229,10 @@ export class SceneEditorFacade {
           confidence: project.intrinsic.confidence,
           colorSpace: project.intrinsic.colorSpace,
         };
-        // URL/File werden geladen; alles andere (Array, ImageData) geht direkt durch.
         if (typeof assets.intrinsicShading === 'string' || assets.intrinsicShading instanceof Blob) {
           await this.setIntrinsicFromImage(assets.intrinsicShading, meta);
         } else {
-          this.win.SHADED.intrinsic.set({ ...meta, shading: assets.intrinsicShading });
+          this.win.SHADED.intrinsic.set({...meta, shading: assets.intrinsicShading});
         }
       }
       if (typeof project.intrinsic.strength === 'number') {

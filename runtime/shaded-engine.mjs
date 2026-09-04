@@ -14,7 +14,7 @@ import {defaultStyleProfile, validateStyleProfile, cloneStyleProfile} from './st
 import {STYLE_BUDGET_TIERS} from './style/render-budget.js';
 import {deriveProductionMaterialResponses, styleUniformsForShader} from './style/production-adapter.js';
 
-const ENGINE_STUB_IDS=["sliders","s-dayNight","v-dayNight","s-storm","v-storm","s-rain","v-rain","s-wet","v-wet","s-puddle","v-puddle","s-fog","v-fog","s-wind","v-wind","s-glow","v-glow","s-decay","v-decay","s-snow","v-snow","s-snowfall","v-snowfall","s-temperature","v-temperature","s-autumn","v-autumn","s-bloom","v-bloom","s-bleach","v-bleach","btn-create","btn-demo","btn-fire","btn-clear-world","btn-elements-clear","btn-add","btn-cinema","exit-cinema","btn-png","btn-rec","btn-json","btn-pointcloud","btn-showcase","btn-year","btn-timelapse","btn-drama","btn-play","cb-loop","btn-eco-cats","btn-eco-enemies","btn-eco-npcs","btn-eco-heroes","btn-eco-depth-test","f-scene","f-mat","f-depth","f-actor-sheet","f-actor-manifest","gl","ov","rec","showcase-card","showcase-title","showcase-copy","showcase-kicker","dialogue-box","dialogue-speaker","dialogue-text","dialogue-hint","drop-hint","status","stage","story-list","spatial-viewer","spatial-canvas","spatial-close","spatial-walk","spatial-map","spatial-pipeline","spatial-pipeline-buttons","spatial-stage-copy","spatial-laws","spatial-fit-status","spatial-performance","spatial-seasons","spatial-season-status","spatial-scene-season","spatial-scene-event","spatial-scene-duration","spatial-scene-add","spatial-scene-list","spatial-record-duration","spatial-record","spatial-paint","spatial-paint-material","spatial-paint-radius","spatial-paint-opacity","spatial-paint-color","spatial-pressure","spatial-undo","spatial-redo","spatial-voxel-export","spatial-voxel-import","spatial-boundary","spatial-thickness","spatial-texture-blend","spatial-seed","spatial-vegetation","spatial-canopy-flex","spatial-wind-direction","spatial-lightning-rate","spatial-urine-rate","spatial-blood-rate","spatial-rain-extinguish","spatial-time-scale","spatial-now-lightning","spatial-now-blood","spatial-now-urine","spatial-help","spatial-log"];
+const ENGINE_STUB_IDS=["sliders","s-dayNight","v-dayNight","s-storm","v-storm","s-rain","v-rain","s-wet","v-wet","s-puddle","v-puddle","s-fog","v-fog","s-wind","v-wind","s-glow","v-glow","s-decay","v-decay","s-snow","v-snow","s-snowfall","v-snowfall","s-temperature","v-temperature","s-autumn","v-autumn","s-bloom","v-bloom","s-bleach","v-bleach","btn-create","btn-demo","btn-fire","btn-clear-world","btn-elements-clear","btn-add","btn-cinema","exit-cinema","btn-png","btn-rec","btn-json","btn-pointcloud","btn-showcase","btn-year","btn-timelapse","btn-drama","btn-play","cb-loop","btn-eco-cats","btn-eco-enemies","btn-eco-npcs","btn-eco-heroes","btn-eco-depth-test","f-scene","f-mat","f-depth","f-actor-sheet","f-actor-manifest","gl","ov","rec","showcase-card","showcase-title","showcase-copy","dialogue-box","dialogue-speaker","dialogue-text","dialogue-hint","drop-hint","status","stage","story-list","spatial-viewer","spatial-canvas","spatial-close","spatial-walk","spatial-map","spatial-stage-copy","spatial-fit-status","spatial-performance","spatial-seasons","spatial-season-status","spatial-scene-season","spatial-scene-event","spatial-scene-duration","spatial-scene-add","spatial-scene-list","spatial-record-duration","spatial-record","spatial-paint","spatial-paint-material","spatial-paint-radius","spatial-paint-opacity","spatial-paint-color","spatial-pressure","spatial-undo","spatial-redo","spatial-voxel-export","spatial-voxel-import","spatial-boundary","spatial-thickness","spatial-texture-blend","spatial-seed","spatial-vegetation","spatial-canopy-flex","spatial-wind-direction","spatial-lightning-rate","spatial-urine-rate","spatial-blood-rate","spatial-rain-extinguish","spatial-time-scale","spatial-now-lightning","spatial-now-blood","spatial-now-urine","spatial-log"];
 function createEngineDOM(){if(document.getElementById("gl")&&document.getElementById("ov"))return;
 let c=document.getElementById("render-container");if(!c){c=document.createElement("div");
 c.id="render-container";c.className="shaded-render-area";document.body.appendChild(c);}
@@ -2323,7 +2323,7 @@ function showcaseStoryboard(){
   renderStory();
 }
 function renderStory(){
-  const list=document.getElementById('story-list'); list.innerHTML='';
+  const list=document.getElementById('story-list'); if(!list) return; list.innerHTML='';
   storyboard.forEach((s,i)=>{
     const el=document.createElement('div');
     el.className='story-step'; el.id='step-'+i;
@@ -2348,14 +2348,14 @@ function renderStory(){
 function playStory(){
   if(storyboard.length<1) return;
   playing=true; stepIdx=0; stepT=0; blendFrom={...CUR};
-  document.getElementById('btn-play').textContent='⏹ Stoppen';
-  document.getElementById('btn-play').classList.add('active');
+  const btn=document.getElementById('btn-play');
+  if(btn){ btn.textContent='⏹ Stoppen'; btn.classList.add('active'); }
 }
 function stopStory(){
   playing=false;
   actBlend=null;
-  document.getElementById('btn-play').textContent='▶ Abspielen';
-  document.getElementById('btn-play').classList.remove('active');
+  const btn=document.getElementById('btn-play');
+  if(btn){ btn.textContent='▶ Abspielen'; btn.classList.remove('active'); }
   document.querySelectorAll('.story-step').forEach(e=>e.classList.remove('playing'));
 }
 function tickStory(dt){
@@ -2382,7 +2382,7 @@ function tickStory(dt){
     if(bar) bar.style.width='0%';
     stepT=0; blendFrom={...CUR}; stepIdx++;
     if(stepIdx>=storyboard.length){
-      if(document.getElementById('cb-loop').checked) stepIdx=0;
+      if(document.getElementById('cb-loop')?.checked) stepIdx=0;
       else { stopStory(); Object.assign(PARAMS,CUR); syncSliders(); }
     }
   }
@@ -2623,11 +2623,14 @@ window.addEventListener('keydown',e=>{
   }
 });
 
-document.getElementById('btn-clear-world').onclick=()=>{
+// Fachliche Funktion (nicht die Button-Verdrahtung) -- exportiert unten als window.SHADED.world.clearTraces.
+function clearWorldTraces(){
   trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
   Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧹 Spuren, Matsch und Brandflecken entfernt.');
-};
+}
+const btnClearWorld=document.getElementById('btn-clear-world');
+if(btnClearWorld) btnClearWorld.onclick=clearWorldTraces;
 
 function ensureElementScene(){
   if(!ready){ setStatus('⚠️ Erst Bild laden und „Erstellen“ drücken – dann simulieren die Elemente auf den analysierten Materialien.'); return false; }
@@ -2724,18 +2727,29 @@ function elementPreset(kind){
   }
 }
 document.querySelectorAll('[data-element]').forEach(b=>b.onclick=()=>elementPreset(b.dataset.element));
-document.getElementById('btn-elements-clear').onclick=()=>{
+// Fachliche Funktion -- exportiert unten als window.SHADED.elements.clear (ersetzt den früheren
+// Rückweg über ein Button-.click(), siehe Kommentar dort).
+function clearElementPresetState(){
   if(!ready) return;
   trailClear(); window.SHADED_ENGINE_INTERNAL.fires.length=0; window.SHADED_ENGINE_INTERNAL.clearElementParticles?.();
   Object.keys(elementBurst).forEach(k=>elementBurst[k]=0);
   setStatus('🧼 Element-Partikel, Druckringe, Lava, Hagel, Feuer und Spuren zurückgesetzt.');
-};
+}
+const btnElementsClear=document.getElementById('btn-elements-clear');
+if(btnElementsClear) btnElementsClear.onclick=clearElementPresetState;
 
 // =========================== UI ====================
-const setStatus=s=>document.getElementById('status').textContent=s;
+// setStatus/the slider block/syncSliders are presentation only -- PARAMS/CUR (the real engine
+// state) are unaffected either way. Guarded rather than requiring a host-provided DOM: this
+// branch (architecture/ui-zero-contracts, docs/UI_ZERO.md) has no authored production UI, so
+// `status`/`sliders` genuinely don't exist most of the time -- these must degrade to safe no-ops,
+// not manufacture their own invisible replacements (rule zero: DOM is not an API) and not throw
+// (a throw here at module-evaluation time would prevent window.SHADED from ever being created at
+// all, breaking every other module that depends on it).
+const setStatus=s=>{ const el=document.getElementById('status'); if(el) el.textContent=s; };
 
 const slidersDiv=document.getElementById('sliders');
-PARAM_META.forEach(([key,label])=>{
+if(slidersDiv) PARAM_META.forEach(([key,label])=>{
   if(key==='snow'){
     const h=document.createElement('div');
     h.style.cssText='font-size:9px;color:#7dd3fc;letter-spacing:1.5px;text-transform:uppercase;margin:10px 0 2px;border-top:1px solid #23233a;padding-top:8px';
@@ -2754,6 +2768,7 @@ PARAM_META.forEach(([key,label])=>{
   };
 });
 function syncSliders(){
+  if(!slidersDiv) return;
   PARAM_META.forEach(([key])=>{
     document.getElementById('s-'+key).value=Math.round(PARAMS[key]*100);
     document.getElementById('v-'+key).textContent=PARAMS[key].toFixed(2);
@@ -2796,13 +2811,13 @@ const SHOWCASE_BEATS=[
 ];
 let showcase=null;
 function setShowcaseCaption(title,copy){
-  document.getElementById('showcase-title').textContent=title;
-  document.getElementById('showcase-copy').textContent=copy;
-  showcaseCard.classList.add('show');
+  const titleEl=document.getElementById('showcase-title'); if(titleEl) titleEl.textContent=title;
+  const copyEl=document.getElementById('showcase-copy'); if(copyEl) copyEl.textContent=copy;
+  showcaseCard?.classList.add('show');
 }
 function stopShowcase(){
   showcase=null;
-  showcaseCard.classList.remove('show');
+  showcaseCard?.classList.remove('show');
 }
 async function loadDemoScene(){
   const scene='file_00000000974871f49fe71f6b456f9579.png';
@@ -2883,7 +2898,7 @@ function loadImageFile(file,isMat){
       uploadTex(0,TEX.scene,0,0,img);
       gl.uniform2f(U.u_px,1/img.width,1/img.height);
       gl.uniform1f(U.u_aspect,img.width/img.height);
-      document.getElementById('drop-hint').style.display='none';
+      const dropHintEl=document.getElementById('drop-hint'); if(dropHintEl) dropHintEl.style.display='none';
       ready=false;
       setStatus('Szene geladen ('+img.width+'×'+img.height+'). Drücke „✨ Erstellen“.');
       // Auto-Suche: liegt neben "dorf.png" eine "dorf_depth.png" auf dem Server,
@@ -2917,8 +2932,12 @@ function loadImageFile(file,isMat){
   img.src=URL.createObjectURL(file);
   });
 }
-document.getElementById('f-scene').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],false);
-document.getElementById('f-mat').onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],true);
+// File-Inputs sind optionale Browser-I/O-Verdrahtung auf loadImageFile() (window.SHADED.loadImageFile),
+// nicht die Fähigkeit selbst -- ein Host ohne diese Elemente ruft loadImageFile(file,isMat) direkt auf.
+const fSceneInput=document.getElementById('f-scene');
+if(fSceneInput) fSceneInput.onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],false);
+const fMatInput=document.getElementById('f-mat');
+if(fMatInput) fMatInput.onchange=e=>e.target.files[0]&&loadImageFile(e.target.files[0],true);
 
 // === 2.5D-Tiefenkarte (Unit 6) ===
 // CPU-Sample-Cache der Tiefenkarte (Weiß=nah/1, Schwarz=fern/0) für Partikel-Steuerung
@@ -2978,7 +2997,10 @@ function clearDepth(){
   depthSample=null;
   const fd=document.getElementById('f-depth'); if(fd) fd.value='';
 }
-document.getElementById('f-depth').onchange=e=>{
+// Browser-I/O-Verdrahtung auf setDepth() (window.SHADED.parallax.setDepthImage); die Fähigkeit
+// selbst braucht dieses Element nicht.
+const fDepthInput=document.getElementById('f-depth');
+if(fDepthInput) fDepthInput.onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
   const img=new Image();
   img.onload=()=>{ setDepth(img,f.name,'USER_UPLOAD'); URL.revokeObjectURL(img.src); };
@@ -3001,7 +3023,8 @@ stage.addEventListener('drop',e=>{
   if(e.dataTransfer.files[0]) loadImageFile(e.dataTransfer.files[0],false);
 });
 
-document.getElementById('btn-demo').onclick=async()=>{
+const btnDemo=document.getElementById('btn-demo');
+if(btnDemo) btnDemo.onclick=async()=>{
   try{
     // Kanonisches Demo-Paar: Szene + Fenster-Marker-Overlay. Der Blob bekommt
     // den Dateinamen, damit die _depth-Auto-Suche greift (2.5D fürs Demo).
@@ -3024,22 +3047,23 @@ function erstellen(){
   setStatus('✅ Szene lebt. Storyboard läuft (Loop). „K” = Kino-Modus.');
   return true;
 }
-document.getElementById('btn-create').onclick=erstellen;
-document.getElementById('btn-eco-cats').onclick=()=>spawnEcosystem('cats');
-document.getElementById('btn-eco-enemies').onclick=()=>spawnEcosystem('gaime_enemies');
-document.getElementById('btn-eco-npcs').onclick=()=>spawnEcosystem('gaime_npcs');
-document.getElementById('btn-eco-heroes').onclick=()=>spawnEcosystem('gaime_heroes');
-document.getElementById('btn-eco-depth-test').onclick=()=>spawnEcosystem('test_depth');
+const btnCreate=document.getElementById('btn-create'); if(btnCreate) btnCreate.onclick=erstellen;
+const btnEcoCats=document.getElementById('btn-eco-cats'); if(btnEcoCats) btnEcoCats.onclick=()=>spawnEcosystem('cats');
+const btnEcoEnemies=document.getElementById('btn-eco-enemies'); if(btnEcoEnemies) btnEcoEnemies.onclick=()=>spawnEcosystem('gaime_enemies');
+const btnEcoNpcs=document.getElementById('btn-eco-npcs'); if(btnEcoNpcs) btnEcoNpcs.onclick=()=>spawnEcosystem('gaime_npcs');
+const btnEcoHeroes=document.getElementById('btn-eco-heroes'); if(btnEcoHeroes) btnEcoHeroes.onclick=()=>spawnEcosystem('gaime_heroes');
+const btnEcoDepthTest=document.getElementById('btn-eco-depth-test'); if(btnEcoDepthTest) btnEcoDepthTest.onclick=()=>spawnEcosystem('test_depth');
 
-// Kino / Aufnahme / Export
+// Kino / Aufnahme / Export — fachliche Funktionen, unten als window.SHADED.view/window.SHADED.capture
+// exportiert (bislang nur via Button erreichbar; keine der vier hatte ein echtes API-Äquivalent).
 function toggleCinema(){ document.body.classList.toggle('cinema'); }
-document.getElementById('btn-cinema').onclick=toggleCinema;
-document.getElementById('exit-cinema').onclick=toggleCinema;
+const btnCinema=document.getElementById('btn-cinema'); if(btnCinema) btnCinema.onclick=toggleCinema;
+const exitCinema=document.getElementById('exit-cinema'); if(exitCinema) exitCinema.onclick=toggleCinema;
 window.addEventListener('keydown',e=>{
   if(e.key==='k'||e.key==='K')toggleCinema();
   if(e.key==='Escape')document.body.classList.remove('cinema');
 });
-document.getElementById('btn-png').onclick=()=>{
+function capturePng(){
   const cap=document.createElement('canvas');
   cap.width=canvas.width; cap.height=canvas.height;
   const cc=cap.getContext('2d');
@@ -3049,9 +3073,10 @@ document.getElementById('btn-png').onclick=()=>{
     a.href=URL.createObjectURL(b); a.download='SHADED_'+Date.now()+'.png'; a.click();
     URL.revokeObjectURL(a.href);
   },'image/png');
-};
+}
+const btnPng=document.getElementById('btn-png'); if(btnPng) btnPng.onclick=capturePng;
 let recorder=null,chunks=[],recCanvas=null,recCtx=null;
-document.getElementById('btn-rec').onclick=()=>{
+function toggleRecording(){
   if(recorder){ recorder.stop(); return; }
   chunks=[];
   recCanvas=document.createElement('canvas');
@@ -3068,25 +3093,28 @@ document.getElementById('btn-rec').onclick=()=>{
     a.download='SHADED_Showcase_'+Date.now()+'.webm'; a.click();
     URL.revokeObjectURL(a.href);
     recorder=null;
-    document.getElementById('rec').style.display='none';
-    document.getElementById('btn-rec').textContent='🔴 WebM';
+    const recEl=document.getElementById('rec'); if(recEl) recEl.style.display='none';
+    const recBtnEl=document.getElementById('btn-rec'); if(recBtnEl) recBtnEl.textContent='🔴 WebM';
   };
   recorder.start();
-  document.getElementById('rec').style.display='block';
-  document.getElementById('btn-rec').textContent='⏹ Stopp';
-};
-document.getElementById('btn-json').onclick=()=>{
+  const recEl=document.getElementById('rec'); if(recEl) recEl.style.display='block';
+  const recBtnEl=document.getElementById('btn-rec'); if(recBtnEl) recBtnEl.textContent='⏹ Stopp';
+}
+const btnRec=document.getElementById('btn-rec'); if(btnRec) btnRec.onclick=toggleRecording;
+function exportParamsJson(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify({params:PARAMS,storyboard},null,2)],{type:'application/json'}));
   a.download='shaded_params.json'; a.click();
   URL.revokeObjectURL(a.href);
-};
-document.getElementById('btn-pointcloud').onclick=downloadSpatialPointCloud;
-document.getElementById('btn-play').onclick=()=>playing?stopStory():playStory();
-document.getElementById('btn-year').onclick=()=>{
+}
+const btnJson=document.getElementById('btn-json'); if(btnJson) btnJson.onclick=exportParamsJson;
+const btnPointcloud=document.getElementById('btn-pointcloud'); if(btnPointcloud) btnPointcloud.onclick=downloadSpatialPointCloud;
+const btnPlay2=document.getElementById('btn-play'); if(btnPlay2) btnPlay2.onclick=()=>playing?stopStory():playStory();
+function playYearStoryboard(){
   yearStoryboard(); playStory(); setStatus('📅 Ein Jahr im Loop – Frühling bis Tauwetter.');
-};
-document.getElementById('btn-timelapse').onclick=()=>{
+}
+const btnYear=document.getElementById('btn-year'); if(btnYear) btnYear.onclick=playYearStoryboard;
+function playTimelapseStoryboard(){
   storyboard=[
     {name:'Der letzte Tag',  dur:4,  p:{...ACTS.tag.p}},
     {name:'Jahre vergehen',  dur:22, p:{...ACTS.verfall.p}, animate:{decay:{from:0,to:1}}},
@@ -3094,14 +3122,17 @@ document.getElementById('btn-timelapse').onclick=()=>{
   ];
   renderStory(); playStory();
   setStatus('⏳ Zeitraffer: Das Dorf altert vor Deinen Augen (decay 0→1).');
-};
-document.getElementById('btn-drama').onclick=()=>{
+}
+const btnTimelapse=document.getElementById('btn-timelapse'); if(btnTimelapse) btnTimelapse.onclick=playTimelapseStoryboard;
+function playDramaStoryboard(){
   dramaStoryboard(); playStory(); setStatus('⚡ Shader-Regeln im Extrem – 20 Sekunden Sturm, Blitz und Verfallseffekt.');
-};
-document.getElementById('btn-showcase').onclick=startShowcase;
-document.getElementById('btn-add').onclick=()=>{
+}
+const btnDrama=document.getElementById('btn-drama'); if(btnDrama) btnDrama.onclick=playDramaStoryboard;
+const btnShowcase=document.getElementById('btn-showcase'); if(btnShowcase) btnShowcase.onclick=startShowcase;
+function addStoryboardStep(){
   storyboard.push({name:'Neuer Schritt',dur:5,p:{...PARAMS}}); renderStory();
-};
+}
+const btnAdd=document.getElementById('btn-add'); if(btnAdd) btnAdd.onclick=addStoryboardStep;
 
 // =========================== Render-Loop ====================// Welt-Logik läuft in festen Substeps (max 50 ms): Die Weltzeit folgt der
 // Echtzeit auch bei niedriger Framerate (Headless, schwache GPU, Tab-Drossel).
@@ -3230,7 +3261,13 @@ function frameBody(now){
 
   // Die räumliche Vollbildansicht hat einen eigenen WebGL-Kontext. Den schweren
   // Hauptshader darunter weiterzurendern halbiert nur die Framerate und ist unsichtbar.
-  const spatialActive=!document.getElementById('spatial-viewer').hidden;
+  // runtime/spatial-viewer.js (der eigentliche Konsument von #spatial-viewer) wird von
+  // keinem aktuellen Einstiegspunkt geladen (architecture/ui-zero-contracts) -- optional
+  // verkettet statt eines ungesicherten getElementById, damit diese Zeile nicht bei jedem
+  // Frame abstürzt, sobald die zuvor unsichtbare Stub-Erzeugung entfällt; Default "nicht
+  // aktiv" erhält das ursprüngliche Verhalten, falls eine echte räumliche Vollbildansicht
+  // später wieder angeschlossen wird.
+  const spatialActive=document.getElementById('spatial-viewer')?.hidden===false;
   if(sceneImg&&!spatialActive){
     gl.uniform1f(U.u_time,time);
     gl.uniform1f(U.u_rainPhase,rainPhase);
@@ -3329,9 +3366,16 @@ window.SHADED = {
   },  // Phasen deterministisch zur Zeit
   isReady:()=>ready,
   getMaterialTypeAt,
-  story:{ play:playStory, stop:stopStory, board:()=>storyboard },
+  story:{ play:playStory, stop:stopStory, board:()=>storyboard,
+           add:addStoryboardStep, year:playYearStoryboard,
+           timelapse:playTimelapseStoryboard, drama:playDramaStoryboard },
   showcase:{ start:startShowcase, stop:stopShowcase, board:showcaseStoryboard },
-  elements:{ trigger:elementPreset, clear:()=>document.getElementById('btn-elements-clear').click() },
+  elements:{ trigger:elementPreset, clear:clearElementPresetState },
+  world:{ clearTraces:clearWorldTraces },
+  // Cinema/Capture: vormals nur über Buttons erreichbar (btn-cinema/exit-cinema/btn-png/btn-rec) --
+  // dieselben fachlichen Funktionen, jetzt auch ohne DOM aufrufbar (Rule zero: DOM is not an API).
+  view:{ toggleCinema },
+  capture:{ png:capturePng, toggleRecording, exportParamsJson },
   // Räumliche Runtime-Module lesen dieselben transienten Weltgesetze, statt
   // parallel eigene UI-Schalter oder eine zweite Simulationswahrheit zu erfinden.
   worldState:()=>{ const player=window.SHADED_ENGINE_INTERNAL.player;

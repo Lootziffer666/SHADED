@@ -9,9 +9,13 @@
 // dokumentierte, NICHT-öffentliche Bridge nur für Cross-Modul-Zugriffe, die (noch) keinen Platz
 // im Invariante-5-Vertrag haben (hier: Live-Referenz auf PARAMS für fog/dayNight-Lesezugriff,
 // und die Registrierung des Draw-Hooks, den drawOverlay() in shaded-engine.mjs aufruft).
+// ov/ovx: das Overlay-Canvas ist der eigentliche Render-Ziel-Adapter (siehe
+// runtime/shaded-engine.mjs createEngineDOM()) -- gehört zur später folgenden Kategorie-3-
+// Umstellung (expliziter Host->Adapter->Engine-Übergabe statt DOM-Lookup), noch nicht hier.
 const ov=document.getElementById('ov');
 const ovx=ov.getContext('2d');
-const setStatus=s=>document.getElementById('status').textContent=s;
+// Reine Statuszeile -- Rule zero: DOM is not an API, degradiert ohne Element zum No-op.
+const setStatus=s=>{ const el=document.getElementById('status'); if(el) el.textContent=s; };
 
 let actors=[];
 // Phase B2: durchschnittliche Tiefe eines Frames (0..1, 1 = nah/hell in der Depth-Map),
@@ -259,8 +263,12 @@ function loadActorPair(imgFile,manifestFile){
   img.src=URL.createObjectURL(imgFile);
 }
 let pendingActorSheet=null;
-document.getElementById('f-actor-sheet').onchange=e=>{ pendingActorSheet=e.target.files[0]||null; };
-document.getElementById('f-actor-manifest').onchange=e=>{
+// Datei-Inputs sind optionale Browser-I/O-Verdrahtung auf loadActorPair()/addActor()
+// (window.SHADED.addActor); ein Host ohne diese Elemente ruft dieselbe Fähigkeit direkt auf.
+const fActorSheetInput=document.getElementById('f-actor-sheet');
+if(fActorSheetInput) fActorSheetInput.onchange=e=>{ pendingActorSheet=e.target.files[0]||null; };
+const fActorManifestInput=document.getElementById('f-actor-manifest');
+if(fActorManifestInput) fActorManifestInput.onchange=e=>{
   const mf=e.target.files[0];
   if(mf&&pendingActorSheet){ loadActorPair(pendingActorSheet,mf); pendingActorSheet=null; }
   else if(mf) setStatus('⚠️ Erst Sprite-Sheet-Bild wählen, dann Manifest.');

@@ -4,12 +4,20 @@ Kurzfassung. Die große README bleibt technische Referenz.
 
 ## Normal benutzen
 
+Auf `architecture/ui-zero-contracts` gibt es absichtlich **keine** authored Editor-Oberfläche mehr
+(siehe `docs/UI_ZERO.md`) — der lokale Bridge-Prozess bleibt derselbe, öffnet aber nur noch den
+UI-losen Runtime-Host (`index.html`), nicht mehr `editor/` (existiert auf diesem Branch nicht mehr).
+
 1. Repository aktualisieren: `git pull`
 2. **`SHADED_WINDOWS.cmd` doppelklicken.**
-3. Der lokale Editor öffnet sich automatisch.
-4. Bild laden → Modell wählen → Begrenzung → Himmel/Sonne → optional Material-Preset → **KLEINE WELT ERZEUGEN**.
+3. Der Runtime-Host öffnet sich automatisch (schwarzer Canvas, keine sichtbaren Bedienelemente).
+4. Interaktion läuft ausschließlich über die dokumentierten Verträge in
+   `docs/ENTRYPOINTS_AND_CONTRACTS.md` — z. B. in der Browser-Konsole
+   `window.SHADED.loadDemo()` bzw. `window.SHADED.loadImageFile(file)` gefolgt von
+   `window.SHADED.erstellen()`. Eine anklickbare Oberfläche dafür existiert auf diesem Branch
+   noch nicht; ein künftiger Client ruft dieselben Verträge auf.
 
-Der normale Auto-Pfad ist:
+Der normale Auto-Pfad für die Tiefenschätzung ist unverändert:
 
 `Depth Anything 3 → Depth Anything V2 → Software`
 
