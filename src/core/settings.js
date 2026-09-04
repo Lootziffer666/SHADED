@@ -123,6 +123,8 @@ export const S = {
     sharpenStrength: 0.55,
 
     // --------------------------------------------------------------- systems
+    /** The revived SHADED world sandbox — the walk-up-to interactive terrain patch. */
+    enableSandbox: true,
     /** Camera and player-input processing. Off freezes both in place. */
     inputActive: true,
     showTerrain: true,
@@ -247,6 +249,7 @@ export const SCHEMA = [
     {
         group: "Systems",
         items: [
+            { k: "enableSandbox", l: "World sandbox", t: "b" },
             { k: "inputActive", l: "Camera/Input", t: "b" },
             { k: "showTerrain", l: "Clipmap geometry", t: "b" },
             { k: "wireframe", l: "Wireframe", t: "b" },

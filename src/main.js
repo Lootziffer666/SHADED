@@ -35,6 +35,7 @@ import { DepthPass } from "./render/depthPass.js";
 import { PostChain } from "./post/postChain.js";
 import { whenReady } from "./core/gpuUtil.js";
 import * as loading from "./core/loading.js";
+import { SandboxRenderer } from "./sandbox/sandboxRenderer.js";
 
 // ------------------------------------------------------- module-scope scratch
 const _vel = new Vector3();
@@ -167,6 +168,28 @@ async function boot() {
     initInput(canvas, { onToggleOverlay: () => overlay.toggle() });
     initTouchControls(canvas, { onToggleOverlay: () => overlay.toggle() });
 
+    // The revived SHADED world sandbox — a walk-up-to interactive patch, not
+    // a replacement for the dune field. See src/sandbox/sandboxRenderer.js.
+    const sandbox = new SandboxRenderer(scene, terrain);
+    sandbox.setVisible(S.enableSandbox);
+    onChange("enableSandbox", (v) => sandbox.setVisible(v));
+
+    // Primary action (left mouse button) stamps the sandbox's active tool
+    // wherever the crosshair is aiming, while the pointer is locked — the
+    // same "aim, don't click a cursor" convention surf/spells already use.
+    // Deliberately mouse-only for this first pass; touch/gamepad tool input
+    // is the next step alongside the multi-tool picker.
+    let toolDown = false;
+    canvas.addEventListener("mousedown", (e) => {
+        if (input.locked && e.button === 0) toolDown = true;
+    });
+    window.addEventListener("mouseup", (e) => {
+        if (e.button === 0) toolDown = false;
+    });
+    window.addEventListener("blur", () => {
+        toolDown = false;
+    });
+
     // ------------------------------------------------------------- warm-up
     // Everything that can compile, compiles here — behind the loading screen.
     await loading.phase("compiling pipelines", 0.78);
@@ -256,6 +279,10 @@ async function boot() {
         // grains it sheds have to be in the pool before the pool is uploaded.
         wake.update(dt, rig.camera.position);
         spray.update(dt, rig.camera.position);
+        if (S.enableSandbox) {
+            sandbox.handleInput(rig.camera, toolDown);
+            sandbox.update(dt);
+        }
         const tVfx = performance.now();
 
         scene.render();
@@ -290,7 +317,7 @@ async function boot() {
 
     globalThis.SNOWFLOW = {
         engine, scene, rig, character, figure, contact, spray, wake, spells,
-        overlay, terrain, sky, shadows, post, depthPass,
+        overlay, terrain, sky, shadows, post, depthPass, sandbox,
         S, input, perfStats: stats,
     };
 }
