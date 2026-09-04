@@ -15,14 +15,12 @@
  * just where it happens to be visible. Real wind-shaped dunes you can carve
  * into and ride, not a decal.
  *
- * Visually it only fades in where a cell has actually diverged from the
- * baked terrain (wind or the player has moved sand, there's standing water,
- * or something's grown) — this coarse 64² patch sits almost coincident with
- * the real, much finer terrain mesh, so rendering it opaque everywhere
- * regardless of change means two mismatched surfaces fighting for the same
- * pixels (z-fighting, a blocky mess) wherever nothing has changed yet. The
- * ground is always load-bearing here; it only *shows itself* once it no
- * longer agrees with what's underneath.
+ * It is fully opaque across the whole window (feathered only at the outer
+ * edge, to blend rather than cut) — this replaces the real terrain here, it
+ * isn't a decal that only shows itself once poked. Its ground is sand, not
+ * rock: `createWorldState`'s `terrain: 'desert'` mode (see
+ * `WORLD_GEN_OPTIONS`) keeps FIELD.SAND high everywhere, because that's
+ * what `colorForCell` actually paints with — dunes are sand, not granite.
  *
  * The whole point is that this has to work wherever the player actually is,
  * not just in one fixed patch — so the window re-centres on the player once
@@ -75,12 +73,13 @@ const EDGE_FEATHER_START = 0.82;
  *  the first frame rather than bare sand — colorForCell.js's own snowCoverage term is full white
  *  by snow=0.06 ((snow-0.006)/0.054 clamped to 1), so this needs to clear that, not just approach it. */
 const SNOW_SEED = 0.08;
-/** How fast a cell's alpha ramps up per unit of ground delta — a coarse 64² patch sitting
- *  almost coincident with the real (much finer) baked terrain z-fights and reads as broken
- *  wherever it hasn't actually diverged, so it only becomes visible where it has: dug, piled,
- *  wet, or grown. Height/physics stay authoritative everywhere in the window regardless — this
- *  gate is visual only. */
-const VISIBILITY_GAIN = 6;
+/** world-sandbox-reference.mjs's createWorldState() defaults to a generic bedrock-heavy mixed
+ *  landscape (mountains/ridges/basins, sand mostly ~0.02-0.05) unless told otherwise — its
+ *  colorForCell only reads `sand` for the base tone, so that default reads as dark bare rock, not
+ *  dunes. `terrain: 'desert'` switches to generateDunes(), which keeps sand high (up to ~0.26)
+ *  everywhere: real wind-shaped dune ridges, sand as the actual mass, not a rock field with a
+ *  sand dusting. Dunes are sand. Not granite. */
+const WORLD_GEN_OPTIONS = { terrain: "desert", windDeg: 34 };
 
 const _scale = new Vector3();
 const _rot = Quaternion.Identity();
@@ -102,6 +101,10 @@ export class SandboxRenderer {
 
         this.runtime = new WorldSandboxRuntime({ cpuSize: SIZE });
         this.runtime.enter();
+        // The runtime's own construction-time world defaults to generic mixed terrain — reset
+        // straight into an actual dune field before anything reads it.
+        const seed = (Math.floor(cx * 131) ^ Math.floor(cz * 131) ^ 0x53484144) >>> 0;
+        this.runtime.reset(seed || 1, WORLD_GEN_OPTIONS);
         this.runtime.setTool("sand");
         this.runtime.setBrushRadius(0.025);
         // Cold enough that seeded snow holds rather than melting straight
@@ -171,10 +174,11 @@ export class SandboxRenderer {
         const mat = new StandardMaterial("sandboxTerrainMat", this.scene);
         mat.specularColor = new Color3(0.05, 0.05, 0.05);
         mat.backFaceCulling = false;
-        // Vertex alpha fades this cell in only once it's actually diverged
-        // from the baked terrain (see _refresh) — keeps the coarse patch
-        // from fighting the real, much finer terrain mesh wherever nothing
-        // has changed yet.
+        // Vertex alpha is opaque across almost the whole window — this is
+        // standing ground, not an occasional-marks decal — and only
+        // feathers to 0 in the outer rim (see _refresh), so the patch
+        // blends into the surrounding dune field instead of ending in a hard
+        // edge.
         mat.hasVertexAlpha = true;
         mesh.material = mat;
 
@@ -360,7 +364,7 @@ export class SandboxRenderer {
         this._updateWorldPositions();
 
         const seed = (Math.floor(px * 131) ^ Math.floor(pz * 131) ^ 0x53484144) >>> 0;
-        this.runtime.reset(seed || 1);
+        this.runtime.reset(seed || 1, WORLD_GEN_OPTIONS);
         this._seedSnowCover();
 
         this._captureBaseline();
@@ -423,7 +427,6 @@ export class SandboxRenderer {
             const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
             const delta = ground - this._initialGround[i];
             const water = world[o + FIELD.WATER];
-            const bio = world[o + FIELD.BIOMASS];
             const localBase = this._baseHeight[i] - this.origin.y;
 
             this._positions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + LIFT;
@@ -432,26 +435,17 @@ export class SandboxRenderer {
             this._colors[i * 4] = rgb[0] / 255;
             this._colors[i * 4 + 1] = rgb[1] / 255;
             this._colors[i * 4 + 2] = rgb[2] / 255;
-            // Fades in only where this cell has actually diverged from the
-            // baked terrain (dug/piled by wind or the player, holding
-            // water, or grown something) — a coarse 64² patch sitting
-            // almost coincident with the real, much finer terrain z-fights
-            // and reads as broken wherever nothing has changed, so it stays
-            // invisible there and lets the real terrain read through
-            // untouched. Also feathered out at the window's outer rim so
-            // the reveal doesn't end in a hard edge. Height/physics stay
-            // authoritative across the whole window regardless — this gate
-            // is purely visual.
-            const activity = Math.max(
-                Math.abs(delta) * VISIBILITY_GAIN,
-                water > WATER_THRESHOLD ? 1 : 0,
-                Math.max(0, bio - VEG_THRESHOLD) * 8
-            );
+            // Opaque across almost the whole window — this replaces the
+            // real terrain here, it isn't a decal that only shows where
+            // touched — and only feathers to 0 in the outer rim (below), so
+            // the patch blends into the surrounding dune field instead of
+            // ending in a hard edge. (The earlier "only where changed"
+            // gating was working around a colour bug — see
+            // WORLD_GEN_OPTIONS — not a real need to hide this.)
             const lx = this._positions[i * 3];
             const lz = this._positions[i * 3 + 2];
             const edgeDist = Math.max(Math.abs(lx), Math.abs(lz)) / halfSpan;
-            const edgeFeather = 1 - smoothstep01((edgeDist - EDGE_FEATHER_START) / (1 - EDGE_FEATHER_START));
-            this._colors[i * 4 + 3] = Math.min(1, activity) * edgeFeather;
+            this._colors[i * 4 + 3] = 1 - smoothstep01((edgeDist - EDGE_FEATHER_START) / (1 - EDGE_FEATHER_START));
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;
