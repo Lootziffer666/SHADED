@@ -23,40 +23,12 @@ jobs:
         cache: npm
 
     - name: Install dependencies
-      run: |
-        npm ci
+      run: npm ci
 
-    - name: Install Python dependencies for tools/single_view_room.py
+    - name: Run runtime contracts and deterministic tests
+      run: npm run check
+
+    - name: Verify single-view reconstruction Python path
       run: |
         pip3 install -r tools/requirements-single-view-room.txt
-
-    - name: Install Chromium for browser verification
-      run: |
-        # ubuntu-latest already ships the system libraries Playwright Chromium needs.
-        # Avoid `--with-deps`: it performs a fresh apt transaction on every run and
-        # made browser verification depend on Ubuntu mirror availability.
-        npx playwright install chromium
-
-    - name: Run deterministic contract and spatial tests
-      run: |
-        npm run check
-
-    - name: Verify viewport-first shader sandbox in Chromium
-      run: |
-        node --check editor/sandbox-ui-fixes.js
-        node --check editor/sandbox-granular.js
-        node --check editor/sandbox-coast.js
-        node --check tools/verify-sandbox-browser.mjs
-        node tools/verify-sandbox-browser.mjs
-
-    - name: Verify viewport-first mobile editor, closing, correction and room entry
-      run: |
-        npm run verify:mobile-editor
-
-    - name: Verify service worker, offline demo, and spatial editor in Chromium
-      run: |
-        npm run verify:pwa-browser
-
-    - name: Verify visible spatial stages and walk behind the house
-      run: |
-        npm run verify:walk
+        python3 tools/test-single-view-room.py
