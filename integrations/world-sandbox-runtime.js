@@ -4,7 +4,7 @@ import {BrowserWorldSandboxBackend} from '../runtime/world-sandbox-browser-backe
 // Public browser bridge. It exposes capability, not controls.
 // A future UI may create/pass a canvas and input values; the simulation never searches the DOM.
 const runtime = new WorldSandboxRuntime({
-  mobile: globalThis.matchMedia?.('(max-width: 700px)').matches || false,
+  mobile: globalThis.matchMedia?.('(max-width: 700px)')?.matches || false,
 });
 
 async function attachCanvas(canvas, options = {}) {

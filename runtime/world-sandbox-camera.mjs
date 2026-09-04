@@ -108,13 +108,14 @@ export function screenToWorld(clientX, clientY, bounds, camera = DEFAULT_CAMERA)
   };
 }
 
-export function clampCamera(camera) {
-  camera.pitch = Math.max(0.42, Math.min(1.18, camera.pitch));
-  camera.zoom = Math.max(0.72, Math.min(2.35, camera.zoom));
-  return camera;
+export function clampCamera(camera = DEFAULT_CAMERA) {
+  return {
+    ...camera,
+    pitch: Math.max(0.42, Math.min(1.18, camera.pitch)),
+    zoom: Math.max(0.72, Math.min(2.35, camera.zoom)),
+  };
 }
 
-export function clampWalkLook(walk) {
-  walk.pitch = Math.max(-0.95, Math.min(0.95, walk.pitch));
-  return walk;
+export function clampWalkLook(walk = DEFAULT_WALK) {
+  return {...walk, pitch: Math.max(-0.95, Math.min(0.95, walk.pitch))};
 }

@@ -298,14 +298,14 @@ export class WorldSandboxRuntime {
     this.state.camera.yaw += Number(yawDelta) || 0;
     this.state.camera.pitch += Number(pitchDelta) || 0;
     this.state.camera.zoom *= Number(zoomFactor) || 1;
-    clampCamera(this.state.camera);
+    this.state.camera = clampCamera(this.state.camera);
     return {...this.state.camera};
   }
 
   lookWalk({yawDelta = 0, pitchDelta = 0} = {}) {
     this.state.walk.yaw += Number(yawDelta) || 0;
     this.state.walk.pitch += Number(pitchDelta) || 0;
-    clampWalkLook(this.state.walk);
+    this.state.walk = clampWalkLook(this.state.walk);
     return {...this.state.walk};
   }
 
