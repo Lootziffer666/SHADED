@@ -136,7 +136,7 @@ export class WorldSandboxRuntime {
   }
 
   setTool(tool) {
-    if (tool !== 'stone' && !this.toolDefinitions[tool]) throw new RangeError(`Unknown world tool: ${tool}`);
+    if (tool !== 'stone' && tool !== 'root' && !this.toolDefinitions[tool]) throw new RangeError(`Unknown world tool: ${tool}`);
     this.state.tool = tool;
     this.endToolStroke();
     return tool;
@@ -238,6 +238,7 @@ export class WorldSandboxRuntime {
 
   useTool(x, z) {
     if (this.state.tool === 'stone') return this.launchStone(x, z);
+    if (this.state.tool === 'root') return this.spawnPlant(x, z);
     const tool = this.toolDefinitions[this.state.tool];
     if (!tool) return false;
 
@@ -257,6 +258,22 @@ export class WorldSandboxRuntime {
     this.queueStamp(tool.kind, x, z, tool.amount, this.state.radius, directionX, directionZ);
     this.queueEmitter(tool.particleKind, x, z, tool.particles, this.state.radius / 0.05);
     return true;
+  }
+
+  // Root-tip growth (world-sandbox-growth.mjs) is an additive overlay, the same relationship
+  // particles already have to the world state: it reads live WETNESS/COMPACTION to decide where
+  // to grow, but never writes back into it. CPU-backend only for now -- optional chaining means
+  // a backend without spawnPlant (WebGPU) simply doesn't spawn anything yet rather than throwing.
+  spawnPlant(x, z) {
+    this.backend?.spawnPlant?.(x, z);
+    return true;
+  }
+
+  // Debug/test-only: read-only snapshot of the active backend's growth-agent plants, one entry
+  // per spawned plant with its own node count and living-tip count. Empty on a backend with no
+  // growth-agent path yet (e.g. WebGPU).
+  get plants() {
+    return this.backend?.plantSnapshot || [];
   }
 
   enterWalk() {

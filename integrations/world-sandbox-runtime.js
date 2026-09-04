@@ -36,6 +36,7 @@ const api = {
   continueToolStroke: (x, z) => runtime.continueToolStroke(x, z),
   endToolStroke: () => runtime.endToolStroke(),
   useTool: (x, z) => runtime.useTool(x, z),
+  spawnPlant: (x, z) => runtime.spawnPlant(x, z),
   queueStamp: (...args) => runtime.queueStamp(...args),
   queueEmitter: (...args) => runtime.queueEmitter(...args),
   launchStone: (x, z) => runtime.launchStone(x, z),
@@ -63,6 +64,7 @@ const api = {
   get dayNight() { return runtime.state.dayNight; },
   get stamps() { return runtime.state.stamps.map(stamp => ({...stamp})); },
   get world() { return runtime.world; },
+  get plants() { return runtime.plants; },
 };
 
 window.SHADEDWorldSandbox = Object.freeze(api);

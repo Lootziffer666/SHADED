@@ -94,11 +94,16 @@ export class BrowserWorldSandboxBackend {
   step(...args) { return this.backend.step(...args); }
   render(...args) { return this.backend.render?.(...args); }
   sample(...args) { return this.backend.sample?.(...args); }
+  // No growth-agent render/step path on the WebGPU backend yet (CPU reference only, see
+  // world-sandbox-cpu-backend.mjs) -- optional chaining makes this a silent no-op there rather
+  // than a crash, a named follow-up rather than an invented WebGPU implementation.
+  spawnPlant(...args) { return this.backend?.spawnPlant?.(...args); }
   destroy() { return this.backend?.destroy?.(); }
 
   get world() { return this.backend?.world || null; }
   get size() { return this.backend?.size || 0; }
   get particles() { return this.backend?.particles || null; }
+  get plantSnapshot() { return this.backend?.plantSnapshot || []; }
   get label() {
     const label = this.backend?.label || 'WORLD SANDBOX';
     return this.kind === 'cpu' && this.lastError

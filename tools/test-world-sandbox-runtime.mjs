@@ -65,4 +65,31 @@ runtime.setTool('stone');
 runtime.useTool(0.5, 0.5);
 assert.equal(runtime.snapshot().body.active, true, 'stone is a runtime body, not a button side effect');
 
-console.log('test-world-sandbox-runtime: DOM-free tools/carve/walk/day-night/cause-chain/body contracts PASS');
+// Root-growth agent (world-sandbox-growth.mjs), ported from the legacy editor/world-sandbox.js
+// into the DOM-free CPU backend: spawnPlant() creates a single-node plant, and real simulation
+// time genuinely grows it through the same CpuWorldSandboxBackend.step() path stamps/particles
+// already use -- not a standalone call to the growth module (already proven in isolation by
+// tools/test-world-sandbox-growth.mjs).
+runtime.reset(0x504c414e);
+runtime.setPaused(true);
+runtime.spawnPlant(0.5, 0.5);
+const afterSpawn = runtime.plants;
+assert.equal(afterSpawn.length, 1, 'spawnPlant() creates exactly one plant');
+assert.equal(afterSpawn[0].nodeCount, 1, 'a freshly spawned plant starts as a single seed node');
+assert.equal(afterSpawn[0].livingTips, 1, 'a freshly spawned plant has exactly one living tip');
+
+runtime.setPaused(false);
+for (let i = 0; i < 150; i++) runtime.stepOnce();
+const afterSteps = runtime.plants;
+assert.equal(afterSteps.length, 1, 'the plant still exists after real simulation time passes');
+assert.ok(afterSteps[0].nodeCount > afterSpawn[0].nodeCount,
+  `the graph actually grew new nodes over simulation time (${afterSpawn[0].nodeCount} -> ${afterSteps[0].nodeCount}) -- proves stepGrowthTips is genuinely wired into CpuWorldSandboxBackend.step(), not just callable in isolation`);
+
+// The 'root' tool routes through useTool() exactly like 'stone' does, not only the direct
+// spawnPlant() debug entry point.
+runtime.reset(0x504c414f);
+runtime.setTool('root');
+runtime.useTool(0.4, 0.4);
+assert.equal(runtime.plants.length, 1, 'setTool("root") + useTool() spawns a plant through the normal tool path');
+
+console.log('test-world-sandbox-runtime: DOM-free tools/carve/walk/day-night/cause-chain/body/root-growth contracts PASS');

@@ -11,6 +11,7 @@ import {
   sampleWorld,
   stepWorldReference,
 } from './world-sandbox-reference.mjs';
+import {createPlantGraph, createRootTip, stepGrowthTips} from './world-sandbox-growth.mjs';
 import {
   WALK_NEAR,
   cameraBasis,
@@ -106,6 +107,11 @@ export class CpuWorldSandboxBackend {
     this.onQuery = options.onQuery || (() => {});
     this.particles = [];
     this.deposits = [];
+    // Growth-agent plants (world-sandbox-growth.mjs): {graph, tips, random}. Additive overlay
+    // only -- reads live WETNESS/COMPACTION from the world to grow, never writes back into it
+    // and never touches material classification, same relationship particles already have.
+    this.plants = [];
+    this.plantSeedCounter = 0;
     this.reset(options.seed, options.worldOptions);
   }
 
@@ -113,6 +119,21 @@ export class CpuWorldSandboxBackend {
     this.world = createWorldState(this.size, seed ?? 0x53484144, options || {});
     this.particles.length = 0;
     this.deposits.length = 0;
+    this.plants.length = 0;
+    this.plantSeedCounter = 0;
+  }
+
+  // Spawns a single root-tip growth agent at (x, z) (normalized [0,1] world coordinates, same
+  // convention this.world's own grid uses). Each plant gets its own deterministic RNG stream
+  // (mulberry32, this project's standard) seeded from a per-instance counter, not shared platform
+  // randomness -- so replaying the same sequence of spawns/steps reproduces the same growth.
+  spawnPlant(x, z) {
+    const graph = createPlantGraph();
+    const random = mulberry32(0x504c414e + this.plantSeedCounter++);
+    const angle = random() * Math.PI * 2;
+    const tip = createRootTip(x, z, angle, 1, graph, null);
+    this.plants.push({graph, tips: [tip], random});
+    return this.plants[this.plants.length - 1];
   }
 
   spawn(emitter) {
@@ -166,6 +187,9 @@ export class CpuWorldSandboxBackend {
     this.world = stepWorldReference(this.world, this.size, dt, {stamps: allStamps, environment});
     this.spawn(emitter);
     this.integrateParticles(dt);
+    // Growth agents step AFTER the world itself, against the just-updated WETNESS/COMPACTION --
+    // same ordering relationship spawn()/integrateParticles() already have to stepWorldReference.
+    for (const plant of this.plants) stepGrowthTips(this.world, this.size, plant.tips, dt, plant.random, plant.graph);
     if (query) {
       this.onQuery({...sampleWorld(this.world, this.size, query.x, query.z), latencyMs: 0});
     }
@@ -173,6 +197,15 @@ export class CpuWorldSandboxBackend {
 
   sample(x, z) {
     return sampleWorld(this.world, this.size, x, z);
+  }
+
+  // Debug/test snapshot: one entry per spawned plant with its own node count and living-tip
+  // count, without exposing the raw graph/tips/random internals.
+  get plantSnapshot() {
+    return this.plants.map(plant => ({
+      nodeCount: plant.graph.nodes.length,
+      livingTips: plant.tips.filter(tip => tip.alive).length,
+    }));
   }
 
   render() {}
@@ -411,6 +444,31 @@ export class CpuCanvasWorldSandboxBackend extends CpuWorldSandboxBackend {
           context.fillStyle = 'rgba(38,84,26,.88)';
           context.beginPath(); context.arc(top.x, top.y, Math.max(3, width / 130), 0, Math.PI * 2); context.fill();
         }
+      }
+    }
+
+    // Growth-agent plants (world-sandbox-growth.mjs): each graph edge drawn as a line segment
+    // running along the terrain surface (roots don't rise above ground) -- same unconditional
+    // projectPoint() convention particles/body/cursor already use below, not a new one.
+    context.lineCap = 'round';
+    for (const plant of this.plants) {
+      for (const node of plant.graph.nodes) {
+        if (node.parentId == null) continue;
+        const parent = plant.graph.nodes[node.parentId];
+        const gx0 = Math.max(0, Math.min(size - 1, Math.round(parent.x * (size - 1))));
+        const gz0 = Math.max(0, Math.min(size - 1, Math.round(parent.z * (size - 1))));
+        const gx1 = Math.max(0, Math.min(size - 1, Math.round(node.x * (size - 1))));
+        const gz1 = Math.max(0, Math.min(size - 1, Math.round(node.z * (size - 1))));
+        const groundY0 = heightAt(gx0, gz0) * verticalScale;
+        const groundY1 = heightAt(gx1, gz1) * verticalScale;
+        const p0 = projectPoint([parent.x * 2 - 1, groundY0 + 0.0015, parent.z * 2 - 1]);
+        const p1 = projectPoint([node.x * 2 - 1, groundY1 + 0.0015, node.z * 2 - 1]);
+        context.strokeStyle = 'rgba(107,71,38,.88)'; // root brown
+        context.lineWidth = Math.max(1, node.radius * width * 3.2);
+        context.beginPath();
+        context.moveTo(p0.x, p0.y);
+        context.lineTo(p1.x, p1.y);
+        context.stroke();
       }
     }
 
