@@ -2,6 +2,14 @@
 
 This document records the source set supplied for the sandbox and, more importantly, which **system boundary** each source informs. SHADED does not treat "sand" or "water" as one shader preset.
 
+> **Historisch (architecture/ui-zero-contracts, siehe `docs/UI_ZERO.md`):** die Datei
+> `editor/sandbox-granular.js` und der "canonical SHADED editor", auf die die
+> "Implementation decision"-Sektion unten verweist, existieren nicht mehr — `editor/`
+> wurde vollständig entfernt. Die dokumentierte Entscheidung (Boundary, State-Contract,
+> Quellen) bleibt gültig; die genannte lauffähige Umsetzung liegt heute in
+> `runtime/solver/granular-grid.js` (CPU-Referenz) und `runtime/world-sandbox-webgpu.mjs`
+> (GPU), angesprochen über `window.SHADEDWorldSandbox` statt über Editor-DOM.
+
 ## Boundary
 
 | Layer | Responsibility | Sandbox home |

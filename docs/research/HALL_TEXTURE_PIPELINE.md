@@ -3,6 +3,13 @@
 > How textured, tileable surfaces are generated from photographs for the
 > structural / hall elements of the SHADED reconstruction.
 
+> **Historisch (architecture/ui-zero-contracts, siehe `docs/UI_ZERO.md`):** die unten
+> genannten `editor/markerPainter.js`, `editor/actorPlacer.js` und `editor/facade.js`
+> existieren nicht mehr — `editor/` wurde vollständig entfernt. Handbemalte Material-Maps
+> (die kanonische Palette aus `CLAUDE.md`) und Actor-Platzierung (`window.SHADED.addActor`,
+> `runtime/actor-bridge.mjs`) bleiben als Fähigkeit bestehen, nur ohne die genannten
+> Editor-Werkzeuge.
+
 ---
 
 ## 1. Current State

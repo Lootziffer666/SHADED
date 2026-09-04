@@ -161,8 +161,48 @@ entworfen wurde — **absichtlich historisch belassen** mit zwei Nachträgen:
 
 ## 6. `docs/**`-Audit auf aktive Altarchitektur
 
-*(Analyse läuft; wird nach Abschluss hier nachgetragen — 44 Dateien unter `docs/`
-insgesamt.)*
+**Fund:** 60 Markdown-Dateien unter `docs/**` per `grep` gegen ein Muster aus
+gelöschten Editor-Signalen (`editor/`, alte DOM-Ids wie `#f-scene`/`#f-mat`,
+`.topbar`, `#world-studio`, `#btn-world-sandbox`, sowie "Button"/"Klick"-Sprache)
+vorgefiltert; 16 Treffer einzeln gegen den tatsächlichen Inhalt geprüft (nicht nur
+den Match selbst).
+
+**Entscheidung/Ergebnis je Datei:**
+
+- **Absichtlich unverändert (bereits korrekt oder falsches Positiv):**
+  `docs/ENTRYPOINTS_AND_CONTRACTS.md`, `docs/UI_ZERO.md` — beide sind der kanonische
+  UI-Zero-Vertrag selbst, ihre `editor/`-Erwähnungen sind korrekte
+  Ist-Zustandsaussagen ("editor/ tree does not exist", "editor/world-sandbox.js is
+  gone"). `docs/ORCHESTRATION.md` — Regeltext, der genau das verbietet, was hier
+  gefunden wurde ("may not click a hidden button"). `docs/village-box-cultivation-
+  experimente.md` — falsches Positiv, beschreibt einen unabhängigen, isoliert
+  veröffentlichten Three.js-Viewer (Regel 7), keine Editor-Oberfläche.
+- **Absichtlich historisch belassen (Banner ergänzt, Inhalt unangetastet):**
+  `docs/research/GOLD_FREEZE.md` (commit-gepinnter Reproduzierbarkeits-Freeze —
+  Datei-Hashes für `editor/facade.js` bewusst unverändert, das ist der Zweck des
+  Dokuments), `docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md`
+  (datiert vor dem Pivot, warnt sogar selbst explizit davor, Regeln an "historische
+  Dateinamen" zu binden — Banner verweist auf `CLAUDE.md` als aktuellen Vertrag bei
+  Widerspruch).
+- **Ersetzt (Banner +/oder gezielte Korrektur):** `docs/sandbox-sand-water-sources.md`,
+  `docs/research/CURRENT_STATE_AUDIT.md`, `docs/research/HALL_TEXTURE_PIPELINE.md`,
+  `docs/round-7-ecosystem.md`, `docs/phase-b2-depth-rendering.md` — historischer
+  Hinweisblock ergänzt, der die genannten `editor/*`-Dateien/Buttons als entfernt
+  markiert und auf die heute gültige `window.SHADED`-API verweist, ohne den
+  restlichen (weiterhin gültigen) Inhalt anzutasten. `docs/research/
+  spatial-kernel-donor-map.md`, `docs/engine-decomposition-plan.md`,
+  `docs/raumrekonstruktion-dykstra-dijkstra.md`, `docs/research/DONOR_LICENSES.md` —
+  präzise Einzelkorrektur (falscher Pfad/veraltete Datei durch den heutigen echten
+  Pfad ersetzt: `runtime/actor-bridge.mjs`/`dialogue-engine.mjs` statt `editor/`,
+  `runtime/shaded-engine.mjs` statt `index.html` für `dykstraProject()`, `editor/`
+  aus der Liste der aktiven "deliverable paths" für GPL-Lizenzprüfung entfernt).
+
+**Tally:** 60 Dateien geprüft, 16 mit einem Altarchitektur-Signal, davon 4 falsches-
+Positiv/bereits-korrekt, 2 absichtlich-historisch (Banner, kein Inhaltseingriff), 9
+ersetzt/korrigiert. `node tools/check-ui-zero.mjs` bleibt nach allen Änderungen grün
+(der bestehende `docs.includes('editor/world-sandbox.js')`-Guard-Check in
+`tools/verify-no-legacy-ui.mjs` bezieht sich auf `ENTRYPOINTS_AND_CONTRACTS.md`, das
+unangetastet blieb).
 
 ---
 

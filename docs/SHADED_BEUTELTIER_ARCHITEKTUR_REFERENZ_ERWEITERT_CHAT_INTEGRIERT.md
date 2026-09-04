@@ -11,6 +11,13 @@ Material-/Organik-System, Element-/Simulations-Labs,
 Donor-/Lizenzmatrix, FreeStylized/OpenPBR/Material-Binding und
 Agenten-/Dokumentationsregeln.
 
+> **Historisch (Stand vor `architecture/ui-zero-contracts`, siehe `docs/UI_ZERO.md`):**
+> dieses Dokument datiert vom 29. August 2026, vor dem UI-Zero-Pivot. `editor/` (an
+> mehreren Stellen unten diskutiert) wurde inzwischen vollständig entfernt — passend
+> zu diesem Dokuments eigener Warnung weiter unten, Regeln nicht an "historische
+> Dateinamen" zu binden. Bei Widerspruch gilt `CLAUDE.md` als aktueller
+> Architekturvertrag (siehe dessen eigene Präambel).
+
 > Dieses Dokument trennt bewusst zwischen **festen Projektprinzipien**,
 > **technischen Architekturentscheidungen**, **Hypothesen, die getestet
 > werden müssen**, und **Grenzen, bei denen SHADED ausdrücklich nicht

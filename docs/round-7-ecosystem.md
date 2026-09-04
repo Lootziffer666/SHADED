@@ -6,6 +6,12 @@ Runde 7 integrates **SWIFT-generated sprite sheets and GAIME character assets** 
 
 **Status:** ✅ Complete – 4 ecosystem types, 13 total actors, multi-asset support
 
+> **Historisch (architecture/ui-zero-contracts, siehe `docs/UI_ZERO.md`):** das "Tools
+> panel" mit den vier Ecosystem-Buttons unten existiert nicht mehr — die gelöschte
+> Editor-Oberfläche hatte es. Die beschriebene Fähigkeit selbst ist aktuell und
+> unverändert über `window.SHADED.ecosystem.spawn(type)` erreichbar (`ecosystemDefs`
+> in `runtime/shaded-engine.mjs`), unabhängig von jedem Button.
+
 ---
 
 ## Ecosystem Types

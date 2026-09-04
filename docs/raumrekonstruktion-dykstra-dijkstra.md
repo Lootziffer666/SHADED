@@ -15,7 +15,7 @@ heutigen Laufzeit. Der ausführbare Stand ist ausdrücklich getrennt:
 
 | Technik | Heute tatsächlich ausgeführt | Ort und Grenze |
 |---|---:|---|
-| Dykstra-Projektion | **Ja** | `dykstraProject()` in `index.html` stabilisiert die Materialschicht. Der Laufmodus nutzt zusätzlich `runtime/spatial-navigation.mjs`, um Bewegung auf den Schnitt aus Raum-Box und konvexem Schrittradius zu projizieren. |
+| Dykstra-Projektion | **Ja** | `dykstraProject()` in `runtime/shaded-engine.mjs` stabilisiert die Materialschicht. Der Laufmodus nutzt zusätzlich `runtime/spatial-navigation.mjs`, um Bewegung auf den Schnitt aus Raum-Box und konvexem Schrittradius zu projizieren. |
 | Dijkstra | **Ja, gewichtetes Oberflächenraster** | `dijkstraGrid()` führt Klickziele um Blockaden und gewichtet Wasser, Eis, Matsch, Feuer, Rauch und Wachstum. Bewegungen prüfen die durchquerten Zellen statt nur die Endzelle. |
 | 2.5D-Kamera | **Ja, begrenzt** | Eine Tiefenkarte verschiebt Shader-UVs abhängig von der Tiefe; die Maus steuert höchstens 3,5 % Parallaxe. Das ist kein freier 6-DoF-Kameraflug und erzeugt keine verdeckten Flächen. |
 | Normierte Point Cloud | **Ja, Export + Viewer** | `SHADED.spatial.pointCloud()` rückprojiziert sichtbare Farbpixel mit relativer Companion-Tiefe nach `SHADED.spatial-point-cloud.v1`. `runtime/spatial-viewer.js` rendert beobachtete Punkte und getrennt markierte, aus gefitteten Flächen neu abgetastete Ergänzungen. |

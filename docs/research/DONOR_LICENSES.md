@@ -32,7 +32,7 @@ under German/EU copyright law.
 
 ### 1.2 Integration Implications
 
-- **Internal code** (index.html, runtime/, editor/) — all rights reserved
+- **Internal code** (index.html, runtime/, integrations/) — all rights reserved
 - **External providers** must be MIT/BSD/Apache-2.0/ZLib/MIT-licensed for any
   integration; GPL/copyleft licenses require research-only isolation
 - **Research concepts** (no code) have no license constraint
@@ -180,7 +180,7 @@ bundle or `runtime/spatial-kernel/`.
 
 ### 5.2 Prohibited
 
-- Copying GPL code into `index.html`, `runtime/`, `editor/`
+- Copying GPL code into `index.html`, `runtime/`, `integrations/`
 - Bundling GPL providers in the deliverable web app
 - Distributing GPL-licensed assets with the SHADED release
 
@@ -196,7 +196,7 @@ node tools/license-check.js --scan docs/research/EG_DONOR_MATRIX.md
 
 Checks:
 1. Every external provider in `operators.json` has a license file in `LICENSES/`
-2. No GPL code in deliverable paths (`index.html`, `runtime/`, `editor/`)
+2. No GPL code in deliverable paths (`index.html`, `runtime/`, `integrations/`)
 3. `ATTRIBUTION.md` lists all external licenses
 
 **Exit code:** 0 = clean, 1 = missing license, 2 = forbidden license in deliverable, 3 = unattributed.

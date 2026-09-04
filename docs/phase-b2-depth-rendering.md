@@ -7,6 +7,11 @@ Phase B2 implements **Manifest v1.4.0 with depth-map support** and **Actor Depth
 **Status:** ✅ Infrastructure Complete – Manifest schema, export, parsing, composite logic  
 **Test Coverage:** ✅ Proof-of-concept test actor with 4-frame depth sequence
 
+> **Historisch (architecture/ui-zero-contracts, siehe `docs/UI_ZERO.md`):** der unten
+> genannte "UI Button" (🔍 Depth-Map Test) existiert nicht mehr — die gelöschte
+> Editor-Oberfläche hatte ihn. Die Fähigkeit selbst ist unverändert über
+> `window.SHADED.ecosystem.spawn('test_depth')` erreichbar.
+
 ---
 
 ## Manifest Schema v1.4.0
