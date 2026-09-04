@@ -1,0 +1,13 @@
+name: No Legacy UI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  contract-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify legacy UI is not an active contract
+        run: node tools/verify-no-legacy-ui.mjs
