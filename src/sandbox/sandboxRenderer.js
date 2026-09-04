@@ -8,12 +8,21 @@
  * unmovable terrain: every vertex's baseline comes from
  * `terrain.heightAtBase` (the real Snowflow dune field, read once and never
  * written back to — the fixed rock this sits on), and what's rendered is
- * that baseline plus the sandbox field's own live delta. It is fully opaque
- * across the whole window (feathered only at the outer edge, to blend
- * rather than cut), and — critically — `heightfield.js`'s `heightAt` reads
- * this same delta through an overlay hook, so it isn't only what you see:
- * it's what the character stands on, slides down, and gets grounded
- * against. Real wind-shaped dunes you can carve into and ride, not a decal.
+ * that baseline plus the sandbox field's own live delta. And — critically —
+ * `heightfield.js`'s `heightAt` reads this same delta through an overlay
+ * hook, so it isn't only what you see: it's what the character stands on,
+ * slides down, and gets grounded against, across the *whole* window, not
+ * just where it happens to be visible. Real wind-shaped dunes you can carve
+ * into and ride, not a decal.
+ *
+ * Visually it only fades in where a cell has actually diverged from the
+ * baked terrain (wind or the player has moved sand, there's standing water,
+ * or something's grown) — this coarse 64² patch sits almost coincident with
+ * the real, much finer terrain mesh, so rendering it opaque everywhere
+ * regardless of change means two mismatched surfaces fighting for the same
+ * pixels (z-fighting, a blocky mess) wherever nothing has changed yet. The
+ * ground is always load-bearing here; it only *shows itself* once it no
+ * longer agrees with what's underneath.
  *
  * The whole point is that this has to work wherever the player actually is,
  * not just in one fixed patch — so the window re-centres on the player once
@@ -66,6 +75,12 @@ const EDGE_FEATHER_START = 0.82;
  *  the first frame rather than bare sand — colorForCell.js's own snowCoverage term is full white
  *  by snow=0.06 ((snow-0.006)/0.054 clamped to 1), so this needs to clear that, not just approach it. */
 const SNOW_SEED = 0.08;
+/** How fast a cell's alpha ramps up per unit of ground delta — a coarse 64² patch sitting
+ *  almost coincident with the real (much finer) baked terrain z-fights and reads as broken
+ *  wherever it hasn't actually diverged, so it only becomes visible where it has: dug, piled,
+ *  wet, or grown. Height/physics stay authoritative everywhere in the window regardless — this
+ *  gate is visual only. */
+const VISIBILITY_GAIN = 6;
 
 const _scale = new Vector3();
 const _rot = Quaternion.Identity();
@@ -156,11 +171,10 @@ export class SandboxRenderer {
         const mat = new StandardMaterial("sandboxTerrainMat", this.scene);
         mat.specularColor = new Color3(0.05, 0.05, 0.05);
         mat.backFaceCulling = false;
-        // Vertex alpha is opaque across almost the whole window — this is
-        // standing ground, not an occasional-marks decal — and only
-        // feathers to 0 in the outer rim (see _refresh), so the patch
-        // blends into the surrounding dune field instead of ending in a hard
-        // edge.
+        // Vertex alpha fades this cell in only once it's actually diverged
+        // from the baked terrain (see _refresh) — keeps the coarse patch
+        // from fighting the real, much finer terrain mesh wherever nothing
+        // has changed yet.
         mat.hasVertexAlpha = true;
         mesh.material = mat;
 
@@ -409,6 +423,7 @@ export class SandboxRenderer {
             const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
             const delta = ground - this._initialGround[i];
             const water = world[o + FIELD.WATER];
+            const bio = world[o + FIELD.BIOMASS];
             const localBase = this._baseHeight[i] - this.origin.y;
 
             this._positions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + LIFT;
@@ -417,14 +432,26 @@ export class SandboxRenderer {
             this._colors[i * 4] = rgb[0] / 255;
             this._colors[i * 4 + 1] = rgb[1] / 255;
             this._colors[i * 4 + 2] = rgb[2] / 255;
-            // Opaque across almost the whole window — this is the real
-            // ground here, not a decal — feathering to 0 only in the outer
-            // rim so the patch blends into the surrounding dune field
-            // rather than ending in a hard edge.
+            // Fades in only where this cell has actually diverged from the
+            // baked terrain (dug/piled by wind or the player, holding
+            // water, or grown something) — a coarse 64² patch sitting
+            // almost coincident with the real, much finer terrain z-fights
+            // and reads as broken wherever nothing has changed, so it stays
+            // invisible there and lets the real terrain read through
+            // untouched. Also feathered out at the window's outer rim so
+            // the reveal doesn't end in a hard edge. Height/physics stay
+            // authoritative across the whole window regardless — this gate
+            // is purely visual.
+            const activity = Math.max(
+                Math.abs(delta) * VISIBILITY_GAIN,
+                water > WATER_THRESHOLD ? 1 : 0,
+                Math.max(0, bio - VEG_THRESHOLD) * 8
+            );
             const lx = this._positions[i * 3];
             const lz = this._positions[i * 3 + 2];
             const edgeDist = Math.max(Math.abs(lx), Math.abs(lz)) / halfSpan;
-            this._colors[i * 4 + 3] = 1 - smoothstep01((edgeDist - EDGE_FEATHER_START) / (1 - EDGE_FEATHER_START));
+            const edgeFeather = 1 - smoothstep01((edgeDist - EDGE_FEATHER_START) / (1 - EDGE_FEATHER_START));
+            this._colors[i * 4 + 3] = Math.min(1, activity) * edgeFeather;
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;
