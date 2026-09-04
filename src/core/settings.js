@@ -37,13 +37,20 @@ export const S = {
     windDirection: 42,
     windStrength: 1.0,
     /** Far-field mountain range on the skybox. */
-    showMountains: true,
+    showMountains: false,
     /** Peak height of that range, metres. */
     mountainHeight: 2150,
     /** Strength of the volumetric shafts spilling past dune crests. */
     shaftStrength: 0.30,
 
     // ------------------------------------------------------------------- snow
+    /**
+     * Master switch for the fancy snow material — multi-scale normals, SSS,
+     * glints, sastrugi. Off is the "neutral terrain shader": the sliders below
+     * stay at whatever the user set them to, but terrain.js reads them through
+     * this gate, so off always renders flat-neutral regardless of their value.
+     */
+    enableSnowShading: false,
     glintIntensity: 0.55,
     glintGrazing: 0.72, // how hard the grazing-angle gate bites
     sssStrength: 1.0,
@@ -53,12 +60,18 @@ export const S = {
     sastrugiStrength: 1.0,
 
     // ----------------------------------------------------------- deformation
+    /** Master switch for the persistent terrain state buffer (allocate + simulate + render). */
+    enableDeformBuffer: false,
+    /** Whether feet, the surf groove and spells are allowed to write into that buffer at all. */
+    enableSnowPhysics: false,
     deformDepth: 1.0,
     deformBerm: 1.0,
     refillRate: 1.0,
     deformResolution: 2048,
 
     // ------------------------------------------------------------- snow-surf
+    /** Whether the player can enter snow-surf mode at all. */
+    enableSurfing: false,
     /** Height of the breaking wall thrown by a carve, as a multiple of 1.45 m. */
     wakeHeight: 1.0,
     /** Density of the plume shed off the wake's lip. */
@@ -69,7 +82,11 @@ export const S = {
 
     // ---------------------------------------------------------------- spells
     /** Master toggle. Off cancels everything in flight and hides both meshes. */
-    showSpells: true,
+    showSpells: false,
+    /** Crystallise specifically — the ice it leaves and the SSR that reads it. */
+    enableIce: false,
+    /** The other four spells: Sweep, Ribbon, Bloom, Vortex — the water body. */
+    enableWaterSpells: false,
     /** Brightness of the dynamic lights the spells emit. */
     spellLight: 1.0,
     /** Density of the spray every spell throws. */
@@ -82,6 +99,12 @@ export const S = {
     waterDepthTint: 1.0,
 
     // ------------------------------------------------------------------ post
+    /**
+     * Master switch for taa/ssr/dof/bloom/grain/sharpen together. Tonemap,
+     * exposure and contrast stay on regardless — that's the baseline grade
+     * needed to see anything at all, not an optional effect.
+     */
+    enableFancyPost: false,
     taa: true,
     ssr: true,
     dof: true,
@@ -100,9 +123,17 @@ export const S = {
     sharpenStrength: 0.55,
 
     // --------------------------------------------------------------- systems
+    /** Camera and player-input processing. Off freezes both in place. */
+    inputActive: true,
     showTerrain: true,
-    showCharacter: true,
-    showWake: true,
+    showCharacter: false,
+    /** Cloth simulation + fur rendering. Only matters while `showCharacter` is on. */
+    enableClothFur: false,
+    /** The footfall stamp, the walking scuff and the associated snow kick. */
+    enableFootprints: false,
+    showWake: false,
+    /** Airborne snow: footfall kick, the surf plume, spell spray. */
+    enableSpray: false,
     showLightShafts: true,
     wireframe: false,
     freezeTime: false,
@@ -144,6 +175,7 @@ export const SCHEMA = [
     {
         group: "Snow",
         items: [
+            { k: "enableSnowShading", l: "Snow shading", t: "b" },
             { k: "glintIntensity", l: "Glint", t: "f", min: 0, max: 2, step: 0.01 },
             { k: "glintGrazing", l: "Glint gate", t: "f", min: 0, max: 1, step: 0.01 },
             { k: "sssStrength", l: "SSS strength", t: "f", min: 0, max: 3, step: 0.01 },
@@ -156,25 +188,39 @@ export const SCHEMA = [
     {
         group: "Deformation",
         items: [
+            { k: "enableDeformBuffer", l: "Deform buffer", t: "b" },
+            { k: "enableSnowPhysics", l: "Snow physics", t: "b" },
             { k: "deformDepth", l: "Depth", t: "f", min: 0, max: 3, step: 0.01 },
             { k: "deformBerm", l: "Berm mass", t: "f", min: 0, max: 3, step: 0.01 },
             { k: "refillRate", l: "Refill rate", t: "f", min: 0, max: 4, step: 0.01 },
         ],
     },
     {
+        group: "Character",
+        items: [
+            { k: "showCharacter", l: "Character", t: "b" },
+            { k: "enableFootprints", l: "Footprints", t: "b" },
+            { k: "enableClothFur", l: "Cloth/Fur", t: "b" },
+        ],
+    },
+    {
         group: "Snow-surf",
         items: [
+            { k: "enableSurfing", l: "Surfing", t: "b" },
+            { k: "showWake", l: "Wake mesh", t: "b" },
+            { k: "enableSpray", l: "Spray", t: "b" },
             { k: "wakeHeight", l: "Wake height", t: "f", min: 0, max: 2, step: 0.01 },
             { k: "wakeSpray", l: "Plume density", t: "f", min: 0, max: 2.5, step: 0.01 },
             { k: "windStreaks", l: "Speed streaks", t: "b" },
             { k: "streakStrength", l: "Streak amt", t: "f", min: 0, max: 2, step: 0.01 },
-            { k: "showWake", l: "Wake mesh", t: "b" },
         ],
     },
     {
         group: "Spells",
         items: [
             { k: "showSpells", l: "Spells", t: "b" },
+            { k: "enableIce", l: "Ice (Crystallise)", t: "b" },
+            { k: "enableWaterSpells", l: "Water spells", t: "b" },
             { k: "spellLight", l: "Spell light", t: "f", min: 0, max: 3, step: 0.01 },
             { k: "spellSpray", l: "Spell spray", t: "f", min: 0, max: 2.5, step: 0.01 },
             { k: "waterDepthTint", l: "Water depth", t: "f", min: 0, max: 3, step: 0.01 },
@@ -183,6 +229,7 @@ export const SCHEMA = [
     {
         group: "Post",
         items: [
+            { k: "enableFancyPost", l: "Fancy post", t: "b" },
             { k: "taa", l: "TAA", t: "b" },
             { k: "ssr", l: "SSR (ice)", t: "b" },
             { k: "dof", l: "Depth of field", t: "b" },
@@ -200,8 +247,8 @@ export const SCHEMA = [
     {
         group: "Systems",
         items: [
-            { k: "showTerrain", l: "Terrain", t: "b" },
-            { k: "showCharacter", l: "Character", t: "b" },
+            { k: "inputActive", l: "Camera/Input", t: "b" },
+            { k: "showTerrain", l: "Clipmap geometry", t: "b" },
             { k: "wireframe", l: "Wireframe", t: "b" },
             { k: "freezeTime", l: "Freeze time", t: "b" },
             { k: "resolutionScale", l: "Resolution", t: "f", min: 0.5, max: 1.5, step: 0.05 },
@@ -210,6 +257,22 @@ export const SCHEMA = [
                 opts: ["beauty", "deform", "normals", "depth", "cascades", "footprint",
                        "fineNormals", "shadow", "ndotl", "shadowMap", "albedo"],
             },
+        ],
+    },
+    {
+        // Structural — WebGPU device, camera projection math, the heightfield
+        // bake, sky/atmosphere solve, shadow cascades and this overlay's own
+        // perf counters aren't features that can be flipped off at runtime
+        // without tearing down and rebuilding the engine itself, so they're
+        // listed here as a fixed status readout rather than as a "b" toggle
+        // that would silently do nothing when unchecked.
+        group: "Core (always on)",
+        items: [
+            { k: "coreWebgpu", l: "WebGPU Engine", t: "s" },
+            { k: "coreHeightfield", l: "Heightfield bake", t: "s" },
+            { k: "coreSky", l: "Sky/Sun", t: "s" },
+            { k: "coreShadows", l: "Shadows", t: "s" },
+            { k: "corePerf", l: "Perf/debug infra", t: "s" },
         ],
     },
 ];

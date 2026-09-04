@@ -243,7 +243,7 @@ export class PostChain {
         this.ssr.onApply = (e) => {
             e.setVector2("projInfo", this._projInfo);
             e.setVector2("invRes", this._invRes);
-            e.setFloat("enabled", S.ssr ? 1 : 0);
+            e.setFloat("enabled", S.enableFancyPost && S.ssr ? 1 : 0);
             e.setFloat("strength", 1.0);
             e.setTexture("depthTex", depthTex);
         };
@@ -255,7 +255,7 @@ export class PostChain {
             e.setVector2("invRes", this._invRes);
             e.setVector2("jitterNdc", this._jitterNdc);
             e.setFloat("historyValid", this._historyValid);
-            e.setFloat("enabled", S.taa ? 1 : 0);
+            e.setFloat("enabled", S.enableFancyPost && S.taa ? 1 : 0);
             e.setFloat("feedback", 0.90);
             e.setTexture("historyTex", this.history[1 - this._k]);
             e.setTexture("depthTex", depthTex);
@@ -307,7 +307,7 @@ export class PostChain {
 
         this.dof.onApply = (e) => {
             e.setVector2("invRes", this._invRes);
-            e.setFloat("enabled", S.dof ? 1 : 0);
+            e.setFloat("enabled", S.enableFancyPost && S.dof ? 1 : 0);
             e.setFloat("focusDist", this.focusDist);
             // Scaled to the frame height, so the look does not change with
             // resolution or with the resolution-scale slider. 0.0024 is 3.5 px
@@ -322,14 +322,14 @@ export class PostChain {
             e.setFloat("exposure", S.exposure);
             e.setFloat("contrast", S.contrast);
             e.setFloat("mode", TONEMAP_MODES[S.tonemap] ?? 0);
-            e.setFloat("grainAmount", S.grain ? S.grainStrength : 0);
+            e.setFloat("grainAmount", S.enableFancyPost && S.grain ? S.grainStrength : 0);
             e.setFloat("time", this.time);
             e.setFloat("vignette", 0.22);
             e.setFloat(
                 "speedStreak",
                 S.windStreaks ? this.speedStreak * S.streakStrength : 0
             );
-            e.setFloat("bloomAmount", S.bloom ? S.bloomStrength : 0);
+            e.setFloat("bloomAmount", S.enableFancyPost && S.bloom ? S.bloomStrength : 0);
             e.setFloat("shaftAmount", S.showLightShafts ? 1 : 0);
             e.setTextureFromPostProcessOutput("bloomNear", this.bloomA);
             e.setTextureFromPostProcessOutput("bloomFar", this.bloomC);
@@ -338,7 +338,7 @@ export class PostChain {
 
         this.sharpen.onApply = (e) => {
             e.setVector2("invRes", this._invRes);
-            e.setFloat("amount", S.sharpen ? S.sharpenStrength : 0);
+            e.setFloat("amount", S.enableFancyPost && S.sharpen ? S.sharpenStrength : 0);
         };
     }
 
@@ -405,7 +405,7 @@ export class PostChain {
         // ---- jitter ---------------------------------------------------------
         let jx = 0;
         let jy = 0;
-        if (S.taa) {
+        if (S.enableFancyPost && S.taa) {
             const idx = (this._frame % (JITTER.length >> 1)) * 2;
             jx = JITTER[idx];
             jy = JITTER[idx + 1];

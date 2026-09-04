@@ -23,7 +23,7 @@ import { Vector2, Vector3, Vector4, Color3 } from "@babylonjs/core/Maths/math";
 import { Figure, BONE_COUNT } from "./figure.js";
 import { makePanels, ClothSolver } from "./cloth.js";
 import { buildBody, buildFur, buildClothMesh } from "./build.js";
-import { S } from "../core/settings.js";
+import { S, onChange } from "../core/settings.js";
 import { whenReady, bindMatrixArray } from "../core/gpuUtil.js";
 import { CASCADE_COUNT } from "../render/shadows.js";
 import { SPELL_LIGHT_UNIFORMS } from "../spells/spellLights.js";
@@ -187,6 +187,7 @@ export class Character {
 
         this._visible = true;
         this.setVisible(S.showCharacter !== false);
+        onChange("enableClothFur", () => this._applyVisibility());
     }
 
     /**
@@ -323,9 +324,15 @@ export class Character {
 
     setVisible(v) {
         this._visible = !!v;
+        this._applyVisibility();
+    }
+
+    /** Cloth/fur can be switched off independently, leaving a bare body. */
+    _applyVisibility() {
         this.bodyMesh.isVisible = this._visible;
-        this.clothMesh.isVisible = this._visible;
-        this.furMesh.isVisible = this._visible;
+        const clothFur = this._visible && S.enableClothFur;
+        this.clothMesh.isVisible = clothFur;
+        this.furMesh.isVisible = clothFur;
     }
 
     /**
@@ -345,7 +352,9 @@ export class Character {
             this._settleCloth();
             this._needSettle = false;
         }
-        this.solver.update(dt, this.figure, ch);
+        // Off leaves the garment frozen at its settled pose rather than
+        // simulating it — cheap, and matches the mesh being hidden anyway.
+        if (S.enableClothFur) this.solver.update(dt, this.figure, ch);
         this._uploadTransforms();
     }
 

@@ -286,7 +286,7 @@ export class Terrain {
         m.setFloat("heightRes", 4096);
         m.setFloat("windAngle", windAngle);
         m.setFloat("macroAmp", S.macroHeightScale);
-        m.setFloat("sastrugiAmp", S.sastrugiStrength);
+        m.setFloat("sastrugiAmp", S.enableSnowShading ? S.sastrugiStrength : 0);
 
         m.setVector3("sunDir", this.sky.sunDir);
         m.setColor3("sunRadiance", this.sky.sunRadiance);
@@ -305,10 +305,17 @@ export class Terrain {
         // small and keep contact shadows attached.
         m.setFloat("shadowBias", 0.022);
 
-        m.setFloat("detailStrength", S.detailNormalStrength);
-        m.setFloat("glintIntensity", S.glintIntensity);
+        // "Snow shading" is the master switch for all of the fine-grained
+        // snow material behavior; off is the neutral terrain shader — same
+        // geometry and base lighting, none of the multi-scale normals, SSS,
+        // sastrugi or glints. Reading the sliders through this gate (rather
+        // than the toggle overwriting them) means the user's own tuning
+        // survives flipping it back on.
+        const snowShading = S.enableSnowShading;
+        m.setFloat("detailStrength", snowShading ? S.detailNormalStrength : 0);
+        m.setFloat("glintIntensity", snowShading ? S.glintIntensity : 0);
         m.setFloat("glintGrazing", S.glintGrazing);
-        m.setFloat("sssStrength", S.sssStrength);
+        m.setFloat("sssStrength", snowShading ? S.sssStrength : 0);
         m.setFloat("sssRadius", S.sssRadius);
 
         m.setFloat("fogDensity", S.fogDensity);
@@ -342,7 +349,9 @@ export class Terrain {
             pm.setFloat("worldSize", hf.size);
             pm.setFloat("heightRes", 4096);
             pm.setFloat("windAngle", windAngle);
-            pm.setFloat("sastrugiAmp", S.sastrugiStrength);
+            // Must match the beauty pass's gate exactly, or the depth prepass
+            // places vertices somewhere the beauty pass does not.
+            pm.setFloat("sastrugiAmp", S.enableSnowShading ? S.sastrugiStrength : 0);
             pm.setVector2("deformCenter", deformCenter);
             pm.setFloat("deformSize", deformSize);
             pm.setFloat("deformDepthScale", S.deformDepth);
@@ -363,7 +372,8 @@ export class Terrain {
                 d.setFloat("worldSize", hf.size);
                 d.setFloat("heightRes", 4096);
                 d.setFloat("windAngle", windAngle);
-                d.setFloat("sastrugiAmp", S.sastrugiStrength);
+                // Same gate as the beauty and prepass materials — see there.
+                d.setFloat("sastrugiAmp", S.enableSnowShading ? S.sastrugiStrength : 0);
                 d.setVector2("deformCenter", deformCenter);
                 d.setFloat("deformSize", deformSize);
                 d.setFloat("deformDepthScale", S.deformDepth);

@@ -158,6 +158,10 @@ export class SprayField {
      *   grain of settling powder; pass something near 1 for anything thrown.
      */
     emit(x, y, z, vx, vy, vz, size, life, kind, drag) {
+        // Single choke point for the "Spray" toggle: every source (footfall
+        // kick, the surf plume, spell spray) calls through here, so gating
+        // it here means none of those call sites need to know about it.
+        if (!S.enableSpray) return;
         // Find a free slot. Bounded scan: after CAPACITY tries the pool is full
         // and the emission is simply dropped, which at these counts never
         // happens and is the right failure anyway — a hitch is worse than a

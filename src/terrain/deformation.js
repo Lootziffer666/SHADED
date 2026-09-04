@@ -145,6 +145,11 @@ export class DeformationField {
      * @param {number} [edge] 0..1 rim roughness; 0 is a clean bevel
      */
     brush(x, z, radius, depth, berm, compression, ice, yaw, elongation, edge) {
+        // Master gate for every writer — feet, the surf groove, every spell —
+        // independent of whether the buffer itself is enabled: a caller can
+        // still be "on" (footprints, say) while nothing they do actually
+        // marks the snow.
+        if (!S.enableSnowPhysics) return;
         if (this._brushCount >= MAX_BRUSHES) return;
         if (radius <= 0) return;
 
@@ -187,6 +192,16 @@ export class DeformationField {
      * @param {{x:number, z:number}} focus world position the window follows
      */
     update(dt, focus) {
+        if (!S.enableDeformBuffer) {
+            // Drop anything queued rather than let it pile up silently, so a
+            // later re-enable doesn't unload a frame's worth of stale
+            // brushes at once. The buffer itself is left exactly as it was
+            // — whatever it last simulated to — since there is nothing
+            // cheaper than not touching it.
+            this._brushCount = 0;
+            return this.texture;
+        }
+
         this._prevCenter.copyFrom(this.center);
 
         // Snap to texel boundaries. Without this the toroidal mapping shifts by

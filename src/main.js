@@ -225,8 +225,9 @@ async function boot() {
         terrain.heightfield.clampToPlayArea(character.position);
         // Pose and simulate before the contact pass: the footprints are stamped
         // at the boot's actual planted position, which only exists once the
-        // figure has been solved.
-        figure.update(dt);
+        // figure has been solved. Skipped entirely while "Character" is off —
+        // real CPU savings, not just a hidden mesh.
+        if (S.showCharacter) figure.update(dt);
         contact.update(dt);
         const tChar = performance.now();
 

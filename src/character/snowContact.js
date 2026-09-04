@@ -26,6 +26,8 @@
  * which is what a print in deep snow actually measures. Narrower than this and
  * the print is only six texels wide and the rim detail has nowhere to live.
  */
+import { S } from "../core/settings.js";
+
 const BOOT_WIDTH = 0.10;
 const BOOT_ELONG = 1.7;
 
@@ -75,10 +77,13 @@ export class SnowContact {
         this._prevZ = ch.position.z;
 
         if (ch.surf > 0.02) this._surf(dt, moved);
-        if (ch.surf < 0.98) this._walk(dt, moved);
+        if (S.enableFootprints && ch.surf < 0.98) this._walk(dt, moved);
 
         // Footfalls fire regardless of mode; the gait suppresses them while
-        // surfing because the feet are on the board.
+        // surfing because the feet are on the board. Gated by "Footprints" —
+        // the surf groove above is not, since it is already inert whenever
+        // "Surfing" is off (`ch.surf` never rises).
+        if (!S.enableFootprints) return;
         const fig = this.figure;
         for (let i = 0; i < 2; i++) {
             let px, pz;

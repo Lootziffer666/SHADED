@@ -308,6 +308,14 @@ export class Overlay {
                 sel.onchange = () => set(it.k, sel.value);
                 row.appendChild(sel);
                 this.widgets.push({ k: it.k, sync: () => (sel.value = String(S[it.k])) });
+            } else if (it.t === "s") {
+                // Static status row: no `S` key behind it, nothing to click —
+                // used for structural systems that can't be toggled at
+                // runtime (see the "Core (always on)" group in settings.js).
+                const badge = document.createElement("span");
+                badge.className = "val";
+                badge.textContent = "always on";
+                row.appendChild(badge);
             }
 
             this.el.appendChild(row);

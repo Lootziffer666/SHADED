@@ -22,7 +22,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { input } from "../core/input.js";
-import { S } from "../core/settings.js";
+import { S, onChange } from "../core/settings.js";
 import { expDamp } from "../core/camera.js";
 import { SpellLights } from "./spellLights.js";
 import { WaterBody } from "./waterBody.js";
@@ -115,6 +115,21 @@ export class SpellSystem {
         this._time = 0;
         /** Console override for the Ribbon hold. */
         this.debugRibbon = false;
+
+        // Cut an in-flight spell the instant its category is switched off,
+        // rather than waiting for it to finish on its own.
+        onChange("enableIce", (v) => {
+            if (!v) this.crystallize.cancel();
+        });
+        onChange("enableWaterSpells", (v) => {
+            if (!v) {
+                this.sweep.cancel();
+                this.bloom.cancel();
+                this.vortex.cancel();
+                if (this.ribbon.held) this.ribbon.release();
+                else this.ribbon.cancel();
+            }
+        });
     }
 
     /**
@@ -196,7 +211,7 @@ export class SpellSystem {
         // Ribbon is a hold, so it is polled rather than edge-triggered.
         // `debugRibbon` lets the console hold it without synthesising a key
         // event — the poll would otherwise release it on the very next frame.
-        this.holdRibbon(input.spellHeld2 || this.debugRibbon);
+        this.holdRibbon(S.enableWaterSpells && (input.spellHeld2 || this.debugRibbon));
         const key = input.spellPressed;
         if (key && key !== 2) this.cast(key);
     }
@@ -212,6 +227,11 @@ export class SpellSystem {
     cast(key) {
         const ctx = this.ctx;
         const rig = ctx.rig;
+
+        // Ice (Crystallise, key 4) and the four water-based spells gate
+        // separately — see `enableIce` / `enableWaterSpells` in settings.js.
+        if (key !== 4 && !S.enableWaterSpells) return;
+        if (key === 4 && !S.enableIce) return;
 
         if (key === 2) {
             this.holdRibbon(true);

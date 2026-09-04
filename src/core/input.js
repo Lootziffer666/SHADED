@@ -16,6 +16,7 @@
 
 import { touchState, isTouchDevice } from "../ui/touchControls.js";
 import { gamepadState, pollGamepad } from "./gamepad.js";
+import { S } from "./settings.js";
 
 export const input = {
     // Movement axes, camera-relative, already normalised to a unit disc.
@@ -152,6 +153,25 @@ const SPELL_KEYS = {
  * (a held stick keeps turning), unlike the mouse's per-event delta.
  */
 export function pollInput(dt) {
+    // "Camera/Input" off: zero everything before anything downstream reads
+    // it this frame, including whatever mousemove/wheel accumulated between
+    // frames — character and camera coast to a stop and stay there rather
+    // than continuing to respond.
+    if (!S.inputActive) {
+        input.moveX = 0;
+        input.moveZ = 0;
+        input.moving = false;
+        input.lookX = 0;
+        input.lookY = 0;
+        input.zoomDelta = 0;
+        input.surf = false;
+        input.sprint = false;
+        input.spellPressed = 0;
+        input.spellHeld2 = false;
+        pollGamepad();
+        return;
+    }
+
     let x = 0;
     let z = 0;
     if (keys.KeyW || keys.ArrowUp) z += 1;
@@ -184,7 +204,7 @@ export function pollInput(dt) {
     input.moving = Math.hypot(x, z) > 0.001;
 
     input.sprint = kbSprint || touchState.sprint || gamepadState.sprint;
-    input.surf = mouseSurfBtn || touchState.surf || gamepadState.surf;
+    input.surf = S.enableSurfing && (mouseSurfBtn || touchState.surf || gamepadState.surf);
 
     // Look: the mouse already wrote its delta for this frame via
     // mousemove; sticks are rate-based, so they add on top of that.
