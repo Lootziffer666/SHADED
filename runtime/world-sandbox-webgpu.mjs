@@ -254,7 +254,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     + sandFlux(top, c) + sandFlux(bottom, c)
     - sandFlux(c, left) - sandFlux(c, right)
     - sandFlux(c, top) - sandFlux(c, bottom);
-
   var sand = max(0.0, c.terrain.y + sandDelta);
   let levelLeft = surface(left) + left.water.x;
   let levelRight = surface(right) + right.water.x;
