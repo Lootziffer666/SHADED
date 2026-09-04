@@ -35,6 +35,7 @@ for (const file of [
 
 const behavior = [
   'tools/verify-no-legacy-ui.mjs',
+  'tools/verify-no-legacy-ui-meta.mjs',
   'tools/verify-pwa.mjs',
   'tools/test-scene-runtime-facade.mjs',
   'tools/test-world-sandbox-runtime.mjs',
