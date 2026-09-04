@@ -3,7 +3,19 @@
  * no events fired into game code, no per-frame allocation.
  *
  * Mouse look uses pointer lock, which frees the right button for snow-surf.
+ *
+ * Touch (twin-stick overlay) and gamepad each keep their own state object
+ * (`touchState` / `gamepadState`) with no knowledge of this module, so they
+ * can't form an import cycle with it. `pollInput` is the one place that
+ * reconciles all three sources into `input` — continuous axes take
+ * whichever source is actively deflected (touch > gamepad > keyboard for
+ * movement; mouse, touch and gamepad look all just add their contribution),
+ * level state (sprint/surf/held-cast) is OR'd, and edge state (a spell
+ * press) is consumed once from whichever source set it.
  */
+
+import { touchState, isTouchDevice } from "../ui/touchControls.js";
+import { gamepadState, pollGamepad } from "./gamepad.js";
 
 export const input = {
     // Movement axes, camera-relative, already normalised to a unit disc.
@@ -32,9 +44,18 @@ export const input = {
 const keys = Object.create(null);
 
 const LOOK_SCALE = 0.0022;
+const STICK_LOOK_RATE = 2.6; // rad/s at full stick deflection (touch + gamepad)
+const STICK_ZOOM_RATE = 1.0; // input.zoomDelta units/s at full trigger/button
 
 /** @type {(() => void)|null} */
 let onToggleOverlay = null;
+
+// Mirrors of level state that mouse/keyboard events set directly, kept
+// private so `pollInput` can OR them together with touch/gamepad each frame
+// without a source's absence (e.g. a released touch button) stomping a
+// value another source is still holding.
+let mouseSurfBtn = false;
+let kbSpellHeld2 = false;
 
 /**
  * @param {HTMLCanvasElement} canvas
@@ -44,7 +65,10 @@ export function initInput(canvas, hooks) {
     onToggleOverlay = hooks?.onToggleOverlay ?? null;
 
     canvas.addEventListener("click", () => {
-        if (!input.locked) canvas.requestPointerLock();
+        // Pointer lock is a desktop-mouse concept; touch devices drive look
+        // through the twin-stick overlay instead, and requesting it there
+        // just produces an unwanted permission prompt.
+        if (!input.locked && !isTouchDevice()) canvas.requestPointerLock();
     });
 
     document.addEventListener("pointerlockchange", () => {
@@ -52,8 +76,8 @@ export function initInput(canvas, hooks) {
         if (!input.locked) {
             // Drop held state so the character doesn't run off while unfocused.
             for (const k in keys) keys[k] = false;
-            input.surf = false;
-            input.spellHeld2 = false;
+            mouseSurfBtn = false;
+            kbSpellHeld2 = false;
         }
     });
 
@@ -67,11 +91,11 @@ export function initInput(canvas, hooks) {
 
     document.addEventListener("mousedown", (e) => {
         if (!input.locked) return;
-        if (e.button === 2) input.surf = true;
+        if (e.button === 2) mouseSurfBtn = true;
     });
 
     document.addEventListener("mouseup", (e) => {
-        if (e.button === 2) input.surf = false;
+        if (e.button === 2) mouseSurfBtn = false;
     });
 
     document.addEventListener(
@@ -97,19 +121,19 @@ export function initInput(canvas, hooks) {
         const n = SPELL_KEYS[e.code];
         if (n) {
             input.spellPressed = n;
-            if (n === 2) input.spellHeld2 = true;
+            if (n === 2) kbSpellHeld2 = true;
         }
     });
 
     window.addEventListener("keyup", (e) => {
         keys[e.code] = false;
-        if (SPELL_KEYS[e.code] === 2) input.spellHeld2 = false;
+        if (SPELL_KEYS[e.code] === 2) kbSpellHeld2 = false;
     });
 
     window.addEventListener("blur", () => {
         for (const k in keys) keys[k] = false;
-        input.surf = false;
-        input.spellHeld2 = false;
+        mouseSurfBtn = false;
+        kbSpellHeld2 = false;
     });
 }
 
@@ -121,8 +145,13 @@ const SPELL_KEYS = {
     Digit5: 5,
 };
 
-/** Resolve held keys into movement axes. Called once per frame before update. */
-export function pollInput() {
+/**
+ * Resolve keyboard, touch and gamepad into the final per-frame axes and
+ * button state. Called once per frame before update, with the frame's dt in
+ * seconds — needed because touch/gamepad look and zoom are rate-based
+ * (a held stick keeps turning), unlike the mouse's per-event delta.
+ */
+export function pollInput(dt) {
     let x = 0;
     let z = 0;
     if (keys.KeyW || keys.ArrowUp) z += 1;
@@ -136,10 +165,59 @@ export function pollInput() {
         x /= len;
         z /= len;
     }
+    const kbSprint = !!(keys.ShiftLeft || keys.ShiftRight);
+
+    pollGamepad();
+
+    // Movement: whichever stick is actually deflected wins outright, rather
+    // than blending — mixing a held WASD key with a resting analog stick at
+    // 0 would otherwise fight itself.
+    if (touchState.moveActive) {
+        x = touchState.moveX;
+        z = touchState.moveZ;
+    } else if (gamepadState.moveActive) {
+        x = gamepadState.moveX;
+        z = gamepadState.moveZ;
+    }
     input.moveX = x;
     input.moveZ = z;
-    input.moving = len > 0.001;
-    input.sprint = !!(keys.ShiftLeft || keys.ShiftRight);
+    input.moving = Math.hypot(x, z) > 0.001;
+
+    input.sprint = kbSprint || touchState.sprint || gamepadState.sprint;
+    input.surf = mouseSurfBtn || touchState.surf || gamepadState.surf;
+
+    // Look: the mouse already wrote its delta for this frame via
+    // mousemove; sticks are rate-based, so they add on top of that.
+    if (touchState.lookActive) {
+        input.lookX += touchState.lookX * STICK_LOOK_RATE * dt;
+        input.lookY += touchState.lookY * STICK_LOOK_RATE * dt;
+    }
+    if (gamepadState.lookActive) {
+        input.lookX += gamepadState.lookX * STICK_LOOK_RATE * dt;
+        input.lookY += gamepadState.lookY * STICK_LOOK_RATE * dt;
+    }
+
+    if (touchState.pinchZoomDelta) {
+        input.zoomDelta += touchState.pinchZoomDelta;
+        touchState.pinchZoomDelta = 0;
+    }
+    if (gamepadState.zoomActive) input.zoomDelta += gamepadState.zoomDelta * STICK_ZOOM_RATE * dt;
+
+    // Edge-triggered spell press: consume from whichever source set it.
+    if (touchState.spellPressed) {
+        input.spellPressed = touchState.spellPressed;
+        touchState.spellPressed = 0;
+    }
+    if (gamepadState.spellPressed) {
+        input.spellPressed = gamepadState.spellPressed;
+        gamepadState.spellPressed = 0;
+    }
+    input.spellHeld2 = kbSpellHeld2 || touchState.spellHeld2 || gamepadState.spellHeld2;
+
+    if (gamepadState.overlayTogglePressed) {
+        gamepadState.overlayTogglePressed = false;
+        onToggleOverlay?.();
+    }
 }
 
 /** Clear per-frame accumulators. Called at the very end of the frame. */
