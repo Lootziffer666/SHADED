@@ -4,29 +4,30 @@
  * same field grid (`FIELD.*`, `colorForCell`) the original renderers read;
  * everything here is new, everything it reads is the revived original.
  *
- * This sits ON the real Snowflow terrain, not next to it: every vertex's
- * base height comes from `terrain.heightAt`, and the overlay renders as a
- * DELTA from the sandbox field's own starting state — so at rest it is
- * geometrically flush and fully transparent, the real dune field (with its
- * own footprints/wake/spell marks) shows straight through, and only actual
- * player interaction (sand piled or dug, standing water, growth) fades the
- * overlay in.
+ * This IS the ground within its window, not a cosmetic layer sitting on
+ * unmovable terrain: every vertex's baseline comes from
+ * `terrain.heightAtBase` (the real Snowflow dune field, read once and never
+ * written back to — the fixed rock this sits on), and what's rendered is
+ * that baseline plus the sandbox field's own live delta. It is fully opaque
+ * across the whole window (feathered only at the outer edge, to blend
+ * rather than cut), and — critically — `heightfield.js`'s `heightAt` reads
+ * this same delta through an overlay hook, so it isn't only what you see:
+ * it's what the character stands on, slides down, and gets grounded
+ * against. Real wind-shaped dunes you can carve into and ride, not a decal.
  *
  * The whole point is that this has to work wherever the player actually is,
  * not just in one fixed patch — so the window re-centres on the player once
  * they wander far enough from its middle, the same "follow the player, not
  * the whole map" shape terrain/deformation.js's own deform buffer already
- * uses. Snowflow's baked dune field stays the unmovable bedrock underneath;
- * this is the reactive soil layer on top of it, and it travels with you.
- * Re-centring is a hard reset (a fresh patch generated at the new spot, the
- * old one's marks left behind) rather than a true scroll — simpler, and
- * consistent with every other mark in this world (footprints, wake, spell
- * carving) already being something that fades rather than something that's
- * remembered forever.
+ * uses. Re-centring is a hard reset (a fresh patch generated at the new
+ * spot, the old one's marks left behind) rather than a true scroll —
+ * simpler, and consistent with every other mark in this world (footprints,
+ * wake, spell carving) already being something that fades rather than
+ * something that's remembered forever.
  *
- * Step 1 of the revival: the simulation runs, is visible in real 3D, and is
- * touchable with one tool (sand) via aim + click. Multi-tool selection and
- * per-object settings are the next step.
+ * Step 1 of the revival: the simulation runs, is visible in real 3D, is the
+ * real ground, and is touchable with one tool (sand) via aim + click.
+ * Multi-tool selection and per-object settings are the next step.
  */
 
 // Side-effect import: registers Scene.prototype.pick/createPickingRay, which
@@ -57,10 +58,14 @@ const VEG_THRESHOLD = 0.02;
 const VEG_STEP = 2; // sample every Nth cell for vegetation — 64² would be too many instances
 const MAX_VEG = 900;
 const MAX_PARTICLES = 600;
-/** How fast a changed cell fades the overlay in from fully transparent. */
-const VISIBILITY_GAIN = 6;
 /** Metres from the window's centre the player can roam before it re-centres on them. */
 const RECENTER_MARGIN = 26;
+/** Fraction of the half-span (as a distance ratio, 0=centre..1=edge) where the edge feather starts. */
+const EDGE_FEATHER_START = 0.82;
+/** Initial FIELD.SNOW value seeded across a fresh patch, so it reads as snow-covered ground from
+ *  the first frame rather than bare sand — colorForCell.js's own snowCoverage term is full white
+ *  by snow=0.06 ((snow-0.006)/0.054 clamped to 1), so this needs to clear that, not just approach it. */
+const SNOW_SEED = 0.08;
 
 const _scale = new Vector3();
 const _rot = Quaternion.Identity();
@@ -78,12 +83,18 @@ export class SandboxRenderer {
         this.terrain3d = terrain;
         const cx = opts.x ?? 0;
         const cz = opts.z ?? 0;
-        this.origin = new Vector3(cx, terrain.heightAt(cx, cz), cz);
+        this.origin = new Vector3(cx, terrain.heightAtBase(cx, cz), cz);
 
         this.runtime = new WorldSandboxRuntime({ cpuSize: SIZE });
         this.runtime.enter();
         this.runtime.setTool("sand");
         this.runtime.setBrushRadius(0.025);
+        // Cold enough that seeded snow holds rather than melting straight
+        // back off (stepWorldReference's melt/ice terms key off ~0.42-0.46) —
+        // this is a snow world, and freshly generated ground should read as
+        // snow-covered from the first frame, not bare sand.
+        this.runtime.setEnvironment({ temperature: 0.25 });
+        this._seedSnowCover();
 
         this._buildTerrainOverlay();
         this._buildWater();
@@ -145,10 +156,11 @@ export class SandboxRenderer {
         const mat = new StandardMaterial("sandboxTerrainMat", this.scene);
         mat.specularColor = new Color3(0.05, 0.05, 0.05);
         mat.backFaceCulling = false;
-        // Per-vertex alpha does the actual work here: at rest every vertex is
-        // fully transparent (see _refresh's `activity` term), so the real
-        // Snowflow terrain — and anything already marked on it — shows
-        // straight through until this cell actually changes.
+        // Vertex alpha is opaque across almost the whole window — this is
+        // standing ground, not an occasional-marks decal — and only
+        // feathers to 0 in the outer rim (see _refresh), so the patch
+        // blends into the surrounding dune field instead of ending in a hard
+        // edge.
         mat.hasVertexAlpha = true;
         mesh.material = mat;
 
@@ -283,7 +295,7 @@ export class SandboxRenderer {
     _captureBaseline() {
         const n = SIZE * SIZE;
         for (let i = 0; i < n; i++) {
-            this._baseHeight[i] = this.terrain3d.heightAt(this._worldX[i], this._worldZ[i]);
+            this._baseHeight[i] = this.terrain3d.heightAtBase(this._worldX[i], this._worldZ[i]);
         }
         const world = this.runtime.world;
         this._initialGround = new Float32Array(n);
@@ -325,7 +337,7 @@ export class SandboxRenderer {
      * trade for now.
      */
     _recenter(px, pz) {
-        this.origin.set(px, this.terrain3d.heightAt(px, pz), pz);
+        this.origin.set(px, this.terrain3d.heightAtBase(px, pz), pz);
         this.terrain.position.copyFrom(this.origin);
         this.water.position.copyFrom(this.origin);
         this.veg.position.copyFrom(this.origin);
@@ -335,9 +347,19 @@ export class SandboxRenderer {
 
         const seed = (Math.floor(px * 131) ^ Math.floor(pz * 131) ^ 0x53484144) >>> 0;
         this.runtime.reset(seed || 1);
+        this._seedSnowCover();
 
         this._captureBaseline();
         this._refresh();
+    }
+
+    /** Every fresh patch starts under a light, holding snow cover — see the constructor. */
+    _seedSnowCover() {
+        const world = this.runtime.world;
+        if (!world) return;
+        for (let o = 0; o < world.length; o += CELL_STRIDE) {
+            world[o + FIELD.SNOW] = SNOW_SEED;
+        }
     }
 
     /**
@@ -380,13 +402,13 @@ export class SandboxRenderer {
         const world = this.runtime.world;
         if (!world) return;
         const size = SIZE;
+        const halfSpan = WORLD_SPAN / 2;
 
         for (let i = 0; i < size * size; i++) {
             const o = i * CELL_STRIDE;
             const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
             const delta = ground - this._initialGround[i];
             const water = world[o + FIELD.WATER];
-            const bio = world[o + FIELD.BIOMASS];
             const localBase = this._baseHeight[i] - this.origin.y;
 
             this._positions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + LIFT;
@@ -395,16 +417,14 @@ export class SandboxRenderer {
             this._colors[i * 4] = rgb[0] / 255;
             this._colors[i * 4 + 1] = rgb[1] / 255;
             this._colors[i * 4 + 2] = rgb[2] / 255;
-            // Fades in only where this cell has actually been dug/piled, has
-            // standing water, or has grown something — otherwise it stays at
-            // 0 and the real terrain (and its own footprints/wake/spell
-            // marks) reads through untouched.
-            const activity = Math.max(
-                Math.abs(delta) * VISIBILITY_GAIN,
-                water > WATER_THRESHOLD ? 1 : 0,
-                Math.max(0, bio - VEG_THRESHOLD) * 8
-            );
-            this._colors[i * 4 + 3] = Math.min(1, activity);
+            // Opaque across almost the whole window — this is the real
+            // ground here, not a decal — feathering to 0 only in the outer
+            // rim so the patch blends into the surrounding dune field
+            // rather than ending in a hard edge.
+            const lx = this._positions[i * 3];
+            const lz = this._positions[i * 3 + 2];
+            const edgeDist = Math.max(Math.abs(lx), Math.abs(lz)) / halfSpan;
+            this._colors[i * 4 + 3] = 1 - smoothstep01((edgeDist - EDGE_FEATHER_START) / (1 - EDGE_FEATHER_START));
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;
@@ -467,7 +487,7 @@ export class SandboxRenderer {
             const p = particles[i];
             const wx = this.origin.x + (p.x - 0.5) * WORLD_SPAN;
             const wz = this.origin.z + (p.z - 0.5) * WORLD_SPAN;
-            const baseY = this.terrain3d.heightAt(wx, wz) - this.origin.y;
+            const baseY = this.terrain3d.heightAtBase(wx, wz) - this.origin.y;
             const delta = p.y - this._avgInitialGround;
             _pos.set((p.x - 0.5) * WORLD_SPAN, baseY + delta * HEIGHT_SCALE + LIFT, (p.z - 0.5) * WORLD_SPAN);
             _scale.set(1, 1, 1);
@@ -484,10 +504,43 @@ export class SandboxRenderer {
         if (body.active) {
             const wx = this.origin.x + (body.x - 0.5) * WORLD_SPAN;
             const wz = this.origin.z + (body.z - 0.5) * WORLD_SPAN;
-            const baseY = this.terrain3d.heightAt(wx, wz);
+            const baseY = this.terrain3d.heightAtBase(wx, wz);
             const delta = body.y - this._avgInitialGround;
             this.stone.position.set(wx, baseY + delta * HEIGHT_SCALE + LIFT, wz);
         }
+    }
+
+    /**
+     * The overlay hook `heightfield.js`'s `heightAt` consults on every call
+     * (see `setOverlaySampler`) — returns the live simulated ground height
+     * at (x, z) if it falls inside the current window, or `null` outside it
+     * so the caller falls through to the real baked terrain. Reuses the
+     * exact same per-vertex `_baseHeight`/`_initialGround` arrays `_refresh`
+     * renders from, so the ground the character stands on can never
+     * disagree with the ground that's drawn.
+     * @param {number} x @param {number} z
+     * @returns {number|null}
+     */
+    sampleHeight(x, z) {
+        const world = this.runtime.world;
+        if (!world) return null;
+
+        const dx = x - this.origin.x;
+        const dz = z - this.origin.z;
+        const half = WORLD_SPAN / 2;
+        if (Math.abs(dx) > half || Math.abs(dz) > half) return null;
+
+        const size = SIZE;
+        let gx = Math.round((dx / WORLD_SPAN + 0.5) * (size - 1));
+        let gz = Math.round((dz / WORLD_SPAN + 0.5) * (size - 1));
+        gx = gx < 0 ? 0 : gx > size - 1 ? size - 1 : gx;
+        gz = gz < 0 ? 0 : gz > size - 1 ? size - 1 : gz;
+        const i = gz * size + gx;
+
+        const o = i * CELL_STRIDE;
+        const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
+        const delta = ground - this._initialGround[i];
+        return this._baseHeight[i] + delta * HEIGHT_SCALE;
     }
 
     setVisible(v) {
@@ -509,4 +562,10 @@ export class SandboxRenderer {
         this.stone.dispose();
         this.cursor.dispose();
     }
+}
+
+/** Hermite smoothstep, clamped to [0,1] on an already-normalised parameter. */
+function smoothstep01(t) {
+    const x = t < 0 ? 0 : t > 1 ? 1 : t;
+    return x * x * (3 - 2 * x);
 }

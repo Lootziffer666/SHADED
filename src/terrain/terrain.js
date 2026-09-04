@@ -386,6 +386,11 @@ export class Terrain {
         return this.heightfield.heightAt(x, z);
     }
 
+    /** The pure baked height, bypassing the world sandbox's overlay. See heightfield.js. */
+    heightAtBase(x, z) {
+        return this.heightfield.heightAtBase(x, z);
+    }
+
     /** @param {number} x @param {number} z @param {Vector3} out */
     normalAt(x, z, out) {
         return this.heightfield.normalAt(x, z, out);

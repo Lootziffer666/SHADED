@@ -168,11 +168,20 @@ async function boot() {
     initInput(canvas, { onToggleOverlay: () => overlay.toggle() });
     initTouchControls(canvas, { onToggleOverlay: () => overlay.toggle() });
 
-    // The revived SHADED world sandbox — a walk-up-to interactive patch, not
-    // a replacement for the dune field. See src/sandbox/sandboxRenderer.js.
+    // The revived SHADED world sandbox — a live patch of dune that follows
+    // the player. See src/sandbox/sandboxRenderer.js. It registers itself as
+    // the terrain's height overlay so it's not just what's drawn but what
+    // the character actually stands on and slides down within its window;
+    // toggling it off clears the overlay so grounding falls straight back
+    // to the baked dune field.
     const sandbox = new SandboxRenderer(scene, terrain);
+    const sandboxHeightOverlay = (x, z) => sandbox.sampleHeight(x, z);
     sandbox.setVisible(S.enableSandbox);
-    onChange("enableSandbox", (v) => sandbox.setVisible(v));
+    terrain.heightfield.setOverlaySampler(S.enableSandbox ? sandboxHeightOverlay : null);
+    onChange("enableSandbox", (v) => {
+        sandbox.setVisible(v);
+        terrain.heightfield.setOverlaySampler(v ? sandboxHeightOverlay : null);
+    });
 
     // Primary action (left mouse button) stamps the sandbox's active tool
     // wherever the crosshair is aiming, while the pointer is locked — the

@@ -46,6 +46,9 @@ export class Heightfield {
         this.minHeight = 0;
         this.maxHeight = 0;
 
+        /** @type {((x:number,z:number)=>number|null|undefined)|null} */
+        this._overlay = null;
+
         this.heightTex = new ProceduralTexture(
             "heightTex",
             { width: HEIGHT_RES, height: HEIGHT_RES },
@@ -161,12 +164,46 @@ export class Heightfield {
     }
 
     /**
+     * Registers a function consulted before the baked height on every
+     * `heightAt` call — return a finite number to override it at that point,
+     * or null/undefined to fall through to the baked terrain. Pass null to
+     * clear it.
+     *
+     * The world sandbox (src/sandbox/) uses this to make its own simulated
+     * dune shape the real ground within its window, rather than a cosmetic
+     * layer sitting on unmovable terrain: everything that already calls
+     * `heightAt`/`normalAt` (character grounding, the camera rig, surf
+     * physics, spray settling, spell aim) picks it up here, for free, with
+     * no changes of its own. `normalAt` is built from `heightAt`, so it
+     * inherits this automatically.
+     * @param {((x:number,z:number)=>number|null|undefined)|null} fn
+     */
+    setOverlaySampler(fn) {
+        this._overlay = fn || null;
+    }
+
+    /**
      * Bicubic B-spline height lookup, matching the vertex shader's
      * reconstruction so the ground the character stands on is the ground that
-     * is drawn.
+     * is drawn. Checks the overlay sampler first — see `setOverlaySampler`.
      * @param {number} x @param {number} z
      */
     heightAt(x, z) {
+        if (this._overlay) {
+            const o = this._overlay(x, z);
+            if (o !== null && o !== undefined) return o;
+        }
+        return this.heightAtBase(x, z);
+    }
+
+    /**
+     * The pure baked lookup, bypassing any overlay. The world sandbox uses
+     * this for its own baseline sampling, so its "how far from the
+     * underlying rock" delta can never accidentally read back through its
+     * own override.
+     * @param {number} x @param {number} z
+     */
+    heightAtBase(x, z) {
         const h = this.heightCPU;
         if (!h) return 0;
         const res = this.cpuRes;
