@@ -4,15 +4,18 @@
  * same field grid (`FIELD.*`, `colorForCell`) the original renderers read;
  * everything here is new, everything it reads is the revived original.
  *
- * The sandbox lives as one bounded, walk-up-to patch sitting in the
- * Snowflow world — a raised tray, not a replacement for the dune field —
- * so this stays a contained "next to the world" object rather than a
- * second terrain system fighting the first for the ground.
+ * This sits ON the real Snowflow terrain, not next to it: every vertex's
+ * base height comes from `terrain.heightAt`, and the overlay renders as a
+ * DELTA from the sandbox field's own starting state — so at rest it is
+ * geometrically flush and fully transparent, the real dune field (with its
+ * own footprints/wake/spell marks) shows straight through, and only actual
+ * player interaction (sand piled or dug, standing water, growth) fades the
+ * overlay in. A large fixed area (60m, centred on spawn) rather than a
+ * small boxed-off patch — you are standing in it from the first frame.
  *
- * Step 1 of the revival: the simulation runs, is visible in real 3D
- * (terrain relief, standing water, vegetation, thrown particles, the
- * stone body), and is touchable with one tool (sand) via aim + click.
- * Multi-tool selection and per-object settings are the next step.
+ * Step 1 of the revival: the simulation runs, is visible in real 3D, and is
+ * touchable with one tool (sand) via aim + click. Multi-tool selection and
+ * per-object settings are the next step.
  */
 
 // Side-effect import: registers Scene.prototype.pick/createPickingRay, which
@@ -31,15 +34,18 @@ import { WorldSandboxRuntime } from "./world-sandbox-runtime.mjs";
 import { CELL_STRIDE, FIELD } from "./world-sandbox-reference.mjs";
 import { colorForCell } from "./world-sandbox-cpu-backend.mjs";
 
-const SIZE = 64; // field grid resolution — a bounded patch, not the whole world
-const WORLD_SPAN = 15; // metres, the patch's footprint
-const HEIGHT_SCALE = 3.2; // metres per normalised height unit
-const RIM = 0.85; // metres, plinth height above local ground
+const SIZE = 64; // field grid resolution
+const WORLD_SPAN = 60; // metres — a real chunk of the walkable world, not a token patch
+const HEIGHT_SCALE = 1.6; // metres per normalised height-delta unit
+const WATER_HEIGHT_SCALE = 1.1;
+const LIFT = 0.025; // metres, keeps the overlay a hair above the real terrain (avoids z-fighting)
 const WATER_THRESHOLD = 0.006;
 const VEG_THRESHOLD = 0.02;
 const VEG_STEP = 2; // sample every Nth cell for vegetation — 64² would be too many instances
 const MAX_VEG = 900;
 const MAX_PARTICLES = 600;
+/** How fast a changed cell fades the overlay in from fully transparent. */
+const VISIBILITY_GAIN = 6;
 
 const _scale = new Vector3();
 const _rot = Quaternion.Identity();
@@ -49,23 +55,22 @@ const _mat = new Matrix();
 export class SandboxRenderer {
     /**
      * @param {import("@babylonjs/core/scene").Scene} scene
-     * @param {{heightAt(x:number,z:number):number}} terrain — for placing the tray on the snow
+     * @param {{heightAt(x:number,z:number):number}} terrain — the real Snowflow terrain
      * @param {{x?:number, z?:number}} [opts] world-space centre of the patch
      */
     constructor(scene, terrain, opts = {}) {
         this.scene = scene;
-        const cx = opts.x ?? 11;
-        const cz = opts.z ?? 7;
-        const groundY = terrain.heightAt(cx, cz) + RIM;
-        this.origin = new Vector3(cx, groundY, cz);
+        this.terrain3d = terrain;
+        const cx = opts.x ?? 0;
+        const cz = opts.z ?? 0;
+        this.origin = new Vector3(cx, terrain.heightAt(cx, cz), cz);
 
         this.runtime = new WorldSandboxRuntime({ cpuSize: SIZE });
         this.runtime.enter();
         this.runtime.setTool("sand");
-        this.runtime.setBrushRadius(0.045);
+        this.runtime.setBrushRadius(0.025);
 
-        this._buildPlinth(cx, cz, groundY);
-        this._buildTerrain();
+        this._buildTerrainOverlay();
         this._buildWater();
         this._buildVegetation();
         this._buildParticles();
@@ -75,39 +80,33 @@ export class SandboxRenderer {
         this._toolWasDown = false;
         this._aiming = false;
 
+        this._captureBaseline();
         this._refresh();
     }
 
     // -------------------------------------------------------------- build
 
-    _buildPlinth(cx, cz, groundY) {
-        const box = MeshBuilder.CreateBox(
-            "sandboxPlinth", { width: WORLD_SPAN + 0.5, height: RIM, depth: WORLD_SPAN + 0.5 }, this.scene
-        );
-        box.position.set(cx, groundY - RIM / 2, cz);
-        const mat = new StandardMaterial("sandboxPlinthMat", this.scene);
-        mat.diffuseColor = new Color3(0.18, 0.16, 0.14);
-        mat.specularColor = new Color3(0.05, 0.05, 0.05);
-        box.material = mat;
-        box.renderingGroupId = 1;
-        this.plinth = box;
-    }
-
-    _buildTerrain() {
+    _buildTerrainOverlay() {
         const size = SIZE;
         const n = size * size;
         const positions = new Float32Array(n * 3);
         const uvs = new Float32Array(n * 2);
         const indices = new Uint32Array((size - 1) * (size - 1) * 6);
+        const worldX = new Float32Array(n);
+        const worldZ = new Float32Array(n);
 
         for (let z = 0; z < size; z++) {
             for (let x = 0; x < size; x++) {
                 const i = z * size + x;
-                positions[i * 3] = (x / (size - 1) - 0.5) * WORLD_SPAN;
+                const lx = (x / (size - 1) - 0.5) * WORLD_SPAN;
+                const lz = (z / (size - 1) - 0.5) * WORLD_SPAN;
+                positions[i * 3] = lx;
                 positions[i * 3 + 1] = 0;
-                positions[i * 3 + 2] = (z / (size - 1) - 0.5) * WORLD_SPAN;
+                positions[i * 3 + 2] = lz;
                 uvs[i * 2] = x / (size - 1);
                 uvs[i * 2 + 1] = z / (size - 1);
+                worldX[i] = this.origin.x + lx;
+                worldZ[i] = this.origin.z + lz;
             }
         }
         let ii = 0;
@@ -134,8 +133,13 @@ export class SandboxRenderer {
         mesh.renderingGroupId = 1;
 
         const mat = new StandardMaterial("sandboxTerrainMat", this.scene);
-        mat.specularColor = new Color3(0.04, 0.04, 0.04);
+        mat.specularColor = new Color3(0.05, 0.05, 0.05);
         mat.backFaceCulling = false;
+        // Per-vertex alpha does the actual work here: at rest every vertex is
+        // fully transparent (see _refresh's `activity` term), so the real
+        // Snowflow terrain — and anything already marked on it — shows
+        // straight through until this cell actually changes.
+        mat.hasVertexAlpha = true;
         mesh.material = mat;
 
         this.terrain = mesh;
@@ -143,12 +147,14 @@ export class SandboxRenderer {
         this._positions = positions;
         this._normals = new Float32Array(n * 3);
         this._colors = new Float32Array(n * 4).fill(1);
+        this._worldX = worldX;
+        this._worldZ = worldZ;
+        this._baseHeight = new Float32Array(n);
     }
 
     _buildWater() {
         const size = SIZE;
         const n = size * size;
-        // Same topology as the terrain — built the same way, updated the same way.
         const positions = new Float32Array(n * 3);
         const indices = new Uint32Array((size - 1) * (size - 1) * 6);
         for (let z = 0; z < size; z++) {
@@ -179,7 +185,6 @@ export class SandboxRenderer {
         const mat = new StandardMaterial("sandboxWaterMat", this.scene);
         mat.diffuseColor = new Color3(0.14, 0.42, 0.5);
         mat.specularColor = new Color3(0.5, 0.55, 0.6);
-        mat.alpha = 1;
         mat.hasVertexAlpha = true;
         mat.backFaceCulling = false;
         mesh.material = mat;
@@ -221,7 +226,6 @@ export class SandboxRenderer {
 
     _buildStone() {
         const sphere = MeshBuilder.CreateSphere("sandboxStone", { diameter: 0.7, segments: 8 }, this.scene);
-        sphere.position.copyFrom(this.origin);
         const mat = new StandardMaterial("sandboxStoneMat", this.scene);
         mat.diffuseColor = new Color3(0.35, 0.36, 0.34);
         sphere.material = mat;
@@ -242,6 +246,29 @@ export class SandboxRenderer {
         torus.isPickable = false;
         torus.setEnabled(false);
         this.cursor = torus;
+    }
+
+    /**
+     * Sample the real terrain's height at every vertex, and record the
+     * sandbox field's own starting ground level per cell — everything the
+     * per-frame refresh renders is a delta from these two baselines, which
+     * is what keeps the overlay flush and invisible until something changes.
+     */
+    _captureBaseline() {
+        const n = SIZE * SIZE;
+        for (let i = 0; i < n; i++) {
+            this._baseHeight[i] = this.terrain3d.heightAt(this._worldX[i], this._worldZ[i]);
+        }
+        const world = this.runtime.world;
+        this._initialGround = new Float32Array(n);
+        let sum = 0;
+        for (let i = 0; i < n; i++) {
+            const o = i * CELL_STRIDE;
+            const g = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
+            this._initialGround[i] = g;
+            sum += g;
+        }
+        this._avgInitialGround = sum / n;
     }
 
     // ------------------------------------------------------------ runtime
@@ -273,7 +300,7 @@ export class SandboxRenderer {
             const u = (point.x - this.origin.x) / WORLD_SPAN + 0.5;
             const v = (point.z - this.origin.z) / WORLD_SPAN + 0.5;
             this.cursor.setEnabled(true);
-            this.cursor.position.set(point.x, point.y + 0.02, point.z);
+            this.cursor.position.set(point.x, point.y + 0.03, point.z);
             this.cursor.scaling.set(this.runtime.state.radius * WORLD_SPAN * 2, 1, this.runtime.state.radius * WORLD_SPAN * 2);
 
             if (toolDown && !this._toolWasDown) this.runtime.beginToolStroke(u, v);
@@ -296,16 +323,29 @@ export class SandboxRenderer {
         for (let i = 0; i < size * size; i++) {
             const o = i * CELL_STRIDE;
             const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
-            this._positions[i * 3 + 1] = ground * HEIGHT_SCALE;
+            const delta = ground - this._initialGround[i];
+            const water = world[o + FIELD.WATER];
+            const bio = world[o + FIELD.BIOMASS];
+            const localBase = this._baseHeight[i] - this.origin.y;
+
+            this._positions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + LIFT;
 
             const rgb = colorForCell(world, o, 0);
             this._colors[i * 4] = rgb[0] / 255;
             this._colors[i * 4 + 1] = rgb[1] / 255;
             this._colors[i * 4 + 2] = rgb[2] / 255;
-            this._colors[i * 4 + 3] = 1;
+            // Fades in only where this cell has actually been dug/piled, has
+            // standing water, or has grown something — otherwise it stays at
+            // 0 and the real terrain (and its own footprints/wake/spell
+            // marks) reads through untouched.
+            const activity = Math.max(
+                Math.abs(delta) * VISIBILITY_GAIN,
+                water > WATER_THRESHOLD ? 1 : 0,
+                Math.max(0, bio - VEG_THRESHOLD) * 8
+            );
+            this._colors[i * 4 + 3] = Math.min(1, activity);
 
-            const water = world[o + FIELD.WATER];
-            this._waterPositions[i * 3 + 1] = (ground + water) * HEIGHT_SCALE + 0.01;
+            this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;
             this._waterColors[i * 4] = 1;
             this._waterColors[i * 4 + 1] = 1;
@@ -315,7 +355,7 @@ export class SandboxRenderer {
 
         // `updateExtends: true` on the position update — the mesh's bounding info
         // has to track the live heightfield, or the crosshair raycast's broad-phase
-        // rejects real hits once the terrain has deformed away from its initial shape.
+        // rejects real hits once the overlay has deformed away from its initial shape.
         this.terrain.updateVerticesData(VertexBuffer.PositionKind, this._positions, true);
         this.terrain.updateVerticesData(VertexBuffer.ColorKind, this._colors, false);
         VertexData.ComputeNormals(this._positions, this._indices, this._normals);
@@ -335,14 +375,17 @@ export class SandboxRenderer {
         const buf = this._vegBuf;
         for (let z = 0; z < size && count < MAX_VEG; z += VEG_STEP) {
             for (let x = 0; x < size && count < MAX_VEG; x += VEG_STEP) {
-                const o = (z * size + x) * CELL_STRIDE;
+                const i = z * size + x;
+                const o = i * CELL_STRIDE;
                 const bio = world[o + FIELD.BIOMASS];
                 if (bio < VEG_THRESHOLD) continue;
                 const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
+                const delta = ground - this._initialGround[i];
+                const localBase = this._baseHeight[i] - this.origin.y;
                 const h = 0.12 + Math.sqrt(bio) * 0.9;
                 _pos.set(
                     (x / (size - 1) - 0.5) * WORLD_SPAN,
-                    ground * HEIGHT_SCALE + h * 0.5,
+                    localBase + delta * HEIGHT_SCALE + LIFT + h * 0.5,
                     (z / (size - 1) - 0.5) * WORLD_SPAN
                 );
                 _scale.set(1, h, 1);
@@ -361,11 +404,11 @@ export class SandboxRenderer {
         const buf = this._particleBuf;
         for (let i = 0; i < count; i++) {
             const p = particles[i];
-            _pos.set(
-                (p.x - 0.5) * WORLD_SPAN,
-                p.y * HEIGHT_SCALE,
-                (p.z - 0.5) * WORLD_SPAN
-            );
+            const wx = this.origin.x + (p.x - 0.5) * WORLD_SPAN;
+            const wz = this.origin.z + (p.z - 0.5) * WORLD_SPAN;
+            const baseY = this.terrain3d.heightAt(wx, wz) - this.origin.y;
+            const delta = p.y - this._avgInitialGround;
+            _pos.set((p.x - 0.5) * WORLD_SPAN, baseY + delta * HEIGHT_SCALE + LIFT, (p.z - 0.5) * WORLD_SPAN);
             _scale.set(1, 1, 1);
             Matrix.ComposeToRef(_scale, _rot, _pos, _mat);
             _mat.copyToArray(buf, i * 16);
@@ -378,16 +421,15 @@ export class SandboxRenderer {
         const body = this.runtime.state.body;
         this.stone.setEnabled(body.active);
         if (body.active) {
-            this.stone.position.set(
-                this.origin.x + (body.x - 0.5) * WORLD_SPAN,
-                this.origin.y + body.y * HEIGHT_SCALE,
-                this.origin.z + (body.z - 0.5) * WORLD_SPAN
-            );
+            const wx = this.origin.x + (body.x - 0.5) * WORLD_SPAN;
+            const wz = this.origin.z + (body.z - 0.5) * WORLD_SPAN;
+            const baseY = this.terrain3d.heightAt(wx, wz);
+            const delta = body.y - this._avgInitialGround;
+            this.stone.position.set(wx, baseY + delta * HEIGHT_SCALE + LIFT, wz);
         }
     }
 
     setVisible(v) {
-        this.plinth.setEnabled(v);
         this.terrain.setEnabled(v);
         this.water.setEnabled(v);
         this.veg.setEnabled(v);
@@ -399,7 +441,6 @@ export class SandboxRenderer {
     }
 
     dispose() {
-        this.plinth.dispose();
         this.terrain.dispose();
         this.water.dispose();
         this.veg.dispose();
