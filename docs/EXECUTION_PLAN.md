@@ -257,11 +257,19 @@ GPU-Sichtprüfung**, nicht „sieht gut aus" oder „kompiliert garantiert".
    außen vorgegebenen Kalibrierungsanker (bekannte Fliesenkante), nicht gemessen, nicht geschätzt,
    nicht nachträglich bestätigt. Aufnehmen oder anders einordnen? Siehe `OPERATORS.md`,
    `metric_calibrate_v1`, „Offener Punkt".
-2. **`CELL_STRIDE` erweitern.** WORLD_KERNEL.md's erster Schritt (Boden/Substrat: `porosity`,
-   `organicMatter`, `nutrients`) braucht neue Felder. `CELL_STRIDE = 24` füllt im geparkten
-   WGSL-`Cell`-Struct exakt 6 `vec4`s ohne Restpadding — ein 25. Feld ist dort **nicht gratis**.
-   Der Live-Pfad (`src/sandbox/`) hat kein WebGPU-Backend, dort wäre es nur ein JS-Stride. Also:
-   nur `src/` erweitern (Divergenz vertiefen), beide (geparktes WGSL mitziehen), oder warten?
+2. **`CELL_STRIDE` erweitern — teilweise entschieden (Maintainer, 2026-09-05, siehe
+   `OPERATORS.md`, „Kanonische Feldbedeutung vs. Speicherrepräsentation").** Entschieden:
+   `CELL_STRIDE` ist reine Speicherrepräsentation, keine Bedeutung, und wird **nicht blind** in den
+   aktuell nicht ausführbaren geparkten WGSL-Pfad hineingezogen, nur weil `src/`s Stride wächst —
+   also **nur `src/` erweitern**, wenn WORLD_KERNEL.md's Boden/Substrat-Felder (`porosity`,
+   `organicMatter`, `nutrients`) kommen; das geparkte WGSL bleibt bei 24/6 `vec4`s unangetastet.
+   Zugleich gilt: `FIELD.SNOW` und die übrigen WORLD_LANGUAGE-Felder sind ab jetzt gemeinsame
+   semantische Wahrheit über beide Subsysteme hinweg — unterschiedliche interne Repräsentation
+   (verschiedene Strides, verschiedene Structs) ist erlaubt, unterschiedliche Bedeutung nicht.
+   **Weiterhin offen (nicht selbst zu entscheiden):** der eigentliche Migrations-/Testschritt, wenn
+   der geparkte Pfad reaktiviert wird — er muss dann auf den dann aktuellen World-State-Vertrag
+   migriert und gegen die Sandbox auf Feldbedeutung, Einheiten, Material-IDs, Phasen, Provenienz
+   und Erhaltung getestet werden, nicht einfach mit einem größeren `CELL_STRIDE` weiterlaufen.
 3. **Task 2's Stil-Gate** (siehe oben).
 
 ---
