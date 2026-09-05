@@ -543,11 +543,18 @@ export class SandboxRenderer {
             // Terrain.setSandboxWindow) exactly as sampleHeight() computes
             // it for the character. GBA = ground colour, straight from the
             // same field/colour law the old mesh used.
+            // colorForCell's coefficients (e.g. r = 62 + sand*850) are additive/multiplicative
+            // and unclamped by design -- mode 1..7 debug views deliberately let them overshoot
+            // to make field magnitudes visible. Reachable field states (dune crest SAND=0.24,
+            // sand stamps, fire) push raw/255 past 1.0; clamped here, at the one place this
+            // colour stops being a debug value and becomes GBA texel data that
+            // snow.fragment.wgsl mixes straight into linear PBR albedo (see EXECUTION_PLAN.md
+            // Task 1) -- not inside colorForCell, which must stay unclamped for its debug modes.
             const rgb = colorForCell(world, o, 0);
             tex[i * 4] = delta * HEIGHT_SCALE;
-            tex[i * 4 + 1] = rgb[0] / 255;
-            tex[i * 4 + 2] = rgb[1] / 255;
-            tex[i * 4 + 3] = rgb[2] / 255;
+            tex[i * 4 + 1] = Math.min(1, Math.max(0, rgb[0] / 255));
+            tex[i * 4 + 2] = Math.min(1, Math.max(0, rgb[1] / 255));
+            tex[i * 4 + 3] = Math.min(1, Math.max(0, rgb[2] / 255));
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;

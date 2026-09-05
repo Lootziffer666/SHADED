@@ -14,6 +14,7 @@ import {
   FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal,
 } from '../src/sandbox/world-sandbox-reference.mjs';
 import {WorldSandboxRuntime} from '../src/sandbox/world-sandbox-runtime.mjs';
+import {colorForCell} from '../src/sandbox/world-sandbox-cpu-backend.mjs';
 
 function ok(condition, message) {
   if (!condition) throw new Error(`FAILED: ${message}`);
@@ -169,6 +170,54 @@ const flatGround = () => ({height: FLAT_HEIGHT, normalX: 0, normalY: 1, normalZ:
   ok(sawImpact, 'the live stone actually registers a real terrain contact (impacts > 0), not just floats forever');
   ok(finalBody.active === false, 'the live stone eventually settles and deactivates, instead of bouncing/jittering forever');
   ok(maxAbsVelocity < 5, `stone velocity never blows up over the run (max |v| component = ${maxAbsVelocity.toFixed(4)})`);
+}
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 1:
+// albedo clamp. colorForCell()'s coefficients (r = 62 + sand*850, etc.) are additive/
+// multiplicative and unclamped by design -- its mode 1..7 debug views deliberately let values
+// overshoot to make field magnitudes visible. sandboxRenderer.js's `_refresh()` divides mode-0
+// output by 255 and clamps it into sandboxTex's GBA channels, the exact point where this colour
+// stops being a debug value and becomes albedo that snow.fragment.wgsl mixes into linear PBR.
+// sandboxRenderer.js itself isn't importable under headless Node (it pulls in @babylonjs/core
+// submodules whose resolution needs Vite's bundling, not plain ESM), so this test reimplements
+// its one-line clamp (`Math.min(1, Math.max(0, x))`) rather than importing it -- keep the two in
+// sync if that formula ever changes.
+{
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const cell = () => new Float32Array(CELL_STRIDE);
+  const withFields = (fields) => {
+    const c = cell();
+    for (const [field, value] of Object.entries(fields)) c[FIELD[field]] = value;
+    return c;
+  };
+
+  // Named per EXECUTION_PLAN.md's Task 1 table (the five overshoot rows) plus WETNESS, BIOMASS,
+  // SNOW, ASH as the plan's DONE criteria require.
+  const states = {
+    'bare bedrock': withFields({BEDROCK: 0.4}),
+    'medium dune (SAND=0.12)': withFields({SAND: 0.12}),
+    'dune crest (SAND=0.24, seed maximum)': withFields({SAND: 0.24}),
+    'sand stamp x5 (SAND=0.50)': withFields({SAND: 0.50}),
+    'fire (FIRE=1, SAND=0.12)': withFields({SAND: 0.12, FIRE: 1}),
+    'fire on crest (FIRE=1, SAND=0.5)': withFields({SAND: 0.5, FIRE: 1}),
+    'wet sand (SAND=0.12, WETNESS=0.6)': withFields({SAND: 0.12, WETNESS: 0.6}),
+    'biomass (BIOMASS=1)': withFields({SAND: 0.12, BIOMASS: 1}),
+    'snow cover (SNOW=0.1)': withFields({SAND: 0.12, SNOW: 0.1}),
+    'ash (ASH=0.35)': withFields({SAND: 0.12, ASH: 0.35}),
+  };
+
+  let sawRawOvershoot = false;
+  for (const [name, state] of Object.entries(states)) {
+    const raw = colorForCell(state, 0, 0);
+    const rawAlbedo = raw.map((c) => c / 255);
+    if (rawAlbedo.some((c) => c > 1 || c < 0)) sawRawOvershoot = true;
+    const clamped = rawAlbedo.map(clamp01);
+    ok(
+      clamped.every((c) => c >= 0 && c <= 1),
+      `${name}: clamped albedo (${clamped.map((c) => c.toFixed(3)).join(', ')}) stays within [0, 1]`,
+    );
+  }
+  ok(sawRawOvershoot, 'the sweep actually exercises a real overshoot state (raw/255 > 1 before clamping) -- otherwise this test would not have caught the original bug');
 }
 
 console.log('\n✅ Alle Rigid-Body/Physics-Selbsttests bestanden');
