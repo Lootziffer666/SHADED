@@ -1,4 +1,4 @@
-# Verification — the Consensus/Wolfram/Context7 triangle
+# Verification — Consensus / Math Check / Context7
 
 Companion to [`PHYSICS.md`](./PHYSICS.md), [`SHADER_IR.md`](./SHADER_IR.md), [`WORLD_KERNEL.md`](./WORLD_KERNEL.md).
 
@@ -7,7 +7,7 @@ Companion to [`PHYSICS.md`](./PHYSICS.md), [`SHADER_IR.md`](./SHADER_IR.md), [`W
 > **Keine neue physikalische Kernlogik wird allein auf Basis einer LLM-Interpretation
 > akzeptiert.**
 
-Literaturbehauptung → Consensus. Mathematik/Näherung → Wolfram. Aktuelle Implementierungsdetails
+Literaturbehauptung → Consensus. Mathematik/Näherung → Math Check. Aktuelle Implementierungsdetails
 → Context7. Ergebnis → reproduzierbarer Test im Repo.
 
 Das ist stärker als „Claude soll sorgfältiger sein" — es baut unterschiedliche Arten von
@@ -22,7 +22,7 @@ LIFE).
 | Instanz | Prüft |
 |---|---|
 | **Consensus** | „Ist die zugrunde liegende wissenschaftliche Behauptung überhaupt durch Literatur gedeckt — und was spricht dagegen?" |
-| **Wolfram** | „Ist die Mathematik korrekt? Dimensionen, Grenzfälle, die vorgenommene Vereinfachung?" |
+| **Math Check** | „Ist die Mathematik korrekt? Dimensionen, Grenzfälle, die vorgenommene Vereinfachung?" |
 | **Context7** | „Benutzen wir die aktuelle API/Library korrekt?" |
 
 Claude sitzt nicht als einzige Wahrheit in der Mitte, sondern als Orchestrator:
@@ -35,8 +35,8 @@ PAPER / IDEE
      │
  ┌───┼────────────┐
  ▼   ▼             ▼
-Consensus  Wolfram  Context7
-Evidence   Math     API/Docs
+Consensus  Math Check  Context7
+Evidence   Math        API/Docs
  │   │             │
  └───┼────────────┘
      ▼
@@ -45,6 +45,48 @@ SHADED SPEC / CODE
      ▼
 REFERENCE TESTS
 ```
+
+## Math Check ist ein Vertrag, kein Vendor
+
+„Math Check" heißt bewusst nicht `VERIFY_WITH_WOLFRAM`, sondern:
+
+```
+MATH_VERIFICATION
+    ├─ symbolic equivalence
+    ├─ dimensional sanity
+    ├─ boundary conditions
+    ├─ numerical reference cases
+    └─ approximation error
+```
+
+Wolfram war als **Prüfinstanz** gedacht, nicht als Abhängigkeit — als der MCP-Connector in dieser
+Session nicht initialisierbar war, blieb die Regel deshalb unverändert, nur der Implementer
+wechselte: heute erfüllt **SymPy** (`tools/math-verify/`, `pip install -r
+tools/requirements-math-verify.txt`) denselben Vertrag — symbolische Vereinfachung, Ableitungen,
+Gleichungen lösen, algebraische Äquivalenz, Grenzwerte, numerische Referenzwerte. Wolfram bleibt
+willkommen, als zweiter Prüfer oder späterer Ersatz, ist aber **nicht systemkritisch**. Genau das
+ist der Punkt: SHADED entkoppelt sich überall von konkreten Sprachen, Repräsentationen und Donors
+(SHADER_IR.md) — die mathematische Wahrheit selbst an einen einzelnen Connector zu hängen wäre
+derselbe Fehler, den diese Regel woanders gerade vermeidet.
+
+```
+Paper
+  ↓
+Consensus
+  ↓
+Claude interpretiert
+  ↓
+Math Check (heute: SymPy) prüft Mathematik
+  ↓
+Reference vectors
+  ↓
+SHADED test suite
+```
+
+Sobald die Referenzvektoren als Test im Repo eingefroren sind, brauchen weder SHADED noch ein
+späterer Entwickler SymPy, Wolfram oder Claude, um zu wissen, dass für die definierten Randfälle
+genau diese Ergebnisse herauskommen müssen — der Test ist der bleibende Beweis, der Checker nur
+das Werkzeug, mit dem er einmal hergeleitet wurde.
 
 ## Consensus als Gegenprüfer, nicht als Bestätiger
 
@@ -70,10 +112,13 @@ SOURCE:
 CONSENSUS:
 <literature support + applicability, oder Gegenevidenz>
 
-WOLFRAM:
-dimension check <PASS/OPEN>
-boundary cases <PASS/OPEN>
-approximation error <checked/OPEN>
+MATH_VERIFICATION:
+symbolic equivalence  <PASS/OPEN>
+dimensional sanity    <PASS/OPEN>
+boundary conditions   <PASS/OPEN>
+numerical reference   <PASS/OPEN>
+approximation error   <PASS/OPEN>
+(implementer: SymPy/Wolfram/…, Pfad zum Skript)
 
 CONTEXT7:
 <implementation APIs verified against current docs, oder N/A>
@@ -83,17 +128,17 @@ SHADED TESTS:
 ```
 
 Ein `OPEN`-Feld ist kein Fehler, sondern ein ehrlicher Zustand: die Prüfung ist noch nicht
-gelaufen (z. B. weil ein Konnektor in dieser Session nicht aktiviert war). Ein `LAW`-Block wird
-nicht rückwirkend auf „PASS" gesetzt, ohne dass die Prüfung tatsächlich stattgefunden hat — sonst
-ist das Format nur Theater. Damit weiß auch ein anderes Modell später, warum eine Gleichung genau
-so im Repo steht, und was davon noch nachgeholt werden muss.
+gelaufen. Ein `LAW`-Block wird nicht rückwirkend auf „PASS" gesetzt, ohne dass die Prüfung
+tatsächlich stattgefunden hat — sonst ist das Format nur Theater. Damit weiß auch ein anderes
+Modell später, warum eine Gleichung genau so im Repo steht, und was davon noch nachgeholt werden
+muss.
 
 ## SHADER_IR ist der zweite Haupt-Anwendungsfall
 
 Bei einer rein technischen Übersetzung (Syntax/Space/Handedness, siehe SHADER_IR.md's
 World-Normal-from-Depth-Beispiel) braucht es meist kein Consensus — da geht es nicht um eine
 wissenschaftliche Behauptung, sondern um korrekte API-Semantik (Context7) und ggf. mathematische
-Äquivalenz einer Vereinfachung (Wolfram). Bei einer physikalischen Shader-Funktion (z. B. einem
+Äquivalenz einer Vereinfachung (Math Check). Bei einer physikalischen Shader-Funktion (z. B. einem
 Fresnel-Term, einer BRDF-Näherung, einem Wellenmodell) gilt dagegen die volle Kette:
 
 ```
@@ -103,9 +148,9 @@ Semantik rekonstruieren
     ↓
 Paper/Ursprung bestimmen
     ↓
-Consensus → wissenschaftliche Grundlage
-Wolfram   → mathematische Form
-Context7  → technische Umsetzung
+Consensus   → wissenschaftliche Grundlage
+Math Check  → mathematische Form
+Context7    → technische Umsetzung
     ↓
 SHADED IR
 ```
@@ -114,7 +159,9 @@ SHADED IR
 
 Erste tatsächlich durchgeführte Prüfung nach diesem Format (2026-09-05), rückwirkend auf die in
 [`PHYSICS.md`](./PHYSICS.md) referenzierte Literatur angewendet, die `src/physics/rigidBody.mjs`
-bereits umsetzt:
+bereits umsetzt. Ursprünglich für Wolfram vorgesehen; da der Connector in dieser Session nicht
+initialisierbar war, übernimmt SymPy denselben Vertrag (`tools/math-verify/
+sphere_terrain_contact_v1.py`, `npm run verify:math`):
 
 ```
 LAW: sphere_terrain_contact_v1
@@ -138,13 +185,25 @@ nächste Stufe (mehrere Körper, Körper-gegen-Körper-Kontakt) ansteht. Für DI
 entweder mehrfach über Kontakte iteriert werden (wie Catto/Box2D es tatsächlich tun, nicht nur
 einmal wie hier) oder ein Verfahren aus der ETI-Linie geprüft werden.
 
-WOLFRAM:
-OPEN — Wolfram-Konnektor war in dieser Session nicht aktiviert (installiert, aber
-`enabledInChat: false`). Ersatzweise numerisch/empirisch statt symbolisch geprüft:
-tools/test-world-sandbox-physics.mjs verifiziert die Sprunghöhe eines elastischen Falls gegen
-die geschlossene Form apex = e² × dropHeight (Energieerhaltung entlang einer Achse) auf 8%
-Toleranz, sowie Penetrationskorrektur, Hangabrollen und Reibungsverhalten. Das ersetzt keine
-symbolische Dimensions-/Grenzfallprüfung — nachzuholen, sobald der Konnektor aktiv ist.
+MATH_VERIFICATION (implementer: SymPy 1.14, tools/math-verify/sphere_terrain_contact_v1.py):
+symbolic equivalence  PASS — Impulsformel j = -(1+e)·v_n reduziert sich exakt auf das klassische
+                       Stoßgesetz v_n' = -e·v_n.
+boundary conditions   PASS — e=0 liefert v_n'=0 (perfekt inelastisch), e=1 liefert v_n'=-v_n
+                       (perfekt elastisch); Reibungs-„Friction Cone" per Monotonie bewiesen: der
+                       Restanteil des Tangentialvektors ist affin fallend in F und läuft exakt von
+                       1 (F=0) auf 0 (F=tangentSpeed) — kann also nie negativ werden (Umkehr der
+                       Bewegungsrichtung) oder über 1 (Energiezufuhr).
+numerical reference   PASS — aus Energieerhaltung analytisch hergeleitet: apex = e²·dropHeight,
+                       identisch zur Formel, die tools/test-world-sandbox-physics.mjs bereits
+                       numerisch (auf 8% Toleranz) bestätigt — jetzt zusätzlich analytisch bewiesen,
+                       nicht nur empirisch beobachtet.
+approximation error   PASS — der Diskretisierungsfehler durch „ein Schritt Schwerkraft zu spät
+                       erkannter Kontakt" ist nachweisbar O(dt) (Grenzwert relativer Fehler → 0 für
+                       dt→0, Fehler/dt → g/v_true, ein endlicher, von Null verschiedener Grenzwert)
+                       — konsistente, keine feste Verzerrung.
+dimensional sanity    implizit durch die obigen Ableitungen (Geschwindigkeit rein/raus, dimensionslose
+                       e/mu) — kein gesondertes Einheitensystem nötig, da das Modul durchgehend mit
+                       Einheitsmasse arbeitet.
 
 CONTEXT7:
 N/A — das Modul benutzt keine externe Library-API (reines Vanilla-JS, keine Physics-Engine-
@@ -153,6 +212,8 @@ Abhängigkeit); Context7 hat hier nichts zu prüfen.
 SHADED TESTS:
 tools/test-world-sandbox-physics.mjs (Unit-Tests des Moduls + Integrationstest über
 WorldSandboxRuntime.launchStone()), in npm run check verdrahtet.
+tools/math-verify/sphere_terrain_contact_v1.py (analytischer Beweis, npm run verify:math),
+separat von npm run check, da es eine Python/SymPy-Umgebung voraussetzt.
 ```
 
 **Konsequenz für die nächste Physik-Stufe:** Sobald `src/physics/rigidBody.mjs` auf mehrere
@@ -166,7 +227,7 @@ bevor die einfache Ein-Iterations-Version einfach linear auf N Körper hochskali
 - Reine Rendering-/Optik-Entscheidungen ohne physikalischen Anspruch (Farbgebung, Stil) — dafür
   gibt es `docs/STYLE_DISCOVERY.md` und den entsprechenden Workflow, nicht diese Kette.
 - Triviale, in sich geschlossene Mathematik ohne externe Behauptung (z. B. eine Bilinearinterpolation)
-  — Wolfram/Consensus sind hier Overkill; ein Unit-Test reicht.
+  — Math Check/Consensus sind hier Overkill; ein Unit-Test reicht.
 - Reine API-Fragen ohne physikalischen/mathematischen Kern (z. B. „welche WebGPU-Bindgroup-Limits
   gelten") — dort reicht Context7 allein.
 

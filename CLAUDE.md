@@ -40,9 +40,11 @@ separate product `STUDIO.md` is free to design on its own terms.
 
 `VERIFICATION.md` is a different kind of document from the twelve above: a repo-wide rule (not
 scoped to either subsystem) for how new physical/mathematical core logic gets checked — Consensus
-for literature support (used adversarially, not to confirm a preferred answer), Wolfram for the
-math, Context7 for API correctness, before it becomes SHADED code. Applies to `PHYSICS.md`,
-`HYDROLOGY.md`, `SHADER_IR.md`-driven work and any equivalent claim in the parked engine (material
+for literature support (used adversarially, not to confirm a preferred answer), a provider-agnostic
+Math Check (SymPy today, `tools/math-verify/`; Wolfram may join or replace it later, welcome but
+never load-bearing) for the math, Context7 for API correctness, before it becomes SHADED code.
+Applies to `PHYSICS.md`, `HYDROLOGY.md`, `SHADER_IR.md`-driven work and any equivalent claim in the
+parked engine (material
 science, SVBRDF) alike.
 
 ## Core purpose
