@@ -37,11 +37,37 @@ fn sandboxUV(worldXZ: vec2f, centre: vec2f, size: f32) -> vec2f {
     return (worldXZ - centre) / size + vec2f(0.5, 0.5);
 }
 
+/// Manual bilinear sample. `tex`'s sampler is NEAREST — WebGPU's rgba32float
+/// format isn't filterable by default, so a linear sampler on it is a
+/// validation error, not a graceful fallback — so this does the blend by
+/// hand instead: four nearest taps around the sample point, lerped by the
+/// fractional texel position. Reads identically to hardware bilinear on the
+/// GPU side and doesn't care what sampler type is actually bound.
+///
+/// Not optional polish: without this, every consumer sees this 64² grid's
+/// raw ~1.25 m cells as hard blocks — hugely visible on the colour it feeds
+/// into the terrain's albedo, since colorForCell swings from near-black
+/// bedrock to stark white snow between neighbouring cells.
+fn sandboxSampleBilinear(tex: texture_2d<f32>, samp: sampler, uv: vec2f) -> vec4f {
+    let dims = vec2f(textureDimensions(tex));
+    let texel = uv * dims - vec2f(0.5, 0.5);
+    let i0 = floor(texel);
+    let f = texel - i0;
+    let invDims = vec2f(1.0, 1.0) / dims;
+    let uv00 = (i0 + vec2f(0.5, 0.5)) * invDims;
+
+    let s00 = textureSampleLevel(tex, samp, uv00, 0.0);
+    let s10 = textureSampleLevel(tex, samp, uv00 + vec2f(invDims.x, 0.0), 0.0);
+    let s01 = textureSampleLevel(tex, samp, uv00 + vec2f(0.0, invDims.y), 0.0);
+    let s11 = textureSampleLevel(tex, samp, uv00 + invDims, 0.0);
+
+    let sx0 = mix(s00, s10, f.x);
+    let sx1 = mix(s01, s11, f.x);
+    return mix(sx0, sx1, f.y);
+}
+
 /// Height delta in metres, already faded to 0 outside the window by
-/// `deformFalloff`. One bilinear tap is enough — the data comes off a coarse
-/// ~1.25 m simulation grid, so there is no sub-texel content for a wider
-/// filter to protect the way `deformHeight`'s binomial protects a footprint's
-/// sharp walls.
+/// `deformFalloff`.
 fn sandboxHeight(
     tex: texture_2d<f32>, samp: sampler,
     worldXZ: vec2f, centre: vec2f, size: f32
@@ -50,5 +76,5 @@ fn sandboxHeight(
     let w = deformFalloff(worldXZ, centre, size);
     if (w <= 0.0) { return 0.0; }
     let uv = sandboxUV(worldXZ, centre, size);
-    return textureSampleLevel(tex, samp, uv, 0.0).r * w;
+    return sandboxSampleBilinear(tex, samp, uv).r * w;
 }

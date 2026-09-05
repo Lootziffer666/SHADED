@@ -364,9 +364,9 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     if (uniforms.sandboxSize > 0.0) {
         sandWeight = deformFalloff(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
         if (sandWeight > 0.001) {
-            let sc = textureSampleLevel(
+            let sc = sandboxSampleBilinear(
                 sandboxTex, sandboxTexSampler,
-                sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize), 0.0
+                sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize)
             );
             albedo = mix(albedo, sc.gba, sandWeight);
             roughness = mix(roughness, 0.82, sandWeight);
