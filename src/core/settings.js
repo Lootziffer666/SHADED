@@ -24,6 +24,14 @@ export const S = {
     sunTempWarm: 1.0, // 0 = neutral white, 1 = full warm low-sun tint
     ambientIntensity: 1.0,
     ambientBlue: 1.0, // strength of the cool shadow shift
+    // A floor under the scene's own radiance, not under `ambientIntensity` — it
+    // has to survive being multiplied by a near-black albedo (exposed rock,
+    // sandbox dirt) and still read as a dim shadow rather than crush to literal
+    // (0,0,0) at this exposure. At 13 degrees of sun elevation, self-shadowed
+    // sastrugi/dune flanks and anything that isn't bright snow legitimately
+    // compute a linear radiance the AgX toe throws away entirely below this;
+    // nothing in a real snow bowl is ever lit by *nothing*. See snow.fragment.wgsl.
+    ambientFloor: 0.35,
 
     // ------------------------------------------------------------- atmosphere
     fogDensity: 0.0072,
@@ -162,6 +170,7 @@ export const SCHEMA = [
             { k: "sunTempWarm", l: "Warmth", t: "f", min: 0, max: 1, step: 0.01 },
             { k: "ambientIntensity", l: "Ambient", t: "f", min: 0, max: 3, step: 0.01 },
             { k: "ambientBlue", l: "Ambient blue", t: "f", min: 0, max: 2, step: 0.01 },
+            { k: "ambientFloor", l: "Shadow floor", t: "f", min: 0, max: 1.5, step: 0.01 },
         ],
     },
     {

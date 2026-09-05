@@ -84,6 +84,7 @@ uniform deformTexel: f32;
 uniform deformDepthScale: f32;
 
 uniform ambientIntensity: f32;
+uniform ambientFloor: f32;
 uniform debugMode: f32;
 uniform screenSize: vec2f;
 
@@ -492,6 +493,16 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     ambient += skyRefl * Fr * uniforms.ambientIntensity * mix(1.0, 2.6, iceAmount);
 
     var color = direct + ambient;
+
+    // A fully self-shadowed facet (NdotL <= 0, so `direct` is zero) still only
+    // gets `ambient`'s share of sky irradiance times its own albedo — and for
+    // exposed rock or sandbox dirt (albedo 0.05-0.4) at this exposure, tuned
+    // tight around direct-sunlit snow at radiance ~12, that crushes straight
+    // to display black. Real snow bowls have no truly unlit surface: bounce
+    // light off every surrounding drift reaches into every hollow. This floor
+    // is that bounce, in the same cool blue every other shadow term here
+    // carries, and it only ever lifts a pixel darker than itself.
+    color = max(color, uniforms.ambientFloor * vec3f(0.55, 0.72, 1.0));
 
     // --- spell light -------------------------------------------------------
     // Same wrapped diffuse and the same transmission lobe the sun drives, so a

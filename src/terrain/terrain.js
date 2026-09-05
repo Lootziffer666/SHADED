@@ -119,7 +119,7 @@ export class Terrain {
                     "sssStrength", "sssRadius",
                     "fogDensity", "fogHeightFalloff", "fogStart", "aerialStrength",
                     "deformCenter", "deformSize", "deformTexel", "deformDepthScale",
-                    "ambientIntensity", "debugMode", "screenSize",
+                    "ambientIntensity", "ambientFloor", "debugMode", "screenSize",
                     "sandboxCenter", "sandboxSize",
                     ...SPELL_LIGHT_UNIFORMS,
                 ],
@@ -390,6 +390,7 @@ export class Terrain {
         m.setFloat("fogStart", S.fogStart);
         m.setFloat("aerialStrength", S.aerialStrength);
         m.setFloat("ambientIntensity", S.ambientIntensity);
+        m.setFloat("ambientFloor", S.ambientFloor);
 
         m.setVector2("deformCenter", deformCenter);
         m.setFloat("deformSize", deformSize);
