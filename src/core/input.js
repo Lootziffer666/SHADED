@@ -42,6 +42,10 @@ export const input = {
 
     /** @type {number} world-sandbox tool cycle: 0 = none, -1 = previous, +1 = next — set on keydown, cleared each frame */
     toolCyclePressed: 0,
+    /** @type {boolean} gamepad-only: either trigger held past its deadzone */
+    toolFireActive: false,
+    /** @type {number} gamepad-only, 0..1: the held trigger's analog value, read as brush strength */
+    toolStrength: 0,
 
     locked: false,
 };
@@ -50,7 +54,6 @@ const keys = Object.create(null);
 
 const LOOK_SCALE = 0.0022;
 const STICK_LOOK_RATE = 2.6; // rad/s at full stick deflection (touch + gamepad)
-const STICK_ZOOM_RATE = 1.0; // input.zoomDelta units/s at full trigger/button
 
 /** @type {(() => void)|null} */
 let onToggleOverlay = null;
@@ -182,6 +185,8 @@ export function pollInput(dt) {
         input.spellPressed = 0;
         input.spellHeld2 = false;
         input.toolCyclePressed = 0;
+        input.toolFireActive = false;
+        input.toolStrength = 0;
         pollGamepad();
         return;
     }
@@ -235,18 +240,17 @@ export function pollInput(dt) {
         input.zoomDelta += touchState.pinchZoomDelta;
         touchState.pinchZoomDelta = 0;
     }
-    if (gamepadState.zoomActive) input.zoomDelta += gamepadState.zoomDelta * STICK_ZOOM_RATE * dt;
 
     // Edge-triggered spell press: consume from whichever source set it.
+    // Gamepad doesn't set this any more — see gamepad.js's mapping comment.
     if (touchState.spellPressed) {
         input.spellPressed = touchState.spellPressed;
         touchState.spellPressed = 0;
     }
-    if (gamepadState.spellPressed) {
-        input.spellPressed = gamepadState.spellPressed;
-        gamepadState.spellPressed = 0;
-    }
-    input.spellHeld2 = kbSpellHeld2 || touchState.spellHeld2 || gamepadState.spellHeld2;
+    input.spellHeld2 = kbSpellHeld2 || touchState.spellHeld2;
+
+    input.toolFireActive = gamepadState.toolFireActive;
+    input.toolStrength = gamepadState.toolStrength;
 
     if (touchState.toolCyclePressed) {
         input.toolCyclePressed = touchState.toolCyclePressed;

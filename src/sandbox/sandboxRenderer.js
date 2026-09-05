@@ -92,6 +92,12 @@ const MAX_VEG = 900;
 const MAX_PARTICLES = 600;
 /** Metres from the window's centre the player can roam before it re-centres on them. */
 const RECENTER_MARGIN = 26;
+/** Brush radius (world-sandbox's own 0..0.5 normalised unit) without an analog input driving it
+ *  — mouse/keyboard/touch have no pressure signal, so they always get this fixed size. */
+const DEFAULT_BRUSH_RADIUS = 0.025;
+/** Gamepad trigger pressure maps to this range — see setBrushStrength. */
+const MIN_BRUSH_RADIUS = 0.015;
+const MAX_BRUSH_RADIUS = 0.06;
 /** Initial FIELD.SNOW value seeded across a fresh patch, so it reads as snow-covered ground from
  *  the first frame rather than bare sand — colorForCell.js's own snowCoverage term is full white
  *  by snow=0.06 ((snow-0.006)/0.054 clamped to 1), so this needs to clear that, not just approach it. */
@@ -139,7 +145,7 @@ export class SandboxRenderer {
         this.runtime.reset(seed || 1, WORLD_GEN_OPTIONS);
         this._toolIndex = 0; // sand — see TOOL_ORDER
         this.runtime.setTool(TOOL_ORDER[this._toolIndex]);
-        this.runtime.setBrushRadius(0.025);
+        this.setBrushStrength(null);
         // Cold enough that seeded snow holds rather than melting straight
         // back off (stepWorldReference's melt/ice terms key off ~0.42-0.46) —
         // this is a snow world, and freshly generated ground should read as
@@ -338,6 +344,20 @@ export class SandboxRenderer {
     /** The currently selected tool's name, e.g. "sand". */
     get currentTool() {
         return TOOL_ORDER[this._toolIndex];
+    }
+
+    /**
+     * Set the brush radius from an analog 0..1 pressure value (gamepad trigger),
+     * or pass `null`/`undefined` to fall back to the fixed default mouse/keyboard/
+     * touch always get, since none of them carry an actual pressure signal.
+     * @param {number|null} [t]
+     */
+    setBrushStrength(t) {
+        const radius =
+            t === null || t === undefined
+                ? DEFAULT_BRUSH_RADIUS
+                : MIN_BRUSH_RADIUS + Math.max(0, Math.min(1, t)) * (MAX_BRUSH_RADIUS - MIN_BRUSH_RADIUS);
+        this.runtime.setBrushRadius(radius);
     }
 
     /**

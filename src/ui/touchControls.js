@@ -14,6 +14,10 @@
  * physical size in portrait and landscape without separate layouts — only
  * the button cluster's gap shrinks under a short landscape viewport, where
  * vertical room is tightest.
+ *
+ * Hides itself entirely while a real gamepad is connected (checked at
+ * mount and on every connect/disconnect) — a controller does everything
+ * this overlay does, and does it better.
  */
 
 export const touchState = {
@@ -47,6 +51,15 @@ const STICK_DEADZONE = 0.16;
  *  zone's edge, so an imprecise thumb still reaches max tilt without needing to drag all the way
  *  to (or past) the physical edge of the stick. */
 const DRAG_RADIUS = 0.72;
+
+/** True if any Standard Gamepad is currently connected. */
+function hasConnectedGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (let i = 0; i < pads.length; i++) {
+        if (pads[i]) return true;
+    }
+    return false;
+}
 
 export function isTouchDevice() {
     if (typeof navigator === "undefined") return false;
@@ -233,6 +246,19 @@ export function initTouchControls(_canvas, hooks) {
     // The desktop "click to look / f1 for settings" hint is meaningless here.
     const hint = document.getElementById("hint");
     if (hint) hint.style.display = "none";
+
+    // A real controller covers everything this overlay does (see
+    // core/gamepad.js's mapping) and better — analog sticks and triggers
+    // instead of on-screen thumb targets — so once one's connected there's
+    // nothing left for the touch overlay to usefully add. Checked once now
+    // (a pad already connected before this ran fires no event) and again on
+    // every connect/disconnect.
+    const updateGamepadVisibility = () => {
+        root.style.display = hasConnectedGamepad() ? "none" : "";
+    };
+    updateGamepadVisibility();
+    window.addEventListener("gamepadconnected", updateGamepadVisibility);
+    window.addEventListener("gamepaddisconnected", updateGamepadVisibility);
 
     const moveZone = root.querySelector("#tc-move");
     const moveKnob = moveZone.querySelector(".stick-knob");

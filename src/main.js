@@ -192,11 +192,11 @@ async function boot() {
         terrain.setSandboxWindow(v ? sandbox.sandboxTex : null, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize);
     });
 
-    // Primary action (left mouse button) stamps the sandbox's active tool
-    // wherever the crosshair is aiming, while the pointer is locked — the
-    // same "aim, don't click a cursor" convention surf/spells already use.
-    // Deliberately mouse-only for this first pass; touch/gamepad tool input
-    // is the next step alongside the multi-tool picker.
+    // Primary action (left mouse button, or a gamepad trigger — see
+    // input.toolFireActive) stamps the sandbox's active tool wherever the
+    // crosshair is aiming, while the pointer is locked — the same "aim,
+    // don't click a cursor" convention surf/spells already use. Touch has
+    // no equivalent yet.
     let toolDown = false;
     canvas.addEventListener("mousedown", (e) => {
         if (input.locked && e.button === 0) toolDown = true;
@@ -299,7 +299,10 @@ async function boot() {
         spray.update(dt, rig.camera.position);
         if (S.enableSandbox) {
             if (input.toolCyclePressed) sandbox.cycleTool(input.toolCyclePressed);
-            sandbox.handleInput(rig.camera, toolDown);
+            // Gamepad trigger pressure drives brush size when it's the one firing;
+            // mouse/keyboard/touch have no pressure signal, so they get the fixed default.
+            sandbox.setBrushStrength(input.toolFireActive ? input.toolStrength : null);
+            sandbox.handleInput(rig.camera, toolDown || input.toolFireActive);
             sandbox.update(dt, character.position.x, character.position.z);
             // After sandbox.update(): a re-centre this frame moves
             // sandbox.origin, and the terrain's shaders have to track it,

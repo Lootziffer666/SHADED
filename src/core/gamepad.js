@@ -6,13 +6,17 @@
  * `gamepadState`, and `pollInput` folds that in alongside keyboard/mouse and
  * touch, the same way three input sources already coexist there.
  *
- * Mapping (Standard Gamepad layout):
- *   left stick    move        right stick   look
- *   A             sprint      B             surf (snow-surf, hold)
- *   X / Y         spell 1/2   LB / RB       spell 3/4
- *   D-pad up      spell 5     Start         toggle settings overlay
- *   D-pad left/right  world-sandbox tool cycle (prev/next)
- *   LT / RT       zoom in/out (analog)
+ * Mapping (Standard Gamepad layout) — built around the world sandbox, the
+ * thing this session is actually about; spell-casting (an off-by-default
+ * legacy Snowflow feature) has no gamepad binding as a result, though it's
+ * still fully reachable from keyboard/touch:
+ *   left stick    move                    right stick   look
+ *   A             sprint                  B             surf (snow-surf, hold)
+ *   LT / RT       tool fire + brush strength (analog — either trigger, whichever is pressed harder)
+ *   LB / RB       world-sandbox tool cycle (prev/next)
+ *   D-pad         world-sandbox tool cycle (redundant with LB/RB — some players
+ *                 prefer d-pad, some shoulders; up/right = next, down/left = prev)
+ *   Start         toggle settings overlay
  */
 
 const DEADZONE = 0.18;
@@ -31,12 +35,10 @@ export const gamepadState = {
     sprint: false,
     surf: false,
 
-    zoomActive: false,
-    zoomDelta: 0, // -1..1, this frame's trigger balance
-
-    /** 0 = none, else 1..5 — consumed (reset to 0) by whoever reads it. */
-    spellPressed: 0,
-    spellHeld2: false,
+    /** True while either trigger is pressed past a small deadzone. */
+    toolFireActive: false,
+    /** 0..1 — the more-pressed trigger's analog value, read as brush strength. */
+    toolStrength: 0,
 
     /** World-sandbox tool cycle: 0 = none, -1 = previous, +1 = next — consumed (reset to 0) by whoever reads it. */
     toolCyclePressed: 0,
@@ -72,8 +74,8 @@ export function pollGamepad() {
         gamepadState.lookActive = false;
         gamepadState.sprint = false;
         gamepadState.surf = false;
-        gamepadState.zoomActive = false;
-        gamepadState.spellHeld2 = false;
+        gamepadState.toolFireActive = false;
+        gamepadState.toolStrength = 0;
         prevButtons = [];
         return;
     }
@@ -99,23 +101,19 @@ export function pollGamepad() {
 
     gamepadState.sprint = pressed(0); // A
     gamepadState.surf = pressed(1); // B
-    gamepadState.spellHeld2 = pressed(3); // Y, held cast
 
-    if (justPressed(2)) gamepadState.spellPressed = 1; // X
-    else if (justPressed(3)) gamepadState.spellPressed = 2; // Y
-    else if (justPressed(4)) gamepadState.spellPressed = 3; // LB
-    else if (justPressed(5)) gamepadState.spellPressed = 4; // RB
-    else if (justPressed(12)) gamepadState.spellPressed = 5; // D-pad up
-
-    if (justPressed(14)) gamepadState.toolCyclePressed = -1; // D-pad left
-    else if (justPressed(15)) gamepadState.toolCyclePressed = 1; // D-pad right
+    if (justPressed(4)) gamepadState.toolCyclePressed = -1; // LB
+    else if (justPressed(5)) gamepadState.toolCyclePressed = 1; // RB
+    else if (justPressed(12) || justPressed(15)) gamepadState.toolCyclePressed = 1; // D-pad up/right
+    else if (justPressed(13) || justPressed(14)) gamepadState.toolCyclePressed = -1; // D-pad down/left
 
     if (justPressed(9)) gamepadState.overlayTogglePressed = true; // Start
 
     const lt = value(6);
     const rt = value(7);
-    gamepadState.zoomActive = lt > 0.04 || rt > 0.04;
-    gamepadState.zoomDelta = rt - lt;
+    const trigger = Math.max(lt, rt);
+    gamepadState.toolFireActive = trigger > 0.06;
+    gamepadState.toolStrength = trigger;
 
     prevButtons = gp.buttons.map((b) => b.pressed);
 }
