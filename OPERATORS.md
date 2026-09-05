@@ -119,12 +119,19 @@ compromise between solving the problem and being smooth."* Weltgesetze als Regul
 einzusetzen heißt, die Lösung absichtlich vom reinen Datenfit wegzuschieben — das ist der Punkt
 (sonst bringt Kausalität nichts als Prior), aber es zieht eine harte Grenze:
 
-**Regularisierung wirkt ausschließlich auf DERIVED/INFERRED, niemals auf OBSERVED.**
+**Regularisierung wirkt ausschließlich auf RECONSTRUCTED/INFERRED/GENERATED, niemals auf
+MEASURED oder OBSERVED.**
 
-Das ist keine neue Regel — es ist die bestehende OBSERVED/DERIVED/INFERRED/INVENTED/UNKNOWN-
-Provenance-Taxonomie (`docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ...`), nur auf einen neuen
-Mechanismus angewendet. Ein Weltgesetz darf zwischen mehreren Hypothesen wählen helfen; es darf
-nie den beobachteten Pixel selbst überschreiben.
+Das ist keine neue Regel — es ist die bestehende, tatsächlich im Code verankerte Provenienz-
+Taxonomie `MEASURED / OBSERVED / RECONSTRUCTED / INFERRED / GENERATED / USER_APPROVED`
+(`.claude/skills/shaded-reconstruction/SKILL.md`, `docs/reconstruction-provider-und-
+world-surface-graph.md` §8.1, real validiert in `contracts/shaded-spatial-provider.schema.json`s
+`provenance.class`), nur auf einen neuen Mechanismus angewendet. Sie ist präziser als die ältere
+`OBSERVED/DERIVED/INFERRED/INVENTED/UNKNOWN`-Fassung aus `docs/SHADED_BEUTELTIER_ARCHITEKTUR_
+REFERENZ...`, weil sie MEASURED (aus Pixeln getracte 2D-Evidenz: Kanten, Ecken, Konturen) explizit
+von OBSERVED (rohe Pixelwerte selbst) trennt — genau die Unterscheidung, die ein
+Reconstruction-Operator wie `rectify_plane_v1` unten braucht. Ein Weltgesetz darf zwischen
+mehreren Hypothesen wählen helfen; es darf nie MEASURED oder OBSERVED selbst überschreiben.
 
 ### 3. Unsicherheit muss verdient werden, nicht behauptet
 
@@ -172,13 +179,49 @@ CONSENSUS / MATH_VERIFICATION / CONTEXT7 / SHADED TESTS:
   OPEN — noch nicht durchgeführt, dies ist ein Formatbeispiel.
 ```
 
+## WORLD_LANGUAGE-Audit (2026-09-05): nicht einfach zusammenlegen
+
+Vor jedem Umbenennen erst geprüft, ob zwei unterschiedlich benannte Größen überhaupt dieselbe
+Größe meinen — sie tun es hier nicht in jedem Fall:
+
+| Wo | Name | Was es tatsächlich ist | Beleg |
+|---|---|---|---|
+| Snowflow-Kernel | `FIELD.WETNESS` | **Bodenwassergehalt** — treibt Biomasse (`biomass = seedPatch * wetness * …`), wird in `world-sandbox-growth.mjs` bereits selbst als `moisture` gelesen | `src/sandbox/world-sandbox-reference.mjs:223-226`, `world-sandbox-growth.mjs:119` |
+| Snowflow-Kernel | `FIELD.WATER` | **Oberflächen-Standwasser**, separat berechnet und gespeichert | `world-sandbox-reference.mjs:222` |
+| Geparkte Engine | `wet` (`PARAM_META`) | globaler Szenen-Look-Regler ("Nässe", 0..1) — **keine** Zelle, kein World-State-Feld, reine Rendering-Stimmung | `runtime/shaded-engine.mjs` |
+| Geparkte Engine | `puddle` (`PARAM_META`) | globaler Pfützenstand-Regler — ebenfalls Rendering-Stimmung, kein Feld | `runtime/shaded-engine.mjs` |
+| World Surface Graph (nur Doku, kein Code) | `fields.moisture` | **undefiniert** — nie festgelegt, ob Boden- oder Oberflächenwasser gemeint ist | `docs/reconstruction-provider-und-world-surface-graph.md` |
+
+**Befund:** Innerhalb von Snowflow ist `WETNESS`/`WATER` bereits sauber getrennt (Boden vs.
+Oberfläche, deckungsgleich mit HYDROLOGY.md's `soil → WETNESS`, `surface → WATER`) — kein Bug.
+Die geparkte Engines `wet`/`puddle` sind globale Stimmungsregler, keine Per-Zelle-Felder mit
+Provenienz — lassen sich nicht 1:1 mit Snowflows Zellfeldern verschmelzen, ohne Granularität zu
+verlieren, und bleiben deshalb vorerst unangetastet.
+
+Der einzige tatsächlich offene Punkt ist `fields.moisture` im World Surface Graph — nirgends
+implementiert (bestätigt: kein Treffer für `WorldSurfaceNode`/`worldSurfaceGraph` im gesamten
+Code), also reparierbar, bevor irgendein Code davon abhängt:
+
+```
+canonical_name: moisture        = Bodenwassergehalt, deckungsgleich mit Snowflows WETNESS
+canonical_name: surface_water   = Oberflächen-Standwasser, deckungsgleich mit Snowflows WATER
+```
+
+`fields.moisture` im World Surface Graph bekommt bei Implementierung diese Bedeutung; ein
+separates `fields.surface_water` wird ergänzt, statt beides unter `moisture` zu verstecken.
+`saturation` (Sättigungsgrad relativ zur Porenkapazität, HYDROLOGY.md's "Schlamm"-Übergang) bleibt
+eine abgeleitete Größe (`moisture / pore_capacity`), kein eigenes gespeichertes Feld — passt zum
+Prinzip, dass Operatoren abgeleitete Größen berechnen, statt jede Ableitung zusätzlich zu
+speichern.
+
 ## Nicht jetzt
 
 - **Eine gemeinsame State-Repräsentation zwischen Snowflow (Grid/CA, `FIELD.*`) und der
   geparkten Reconstruction-Engine (Pixel-/Bildklassifikation).** Damit ein Operator wortwörtlich
   derselbe Code in beiden Richtungen ist statt zweimal derselben Idee, braucht es eine
   gemeinsame Zustandsschicht, über die beide Seiten sprechen können — ein eigenes
-  Architekturprojekt, kein Dokumentationsschritt, und hier nicht angefangen.
+  Architekturprojekt, kein Dokumentationsschritt, und hier nicht angefangen. Der
+  WORLD_LANGUAGE-Audit oben legt nur die Namen fest, die diese künftige Schicht verwenden würde.
 - **Kontinuierliches, differenzierbares `argmin_x`.** Siehe Einschränkung 1 — kommt erst, wenn
   diskrete Hypothesenprüfung an ihre Grenze stößt, und dann mit eigener Prüfung (welcher Operator
   wird differenzierbar gebraucht, welche Kosten sind das).
@@ -191,8 +234,14 @@ CONSENSUS / MATH_VERIFICATION / CONTEXT7 / SHADED TESTS:
 
 ## Reihenfolge
 
-Format etablieren (dieses Dokument) → bestehende `LAW`-Einträge (z. B.
-`sphere_terrain_contact_v1`) bei Gelegenheit auf `OPERATOR`-Form umziehen, wo Input/Output/Forward
-wirklich etwas hinzufügen → einen ersten echten Reconstruction-Fall über diskrete
-Hypothesenprüfung (keine Gradienten) end-to-end durchspielen → erst danach über eine gemeinsame
-State-Schicht oder Differenzierbarkeit nachdenken.
+1. ~~WORLD_LANGUAGE-Audit~~ — erledigt (siehe oben): nur die Begriffe geprüft, die heute bereits
+   doppelt/anders heißen; `fields.moisture`/`surface_water` für den noch unimplementierten World
+   Surface Graph festgelegt, bevor Code davon abhängt.
+2. Bereits bestehende Bausteine (siehe „bestehende SHADED-Strukturen" oben: `single_view_room.py`s
+   `vermessen`/`ransac_fluchtpunkt`, `window.SHADED.intrinsic`) als `OPERATOR`-Einträge
+   formalisieren — nichts Neues erfinden, nur Input/Output/Units/Provenance/Validity/
+   Forward/Inverse/Tests nachtragen.
+3. Ein echter 2D↔3D-Roundtrip: ein Zustand verlässt die 2D-Seite, wird in 3D repräsentiert/
+   angefasst, kommt semantisch identisch zurück (`forward(inverse(observed)) ≈ observed`, wie im
+   `rectify_plane_v1`-Beispiel oben skizziert) — als konkreter Beweis, nicht nur als Diagramm.
+4. Erst danach über eine gemeinsame State-Schicht oder Differenzierbarkeit nachdenken.
