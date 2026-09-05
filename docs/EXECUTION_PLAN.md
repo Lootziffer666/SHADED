@@ -93,13 +93,13 @@ npm run check   # muss grün bleiben
 
 ---
 
-## Task 2 — Transferfunktion und Journey-Ziel · **ENTSCHEIDUNGS-GATE**
+## Task 2 — Transferfunktion und Journey-Ziel · **ENTSCHIEDEN UND UMGESETZT**
 
-**Hier wird nicht geraten. Hier wird gefragt.**
+**Hier wurde nicht geraten. Hier wurde gefragt, dann umgesetzt.**
 
 WORLD_ARCHITECTURE.md sagt zu diesem Punkt wörtlich: *„Konvertieren oder lineare Werte
-autorisieren."* Beide Wege sind vom Maintainer ausdrücklich offen gelassen. Gemessen ergeben sie
-für die mittlere Düne (`SAND=0.12`):
+autorisieren."* Gemessen (eigenes, unabhängig reproduziertes Messskript, nicht diesem Dokument
+geglaubt) ergaben sich für die mittlere Düne (`SAND=0.12`):
 
 | Weg | Ergebnis (linear R G B) |
 |---|---|
@@ -107,18 +107,33 @@ für die mittlere Düne (`SAND=0.12`):
 | B: `raw/255` → sRGB→linear-Transferfunktion | 0.371 0.164 0.050 |
 | **Ziel laut WORLD_ARCHITECTURE.md („Warme Sand-Albedo")** | **0.550 0.320 0.130** |
 
-**Der entscheidende Befund: keiner der beiden Wege trifft das dokumentierte Ziel.** A ist zu hell
-und zu wenig gesättigt, B ist deutlich zu dunkel. Das Ziel liegt dazwischen. Das heißt, die
-Transferfunktion allein löst es nicht — die Koeffizienten in `colorForCell` (`r = 62 + sand*850`
-usw.) müssten mitgezogen werden.
+Keiner der beiden reinen Wege traf das Ziel. Am Gate gefragt, entschied der Maintainer: Weg B
+(sRGB→linear-Dekodierung einbauen — WORLD_ARCHITECTURE.md nennt `colorForCell`s 0..255-Ausgabe
+explizit als sRGB-Domäne, „sRGB → Linear ... Konvertieren") **plus** ein kalibriertes Nachziehen
+der `colorForCell`-Sand-Koeffizienten — ausdrücklich **kein** Nachjustieren per Augenmaß, sondern
+Koeffizienten, die aus dem Referenzpunkt (mittlere Düne → dokumentiertes Ziel) mathematisch
+hergeleitet sind, mit maschinenprüfbarer Toleranz.
 
-**Deine Aufgabe an diesem Gate:** Die drei Zahlenreihen oben reproduzieren (eigenes Messskript,
-nicht diesem Dokument glauben), das Ergebnis melden, und **fragen**, welcher Weg gilt. Erst danach
-implementieren. Ein Stil-Ziel ist eine Maintainer-Entscheidung — WORLD_ARCHITECTURE.md: *„Die
-Richtung gibt der Nutzer vor."*
-
-**Nicht tun:** eigenmächtig sRGB→linear einbauen und die Sand-Koeffizienten „passend" nachziehen.
-Das ändert den Look des gesamten Spiels auf Basis einer Vermutung.
+**Umgesetzt:**
+- `srgbToLinear()` (IEC 61966-2-1 EOTF) in `src/sandbox/world-sandbox-reference.mjs`, von
+  `sandboxRenderer.js` nach dem Task-1-Clamp angewendet (Reihenfolge: `raw/255` → clamp `[0,1]`
+  → sRGB-Dekodierung → `sandboxTex`-GBA).
+- `colorForCell`s Sand-Basiskoeffizienten (`r/g/b = base + sand*slope`) pro Kanal einheitlich
+  skaliert (`k_R=1.193176, k_G=1.361608, k_B=1.592267`), hergeleitet durch Auflösen von
+  `srgbToLinear(clamp01((base + slope*0.12)/255)) == [0.550, 0.320, 0.130]` — die Skalierung
+  ändert, wie hell die Düne insgesamt ist, nicht wie sich die Farbe mit der Sandmenge relativ
+  ändert.
+- Test in `tools/test-world-sandbox-physics.mjs`: mittlere Düne trifft das Ziel exakt innerhalb
+  ±0.005; die bestehende Task-1-Sweep-Prüfung wurde auf dieselbe Clamp→Decode-Pipeline
+  umgestellt, damit sie die tatsächlich ausgelieferte Reihenfolge prüft, nicht nur den Clamp
+  allein.
+- **Nicht angefasst:** die Blend-Zielfarben für Biomasse/Feuer/Eis/Schnee/Asche/Rauch (die
+  absoluten Konstanten wie `43 * bio`, `255 * fireGlow` usw.) — die Aufgabe betraf nur die
+  Sand-Basisfarbe, ein Nachziehen dieser Werte war nicht Teil der Entscheidung und bliebe sonst
+  eine eigene Vermutung.
+- **Verifikationsgrenze, ehrlich benannt:** geprüft ist der numerische Vertrag (`colorForCell` →
+  Pipeline → Zielwert), nicht der tatsächliche visuelle Eindruck im Spiel — der braucht eine GPU
+  und eine Maintainer-Sichtprüfung (siehe Task 4's gleiche Einschränkung).
 
 ---
 
@@ -228,13 +243,13 @@ visuelle Abnahme**, nicht „sieht gut aus".
 ## Reihenfolge und Begründung
 
 ```
-Task 1  (klemmen)        klein, sicher, headless beweisbar, echter Bug im Startzustand
+Task 1  (klemmen)        ✅ erledigt — klein, sicher, headless bewiesen, echter Bug im Startzustand
    ↓
-Task 2  GATE             Stil-Entscheidung — anhalten und fragen
+Task 2  GATE             ✅ erledigt — Maintainer entschied Weg B + kalibriertes Nachziehen
    ↓
-Task 3  (Mehrkörper)     vollständig headless beweisbar, bestehende Testsuite, keine GPU
+Task 3  (Mehrkörper)     offen — vollständig headless beweisbar, bestehende Testsuite, keine GPU
    ↓
-Task 4  (Schnee/Shader)  braucht erst Texturkanal-Entscheidung + Maintainer-Auge
+Task 4  (Schnee/Shader)  offen — braucht erst Texturkanal-Entscheidung + Maintainer-Auge
 ```
 
 Task 3 steht bewusst **vor** Task 4: Task 3 lässt sich in einer Session vollständig beweisen,

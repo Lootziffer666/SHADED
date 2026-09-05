@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import {createSphereBody, stepSphereBody, DEFAULT_RESTITUTION} from '../src/physics/rigidBody.mjs';
 import {
-  FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal,
+  FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal, srgbToLinear,
 } from '../src/sandbox/world-sandbox-reference.mjs';
 import {WorldSandboxRuntime} from '../src/sandbox/world-sandbox-runtime.mjs';
 import {colorForCell} from '../src/sandbox/world-sandbox-cpu-backend.mjs';
@@ -173,17 +173,21 @@ const flatGround = () => ({height: FLAT_HEIGHT, normalX: 0, normalY: 1, normalZ:
 }
 
 // ---------------------------------------------------------------- EXECUTION_PLAN.md Task 1:
-// albedo clamp. colorForCell()'s coefficients (r = 62 + sand*850, etc.) are additive/
-// multiplicative and unclamped by design -- its mode 1..7 debug views deliberately let values
-// overshoot to make field magnitudes visible. sandboxRenderer.js's `_refresh()` divides mode-0
-// output by 255 and clamps it into sandboxTex's GBA channels, the exact point where this colour
-// stops being a debug value and becomes albedo that snow.fragment.wgsl mixes into linear PBR.
-// sandboxRenderer.js itself isn't importable under headless Node (it pulls in @babylonjs/core
-// submodules whose resolution needs Vite's bundling, not plain ESM), so this test reimplements
-// its one-line clamp (`Math.min(1, Math.max(0, x))`) rather than importing it -- keep the two in
-// sync if that formula ever changes.
+// albedo clamp + colour-space decode. colorForCell()'s coefficients (r = 73.977 +
+// sand*1014.199, etc.) are additive/multiplicative and unclamped by design -- its mode 1..7
+// debug views deliberately let values overshoot to make field magnitudes visible.
+// sandboxRenderer.js's `_refresh()` divides mode-0 output by 255, clamps it into [0,1] (Task 1),
+// then decodes it from sRGB to linear (Task 2) before writing sandboxTex's GBA channels, the
+// exact point where this colour stops being a debug value and becomes albedo that
+// snow.fragment.wgsl mixes into linear PBR. sandboxRenderer.js itself isn't importable under
+// headless Node (it pulls in @babylonjs/core submodules whose resolution needs Vite's bundling,
+// not plain ESM), so this test reimplements its one-line clamp (`Math.min(1, Math.max(0, x))`)
+// rather than importing it -- keep the two in sync if that formula ever changes. srgbToLinear
+// itself is imported from world-sandbox-reference.mjs, the single source both production code
+// and this test share.
 {
   const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const pipelineAlbedo = (raw) => raw.map((c) => srgbToLinear(clamp01(c / 255)));
   const cell = () => new Float32Array(CELL_STRIDE);
   const withFields = (fields) => {
     const c = cell();
@@ -209,15 +213,36 @@ const flatGround = () => ({height: FLAT_HEIGHT, normalX: 0, normalY: 1, normalZ:
   let sawRawOvershoot = false;
   for (const [name, state] of Object.entries(states)) {
     const raw = colorForCell(state, 0, 0);
-    const rawAlbedo = raw.map((c) => c / 255);
-    if (rawAlbedo.some((c) => c > 1 || c < 0)) sawRawOvershoot = true;
-    const clamped = rawAlbedo.map(clamp01);
+    if (raw.some((c) => c / 255 > 1 || c / 255 < 0)) sawRawOvershoot = true;
+    const albedo = pipelineAlbedo(raw);
     ok(
-      clamped.every((c) => c >= 0 && c <= 1),
-      `${name}: clamped albedo (${clamped.map((c) => c.toFixed(3)).join(', ')}) stays within [0, 1]`,
+      albedo.every((c) => c >= 0 && c <= 1),
+      `${name}: pipeline albedo (${albedo.map((c) => c.toFixed(3)).join(', ')}) stays within [0, 1]`,
     );
   }
   ok(sawRawOvershoot, 'the sweep actually exercises a real overshoot state (raw/255 > 1 before clamping) -- otherwise this test would not have caught the original bug');
+}
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 2:
+// sand colour calibration contract. WORLD_ARCHITECTURE.md names the medium-dune state (SAND=0.12)
+// with a documented "warme Sand-Albedo" target (linear ≈ vec3f(0.55, 0.32, 0.13)) and frames
+// colorForCell's 0..255 output as sRGB bytes needing decode ("sRGB -> Linear ... Konvertieren").
+// colorForCell's sand coefficients were scaled (not re-eyeballed) so this reference state hits
+// that target through the same clamp+decode pipeline production uses -- this test is the
+// machine-checkable half of that contract, independent of the derivation script that produced
+// the constants.
+{
+  const cell = new Float32Array(CELL_STRIDE);
+  cell[FIELD.SAND] = 0.12;
+  const raw = colorForCell(cell, 0, 0);
+  const albedo = raw.map((c) => srgbToLinear(Math.min(1, Math.max(0, c / 255))));
+  const target = [0.550, 0.320, 0.130];
+  const tolerance = 0.005;
+  ok(
+    albedo.every((c, i) => Math.abs(c - target[i]) < tolerance),
+    `medium-dune (SAND=0.12) pipeline albedo (${albedo.map((c) => c.toFixed(4)).join(', ')}) matches `
+      + `WORLD_ARCHITECTURE.md's documented target (${target.join(', ')}) within ${tolerance}`,
+  );
 }
 
 console.log('\n✅ Alle Rigid-Body/Physics-Selbsttests bestanden');

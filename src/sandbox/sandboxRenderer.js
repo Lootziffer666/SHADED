@@ -71,7 +71,7 @@ import { Vector3, Matrix, Quaternion } from "@babylonjs/core/Maths/math.vector";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 import { WorldSandboxRuntime } from "./world-sandbox-runtime.mjs";
-import { CELL_STRIDE, FIELD } from "./world-sandbox-reference.mjs";
+import { CELL_STRIDE, FIELD, srgbToLinear } from "./world-sandbox-reference.mjs";
 import { colorForCell } from "./world-sandbox-cpu-backend.mjs";
 
 const SIZE = 64; // field grid resolution
@@ -543,18 +543,22 @@ export class SandboxRenderer {
             // Terrain.setSandboxWindow) exactly as sampleHeight() computes
             // it for the character. GBA = ground colour, straight from the
             // same field/colour law the old mesh used.
-            // colorForCell's coefficients (e.g. r = 62 + sand*850) are additive/multiplicative
-            // and unclamped by design -- mode 1..7 debug views deliberately let them overshoot
-            // to make field magnitudes visible. Reachable field states (dune crest SAND=0.24,
-            // sand stamps, fire) push raw/255 past 1.0; clamped here, at the one place this
-            // colour stops being a debug value and becomes GBA texel data that
-            // snow.fragment.wgsl mixes straight into linear PBR albedo (see EXECUTION_PLAN.md
-            // Task 1) -- not inside colorForCell, which must stay unclamped for its debug modes.
+            // colorForCell's coefficients (e.g. r = 73.977 + sand*1014.199) are
+            // additive/multiplicative and unclamped by design -- mode 1..7 debug views
+            // deliberately let them overshoot to make field magnitudes visible. Reachable field
+            // states (dune crest SAND=0.24, sand stamps, fire) push raw/255 past 1.0; clamped
+            // here, at the one place this colour stops being a debug value and becomes GBA texel
+            // data (EXECUTION_PLAN.md Task 1) -- not inside colorForCell, which must stay
+            // unclamped for its debug modes. colorForCell's return values are authored as
+            // sRGB-encoded bytes (WORLD_ARCHITECTURE.md's "sRGB -> Linear" open point), so after
+            // clamping they're decoded to real linear albedo before reaching
+            // snow.fragment.wgsl's linear PBR mix (EXECUTION_PLAN.md Task 2) -- clamp first,
+            // decode second, since sRGB decode is only defined on the encoded [0,1] range.
             const rgb = colorForCell(world, o, 0);
             tex[i * 4] = delta * HEIGHT_SCALE;
-            tex[i * 4 + 1] = Math.min(1, Math.max(0, rgb[0] / 255));
-            tex[i * 4 + 2] = Math.min(1, Math.max(0, rgb[1] / 255));
-            tex[i * 4 + 3] = Math.min(1, Math.max(0, rgb[2] / 255));
+            tex[i * 4 + 1] = srgbToLinear(Math.min(1, Math.max(0, rgb[0] / 255)));
+            tex[i * 4 + 2] = srgbToLinear(Math.min(1, Math.max(0, rgb[1] / 255)));
+            tex[i * 4 + 3] = srgbToLinear(Math.min(1, Math.max(0, rgb[2] / 255)));
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;

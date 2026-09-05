@@ -55,9 +55,17 @@ export function colorForCell(data, offset, mode = 0) {
   if (mode === 6) return [18 + heat * 237, 15 + heat * 28, 30 - heat * 20];
   if (mode === 7) return [12 + Math.min(230, vapor * 3600), 14 + Math.min(230, cloud * 4200), 30 + Math.min(200, snow * 800)];
 
-  let r = 62 + sand * 850;
-  let g = 55 + sand * 480;
-  let b = 43 + sand * 170;
+  // Calibrated contract, not eyeballed: these four constants are the original
+  // (62, 850, 55, 480, 43, 170) uniformly scaled per channel by k_R=1.193176, k_G=1.361608,
+  // k_B=1.592267 so that the documented medium-dune reference state (SAND=0.12) satisfies
+  // srgbToLinear(clamp01((base + slope*0.12) / 255)) == WORLD_ARCHITECTURE.md's "warme
+  // Sand-Albedo" target (linear 0.550, 0.320, 0.130) exactly -- see EXECUTION_PLAN.md Task 2 and
+  // tools/test-world-sandbox-physics.mjs's calibration-contract test, which re-derives and checks
+  // this. The scale preserves how colour responds to sand amount; it does not change which colour
+  // sand=0 (bare bedrock) maps to relative to sand=1 (pure dune).
+  let r = 73.977 + sand * 1014.199;
+  let g = 74.888 + sand * 653.572;
+  let b = 68.467 + sand * 270.685;
   const dark = 1 - wet * 0.52;
   r *= dark; g *= dark; b *= dark;
   r = r * (1 - bio * 0.68) + 43 * bio;
