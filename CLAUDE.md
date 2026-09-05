@@ -47,6 +47,14 @@ Applies to `PHYSICS.md`, `HYDROLOGY.md`, `SHADER_IR.md`-driven work and any equi
 parked engine (material
 science, SVBRDF) alike.
 
+`OPERATORS.md` is the same kind of cross-cutting document: it frames world-law state transitions
+(`STATE → OPERATOR → STATE`) as usable in both directions — forward for Snowflow simulation,
+inverse (`argmin_x L(F(x), y)`, analysis-by-synthesis) for the parked engine's image
+reconstruction — extending `VERIFICATION.md`'s `LAW:` provenance format with input/output/
+forward/inverse fields. It is explicitly a format proposal with named open limitations
+(differentiability cost, regularization must stay off `OBSERVED`, uncertainty must be earned), not
+a claim that either subsystem already implements shared operators.
+
 ## Core purpose
 
 SHADED turns one observed image into a small, spatial, reactive world. Rendering style is not the
