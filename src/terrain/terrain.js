@@ -11,6 +11,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import { ProceduralTexture } from "@babylonjs/core/Materials/Textures/Procedurals/proceduralTexture";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Constants } from "@babylonjs/core/Engines/constants";
 
 import { Heightfield, WORLD_SIZE } from "./heightfield.js";
@@ -31,7 +32,7 @@ const DETAIL_RES = 1024;
 const _splits = new Vector4(0, 0, 0, 0);
 const _lod = new Vector2();
 const _screen = new Vector2();
-const _cutoutCenter = new Vector2(0, 0);
+const _sandboxCenter = new Vector2(0, 0);
 
 const DEBUG_MODES = {
     beauty: 0, deform: 1, normals: 2, depth: 3, cascades: 4,
@@ -54,6 +55,18 @@ export class Terrain {
 
         /** The terrain state buffer. Feet, the surf wake and every spell write here. */
         this.deform = new DeformationField(scene);
+
+        // Placeholder so the beauty/prepass/depth materials always have a
+        // real texture bound to `sandboxTex` from the moment they're built —
+        // the world sandbox (src/sandbox/) doesn't exist yet at this point in
+        // startup and replaces this via setSandboxWindow() once it does.
+        // sandboxSize stays 0 until then, which is what actually disables the
+        // read on the shader side; this is just what the sampler points at
+        // in the meantime.
+        this._sandboxTexPlaceholder = RawTexture.CreateRGBATexture(
+            new Float32Array([0, 0, 0, 0]), 1, 1, scene,
+            false, false, Constants.TEXTURE_NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
+        );
 
         // Generated snow grain, tiled at three world scales by the material.
         this.detailTex = new ProceduralTexture(
@@ -107,12 +120,12 @@ export class Terrain {
                     "fogDensity", "fogHeightFalloff", "fogStart", "aerialStrength",
                     "deformCenter", "deformSize", "deformTexel", "deformDepthScale",
                     "ambientIntensity", "debugMode", "screenSize",
-                    "cutoutCenter", "cutoutHalfSize",
+                    "sandboxCenter", "sandboxSize",
                     ...SPELL_LIGHT_UNIFORMS,
                 ],
                 samplers: [
                     "heightTex", "auxTex", "detailTex", "skyLUT",
-                    "cascade0", "cascade1", "cascade2", "deformTex",
+                    "cascade0", "cascade1", "cascade2", "deformTex", "sandboxTex",
                 ],
                 shaderLanguage: ShaderLanguage.WGSL,
             }
@@ -126,37 +139,11 @@ export class Terrain {
         for (let i = 0; i < CASCADE_COUNT; i++) {
             mat.setTexture("cascade" + i, this.shadows.maps[i]);
         }
-        // 0 half-size disables the cutout outright — see setGroundCutout.
-        mat.setVector2("cutoutCenter", _cutoutCenter);
-        mat.setFloat("cutoutHalfSize", 0);
+        mat.setTexture("sandboxTex", this._sandboxTexPlaceholder);
+        // 0 size disables the read outright — see setSandboxWindow.
+        mat.setVector2("sandboxCenter", _sandboxCenter);
+        mat.setFloat("sandboxSize", 0);
         return mat;
-    }
-
-    /**
-     * Cut a hole in the real terrain's beauty pass: a square, `halfSize`
-     * metres from `(x, z)`, is discarded outright rather than shaded. This is
-     * how the world sandbox actually *replaces* the ground within its fully
-     * opaque core instead of merely being drawn on top of it — no amount of
-     * height-matching between the sandbox's coarse simulation grid and this
-     * mesh's own fine geometry can be perfectly exact, so the real terrain is
-     * removed there rather than relied on to sit far enough underneath.
-     *
-     * Pass `halfSize <= 0` to disable — the default, and what a disabled
-     * sandbox restores.
-     *
-     * Deliberately beauty-pass only: the shadow and depth-prepass materials
-     * still describe the real terrain surface in the cut region, so a very
-     * close look could catch a faint shadow or AO mismatch there. Not worth
-     * threading a new varying through three more shaders (each already
-     * required to place the *identical* vertex the beauty pass does, on pain
-     * of self-shadow acne) for a mismatch this small relative to what's
-     * actually visible.
-     * @param {number} x @param {number} z @param {number} halfSize metres
-     */
-    setGroundCutout(x, z, halfSize) {
-        _cutoutCenter.set(x, z);
-        this.material.setVector2("cutoutCenter", _cutoutCenter);
-        this.material.setFloat("cutoutHalfSize", Math.max(0, halfSize));
     }
 
     /**
@@ -181,14 +168,18 @@ export class Terrain {
                     "worldOrigin", "worldSize", "heightRes",
                     "windAngle", "sastrugiAmp",
                     "deformCenter", "deformSize", "deformDepthScale",
+                    "sandboxCenter", "sandboxSize",
                 ],
-                samplers: ["heightTex", "auxTex", "deformTex"],
+                samplers: ["heightTex", "auxTex", "deformTex", "sandboxTex"],
                 shaderLanguage: ShaderLanguage.WGSL,
             }
         );
         mat.backFaceCulling = false;
         mat.setTexture("heightTex", this.heightfield.heightTex);
         mat.setTexture("auxTex", this.heightfield.auxTex);
+        mat.setTexture("sandboxTex", this._sandboxTexPlaceholder);
+        mat.setVector2("sandboxCenter", _sandboxCenter);
+        mat.setFloat("sandboxSize", 0);
         this.prepassMat = mat;
         return mat;
     }
@@ -206,8 +197,9 @@ export class Terrain {
                     "worldOrigin", "worldSize", "heightRes",
                     "windAngle", "sastrugiAmp",
                     "deformCenter", "deformSize", "deformDepthScale",
+                    "sandboxCenter", "sandboxSize",
                 ],
-                samplers: ["heightTex", "auxTex", "deformTex"],
+                samplers: ["heightTex", "auxTex", "deformTex", "sandboxTex"],
                 shaderLanguage: ShaderLanguage.WGSL,
                 // Forces a distinct Effect per cascade, so each can carry its
                 // own light matrix without mid-frame uniform swapping.
@@ -217,6 +209,9 @@ export class Terrain {
         mat.backFaceCulling = false;
         mat.setTexture("heightTex", this.heightfield.heightTex);
         mat.setTexture("auxTex", this.heightfield.auxTex);
+        mat.setTexture("sandboxTex", this._sandboxTexPlaceholder);
+        mat.setVector2("sandboxCenter", _sandboxCenter);
+        mat.setFloat("sandboxSize", 0);
         if (!this._depthMats) this._depthMats = [];
         this._depthMats.push(mat);
         return mat;
@@ -276,6 +271,46 @@ export class Terrain {
             }
         }
         if (this.prepassMat) this.prepassMat.setTexture("deformTex", tex);
+    }
+
+    /**
+     * Point every terrain pipeline at the world sandbox's live ground data —
+     * this is the actual replacement mechanism: one continuous clipmap mesh
+     * that samples different height and colour within the window, not a
+     * second mesh drawn over or cut into this one. `tex` is a single RGBA
+     * texture (R = height delta in metres, GBA = ground colour) the sandbox
+     * re-uploads every frame; `size <= 0` (or `tex` null) disables the read
+     * everywhere the shader consults it, restoring plain baked terrain.
+     *
+     * Pushed to all four materials together, the same way setDeformTexture
+     * is — the beauty pass and the two passes that place its shadow/AO must
+     * agree on where the ground actually is, or the dune will shadow and
+     * self-occlude against a surface it isn't drawing.
+     * @param {import("@babylonjs/core/Materials/Textures/texture").Texture|null} tex
+     * @param {number} x @param {number} z @param {number} size metres
+     */
+    setSandboxWindow(tex, x, z, size) {
+        const t = tex || this._sandboxTexPlaceholder;
+        const s = tex ? Math.max(0, size) : 0;
+        _sandboxCenter.set(x, z);
+
+        this.material.setTexture("sandboxTex", t);
+        this.material.setVector2("sandboxCenter", _sandboxCenter);
+        this.material.setFloat("sandboxSize", s);
+
+        if (this._depthMats) {
+            for (let i = 0; i < this._depthMats.length; i++) {
+                const d = this._depthMats[i];
+                d.setTexture("sandboxTex", t);
+                d.setVector2("sandboxCenter", _sandboxCenter);
+                d.setFloat("sandboxSize", s);
+            }
+        }
+        if (this.prepassMat) {
+            this.prepassMat.setTexture("sandboxTex", t);
+            this.prepassMat.setVector2("sandboxCenter", _sandboxCenter);
+            this.prepassMat.setFloat("sandboxSize", s);
+        }
     }
 
     /**
@@ -434,5 +469,6 @@ export class Terrain {
         this.detailTex.dispose();
         this.deform.dispose();
         this.heightfield.dispose();
+        this._sandboxTexPlaceholder.dispose();
     }
 }

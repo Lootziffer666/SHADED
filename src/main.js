@@ -169,20 +169,27 @@ async function boot() {
     initTouchControls(canvas, { onToggleOverlay: () => overlay.toggle() });
 
     // The revived SHADED world sandbox — a live patch of dune that follows
-    // the player. See src/sandbox/sandboxRenderer.js. It registers itself as
-    // the terrain's height overlay so it's not just what's drawn but what
-    // the character actually stands on and slides down within its window;
-    // toggling it off clears the overlay so grounding falls straight back
-    // to the baked dune field.
+    // the player. See src/sandbox/sandboxRenderer.js. It actually replaces
+    // the ground within its window rather than drawing over or cutting into
+    // it: terrain.setSandboxWindow feeds its live height/colour texture
+    // straight into the real clipmap terrain's own shaders (the same
+    // mechanism footprints/wake/spells already use via the deform buffer),
+    // and setOverlaySampler makes the same height authoritative for the CPU
+    // grounding query the character uses — so what's drawn and what's stood
+    // on can never disagree. Toggling it off clears both, restoring plain
+    // baked terrain.
     const sandbox = new SandboxRenderer(scene, terrain);
     const sandboxHeightOverlay = (x, z) => sandbox.sampleHeight(x, z);
     sandbox.setVisible(S.enableSandbox);
     terrain.heightfield.setOverlaySampler(S.enableSandbox ? sandboxHeightOverlay : null);
-    terrain.setGroundCutout(sandbox.origin.x, sandbox.origin.z, S.enableSandbox ? sandbox.cutoutRadius : 0);
+    terrain.setSandboxWindow(
+        S.enableSandbox ? sandbox.sandboxTex : null,
+        sandbox.origin.x, sandbox.origin.z, sandbox.windowSize
+    );
     onChange("enableSandbox", (v) => {
         sandbox.setVisible(v);
         terrain.heightfield.setOverlaySampler(v ? sandboxHeightOverlay : null);
-        terrain.setGroundCutout(sandbox.origin.x, sandbox.origin.z, v ? sandbox.cutoutRadius : 0);
+        terrain.setSandboxWindow(v ? sandbox.sandboxTex : null, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize);
     });
 
     // Primary action (left mouse button) stamps the sandbox's active tool
@@ -294,9 +301,9 @@ async function boot() {
             sandbox.handleInput(rig.camera, toolDown);
             sandbox.update(dt, character.position.x, character.position.z);
             // After sandbox.update(): a re-centre this frame moves
-            // sandbox.origin, and the cutout has to track it, not the spot
-            // it used to be at.
-            terrain.setGroundCutout(sandbox.origin.x, sandbox.origin.z, sandbox.cutoutRadius);
+            // sandbox.origin, and the terrain's shaders have to track it,
+            // not the spot it used to be at.
+            terrain.setSandboxWindow(sandbox.sandboxTex, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize);
         }
         const tVfx = performance.now();
 

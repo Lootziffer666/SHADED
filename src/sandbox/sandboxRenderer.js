@@ -4,32 +4,37 @@
  * same field grid (`FIELD.*`, `colorForCell`) the original renderers read;
  * everything here is new, everything it reads is the revived original.
  *
- * This IS the ground within its window, not a cosmetic layer sitting on
- * unmovable terrain: every vertex's baseline comes from
- * `terrain.heightAtBase` (the real Snowflow dune field, read once and never
- * written back to — the fixed rock this sits on), and what's rendered is
- * that baseline plus the sandbox field's own live delta. And — critically —
- * `heightfield.js`'s `heightAt` reads this same delta through an overlay
- * hook, so it isn't only what you see: it's what the character stands on,
- * slides down, and gets grounded against, across the *whole* window, not
- * just where it happens to be visible. Real wind-shaped dunes you can carve
- * into and ride, not a decal.
+ * This actually *replaces* the ground within its window — not a second mesh
+ * drawn over the real terrain, not a hole cut into it, one continuous clipmap
+ * mesh (the real Terrain's own) that samples different data where the
+ * sandbox is live. Every frame this class packs its simulation's height
+ * delta and ground colour into `sandboxTex`, a small RGBA texture (R = height
+ * delta in metres, GBA = colour straight from `colorForCell`), which
+ * `Terrain.setSandboxWindow` binds into the beauty, shadow-depth and
+ * depth-prepass materials alongside the window's centre and size. Those
+ * materials add the height and blend the colour in their own shaders
+ * (`snowSandbox` in `src/shaders/lib/sandbox.wgsl`), the exact pattern
+ * footprints, the surf wake and every spell already use for
+ * `terrain/deformation.js`'s state buffer — a proven single-mesh mechanism,
+ * not a new one.
  *
- * It is fully opaque across the whole window (feathered only at the outer
- * edge, to blend rather than cut) — this replaces the real terrain here, it
- * isn't a decal that only shows itself once poked. Its ground is sand, not
- * rock: `createWorldState`'s `terrain: 'desert'` mode (see
- * `WORLD_GEN_OPTIONS`) keeps FIELD.SAND high everywhere, because that's
- * what `colorForCell` actually paints with — dunes are sand, not granite.
+ * Height is *also* the real ground for the character: `heightfield.js`'s
+ * `heightAt` reads this same delta through an overlay hook
+ * (`sampleHeight`/`setOverlaySampler`), so grounding, sliding and digging
+ * agree with what's drawn by construction — both read the same
+ * `_baseHeight`/`_initialGround` arrays this class already keeps for its own
+ * per-cell bookkeeping. That overlay is a pure CPU height query, independent
+ * of how the ground is drawn, so it's untouched by any of the above.
  *
- * "Replaces" isn't just this mesh drawing over the real terrain, either:
- * `cutoutRadius` (below) is fed to `Terrain.setGroundCutout`, which discards
- * the real clipmap terrain's own fragments within this mesh's fully-opaque
- * core — the real ground is actually gone there, not just hidden under
- * another opaque surface, so there's nothing left for this coarse 64² grid
- * to fight for depth against. Outside that core, in the feather band, the
- * real terrain is deliberately left alone to show through as this mesh's own
- * alpha fades toward the window's edge.
+ * Its ground is sand, not rock: `createWorldState`'s `terrain: 'desert'`
+ * mode (see `WORLD_GEN_OPTIONS`) keeps FIELD.SAND high everywhere, because
+ * that's what `colorForCell` actually paints with — dunes are sand, not
+ * granite.
+ *
+ * This class still owns separate meshes for water, vegetation, particles,
+ * the rolling stone and the aim cursor — those are real objects sitting on
+ * the ground, not a second ground, so they don't have the "two surfaces
+ * fighting for the same pixels" problem the old terrain mesh did.
  *
  * The whole point is that this has to work wherever the player actually is,
  * not just in one fixed patch — so the window re-centres on the player once
@@ -46,15 +51,17 @@
  * Multi-tool selection and per-object settings are the next step.
  */
 
-// Side-effect import: registers Scene.prototype.pick/createPickingRay, which
-// handleInput()'s crosshair raycast needs — nothing else in this codebase
-// picks meshes, so nothing else has pulled this in yet.
+// Side-effect import: registers Scene.prototype.createPickingRay, which
+// handleInput()'s crosshair ray-march needs — nothing else in this codebase
+// creates a picking ray, so nothing else has pulled this in yet.
 import "@babylonjs/core/Culling/ray";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3, Matrix, Quaternion } from "@babylonjs/core/Maths/math.vector";
 
@@ -68,7 +75,11 @@ const SIZE = 64; // field grid resolution
 const WORLD_SPAN = 80; // metres
 const HEIGHT_SCALE = 1.6; // metres per normalised height-delta unit
 const WATER_HEIGHT_SCALE = 1.1;
-const LIFT = 0.025; // metres, keeps the overlay a hair above the real terrain (avoids z-fighting)
+// Metres the decorative meshes (water, vegetation, particles, the rolling
+// stone) sit above their computed ground height — they're real separate
+// objects resting on the ground, not a second ground, so this just keeps
+// them from clipping into it visually.
+const LIFT = 0.025;
 const WATER_THRESHOLD = 0.006;
 const VEG_THRESHOLD = 0.02;
 const VEG_STEP = 2; // sample every Nth cell for vegetation — 64² would be too many instances
@@ -76,8 +87,6 @@ const MAX_VEG = 900;
 const MAX_PARTICLES = 600;
 /** Metres from the window's centre the player can roam before it re-centres on them. */
 const RECENTER_MARGIN = 26;
-/** Fraction of the half-span (as a distance ratio, 0=centre..1=edge) where the edge feather starts. */
-const EDGE_FEATHER_START = 0.82;
 /** Initial FIELD.SNOW value seeded across a fresh patch, so it reads as snow-covered ground from
  *  the first frame rather than bare sand — colorForCell.js's own snowCoverage term is full white
  *  by snow=0.06 ((snow-0.006)/0.054 clamped to 1), so this needs to clear that, not just approach it. */
@@ -123,7 +132,7 @@ export class SandboxRenderer {
         this.runtime.setEnvironment({ temperature: 0.25 });
         this._seedSnowCover();
 
-        this._buildTerrainOverlay();
+        this._buildSandboxTexture();
         this._buildWater();
         this._buildVegetation();
         this._buildParticles();
@@ -140,65 +149,31 @@ export class SandboxRenderer {
 
     // -------------------------------------------------------------- build
 
-    _buildTerrainOverlay() {
+    /**
+     * The actual ground-replacement channel: a small RGBA float texture (R =
+     * height delta in metres, GBA = ground colour 0..1) `Terrain` samples
+     * directly in its own clipmap mesh's shaders. No geometry of its own —
+     * see the class doc comment for why that's the point.
+     */
+    _buildSandboxTexture() {
         const size = SIZE;
         const n = size * size;
-        const positions = new Float32Array(n * 3);
-        const uvs = new Float32Array(n * 2);
-        const indices = new Uint32Array((size - 1) * (size - 1) * 6);
+        this._texData = new Float32Array(n * 4);
+        this.sandboxTex = RawTexture.CreateRGBATexture(
+            this._texData, size, size, this.scene,
+            false, false, Constants.TEXTURE_BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
+        );
+        // Clamp, not wrap: the window is a hard-reset patch, not a
+        // continuously-scrolled toroidal buffer like deformTex — nothing
+        // should ever sample past its edge (deformFalloff reaches 0 first),
+        // but clamping is the safe default regardless.
+        this.sandboxTex.wrapU = Constants.TEXTURE_CLAMP_ADDRESSMODE;
+        this.sandboxTex.wrapV = Constants.TEXTURE_CLAMP_ADDRESSMODE;
 
-        for (let z = 0; z < size; z++) {
-            for (let x = 0; x < size; x++) {
-                const i = z * size + x;
-                positions[i * 3] = (x / (size - 1) - 0.5) * WORLD_SPAN;
-                positions[i * 3 + 1] = 0;
-                positions[i * 3 + 2] = (z / (size - 1) - 0.5) * WORLD_SPAN;
-                uvs[i * 2] = x / (size - 1);
-                uvs[i * 2 + 1] = z / (size - 1);
-            }
-        }
-        let ii = 0;
-        for (let z = 0; z < size - 1; z++) {
-            for (let x = 0; x < size - 1; x++) {
-                const a = z * size + x;
-                const b = a + 1;
-                const c = a + size;
-                const d = c + 1;
-                indices[ii++] = a; indices[ii++] = c; indices[ii++] = b;
-                indices[ii++] = b; indices[ii++] = c; indices[ii++] = d;
-            }
-        }
-
-        const mesh = new Mesh("sandboxTerrain", this.scene);
-        const vd = new VertexData();
-        vd.positions = positions;
-        vd.indices = indices;
-        vd.uvs = uvs;
-        vd.colors = new Float32Array(n * 4).fill(1);
-        vd.applyToMesh(mesh, true);
-        mesh.position.copyFrom(this.origin);
-        mesh.isPickable = true;
-        mesh.renderingGroupId = 1;
-
-        const mat = new StandardMaterial("sandboxTerrainMat", this.scene);
-        mat.specularColor = new Color3(0.05, 0.05, 0.05);
-        mat.backFaceCulling = false;
-        // Vertex alpha is opaque across almost the whole window — this is
-        // standing ground, not an occasional-marks decal — and only
-        // feathers to 0 in the outer rim (see _refresh), so the patch
-        // blends into the surrounding dune field instead of ending in a hard
-        // edge.
-        mat.hasVertexAlpha = true;
-        mesh.material = mat;
-
-        this.terrain = mesh;
-        this._indices = indices;
-        this._positions = positions;
-        this._normals = new Float32Array(n * 3);
-        this._colors = new Float32Array(n * 4).fill(1);
-        // Filled by _updateWorldPositions() — depends on `origin`, which can
-        // change on re-centre, so it's kept separate from the local (fixed)
-        // vertex offsets in `_positions`.
+        // Per-cell bookkeeping the height sampling (both the texture upload
+        // below and the CPU-side sampleHeight/heightAt overlay) is built
+        // from. Filled by _updateWorldPositions()/_captureBaseline() —
+        // depends on `origin`, which can change on re-centre.
         this._worldX = new Float32Array(n);
         this._worldZ = new Float32Array(n);
         this._baseHeight = new Float32Array(n);
@@ -301,23 +276,27 @@ export class SandboxRenderer {
     }
 
     /**
-     * Recompute each vertex's world-space X/Z from its fixed local offset
-     * (`_positions`' X/Z never change, only Y does) and the current origin.
-     * Called at construction and again on every re-centre.
+     * Recompute each cell's world-space X/Z from its fixed local grid offset
+     * and the current origin. Called at construction and again on every
+     * re-centre.
      */
     _updateWorldPositions() {
-        const n = SIZE * SIZE;
-        for (let i = 0; i < n; i++) {
-            this._worldX[i] = this.origin.x + this._positions[i * 3];
-            this._worldZ[i] = this.origin.z + this._positions[i * 3 + 2];
+        const size = SIZE;
+        for (let z = 0; z < size; z++) {
+            for (let x = 0; x < size; x++) {
+                const i = z * size + x;
+                this._worldX[i] = this.origin.x + (x / (size - 1) - 0.5) * WORLD_SPAN;
+                this._worldZ[i] = this.origin.z + (z / (size - 1) - 0.5) * WORLD_SPAN;
+            }
         }
     }
 
     /**
-     * Sample the real terrain's height at every vertex, and record the
-     * sandbox field's own starting ground level per cell — everything the
-     * per-frame refresh renders is a delta from these two baselines, which
-     * is what keeps the overlay flush and invisible until something changes.
+     * Sample the real terrain's height at every cell, and record the
+     * sandbox field's own starting ground level there too — everything
+     * `_refresh` writes into `sandboxTex` each frame is a delta from these
+     * two baselines, which is what keeps a fresh patch flush with the real
+     * terrain (delta 0) until the simulation actually moves sand.
      */
     _captureBaseline() {
         const n = SIZE * SIZE;
@@ -365,7 +344,6 @@ export class SandboxRenderer {
      */
     _recenter(px, pz) {
         this.origin.set(px, this.terrain3d.heightAtBase(px, pz), pz);
-        this.terrain.position.copyFrom(this.origin);
         this.water.position.copyFrom(this.origin);
         this.veg.position.copyFrom(this.origin);
         this.particleMesh.position.copyFrom(this.origin);
@@ -390,20 +368,25 @@ export class SandboxRenderer {
     }
 
     /**
-     * Raycast from screen centre (crosshair aim, consistent with the
-     * pointer-locked camera-look everywhere else in the scene) against the
-     * terrain patch, and drive a tool stroke from it.
+     * Find where the crosshair (screen centre, consistent with the
+     * pointer-locked camera-look everywhere else in the scene) is aiming at
+     * the ground, and drive a tool stroke from it.
+     *
+     * There's no separate mesh to pick against any more — the ground is the
+     * real clipmap terrain, displaced entirely in its own vertex shader, and
+     * Babylon's CPU-side picking has no idea that displacement happened (it
+     * tests the mesh's raw, undisplaced position buffer, which for this
+     * clipmap doesn't even hold real-world coordinates — see
+     * snow.vertex.wgsl). So instead this marches the same ray Babylon's own
+     * `scene.pick` would build, straight against `terrain3d.heightAt`, the
+     * exact analytic height function grounding already trusts — the cursor
+     * can never disagree with where the character would actually stand.
      *
      * @param {import("@babylonjs/core/Cameras/camera").Camera} camera
      * @param {boolean} toolDown primary action held this frame
      */
     handleInput(camera, toolDown) {
-        const engine = this.scene.getEngine();
-        const hit = this.scene.pick(
-            engine.getRenderWidth() / 2, engine.getRenderHeight() / 2,
-            (m) => m === this.terrain, false, camera
-        );
-        const point = hit?.hit ? hit.pickedPoint : null;
+        const point = this._raymarchGround(camera);
         this._aiming = !!point;
 
         if (point) {
@@ -423,13 +406,56 @@ export class SandboxRenderer {
         this._toolWasDown = toolDown && !!point;
     }
 
+    /**
+     * March the crosshair ray against `terrain3d.heightAt` (coarse fixed
+     * steps, refined by bisection once a crossing is found) and return the
+     * world-space hit point, or `null` if nothing was crossed within range.
+     * `heightAt` is already the overlay-aware height — inside the window
+     * that's this sandbox's own live simulation, outside it the baked
+     * terrain — so aiming works correctly on both without this needing to
+     * know which one it's hitting.
+     * @param {import("@babylonjs/core/Cameras/camera").Camera} camera
+     */
+    _raymarchGround(camera) {
+        const engine = this.scene.getEngine();
+        const ray = this.scene.createPickingRay(
+            engine.getRenderWidth() / 2, engine.getRenderHeight() / 2,
+            Matrix.Identity(), camera
+        );
+        const o = ray.origin;
+        const d = ray.direction;
+
+        const maxDist = 50;
+        const step = 1;
+        let prevT = 0;
+        let prevDiff = o.y - this.terrain3d.heightAt(o.x, o.z);
+
+        for (let t = step; t <= maxDist; t += step) {
+            const diff = (o.y + d.y * t) - this.terrain3d.heightAt(o.x + d.x * t, o.z + d.z * t);
+            if (diff <= 0 && prevDiff > 0) {
+                let lo = prevT;
+                let hi = t;
+                for (let i = 0; i < 6; i++) {
+                    const mid = (lo + hi) * 0.5;
+                    const my = o.y + d.y * mid;
+                    const groundY = this.terrain3d.heightAt(o.x + d.x * mid, o.z + d.z * mid);
+                    if (my - groundY > 0) lo = mid; else hi = mid;
+                }
+                return { x: o.x + d.x * hi, y: o.y + d.y * hi, z: o.z + d.z * hi };
+            }
+            prevDiff = diff;
+            prevT = t;
+        }
+        return null;
+    }
+
     // ------------------------------------------------------------- refresh
 
     _refresh() {
         const world = this.runtime.world;
         if (!world) return;
         const size = SIZE;
-        const halfSpan = WORLD_SPAN / 2;
+        const tex = this._texData;
 
         for (let i = 0; i < size * size; i++) {
             const o = i * CELL_STRIDE;
@@ -438,23 +464,16 @@ export class SandboxRenderer {
             const water = world[o + FIELD.WATER];
             const localBase = this._baseHeight[i] - this.origin.y;
 
-            this._positions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + LIFT;
-
+            // R = height delta in metres, no LIFT — this is the real ground
+            // now, sampled by Terrain's own shaders (see
+            // Terrain.setSandboxWindow) exactly as sampleHeight() computes
+            // it for the character. GBA = ground colour, straight from the
+            // same field/colour law the old mesh used.
             const rgb = colorForCell(world, o, 0);
-            this._colors[i * 4] = rgb[0] / 255;
-            this._colors[i * 4 + 1] = rgb[1] / 255;
-            this._colors[i * 4 + 2] = rgb[2] / 255;
-            // Opaque across almost the whole window — this replaces the
-            // real terrain here, it isn't a decal that only shows where
-            // touched — and only feathers to 0 in the outer rim (below), so
-            // the patch blends into the surrounding dune field instead of
-            // ending in a hard edge. (The earlier "only where changed"
-            // gating was working around a colour bug — see
-            // WORLD_GEN_OPTIONS — not a real need to hide this.)
-            const lx = this._positions[i * 3];
-            const lz = this._positions[i * 3 + 2];
-            const edgeDist = Math.max(Math.abs(lx), Math.abs(lz)) / halfSpan;
-            this._colors[i * 4 + 3] = 1 - smoothstep01((edgeDist - EDGE_FEATHER_START) / (1 - EDGE_FEATHER_START));
+            tex[i * 4] = delta * HEIGHT_SCALE;
+            tex[i * 4 + 1] = rgb[0] / 255;
+            tex[i * 4 + 2] = rgb[1] / 255;
+            tex[i * 4 + 3] = rgb[2] / 255;
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;
@@ -463,14 +482,7 @@ export class SandboxRenderer {
             this._waterColors[i * 4 + 2] = 1;
             this._waterColors[i * 4 + 3] = wVisible;
         }
-
-        // `updateExtends: true` on the position update — the mesh's bounding info
-        // has to track the live heightfield, or the crosshair raycast's broad-phase
-        // rejects real hits once the overlay has deformed away from its initial shape.
-        this.terrain.updateVerticesData(VertexBuffer.PositionKind, this._positions, true);
-        this.terrain.updateVerticesData(VertexBuffer.ColorKind, this._colors, false);
-        VertexData.ComputeNormals(this._positions, this._indices, this._normals);
-        this.terrain.updateVerticesData(VertexBuffer.NormalKind, this._normals, false);
+        this.sandboxTex.update(tex);
 
         this.water.updateVerticesData(VertexBuffer.PositionKind, this._waterPositions, true);
         this.water.updateVerticesData(VertexBuffer.ColorKind, this._waterColors, false);
@@ -573,19 +585,13 @@ export class SandboxRenderer {
         return this._baseHeight[i] + delta * HEIGHT_SCALE;
     }
 
-    /**
-     * Half-size (metres, from `origin`) of the region that's *fully* opaque —
-     * the core the edge feather hasn't started thinning yet. This is the
-     * region `terrain.setGroundCutout` should discard the real terrain
-     * within: outside it this mesh is already fading itself out via alpha,
-     * so the real terrain has to stay to blend under it, not be cut away too.
-     */
-    get cutoutRadius() {
-        return (WORLD_SPAN / 2) * EDGE_FEATHER_START;
+    /** Width (metres) of the square window `sandboxTex` covers — what main.js passes to
+     *  `Terrain.setSandboxWindow` as `size`, alongside `origin` as its centre. */
+    get windowSize() {
+        return WORLD_SPAN;
     }
 
     setVisible(v) {
-        this.terrain.setEnabled(v);
         this.water.setEnabled(v);
         this.veg.setEnabled(v);
         this.particleMesh.setEnabled(v);
@@ -596,17 +602,11 @@ export class SandboxRenderer {
     }
 
     dispose() {
-        this.terrain.dispose();
+        this.sandboxTex.dispose();
         this.water.dispose();
         this.veg.dispose();
         this.particleMesh.dispose();
         this.stone.dispose();
         this.cursor.dispose();
     }
-}
-
-/** Hermite smoothstep, clamped to [0,1] on an already-normalised parameter. */
-function smoothstep01(t) {
-    const x = t < 0 ? 0 : t > 1 ? 1 : t;
-    return x * x * (3 - 2 * x);
 }

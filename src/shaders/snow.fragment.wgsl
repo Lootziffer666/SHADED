@@ -19,6 +19,7 @@
 #include<snowNoise>
 #include<snowTerrain>
 #include<snowDeform>
+#include<snowSandbox>
 #include<snowShading>
 #include<snowSpellLights>
 #include<snowAtmosphere>
@@ -86,11 +87,12 @@ uniform ambientIntensity: f32;
 uniform debugMode: f32;
 uniform screenSize: vec2f;
 
-/// World-sandbox ground cutout — see Terrain.setGroundCutout. `cutoutHalfSize`
-/// of 0 or less disables it: the sandbox is off, or this point isn't inside
-/// its currently fully-opaque core.
-uniform cutoutCenter: vec2f;
-uniform cutoutHalfSize: f32;
+/// World-sandbox ground replacement — see Terrain.setSandboxWindow.
+/// `sandboxSize` of 0 or less disables it outright (the sandbox is off).
+uniform sandboxCenter: vec2f;
+uniform sandboxSize: f32;
+var sandboxTex: texture_2d<f32>;
+var sandboxTexSampler: sampler;
 
 // Spell lights. See `lib/spellLights.wgsl`; zero-count on almost every frame.
 uniform spellLightPos: array<vec4f, 4>;
@@ -183,18 +185,6 @@ fn detailNormal(
 @fragment
 fn main(input: FragmentInputs) -> FragmentOutputs {
     let world = input.vWorld;
-
-    // The world sandbox actually replaces the ground here, not just paints
-    // over it — cut this real terrain fragment outright rather than let two
-    // independently-placed surfaces (this fine clipmap mesh and the
-    // sandbox's own coarse simulation grid) fight for the same pixels.
-    if (uniforms.cutoutHalfSize > 0.0) {
-        let cutoutDist = max(abs(world.x - uniforms.cutoutCenter.x), abs(world.z - uniforms.cutoutCenter.y));
-        if (cutoutDist < uniforms.cutoutHalfSize) {
-            discard;
-        }
-    }
-
     let viewDist = input.vViewDist;
     let V = normalize(uniforms.cameraPos - world);
     let L = uniforms.sunDir;
@@ -362,6 +352,33 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
         thickness = mix(thickness, 0.0, rockExposed);
     }
 
+    // World-sandbox ground: within its window this *replaces* the ground —
+    // one continuous mesh, the sandbox's own live colour and roughness
+    // blended in by the same falloff the vertex stage used for the height
+    // offset, not a second surface drawn over or cut into this one. Sand's
+    // own colour, straight from the same field/colour law the sandbox
+    // simulation itself uses (colorForCell in world-sandbox-cpu-backend.mjs,
+    // packed into this texture's GBA channels every frame) — not a
+    // procedural guess the way the rock blend above is.
+    var sandWeight = 0.0;
+    if (uniforms.sandboxSize > 0.0) {
+        sandWeight = deformFalloff(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
+        if (sandWeight > 0.001) {
+            let sc = textureSampleLevel(
+                sandboxTex, sandboxTexSampler,
+                sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize), 0.0
+            );
+            albedo = mix(albedo, sc.gba, sandWeight);
+            roughness = mix(roughness, 0.82, sandWeight);
+            thickness = mix(thickness, 0.0, sandWeight);
+        }
+    }
+
+    // Rock and sandbox sand are both "this fragment isn't snow" for every
+    // downstream term keyed off that (wrap diffuse, subsurface, glints) —
+    // whichever is stronger here wins.
+    let nonSnow = max(rockExposed, sandWeight);
+
     // --- carved-snow surface state -----------------------------------------
     // Freshly displaced mass is the opposite of trodden snow: it has just been
     // broken up and thrown, so it is loose, bright and rough. Without this the
@@ -429,14 +446,14 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     // Snow's mean free path is millimetres, so light wraps well past the
     // geometric terminator. This is why snow shadow edges are soft even where
     // the shadow map is pin sharp.
-    let wrapAmount = mix(0.62, 0.15, max(compression, rockExposed));
+    let wrapAmount = mix(0.62, 0.15, max(compression, nonSnow));
     let diff = wrapDiffuse(NdotL, wrapAmount);
     var direct = albedo * INV_PI * sunRadiance * diff * shadow;
 
     // --- subsurface --------------------------------------------------------
     let sss = snowSubsurface(
         N, L, V, sunRadiance, thickness,
-        uniforms.sssStrength * (1.0 - rockExposed), uniforms.sssRadius
+        uniforms.sssStrength * (1.0 - nonSnow), uniforms.sssRadius
     );
     // Only partly shadowed: scattered light arrives through the snow, so a
     // shadowed drift lip still glows. Killing this with the shadow term is what
@@ -488,7 +505,7 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     if (uniforms.spellLightCount > 0.5) {
         color += spellLighting(
             world, N, V, albedo, thickness,
-            uniforms.sssStrength * (1.0 - rockExposed), uniforms.sssRadius,
+            uniforms.sssStrength * (1.0 - nonSnow), uniforms.sssRadius,
             uniforms.spellLightPos, uniforms.spellLightCol, uniforms.spellLightCount
         );
     }
@@ -497,7 +514,7 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     // Last, and added as radiance rather than modulated into the BRDF, because
     // a glint is a specular highlight from a crystal facet that the shading
     // normal does not represent.
-    if (uniforms.glintIntensity > 0.001 && rockExposed < 0.5) {
+    if (uniforms.glintIntensity > 0.001 && nonSnow < 0.5) {
         let g = snowGlints(
             world.xz, N, V, L, footprint,
             uniforms.glintIntensity, uniforms.glintGrazing

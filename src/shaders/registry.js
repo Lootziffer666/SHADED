@@ -18,6 +18,7 @@ import shadowLookupLib from "./lib/shadowLookup.wgsl?raw";
 import atmosphereLib from "./lib/atmosphere.wgsl?raw";
 import clipmapLib from "./lib/clipmap.wgsl?raw";
 import deformLib from "./lib/deform.wgsl?raw";
+import sandboxLib from "./lib/sandbox.wgsl?raw";
 import charSkinLib from "./lib/charSkin.wgsl?raw";
 import wakeLib from "./lib/wake.wgsl?raw";
 import spellLightsLib from "./lib/spellLights.wgsl?raw";
@@ -75,6 +76,7 @@ const INCLUDES = {
     snowAtmosphere: atmosphereLib,
     snowClipmap: clipmapLib,
     snowDeform: deformLib,
+    snowSandbox: sandboxLib,
     snowCharSkin: charSkinLib,
     snowWake: wakeLib,
     snowSpellLights: spellLightsLib,

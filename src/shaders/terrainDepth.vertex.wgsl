@@ -8,6 +8,7 @@
 #include<snowNoise>
 #include<snowTerrain>
 #include<snowDeform>
+#include<snowSandbox>
 #include<snowClipmap>
 
 attribute position: vec3f;
@@ -31,12 +32,17 @@ uniform deformCenter: vec2f;
 uniform deformSize: f32;
 uniform deformDepthScale: f32;
 
+uniform sandboxCenter: vec2f;
+uniform sandboxSize: f32;
+
 var heightTex: texture_2d<f32>;
 var heightTexSampler: sampler;
 var auxTex: texture_2d<f32>;
 var auxTexSampler: sampler;
 var deformTex: texture_2d<f32>;
 var deformTexSampler: sampler;
+var sandboxTex: texture_2d<f32>;
+var sandboxTexSampler: sampler;
 
 @vertex
 fn main(input: VertexInputs) -> FragmentInputs {
@@ -75,6 +81,9 @@ fn main(input: VertexInputs) -> FragmentInputs {
             cv.spacing
         ) * dfade;
     }
+
+    // Must mirror snow.vertex.wgsl exactly — see the note there.
+    h += sandboxHeight(sandboxTex, sandboxTexSampler, worldXZ, uniforms.sandboxCenter, uniforms.sandboxSize);
 
     vertexOutputs.position = uniforms.lightViewProjection * vec4f(worldXZ.x, h, worldXZ.y, 1.0);
 }

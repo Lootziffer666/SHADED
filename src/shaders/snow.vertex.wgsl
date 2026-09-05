@@ -1,6 +1,7 @@
 #include<snowNoise>
 #include<snowTerrain>
 #include<snowDeform>
+#include<snowSandbox>
 #include<snowClipmap>
 
 // position packs the clipmap addressing: (gridI, ringLevel, gridJ).
@@ -39,12 +40,17 @@ uniform deformCenter: vec2f;
 uniform deformSize: f32;
 uniform deformDepthScale: f32;
 
+uniform sandboxCenter: vec2f;
+uniform sandboxSize: f32;
+
 var heightTex: texture_2d<f32>;
 var heightTexSampler: sampler;
 var auxTex: texture_2d<f32>;
 var auxTexSampler: sampler;
 var deformTex: texture_2d<f32>;
 var deformTexSampler: sampler;
+var sandboxTex: texture_2d<f32>;
+var sandboxTexSampler: sampler;
 
 varying vWorld: vec3f;
 varying vHeightUV: vec2f;
@@ -109,6 +115,18 @@ fn main(input: VertexInputs) -> FragmentInputs {
             cv.spacing
         ) * dfade;
     }
+
+    // --- world sandbox -------------------------------------------------------
+    // Replaces this patch of ground outright rather than sitting on top of
+    // it: the real dune height here comes from the sandbox's own live
+    // simulation, faded to 0 at the window edge by the same falloff
+    // `deformHeight` above uses. No spacing gate — the data comes off a
+    // coarse ~1.25 m grid, well within what any ring can resolve.
+    //
+    // This gate and the filter must be mirrored exactly in
+    // terrainDepth.vertex.wgsl and terrainPrepass.vertex.wgsl, or the dune
+    // will shadow and self-occlude against a surface it is not drawing.
+    h += sandboxHeight(sandboxTex, sandboxTexSampler, worldXZ, uniforms.sandboxCenter, uniforms.sandboxSize);
 
     let world = vec3f(worldXZ.x, h, worldXZ.y);
 
