@@ -26,7 +26,8 @@ below as "true of that parked subsystem," not "true of the page you get from a b
 The world-sandbox game that `index.html` actually serves (`src/sandbox/*`, `src/terrain/*`,
 `src/shaders/*`) is governed by a separate, current set of concept documents at the repo root —
 **`WORLD_ARCHITECTURE.md`, `WORLD_KERNEL.md`, `DONORS.md`, `VEGETATION.md`, `SHADER_IR.md`,
-`HYDROLOGY.md`** — written by the maintainer directly, and current for that subsystem. They are not
+`HYDROLOGY.md`, `PHYSICS.md`, `HABITATS.md`, `GAMEPLAY.md`** — written by the maintainer directly,
+and current for that subsystem. They are not
 gated by the invariants below (`WORLD_ARCHITECTURE.md` says so explicitly: "Kein Claude.md. Die
 Richtung gibt der Nutzer vor."). This file's rules keep governing the parked `runtime/*.mjs`
 subsystem and the repo-wide provenance/contracts hygiene sections further down.
