@@ -12,7 +12,7 @@
     "verify:pwa": "node tools/verify-pwa.mjs",
     "verify:world-sandbox": "node tools/test-world-sandbox-runtime.mjs && node tools/test-world-sandbox.mjs",
     "verify:physics": "node tools/test-world-sandbox-physics.mjs",
-    "verify:math": "python3 tools/math-verify/sphere_terrain_contact_v1.py",
+    "verify:math": "for f in tools/math-verify/*.py; do python3 \"$f\" || exit 1; done",
     "materials:freestylized": "node tools/freestylized-materials.mjs all --resolution 1k",
     "materials:freestylized:catalog": "node tools/freestylized-materials.mjs catalog",
     "materials:freestylized:sync": "node tools/freestylized-materials.mjs sync --resolution 1k"

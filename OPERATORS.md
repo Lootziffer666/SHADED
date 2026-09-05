@@ -147,6 +147,159 @@ steckt — sonst ist die Zahl hinter dem `±` erfunden, obwohl sie seriös aussi
 `confidence`-Feld ist der richtige Ort dafür, aber ein Zahlenwert dort muss dieselbe Sorgfalt
 durchlaufen wie jede andere LAW/OPERATOR-Behauptung.
 
+## Bestehende Bausteine, jetzt als OPERATOR formalisiert (2026-09-05)
+
+Schritt 2 der Reihenfolge unten: nichts Neues erfunden, nur bereits verschifften Code
+(`tools/single_view_room.py`, `window.SHADED.intrinsic`) in dieses Format gebracht. Terminologie-
+Hinweis vorab: `shaded-spatial-primitive-solver`s eigener „Operator-Solver" (ALIGN/SNAP/EQUALIZE/
+ORTHO/PLACE/RELATE/CLOSE/SMOOTH, siehe dessen `REFERENCE.md`) ist ein **anderer** Operator-Begriff
+— lokale iterative Solver-Schritte in einem Zwei-Phasen-Optimierer, keine STATE→OPERATOR→STATE-
+Transformation. Beide Begriffe koexistieren, ohne zu verschmelzen.
+
+### OPERATOR: vanishing_point_calibrate_v1
+
+```
+INPUT:
+  image_edges [px] (Kantensegmente aus Sobel + Hough, siehe Linienfeld in single_view_room.py)
+
+OUTPUT:
+  vanishing_point [px], principal_point [px], residual [px]
+
+UNITS:
+  Pixelkoordinaten
+
+FORWARD:
+  Kantenlinien → RANSAC-Konsens (ransac_fluchtpunkt: SVD-Geradenschnitt, iterativ
+  Inlier/Outlier trennen) → Fluchtpunkt. Klassische Single-View-Metrologie
+  (Caprile & Torre 1990 / Criminisi et al. 1999, bereits als Herkunft in
+  .claude/skills/shaded-spatial-primitive-solver/SKILL.md benannt).
+
+INVERSE:
+  UNDERDETERMINED — der Fluchtpunkt ist selbst schon eine Verdichtung vieler Kanten; es gibt
+  keinen sinnvollen Rückweg zu "der" ursprünglichen Kantenmenge.
+
+VALIDITY:
+  Manhattan-Zentralperspektive (rechtwinklige, fluchtende Kanten). Degradiert absichtlich auf
+  `status: "declined"` statt zu raten, wenn unter 6 tragende Linien gefunden werden (siehe
+  Docstring von `vermessen()`: „Richtig geraten ist nicht gemessen").
+
+UNCERTAINTY:
+  `restfehler_px` (RMS-Residuum der Inlier-Linien zum finalen Fluchtpunkt) — ein echtes,
+  aus dem Fit selbst stammendes Fehlermaß, keine behauptete Unsicherheit.
+
+CONSENSUS:
+  Bereits als etablierte Methode zitiert (Caprile & Torre, Criminisi) — keine neue Prüfung nötig,
+  nur die bestehende Herkunftsangabe formalisiert.
+
+MATH_VERIFICATION:
+  OPEN — RANSAC-Konvergenzverhalten wäre eine numerische, keine symbolische Prüfung; nicht
+  Teil dieser Formalisierungsrunde.
+
+CONTEXT7:
+  N/A — reines NumPy, keine externe Geometrie-API.
+
+SHADED TESTS:
+  tools/test-single-view-room.py (drei Regressionsfälle: Referenzbild, 2x-Resize mit erwarteter
+  Brennweitenverdopplung, Nicht-Manhattan-Bild mit korrektem `declined`/`UNKNOWN`-Fallback statt
+  Absturz oder erfundenem Ergebnis).
+
+PROVENANCE-KLASSEN IM CODE:
+  single_view_room.py definiert MEASURED/RECONSTRUCTED/DECLARED/UNKNOWN — eine Teilmenge PLUS
+  eine zusätzliche Klasse gegenüber der kanonischen sechs (MEASURED/OBSERVED/RECONSTRUCTED/
+  INFERRED/GENERATED/USER_APPROVED aus shaded-reconstruction). DECLARED fehlt dort komplett und
+  bedeutet etwas eigenes: ein von außen als Referenz VORGEGEBENER Wert (z. B. eine bekannte
+  Kachelgröße), der nicht gemessen, nicht vom Nutzer nachträglich bestätigt und nicht geschätzt
+  ist, sondern ein Kalibrierungs-Axiom. Wird unten bei metric_calibrate_v1 gebraucht — hier nur
+  vermerkt, damit der Fund nicht verloren geht (siehe „Offener Punkt" unten).
+```
+
+### OPERATOR: metric_calibrate_v1
+
+```
+INPUT:
+  anchor_length [m] (DECLARED — z. B. eine bekannte Bodenfliesenkante)
+  anchor_length_relative [-] (MEASURED — dieselbe Kante als Anteil der Bildhöhe, aus dem
+  Bodenraster/der Brennweite abgeleitet)
+
+OUTPUT:
+  camera_height [m], real-world lengths für jede image-relative Distanz im Bericht
+
+UNITS:
+  Meter (Output), dimensionslose Verhältnisse (Input, MEASURED-Anteil)
+
+FORWARD:
+  camera_height_m = anchor_length_m / anchor_length_relative;
+  jede weitere „_je_kamerahoehe"-Ratio wird mit camera_height_m multipliziert.
+
+INVERSE:
+  EXACT für die Skalierung selbst (anchor_length_relative = anchor_length_m / camera_height_m),
+  aber camera_height_m selbst ist nur so gut wie der DECLARED-Anker — keine Rück-Herleitung des
+  Ankers aus dem Bild möglich, per Definition (das ist ja der Grund, ihn vorzugeben).
+
+VALIDITY:
+  Mindestens ein periodisches Bodenmuster mit bekannter Kantenlänge muss im Bild erkennbar sein
+  (`bodenraster()` liefert sonst `None` → Skala bleibt `UNKNOWN`, kein Rateversuch).
+
+MATH_VERIFICATION (implementer: SymPy 1.14, tools/math-verify/metric_calibrate_v1.py):
+  symbolic equivalence PASS — camera_height_m/derived_meters tragen exakt eine Potenz „Meter",
+    nie Meter² oder eine nackte Ratio.
+  boundary conditions   PASS — anchor→0 schickt jeden abgeleiteten Meterwert exakt auf 0, keine
+    Singularität.
+  numerical reference   PASS — anchor=0.6 m, w_h=0.35 → Kamerahöhe ≈1.71 m, deckt sich mit dem
+    "~1,7 m Augenhöhe"-Gegenprobe-Kommentar im Quellcode selbst.
+  Kernaussage bewiesen, nicht nur behauptet: Skalierung des Ankers um Faktor k skaliert JEDEN
+    abgeleiteten Meterwert um exakt denselben Faktor k, während alle bildrelativen Verhältnisse
+    (die Form der Halle) unverändert bleiben — genau die Eigenschaft, die der Quellcode-Kommentar
+    „skaliert die ganze Halle, ihre Form bleibt unberührt" behauptet.
+
+CONTEXT7:
+  N/A — reine Arithmetik, keine externe API.
+
+SHADED TESTS:
+  tools/test-single-view-room.py (`svr.vermessen(MESSEHALLE, 0.6)` — derselbe Anker-Wert, den
+  das MATH_VERIFICATION-Skript als numerische Referenz benutzt).
+
+Offener Punkt (nicht in dieser Runde entschieden): DECLARED ist eine echte, bereits im Code
+gebrauchte siebte Provenienzklasse, die in der kanonischen Sechser-Liste fehlt. Ob sie dort
+ergänzt wird oder ob METRIC_CALIBRATE-Anker anders eingeordnet werden, ist eine eigene
+Entscheidung — hier nur als Fund festgehalten, nicht stillschweigend in eine der sechs
+bestehenden Klassen gepresst.
+```
+
+### OPERATOR: illumination_normalize_v1
+
+```
+INPUT:
+  observed_appearance [0..1 RGB] (OBSERVED — Rohpixel der Szene)
+  optional: externes Shading-Feld (Provider-Ausgabe)
+
+OUTPUT:
+  albedo_estimate [0..1 RGB], shading_field [0..1], confidence [0..1]
+
+FORWARD:
+  observed_appearance ≈ material_response × illumination (CLAUDE.md „Material/light separation"),
+  Constraint-Projektion per Dykstra auf den Schnitt zweier konvexer Mengen (Albedo-Gamut,
+  Energieneutralität) statt sequenziellem Clamp-dann-Normalisieren, das nachweislich 7 %
+  Helligkeitsversatz erzeugte.
+
+INVERSE:
+  N/A in diese Richtung — der Operator IST bereits die inverse Zerlegung (Bild → Material,
+  Licht); eine Forward-Richtung wäre Compositing (Material × Licht → Bild), nicht Teil dieses
+  Operators.
+
+VALIDITY:
+  `setStrength(0)` ist der explizite Fallback (identity-albedo) — keine Zerlegung wird
+  behauptet, wo keine stattgefunden hat.
+
+CONTEXT7:
+  N/A — kein externer Library-Aufruf im eingebauten Backend; ein zukünftiges externes Backend
+  (RGB→X, IntrinsicReal, De-Lighter) würde hier tatsächlich geprüft.
+
+SHADED TESTS:
+  tools/verify-intrinsic.js (18 Prüfungen: Kanalvertrag, Fallback, Zerlegungswirkung, Invariante
+  2, WETNESS-Weltgesetz-Interaktion, externes Backend, Providerausfall, Companion-Datei).
+```
+
 ## Beispiel (illustrativ, kein geprüfter Operator)
 
 Zeigt die Form, nicht eine fertige Prüfung — Status wäre `CONSENSUS: OPEN`,
