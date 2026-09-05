@@ -98,10 +98,6 @@ const DEFAULT_BRUSH_RADIUS = 0.025;
 /** Gamepad trigger pressure maps to this range — see setBrushStrength. */
 const MIN_BRUSH_RADIUS = 0.015;
 const MAX_BRUSH_RADIUS = 0.06;
-/** Initial FIELD.SNOW value seeded across a fresh patch, so it reads as snow-covered ground from
- *  the first frame rather than bare sand — colorForCell.js's own snowCoverage term is full white
- *  by snow=0.06 ((snow-0.006)/0.054 clamped to 1), so this needs to clear that, not just approach it. */
-const SNOW_SEED = 0.08;
 /** world-sandbox-reference.mjs's createWorldState() defaults to a generic bedrock-heavy mixed
  *  landscape (mountains/ridges/basins, sand mostly ~0.02-0.05) unless told otherwise — its
  *  colorForCell only reads `sand` for the base tone, so that default reads as dark bare rock, not
@@ -146,12 +142,12 @@ export class SandboxRenderer {
         this._toolIndex = 0; // sand — see TOOL_ORDER
         this.runtime.setTool(TOOL_ORDER[this._toolIndex]);
         this.setBrushStrength(null);
-        // Cold enough that seeded snow holds rather than melting straight
-        // back off (stepWorldReference's melt/ice terms key off ~0.42-0.46) —
-        // this is a snow world, and freshly generated ground should read as
-        // snow-covered from the first frame, not bare sand.
-        this.runtime.setEnvironment({ temperature: 0.25 });
-        this._seedSnowCover();
+        // Warm desert: comfortably above the melt/freeze thresholds
+        // (stepWorldReference's melt/ice terms key off ~0.42-0.46), so any
+        // moisture that ever precipitates comes down as rain and any snow
+        // would melt straight back off — this is a sand world, and freshly
+        // generated ground reads as bare dunes from the first frame.
+        this.runtime.setEnvironment({ temperature: 0.65 });
 
         this._buildSandboxTexture();
         this._buildWater();
@@ -422,7 +418,7 @@ export class SandboxRenderer {
     /**
      * Re-anchor the whole patch on a new world position: a fresh field
      * state (seeded off the new location, so different spots don't all
-     * regenerate the same look), the meshes moved to match, and both
+     * regenerate the same look), the meshes moved to the new origin, and both
      * baselines recaptured against the new origin. A hard cut, not a
      * scroll — see the class doc comment for why that's an acceptable
      * trade for now.
@@ -437,19 +433,9 @@ export class SandboxRenderer {
 
         const seed = (Math.floor(px * 131) ^ Math.floor(pz * 131) ^ 0x53484144) >>> 0;
         this.runtime.reset(seed || 1, WORLD_GEN_OPTIONS);
-        this._seedSnowCover();
 
         this._captureBaseline();
         this._refresh();
-    }
-
-    /** Every fresh patch starts under a light, holding snow cover — see the constructor. */
-    _seedSnowCover() {
-        const world = this.runtime.world;
-        if (!world) return;
-        for (let o = 0; o < world.length; o += CELL_STRIDE) {
-            world[o + FIELD.SNOW] = SNOW_SEED;
-        }
     }
 
     /**
