@@ -159,9 +159,16 @@ export class SandboxRenderer {
         const size = SIZE;
         const n = size * size;
         this._texData = new Float32Array(n * 4);
+        // NEAREST, not bilinear: WebGPU's rgba32float format isn't filterable
+        // by default (that needs the optional float32-filterable feature,
+        // not something to depend on) — a linear sampler on an unfilterable
+        // texture is a validation error, not a graceful fallback. This is
+        // the same reason deformation.js's own float32 RawTexture (brushTex)
+        // uses NEAREST rather than bilinear; its half-float ping-pong
+        // targets get bilinear only because half-float *is* filterable.
         this.sandboxTex = RawTexture.CreateRGBATexture(
             this._texData, size, size, this.scene,
-            false, false, Constants.TEXTURE_BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
+            false, false, Constants.TEXTURE_NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
         );
         // Clamp, not wrap: the window is a hard-reset patch, not a
         // continuously-scrolled toroidal buffer like deformTex — nothing
