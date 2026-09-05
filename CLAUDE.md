@@ -15,6 +15,12 @@ appearance (1:1 import)"). Concretely, on the page a browser actually loads toda
   `src/main.js` creates none of them.
 - `service-worker.js` is not registered by `index.html` and caches files that are not the ones
   served.
+- `src/main.js` does expose its own debug-console handle instead: `globalThis.SNOWFLOW`
+  (engine/scene/rig/character/terrain/etc.), set once at the end of `boot()`. It is a debugging
+  convenience, not a documented contract — nothing in the codebase reads it back, and it carries
+  no stability promise the way `window.SHADED` does for the parked engine. Do not assume
+  `window.SHADED` on the live page; do not assume `globalThis.SNOWFLOW` is safe to build automation
+  against without first deciding it should be a real contract.
 
 The **"Canonical browser entry point" / "Stable public engine contract" / "World Sandbox contract"**
 sections below describe a real, still-present, still-internally-consistent subsystem
