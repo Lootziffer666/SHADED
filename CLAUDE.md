@@ -4,6 +4,10 @@ This file is the current architecture contract. Older specs, research notes and 
 evidence and donors; when they conflict with this file or `docs/ENTRYPOINTS_AND_CONTRACTS.md`,
 the current contract wins.
 
+**Picking up work? `docs/EXECUTION_PLAN.md` is the current, ordered task list** — with measured
+numbers, machine-checkable DONE criteria, the decision gates you must stop at rather than guess
+past, and an explicit list of what not to do. Read the status section below first, then that.
+
 ## Status: two subsystems, one repo (read this first)
 
 `index.html` currently boots `/src/main.js` — **Snowflow**, a WebGPU-only Babylon.js world-sandbox
