@@ -5,6 +5,16 @@
 import {DEFAULT_ENVIRONMENT, STAMP} from './world-sandbox-reference.mjs';
 import {CpuWorldSandboxBackend} from './world-sandbox-cpu-backend.mjs';
 import {DEFAULT_CAMERA, DEFAULT_WALK, clampCamera, clampWalkLook} from './world-sandbox-camera.mjs';
+import {stepSphereBody} from '../physics/rigidBody.mjs';
+
+// The stone's own material properties (PHYSICS.md's "Material Response") -- not the generic
+// module's defaults, which stay tuned for an arbitrary body; a stone bounces less and grips more
+// than that.
+const STONE_RESTITUTION = 0.32;
+const STONE_FRICTION = 0.72;
+// Below this closing speed, an impact is treated as cosmetic settling rather than a real hit
+// worth stamping into the world (matches the threshold the old ad hoc body used).
+const IMPACT_STAMP_THRESHOLD = 0.055;
 
 export const SIM_DT = 1 / 30;
 export const MAX_STEPS = 3;
@@ -86,7 +96,10 @@ export class WorldSandboxRuntime {
       walk: {...DEFAULT_WALK},
       dayNight: 0.5,
       savedEnvironment: null,
-      body: {active: false, x: 0.5, z: 0.2, y: 0.8, vx: 0, vz: 0, vy: 0, radius: 0.018, impacts: 0},
+      body: {
+        active: false, x: 0.5, z: 0.2, y: 0.8, vx: 0, vz: 0, vy: 0, radius: 0.018,
+        restitution: STONE_RESTITUTION, friction: STONE_FRICTION, resting: false, impacts: 0,
+      },
       query: {ground: 0.16, waterSurface: 0.16, waterDepth: 0, wetness: 0, biomass: 0, heat: 0, sand: 0, latencyMs: 0},
       accumulator: 0,
       elapsed: 0,
@@ -231,6 +244,9 @@ export class WorldSandboxRuntime {
       vz: 0.11,
       vy: -0.05,
       radius: 0.018,
+      restitution: STONE_RESTITUTION,
+      friction: STONE_FRICTION,
+      resting: false,
       impacts: 0,
     };
     return {...this.state.body};
@@ -362,18 +378,27 @@ export class WorldSandboxRuntime {
     walk.eyeY = this.state.query.ground * this.state.camera.verticalScale + WALK_EYE_OFFSET;
   }
 
+  // PHYSICS.md's first slice: real contact/terrain collision (src/physics/rigidBody.mjs)
+  // replacing the old hand-tuned vertical-only bounce. This function keeps only what genuinely
+  // belongs to a "stone in this world" rather than "any rigid body": buoyancy/drag (a MATTER-
+  // layer force, sampled live via the backend instead of the old shared/lagged query point),
+  // the finite-grid domain wall, and the CONTACT -> world-state consequence (STAMP.IMPACT,
+  // PHYSICS.md's "Fels-Test") once a real impact -- not every resting micro-contact -- happens.
   updateBody(dt) {
     const body = this.state.body;
-    if (!body.active) return;
-    const local = this.state.query;
+    // typeof-guarded, same graceful-degradation style spawnPlant() above already uses: a backend
+    // without ground/water sampling (e.g. a future WebGPU one) simply doesn't step body physics
+    // yet, rather than throwing.
+    if (!body.active || typeof this.backend?.sample !== 'function' || typeof this.backend?.groundHeightAndNormal !== 'function') return;
+
+    const local = this.backend.sample(body.x, body.z);
     const submerged = Math.max(0, Math.min(1, (local.waterSurface - (body.y - body.radius)) / (body.radius * 2)));
-    body.vy += (-0.86 + submerged * 1.22) * dt;
     const drag = 1 - Math.min(0.92, submerged * dt * 4.2);
     body.vx *= drag;
     body.vz *= drag;
-    body.x += body.vx * dt;
-    body.z += body.vz * dt;
-    body.y += body.vy * dt;
+
+    const groundSample = (x, z) => this.backend.groundHeightAndNormal(x, z);
+    const report = stepSphereBody(body, groundSample, dt, {gravityY: -0.86, accelY: submerged * 1.22});
 
     if (body.x < 0.02 || body.x > 0.98) {
       body.vx *= -0.45;
@@ -384,26 +409,14 @@ export class WorldSandboxRuntime {
       body.z = Math.max(0.02, Math.min(0.98, body.z));
     }
 
-    const contact = local.ground + body.radius;
-    if (body.y <= contact) {
-      const impactSpeed = Math.abs(body.vy);
-      body.y = contact;
-      if (impactSpeed > 0.055) {
-        this.queueStamp(STAMP.IMPACT, body.x, body.z, Math.min(0.08, impactSpeed * 0.055), 0.038 + impactSpeed * 0.02);
-        this.queueEmitter(local.waterDepth > 0.004 ? 1 : 2, body.x, body.z, this.mobile ? 34 : 82, 1.3);
-        body.vy = impactSpeed * 0.32;
-        body.vx *= 0.72;
-        body.vz *= 0.72;
-        body.impacts += 1;
-      } else if (submerged > 0.2) {
-        body.vy += submerged * dt * 0.2;
-      } else {
-        body.vy = 0;
-        body.vx *= Math.max(0, 1 - dt * 3.5);
-        body.vz *= Math.max(0, 1 - dt * 3.5);
-        if (Math.hypot(body.vx, body.vz) < 0.002) body.active = false;
-      }
+    if (report.contact && report.impactSpeed > IMPACT_STAMP_THRESHOLD) {
+      const impactLocal = this.backend.sample(body.x, body.z);
+      this.queueStamp(STAMP.IMPACT, body.x, body.z, Math.min(0.08, report.impactSpeed * 0.055), 0.038 + report.impactSpeed * 0.02);
+      this.queueEmitter(impactLocal.waterDepth > 0.004 ? 1 : 2, body.x, body.z, this.mobile ? 34 : 82, 1.3);
+      body.impacts += 1;
     }
+
+    if (body.resting && Math.hypot(body.vx, body.vz) < 0.002) body.active = false;
   }
 
   runScenarioEvents() {

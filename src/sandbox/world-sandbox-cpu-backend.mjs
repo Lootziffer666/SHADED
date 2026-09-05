@@ -8,6 +8,7 @@ import {
   FIELD,
   STAMP,
   createWorldState,
+  groundHeightAndNormal,
   mulberry32,
   sampleWorld,
   stepWorldReference,
@@ -191,6 +192,14 @@ export class CpuWorldSandboxBackend {
 
   sample(x, z) {
     return sampleWorld(this.world, this.size, x, z);
+  }
+
+  // Live terrain height + surface normal for rigid-body contact (see src/physics/rigidBody.mjs
+  // and PHYSICS.md) -- the same synchronous, non-lagged access pattern as sample() above, so a
+  // body's contact solve reads the world at its own actual position every step instead of a
+  // shared/queued point.
+  groundHeightAndNormal(x, z) {
+    return groundHeightAndNormal(this.world, this.size, x, z);
   }
 
   // Debug/test snapshot: one entry per spawned plant with its own node count and living-tip

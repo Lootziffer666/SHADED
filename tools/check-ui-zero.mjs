@@ -40,6 +40,7 @@ const behavior = [
   'tools/test-scene-runtime-facade.mjs',
   'tools/test-world-sandbox-runtime.mjs',
   'tools/test-world-sandbox.mjs',
+  'tools/test-world-sandbox-physics.mjs',
   'tools/test-world-sandbox-growth.mjs',
   'tools/test-world-sandbox-vine.mjs',
   'tools/test-world-sandbox-life-state.mjs',

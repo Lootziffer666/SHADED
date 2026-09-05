@@ -817,6 +817,41 @@ export function sampleWorld(state, size, x, z) {
   };
 }
 
+// Bilinear ground height plus a central-difference surface normal at an arbitrary (x, z) in
+// [0,1] world-UV space -- what a rigid-body contact needs and sampleWorld() above doesn't give:
+// sampleWorld() snaps to the nearest cell, which is fine for a stamp/query readout but makes a
+// resting body visibly jitter across cell boundaries on a 96/144-cell grid, and it returns a bare
+// scalar height with no notion of "which way is downhill." Same bilinear-then-central-difference
+// construction src/shaders/lib/sandbox.wgsl already documents for the render side of this exact
+// field (sandboxSampleBilinear + grad -> normalFromGradient), just on the CPU side and in world
+// units instead of texels, so a slope reads as one slope to physics and rendering alike.
+export function groundHeightAt(state, size, x, z) {
+  const cx = Math.min(size - 1, Math.max(0, x * size - 0.5));
+  const cz = Math.min(size - 1, Math.max(0, z * size - 0.5));
+  const x0 = Math.floor(cx);
+  const z0 = Math.floor(cz);
+  const x1 = Math.min(size - 1, x0 + 1);
+  const z1 = Math.min(size - 1, z0 + 1);
+  const fx = cx - x0;
+  const fz = cz - z0;
+  const h00 = surface(state, cellOffset(size, x0, z0));
+  const h10 = surface(state, cellOffset(size, x1, z0));
+  const h01 = surface(state, cellOffset(size, x0, z1));
+  const h11 = surface(state, cellOffset(size, x1, z1));
+  return h00 * (1 - fx) * (1 - fz) + h10 * fx * (1 - fz) + h01 * (1 - fx) * fz + h11 * fx * fz;
+}
+
+export function groundHeightAndNormal(state, size, x, z) {
+  const eps = 0.5 / size;
+  const height = groundHeightAt(state, size, x, z);
+  const dHdx = (groundHeightAt(state, size, x + eps, z) - groundHeightAt(state, size, x - eps, z)) / (2 * eps);
+  const dHdz = (groundHeightAt(state, size, x, z + eps) - groundHeightAt(state, size, x, z - eps)) / (2 * eps);
+  // Surface normal of a heightfield y = H(x,z) is (-dH/dx, 1, -dH/dz), normalized -- identical
+  // to normalFromGradient() in snow.fragment.wgsl.
+  const len = Math.hypot(dHdx, 1, dHdz);
+  return {height, normalX: -dHdx / len, normalY: 1 / len, normalZ: -dHdz / len};
+}
+
 export function worldTotals(state) {
   const totals = {
     sand: 0, water: 0, sediment: 0, biomass: 0, vapor: 0, cloud: 0, snow: 0,
