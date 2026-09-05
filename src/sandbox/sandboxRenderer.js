@@ -46,9 +46,13 @@
  * wake, spell carving) already being something that fades rather than
  * something that's remembered forever.
  *
- * Step 1 of the revival: the simulation runs, is visible in real 3D, is the
- * real ground, and is touchable with one tool (sand) via aim + click.
- * Multi-tool selection and per-object settings are the next step.
+ * All seven tools already defined in world-sandbox-runtime.mjs (sand, water,
+ * seed, dig, heat, focus, carve) are selectable — see `cycleTool` — through
+ * the exact same aim/stroke pipeline `handleInput` already drove for sand
+ * alone; the tool only changes which stamp kind that pipeline applies.
+ * Sand is the starting surface, matching the ground this actually is.
+ * Per-object settings (aim at something placed, adjust just that) are the
+ * next step.
  */
 
 // Side-effect import: registers Scene.prototype.createPickingRay, which
@@ -64,6 +68,7 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3, Matrix, Quaternion } from "@babylonjs/core/Maths/math.vector";
+import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 import { WorldSandboxRuntime } from "./world-sandbox-runtime.mjs";
 import { CELL_STRIDE, FIELD } from "./world-sandbox-reference.mjs";
@@ -99,6 +104,15 @@ const SNOW_SEED = 0.08;
  *  sand dusting. Dunes are sand. Not granite. */
 const WORLD_GEN_OPTIONS = { terrain: "desert", windDeg: 34 };
 
+/** All seven already exist as full tool definitions in world-sandbox-runtime.mjs
+ *  (createToolDefinitions) — this is purely the order the player cycles through them in.
+ *  Sand first: it's the ground's own default surface, so it's the natural starting tool. */
+const TOOL_ORDER = ["sand", "water", "seed", "dig", "heat", "focus", "carve"];
+const TOOL_LABELS = {
+    sand: "Sand", water: "Water", seed: "Seed",
+    dig: "Dig", heat: "Heat", focus: "Focus", carve: "Carve",
+};
+
 const _scale = new Vector3();
 const _rot = Quaternion.Identity();
 const _pos = new Vector3();
@@ -123,7 +137,8 @@ export class SandboxRenderer {
         // straight into an actual dune field before anything reads it.
         const seed = (Math.floor(cx * 131) ^ Math.floor(cz * 131) ^ 0x53484144) >>> 0;
         this.runtime.reset(seed || 1, WORLD_GEN_OPTIONS);
-        this.runtime.setTool("sand");
+        this._toolIndex = 0; // sand — see TOOL_ORDER
+        this.runtime.setTool(TOOL_ORDER[this._toolIndex]);
         this.runtime.setBrushRadius(0.025);
         // Cold enough that seeded snow holds rather than melting straight
         // back off (stepWorldReference's melt/ice terms key off ~0.42-0.46) —
@@ -138,6 +153,8 @@ export class SandboxRenderer {
         this._buildParticles();
         this._buildStone();
         this._buildCursor();
+        this._buildToolLabel();
+        this._toolLabelText.text = TOOL_LABELS[TOOL_ORDER[this._toolIndex]];
 
         this._toolWasDown = false;
         this._aiming = false;
@@ -282,6 +299,47 @@ export class SandboxRenderer {
         this.cursor = torus;
     }
 
+    /** Floating name of the currently selected tool, shown above the aim cursor. */
+    _buildToolLabel() {
+        const plane = MeshBuilder.CreatePlane("sandboxToolLabel", { width: 0.5, height: 0.14 }, this.scene);
+        plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+        plane.renderingGroupId = 2;
+        plane.isPickable = false;
+        plane.setEnabled(false);
+
+        const adt = AdvancedDynamicTexture.CreateForMesh(plane, 256, 72, false);
+        const text = new TextBlock("sandboxToolLabelText", "");
+        text.color = "#eaf4ff";
+        text.fontSize = 34;
+        text.fontFamily = "ui-sans-serif, system-ui, sans-serif";
+        text.outlineWidth = 4;
+        text.outlineColor = "#0a1420";
+        adt.addControl(text);
+
+        this.toolLabel = plane;
+        this._toolLabelText = text;
+    }
+
+    /**
+     * Switch the active tool by `dir` steps (+1/-1) through TOOL_ORDER, wrapping
+     * around. All seven tools already run through the exact same aim/stroke
+     * pipeline `handleInput` drives — this only changes which one that pipeline
+     * stamps with.
+     * @param {number} dir
+     */
+    cycleTool(dir) {
+        const n = TOOL_ORDER.length;
+        this._toolIndex = ((this._toolIndex + dir) % n + n) % n;
+        const tool = TOOL_ORDER[this._toolIndex];
+        this.runtime.setTool(tool);
+        this._toolLabelText.text = TOOL_LABELS[tool];
+    }
+
+    /** The currently selected tool's name, e.g. "sand". */
+    get currentTool() {
+        return TOOL_ORDER[this._toolIndex];
+    }
+
     /**
      * Recompute each cell's world-space X/Z from its fixed local grid offset
      * and the current origin. Called at construction and again on every
@@ -402,12 +460,15 @@ export class SandboxRenderer {
             this.cursor.setEnabled(true);
             this.cursor.position.set(point.x, point.y + 0.03, point.z);
             this.cursor.scaling.set(this.runtime.state.radius * WORLD_SPAN * 2, 1, this.runtime.state.radius * WORLD_SPAN * 2);
+            this.toolLabel.setEnabled(true);
+            this.toolLabel.position.set(point.x, point.y + 0.35, point.z);
 
             if (toolDown && !this._toolWasDown) this.runtime.beginToolStroke(u, v);
             else if (toolDown) this.runtime.continueToolStroke(u, v);
             else if (this._toolWasDown) this.runtime.endToolStroke();
         } else {
             this.cursor.setEnabled(false);
+            this.toolLabel.setEnabled(false);
             if (this._toolWasDown) this.runtime.endToolStroke();
         }
         this._toolWasDown = toolDown && !!point;
@@ -605,6 +666,7 @@ export class SandboxRenderer {
         if (!v) {
             this.stone.setEnabled(false);
             this.cursor.setEnabled(false);
+            this.toolLabel.setEnabled(false);
         }
     }
 
@@ -615,5 +677,6 @@ export class SandboxRenderer {
         this.particleMesh.dispose();
         this.stone.dispose();
         this.cursor.dispose();
+        this.toolLabel.dispose();
     }
 }

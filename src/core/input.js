@@ -40,6 +40,9 @@ export const input = {
     /** @type {boolean} spell 2 (Ribbon) is a held cast */
     spellHeld2: false,
 
+    /** @type {number} world-sandbox tool cycle: 0 = none, -1 = previous, +1 = next — set on keydown, cleared each frame */
+    toolCyclePressed: 0,
+
     locked: false,
 };
 
@@ -128,6 +131,12 @@ export function initInput(canvas, hooks) {
             input.spellPressed = n;
             if (n === 2) kbSpellHeld2 = true;
         }
+
+        // World-sandbox tool cycle. Q/E rather than the number row: 1-5 are
+        // already spells, and a prev/next pair scales to however many tools
+        // exist without needing one key per tool.
+        if (e.code === "KeyQ") input.toolCyclePressed = -1;
+        else if (e.code === "KeyE") input.toolCyclePressed = 1;
     });
 
     window.addEventListener("keyup", (e) => {
@@ -172,6 +181,7 @@ export function pollInput(dt) {
         input.sprint = false;
         input.spellPressed = 0;
         input.spellHeld2 = false;
+        input.toolCyclePressed = 0;
         pollGamepad();
         return;
     }
@@ -238,6 +248,15 @@ export function pollInput(dt) {
     }
     input.spellHeld2 = kbSpellHeld2 || touchState.spellHeld2 || gamepadState.spellHeld2;
 
+    if (touchState.toolCyclePressed) {
+        input.toolCyclePressed = touchState.toolCyclePressed;
+        touchState.toolCyclePressed = 0;
+    }
+    if (gamepadState.toolCyclePressed) {
+        input.toolCyclePressed = gamepadState.toolCyclePressed;
+        gamepadState.toolCyclePressed = 0;
+    }
+
     if (gamepadState.overlayTogglePressed) {
         gamepadState.overlayTogglePressed = false;
         onToggleOverlay?.();
@@ -250,6 +269,7 @@ export function endFrame() {
     input.lookY = 0;
     input.zoomDelta = 0;
     input.spellPressed = 0;
+    input.toolCyclePressed = 0;
 }
 
 export function isDown(code) {

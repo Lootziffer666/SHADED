@@ -298,6 +298,7 @@ async function boot() {
         wake.update(dt, rig.camera.position);
         spray.update(dt, rig.camera.position);
         if (S.enableSandbox) {
+            if (input.toolCyclePressed) sandbox.cycleTool(input.toolCyclePressed);
             sandbox.handleInput(rig.camera, toolDown);
             sandbox.update(dt, character.position.x, character.position.z);
             // After sandbox.update(): a re-centre this frame moves

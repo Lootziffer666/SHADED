@@ -11,6 +11,7 @@
  *   A             sprint      B             surf (snow-surf, hold)
  *   X / Y         spell 1/2   LB / RB       spell 3/4
  *   D-pad up      spell 5     Start         toggle settings overlay
+ *   D-pad left/right  world-sandbox tool cycle (prev/next)
  *   LT / RT       zoom in/out (analog)
  */
 
@@ -36,6 +37,9 @@ export const gamepadState = {
     /** 0 = none, else 1..5 — consumed (reset to 0) by whoever reads it. */
     spellPressed: 0,
     spellHeld2: false,
+
+    /** World-sandbox tool cycle: 0 = none, -1 = previous, +1 = next — consumed (reset to 0) by whoever reads it. */
+    toolCyclePressed: 0,
 
     /** Consumed (reset to false) by whoever reads it. */
     overlayTogglePressed: false,
@@ -102,6 +106,9 @@ export function pollGamepad() {
     else if (justPressed(4)) gamepadState.spellPressed = 3; // LB
     else if (justPressed(5)) gamepadState.spellPressed = 4; // RB
     else if (justPressed(12)) gamepadState.spellPressed = 5; // D-pad up
+
+    if (justPressed(14)) gamepadState.toolCyclePressed = -1; // D-pad left
+    else if (justPressed(15)) gamepadState.toolCyclePressed = 1; // D-pad right
 
     if (justPressed(9)) gamepadState.overlayTogglePressed = true; // Start
 

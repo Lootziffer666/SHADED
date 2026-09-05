@@ -1,6 +1,9 @@
 /**
  * Twin-stick touch overlay — movement (left) and look (right) sticks plus
- * hold/press buttons for sprint, snow-surf and the five spells.
+ * hold/press buttons for sprint, snow-surf, the five spells, and the
+ * world-sandbox's prev/next tool cycle (next to the move stick — a build
+ * utility, not a combat action, so it doesn't belong in the spell/run/surf
+ * cluster on the right).
  *
  * Only mounts on touch-capable devices. Has no dependency on input.js (so
  * input.js can depend on this module without a cycle): it just keeps its own
@@ -31,6 +34,9 @@ export const touchState = {
     /** 0 = none, else 1..5 — consumed (reset to 0) by whoever reads it. */
     spellPressed: 0,
     spellHeld2: false,
+
+    /** World-sandbox tool cycle: 0 = none, -1 = previous, +1 = next — consumed (reset to 0) by whoever reads it. */
+    toolCyclePressed: 0,
 };
 
 /** Below this fraction of the stick's radius, input reads as centred/idle — big enough that a
@@ -97,6 +103,10 @@ const CSS = `
 #tc button.spell { width: clamp(34px, 8vmin, 46px); height: clamp(34px, 8vmin, 46px); }
 #tc button.hold { width: clamp(56px, 12vmin, 76px); height: clamp(56px, 12vmin, 76px); }
 #tc button.hold.primary { border-color: rgba(143, 196, 232, 0.55); }
+#tc button.tool-cycle {
+  width: clamp(38px, 9vmin, 50px); height: clamp(38px, 9vmin, 50px);
+  font-size: clamp(16px, 4vmin, 22px);
+}
 
 #tc #tc-settings {
   position: absolute; pointer-events: auto;
@@ -196,6 +206,10 @@ export function initTouchControls(_canvas, hooks) {
     root.id = "tc";
     root.innerHTML = `
       <div class="cluster left">
+        <div class="row">
+          <button class="tool-cycle" id="tc-tool-prev" aria-label="Previous tool">&#8249;</button>
+          <button class="tool-cycle" id="tc-tool-next" aria-label="Next tool">&#8250;</button>
+        </div>
         <div class="stick-zone" id="tc-move"><div class="stick-base"></div><div class="stick-knob"></div></div>
       </div>
       <div class="cluster right">
@@ -263,6 +277,17 @@ export function initTouchControls(_canvas, hooks) {
         root.querySelector("#tc-surf"),
         () => (touchState.surf = true),
         () => (touchState.surf = false)
+    );
+
+    setupHoldButton(
+        root.querySelector("#tc-tool-prev"),
+        () => (touchState.toolCyclePressed = -1),
+        () => {}
+    );
+    setupHoldButton(
+        root.querySelector("#tc-tool-next"),
+        () => (touchState.toolCyclePressed = 1),
+        () => {}
     );
 
     root.querySelectorAll("button.spell").forEach((btn) => {
