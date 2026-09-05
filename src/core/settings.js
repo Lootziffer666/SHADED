@@ -145,7 +145,7 @@ export const S = {
     freezeTime: false,
 
     // ----------------------------------------------------------------- debug
-    debugView: "beauty", // beauty | deform | normals | depth | cascades | footprint | fineNormals
+    debugView: "beauty", // beauty | deform | normals | depth | cascades | footprint | fineNormals | sandbox
 };
 
 /**
@@ -262,7 +262,7 @@ export const SCHEMA = [
             {
                 k: "debugView", l: "Debug view", t: "e",
                 opts: ["beauty", "deform", "normals", "depth", "cascades", "footprint",
-                       "fineNormals", "shadow", "ndotl", "shadowMap", "albedo"],
+                       "fineNormals", "shadow", "ndotl", "shadowMap", "albedo", "sandbox"],
             },
         ],
     },

@@ -599,7 +599,7 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
             // Lambert term alone, same framing as the shadow view above: this is
             // the *other* half of why a pixel is dark.
             color = vec3f(max(NdotL, 0.0));
-        } else if (uniforms.debugMode > 9.5) {
+        } else if (uniforms.debugMode > 9.5 && uniforms.debugMode < 10.5) {
             // Albedo alone, before a single lighting term touches it. The one
             // view that separates "this surface is lit badly" from "this surface
             // is the wrong colour", which are otherwise indistinguishable — and
@@ -607,6 +607,39 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
             // (compression, ice, displaced mass, rock) all write here, it is the
             // only way to see which of them is talking.
             color = albedo;
+        } else if (uniforms.debugMode > 10.5) {
+            // World-sandbox diagnostic: three unmistakable, un-mistakeable-for-
+            // each-other colours, chosen so one screenshot says exactly which
+            // stage of the sandbox->terrain pipeline is (or isn't) working —
+            // no console access needed to tell them apart.
+            //   solid blue   sandboxSize <= 0: the sandbox texture/window never
+            //                reached this shader at all. A JS-side wiring bug
+            //                (Terrain.setSandboxWindow not being called, or
+            //                called with the sandbox off) — not a shader bug.
+            //   magenta      sandboxSize > 0 but this point is outside the
+            //                window (deformFalloff <= 0 here). If the *entire*
+            //                screen reads magenta while standing where sand
+            //                should be, the window isn't centred where the
+            //                player actually is.
+            //   raw colour   inside the window: exactly what's sampled from
+            //                sandboxTex, with no lighting, no blending, nothing
+            //                else touching it. If this reads as the expected
+            //                warm sand but the normal beauty view doesn't, the
+            //                bug is in the blending below, not the data itself.
+            if (uniforms.sandboxSize <= 0.0) {
+                color = vec3f(0.0, 0.2, 1.0);
+            } else {
+                let sandDbgW = deformFalloff(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
+                if (sandDbgW <= 0.0) {
+                    color = vec3f(1.0, 0.0, 1.0);
+                } else {
+                    let sandDbg = sandboxSampleBilinear(
+                        sandboxTex, sandboxTexSampler,
+                        sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize)
+                    );
+                    color = sandDbg.gba;
+                }
+            }
         } else if (uniforms.debugMode > 8.5) {
             // Depth-map agreement, in metres.
             //   blue    = point falls outside every cascade box

@@ -37,7 +37,7 @@ const _sandboxCenter = new Vector2(0, 0);
 const DEBUG_MODES = {
     beauty: 0, deform: 1, normals: 2, depth: 3, cascades: 4,
     footprint: 5, fineNormals: 6, shadow: 7, ndotl: 8, shadowMap: 9,
-    albedo: 10,
+    albedo: 10, sandbox: 11,
 };
 
 export class Terrain {
