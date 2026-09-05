@@ -164,7 +164,7 @@ async function boot() {
 
     const post = new PostChain(scene, rig.camera, depthPass, sky);
 
-    const overlay = new Overlay({ rig, character }, scene);
+    const overlay = new Overlay(scene);
     initInput(canvas, { onToggleOverlay: () => overlay.toggle() });
     initTouchControls(canvas, { onToggleOverlay: () => overlay.toggle() });
 
