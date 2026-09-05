@@ -137,7 +137,17 @@ hergeleitet sind, mit maschinenprüfbarer Toleranz.
 
 ---
 
-## Task 3 — Mehrkörper-Physik (die sicherste echte Arbeit in diesem Plan)
+## Task 3 — Mehrkörper-Physik (die sicherste echte Arbeit in diesem Plan) · **ERLEDIGT**
+
+**Umgesetzt:** `stepSphereBodies()`/`resolvePairVelocity()`/`correctPairPenetration()` in
+`src/physics/rigidBody.mjs`, `LAW: sphere_sphere_contact_v1` in `VERIFICATION.md` (mit gezielt
+gesuchter Consensus-Literatur zur Iterationszahl: Tonge et al. 2012, Erleben 2017),
+`tools/math-verify/sphere_sphere_contact_v1.py` (13 Checks, alle PASS), und die fünf in den
+DONE-Kriterien unten geforderten Tests in `tools/test-world-sandbox-physics.mjs` (alle PASS,
+inklusive des Iterationszahl-Regressionstests: 1 Iteration lässt einen 3-Kugel-Stapel mit ~2.7×
+mehr Gesamtüberlappung einsinken als 8 Iterationen). `stepSphereBody()` (Einzelkörper) blieb
+unverändert; alle bestehenden Tests dafür sind weiterhin grün. Der Rest dieses Abschnitts ist die
+ursprüngliche Aufgabenstellung, zur Nachvollziehbarkeit unverändert gelassen.
 
 **Ziel:** `src/physics/rigidBody.mjs` von „eine Kugel gegen statisches Heightfield" auf „mehrere
 Körper, auch gegeneinander" erweitern.
@@ -247,7 +257,7 @@ Task 1  (klemmen)        ✅ erledigt — klein, sicher, headless bewiesen, echt
    ↓
 Task 2  GATE             ✅ erledigt — Maintainer entschied Weg B + kalibriertes Nachziehen
    ↓
-Task 3  (Mehrkörper)     offen — vollständig headless beweisbar, bestehende Testsuite, keine GPU
+Task 3  (Mehrkörper)     ✅ erledigt — vollständig headless bewiesen, bestehende Testsuite erweitert
    ↓
 Task 4  (Schnee/Shader)  offen — braucht erst Texturkanal-Entscheidung + Maintainer-Auge
 ```

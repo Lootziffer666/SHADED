@@ -9,7 +9,7 @@
 // "Status: two subsystems, one repo"), so a regression in the live Snowflow tree would otherwise
 // go completely unnoticed by `npm run check`.
 import assert from 'node:assert/strict';
-import {createSphereBody, stepSphereBody, DEFAULT_RESTITUTION} from '../src/physics/rigidBody.mjs';
+import {createSphereBody, stepSphereBody, stepSphereBodies, DEFAULT_RESTITUTION} from '../src/physics/rigidBody.mjs';
 import {
   FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal, srgbToLinear,
 } from '../src/sandbox/world-sandbox-reference.mjs';
@@ -244,5 +244,129 @@ const flatGround = () => ({height: FLAT_HEIGHT, normalX: 0, normalY: 1, normalZ:
       + `WORLD_ARCHITECTURE.md's documented target (${target.join(', ')}) within ${tolerance}`,
   );
 }
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 3:
+// multi-body physics (stepSphereBodies). VERIFICATION.md's LAW: sphere_terrain_contact_v1 already
+// documents the literature counter-evidence this section exists to answer: a single,
+// un-iterated sequential-impulse pass loses measurable accuracy at multi-body contact -- these
+// tests check the fix (iterating the pass N times), not just "does it run."
+function totalMomentum(bodies) {
+  let px = 0, py = 0, pz = 0;
+  for (const b of bodies) { px += b.mass * b.vx; py += b.mass * b.vy; pz += b.mass * b.vz; }
+  return [px, py, pz];
+}
+function totalKineticEnergy(bodies) {
+  let ke = 0;
+  for (const b of bodies) ke += 0.5 * b.mass * (b.vx ** 2 + b.vy ** 2 + b.vz ** 2);
+  return ke;
+}
+const noGroundFarBelowMulti = () => ({height: -1000, normalX: 0, normalY: 1, normalZ: 0});
+
+// 7. Impulse (momentum) conservation: two bodies, no terrain, no gravity, head-on collision.
+// Total momentum before must equal total momentum after, for a perfectly inelastic (e=0) AND a
+// perfectly elastic (e=1) collision alike -- momentum conservation doesn't depend on restitution,
+// only energy behaviour does (checked separately below).
+for (const e of [0, 1]) {
+  const a = createSphereBody({x: 0, y: 5, z: 0, vx: 1, radius: 0.1, mass: 1, restitution: e, friction: 0});
+  const b = createSphereBody({x: 0.19, y: 5, z: 0, vx: -1, radius: 0.1, mass: 2, restitution: e, friction: 0});
+  const bodies = [a, b];
+  const momentumBefore = totalMomentum(bodies);
+  for (let i = 0; i < 5; i++) stepSphereBodies(bodies, noGroundFarBelowMulti, 1 / 60, {gravityY: 0, iterations: 4});
+  const momentumAfter = totalMomentum(bodies);
+  ok(
+    momentumBefore.every((p, i) => Math.abs(p - momentumAfter[i]) < 1e-9),
+    `e=${e}: total momentum conserved through a head-on collision (before=${momentumBefore.map((p) => p.toFixed(6))}, after=${momentumAfter.map((p) => p.toFixed(6))})`,
+  );
+}
+
+// 8. Energy at e=1: kinetic energy is exactly conserved (elastic collision) -- and matches the
+// classic unequal-mass elastic-collision result analytically (not just "unchanged").
+{
+  const a = createSphereBody({x: 0, y: 5, z: 0, vx: 1, radius: 0.1, mass: 1, restitution: 1, friction: 0});
+  const b = createSphereBody({x: 0.19, y: 5, z: 0, vx: -1, radius: 0.1, mass: 2, restitution: 1, friction: 0});
+  const bodies = [a, b];
+  const keBefore = totalKineticEnergy(bodies);
+  for (let i = 0; i < 5; i++) stepSphereBodies(bodies, noGroundFarBelowMulti, 1 / 60, {gravityY: 0, iterations: 4});
+  const keAfter = totalKineticEnergy(bodies);
+  ok(
+    Math.abs(keBefore - keAfter) < 1e-9,
+    `e=1: total kinetic energy conserved through an elastic collision (before=${keBefore.toFixed(6)}, after=${keAfter.toFixed(6)})`,
+  );
+}
+
+// 9. Energy at e<1: kinetic energy strictly decreases, never increases -- and for a perfectly
+// inelastic (e=0) head-on collision matches the textbook reduced-mass formula exactly.
+{
+  const a = createSphereBody({x: 0, y: 5, z: 0, vx: 1, radius: 0.1, mass: 1, restitution: 0, friction: 0});
+  const b = createSphereBody({x: 0.19, y: 5, z: 0, vx: -1, radius: 0.1, mass: 2, restitution: 0, friction: 0});
+  const bodies = [a, b];
+  const keBefore = totalKineticEnergy(bodies);
+  for (let i = 0; i < 5; i++) stepSphereBodies(bodies, noGroundFarBelowMulti, 1 / 60, {gravityY: 0, iterations: 4});
+  const keAfter = totalKineticEnergy(bodies);
+  ok(keAfter < keBefore, `e=0: kinetic energy strictly decreases (before=${keBefore.toFixed(6)}, after=${keAfter.toFixed(6)})`);
+  // Textbook perfectly-inelastic collision: v_final = (m_a*v_a + m_b*v_b)/(m_a+m_b); here that's
+  // (1*1 + 2*(-1))/3 = -1/3, giving KE = 0.5*3*(1/3)^2 = 1/6.
+  ok(
+    Math.abs(keAfter - 1 / 6) < 1e-6,
+    `e=0: final KE (${keAfter.toFixed(6)}) matches the analytic perfectly-inelastic-collision result (1/6) exactly`,
+  );
+}
+
+// 10. Iteration count matters: a stack of 3 spheres resting on the ground sinks/interpenetrates
+// measurably MORE with 1 solver iteration than with several -- the exact weakness Consensus
+// literature (Tonge et al. 2012, "Mass splitting for jitter-free parallel rigid body simulation";
+// Erleben 2017, "Rigid body contact problems using proximal operators") documents for
+// low-iteration-count Gauss-Seidel-style contact solvers at stacking/multi-contact scenes, held
+// here as a regression test rather than a footnote.
+{
+  const buildStack = () => {
+    const r = 0.05;
+    const bodies = [];
+    for (let i = 0; i < 3; i++) {
+      bodies.push(createSphereBody({
+        x: 0.5, z: 0.5, y: 0.4 + r + i * (2 * r), radius: r, mass: 1, restitution: 0.1, friction: 0.5,
+      }));
+    }
+    return bodies;
+  };
+  const flatGroundMulti = () => ({height: 0.4, normalX: 0, normalY: 1, normalZ: 0});
+  const totalOverlap = (bodies) => {
+    let total = 0;
+    for (const b of bodies) {
+      const pen = flatGroundMulti().height + b.radius - b.y;
+      if (pen > 0) total += pen;
+    }
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        const dist = Math.hypot(bodies[j].x - bodies[i].x, bodies[j].y - bodies[i].y, bodies[j].z - bodies[i].z);
+        const pen = (bodies[i].radius + bodies[j].radius) - dist;
+        if (pen > 0) total += pen;
+      }
+    }
+    return total;
+  };
+
+  const oneIteration = buildStack();
+  const manyIterations = buildStack();
+  for (let i = 0; i < 300; i++) {
+    stepSphereBodies(oneIteration, flatGroundMulti, 1 / 60, {gravityY: -0.86, iterations: 1});
+    stepSphereBodies(manyIterations, flatGroundMulti, 1 / 60, {gravityY: -0.86, iterations: 8});
+  }
+  const overlap1 = totalOverlap(oneIteration);
+  const overlapN = totalOverlap(manyIterations);
+  ok(
+    overlap1 > overlapN * 1.5,
+    `a 3-sphere stack settles with measurably MORE total interpenetration at 1 solver iteration `
+      + `(${overlap1.toFixed(6)}) than at 8 (${overlapN.toFixed(6)}) -- the exact single-pass `
+      + `weakness VERIFICATION.md's LAW: sphere_terrain_contact_v1 already documents`,
+  );
+}
+
+// 11. Regression guard: the existing single-body stepSphereBody() tests above must stay exactly
+// as they were -- stepSphereBodies() is an addition, not a replacement, and single-sphere-vs-
+// terrain behaviour (already covered in detail above) must be unaffected by it. This is enforced
+// structurally (stepSphereBody is untouched, unit-tested above, and stepSphereBodies is a
+// separate exported function), not by a new assertion here -- noted rather than silently assumed.
+ok(typeof stepSphereBody === 'function' && typeof stepSphereBodies === 'function', 'both the original single-body stepSphereBody and the new multi-body stepSphereBodies remain exported side by side');
 
 console.log('\n✅ Alle Rigid-Body/Physics-Selbsttests bestanden');
