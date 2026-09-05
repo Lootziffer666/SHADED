@@ -2,6 +2,12 @@
 
 Branch: `architecture/ui-zero-contracts`
 
+> **Drift note:** `index.html` currently boots Snowflow (`/src/main.js`), not the
+> `runtime/world-sandbox-*` chain this document names — see `CLAUDE.md`'s "Status: two
+> subsystems, one repo". The rules below still hold for the parked subsystem and for the live
+> Snowflow page alike (no authored controls, no restored `editor/`); only the module list under
+> "World Sandbox result" is not what `index.html` loads today.
+
 ## Purpose
 
 The old production/editor UI is deleted. This branch exists to make runtime boundaries real before

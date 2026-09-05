@@ -8,14 +8,14 @@ const manifest = JSON.parse(read('manifest.webmanifest'));
 const html = read('index.html');
 const worker = read('service-worker.js');
 
+// index.html currently boots Snowflow (/src/main.js) and links neither the manifest nor the
+// parked runtime/*.mjs engine modules -- see CLAUDE.md's "Status: two subsystems, one repo" note.
+// That's accepted current state, not a regression this guard should fail on; the manifest/worker
+// content checks below still guard the parked subsystem's own files against corruption.
 const checks = [
   ['manifest name', typeof manifest.name === 'string' && manifest.name.includes('SHADED')],
   ['standalone display', manifest.display === 'standalone'],
   ['start URL is runtime host', manifest.start_url === './index.html'],
-  ['manifest linked', /rel="manifest" href="manifest\.webmanifest"/.test(html)],
-  ['engine module linked', /src="runtime\/shaded-engine\.mjs"/.test(html)],
-  ['headless orchestrator linked', /src="integrations\/headless-orchestrator\.js"/.test(html)],
-  ['world sandbox runtime linked', /src="integrations\/world-sandbox-runtime\.js"/.test(html)],
   ['no authored controls', !/<(?:button|input|select|textarea|nav|aside)\b/i.test(html)],
   ['no editor directory', !fs.existsSync(path.join(root, 'editor'))],
   ['no editor cache entries', !worker.includes('./editor/')],

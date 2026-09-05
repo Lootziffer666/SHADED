@@ -2,7 +2,17 @@
 
 Kurzfassung. Die große README bleibt technische Referenz.
 
-## Normal benutzen
+**Aktueller Stand:** `index.html` bootet inzwischen Snowflow (`/src/main.js`, WebGPU-only) statt
+`runtime/shaded-engine.mjs` — siehe `CLAUDE.md` „Status: two subsystems, one repo". Der unten
+beschriebene `SHADED_WINDOWS.cmd`-Pfad öffnet `tools/shaded-local-bridge.mjs`, einen reinen
+Static-File-Server ohne Bundler; der löst Snowflows `@babylonjs/core`-Paketimporte NICHT auf
+(derselbe Grund, aus dem `python3 -m http.server` in der README nicht mehr funktioniert). Für
+Snowflow lokal `npm install && npm run dev` verwenden (siehe README-Quickstart). Alles unten in
+diesem Abschnitt beschreibt weiterhin korrekt den geparkten `runtime/*.mjs`-Workflow über die
+lokale Bridge, nur eben nicht das, was ein Doppelklick auf `SHADED_WINDOWS.cmd` heute tatsächlich
+im Browser zeigt.
+
+## Normal benutzen (geparktes Image-to-World-Subsystem)
 
 Auf `architecture/ui-zero-contracts` gibt es absichtlich **keine** authored Editor-Oberfläche mehr
 (siehe `docs/UI_ZERO.md`) — der lokale Bridge-Prozess bleibt derselbe, öffnet aber nur noch den

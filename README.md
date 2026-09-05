@@ -76,15 +76,18 @@ Das Repo bezeichnet solche Flächen ausdrücklich als "GENERATED", statt so zu t
 
 Quickstart
 
-SHADED hat keinen komplizierten Build-Prozess, weil wir unsere Probleme lieber während der Laufzeit erzeugen.
+Stand heute bootet `index.html` **Snowflow** (`/src/main.js`, WebGPU-only) als SHADEDs Laufzeit-Erscheinung — ein begehbares Terrain/Wetter-Sandbox statt des Bild-hochladen-Workflows unten (der beschreibt das geparkte, per `runtime/*.mjs` erreichbare Image-to-World-Engine-Subsystem; siehe `CLAUDE.md` „Status: two subsystems, one repo"). Snowflow importiert `@babylonjs/core` per npm-Paketname — das lädt NICHT über einen reinen Static-File-Server (`python3 -m http.server` o.ä. löst bare specifiers nicht auf, der Browser bricht mit „Failed to resolve module specifier" ab):
 
-python3 -m http.server 8000
+```
+npm install
+npm run dev
+```
 
-Dann:
+Dann `http://localhost:5173/` (oder den von Vite ausgegebenen Port) in einem WebGPU-fähigen Browser (Chrome 113+ Desktop) öffnen. Für einen Produktions-Build ohne Dev-Server: `npm run build && npm run preview`.
 
-http://localhost:8000/
+Steuerung: Klicken zum Umsehen, WASD zum Bewegen, F1 fürs Debug-HUD (siehe `WORLD_ARCHITECTURE.md` für die Zielarchitektur dieses Sandkastens).
 
-Anschließend:
+Das Bild-hochladen-Workflow des geparkten Engines bleibt unten dokumentiert, weil `runtime/shaded-engine.mjs` selbst weiterhin so funktioniert — nur eben nicht über das aktuelle `index.html`:
 
 1. Bild laden
 2. optional Tiefenkarte laden
@@ -93,7 +96,7 @@ Anschließend:
 5. irgendeinen Regler entdecken
 6. 45 Minuten später die Ausbreitung von Matsch bei Tauwetter untersuchen
 
-Für den Einstieg gibt es außerdem eine Demo-Szene. Die Runtime kann als PWA installiert werden und wird inklusive App-Shell offline vorgehalten.
+Für den Einstieg gibt es außerdem eine Demo-Szene. Die (geparkte) Runtime kann als PWA installiert werden und wird inklusive App-Shell offline vorgehalten — auch das setzt eine eigene, aktuell nicht verlinkte HTML-Hülle voraus, kein `index.html` von heute.
 
 ---
 

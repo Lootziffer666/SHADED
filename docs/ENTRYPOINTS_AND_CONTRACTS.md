@@ -2,6 +2,12 @@
 
 Status: **canonical for `architecture/ui-zero-contracts`**.
 
+> **Drift note:** since commit `ec32657` ("Drop in Snowflow as SHADED's runtime appearance"),
+> `index.html` boots `/src/main.js` (Snowflow), not the `runtime/shaded-engine.mjs` chain this
+> document describes. Everything below is still true of that engine as a parked subsystem — see
+> `CLAUDE.md`'s "Status: two subsystems, one repo" note before assuming it describes the page a
+> browser gets today.
+
 This branch deliberately has no authored production/editor UI. Capability is documented first;
 presentation can be rebuilt later as a replaceable client.
 

@@ -4,6 +4,33 @@ This file is the current architecture contract. Older specs, research notes and 
 evidence and donors; when they conflict with this file or `docs/ENTRYPOINTS_AND_CONTRACTS.md`,
 the current contract wins.
 
+## Status: two subsystems, one repo (read this first)
+
+`index.html` currently boots `/src/main.js` — **Snowflow**, a WebGPU-only Babylon.js world-sandbox
+game (terrain, sand/water/weather tools, character, camera rig) — not the `runtime/*.mjs` chain
+described below. This has been true since commit `ec32657` ("Drop in Snowflow as SHADED's runtime
+appearance (1:1 import)"). Concretely, on the page a browser actually loads today:
+
+- `window.SHADED`, `window.SHADED_ORCHESTRATOR` and `window.SHADEDWorldSandbox` do **not** exist —
+  `src/main.js` creates none of them.
+- `service-worker.js` is not registered by `index.html` and caches files that are not the ones
+  served.
+
+The **"Canonical browser entry point" / "Stable public engine contract" / "World Sandbox contract"**
+sections below describe a real, still-present, still-internally-consistent subsystem
+(`runtime/*.mjs` + `integrations/*.js`, the original image-to-world SHADED engine with its own
+tests) — it is just **not reachable from `index.html` right now**. Do not "fix" it expecting the
+browser to show the result, and do not delete it: it is parked, not dead. Treat any contract claim
+below as "true of that parked subsystem," not "true of the page you get from a browser."
+
+The world-sandbox game that `index.html` actually serves (`src/sandbox/*`, `src/terrain/*`,
+`src/shaders/*`) is governed by a separate, current set of concept documents at the repo root —
+**`WORLD_ARCHITECTURE.md`, `WORLD_KERNEL.md`, `DONORS.md`, `VEGETATION.md`, `SHADER_IR.md`,
+`HYDROLOGY.md`** — written by the maintainer directly, and current for that subsystem. They are not
+gated by the invariants below (`WORLD_ARCHITECTURE.md` says so explicitly: "Kein Claude.md. Die
+Richtung gibt der Nutzer vor."). This file's rules keep governing the parked `runtime/*.mjs`
+subsystem and the repo-wide provenance/contracts hygiene sections further down.
+
 ## Core purpose
 
 SHADED turns one observed image into a small, spatial, reactive world. Rendering style is not the
@@ -32,9 +59,11 @@ Hard rules:
    it wholesale.
 7. Isolated research/solver labs are not production UI and may remain.
 
-## Canonical browser entry point
+## Canonical browser entry point (parked subsystem — see status note above)
 
-`index.html` boots:
+`index.html` does not currently boot this chain; it boots `/src/main.js` (Snowflow). This section
+describes the parked SHADED image-to-world engine's own internal contract, preserved for headless
+use, tests and a future re-integration decision:
 
 - `runtime/shaded-engine.mjs`
 - `runtime/dialogue-engine.mjs`
@@ -47,10 +76,11 @@ Hard rules:
 The runtime creates only the render substrate it requires. Authored editor controls do not belong
 in the host.
 
-## Stable public engine contract
+## Stable public engine contract (parked subsystem)
 
-`window.SHADED` is a contract for tests, integrations and agents. Existing contract names are not
-renamed casually.
+`window.SHADED` is a contract for tests, integrations and agents of the parked engine — it does not
+exist on the page `index.html` currently serves (see status note above). Existing contract names
+are not renamed casually.
 
 Core relied-upon surface includes:
 
@@ -83,7 +113,11 @@ New runtime capability extends named APIs rather than exposing internals or DOM.
 
 It must never depend on editor markup.
 
-## World Sandbox contract
+## World Sandbox contract (parked subsystem — not the sandbox `index.html` serves)
+
+This is the `runtime/world-sandbox-*` decomposition and its `window.SHADEDWorldSandbox` bridge —
+the parked engine's own world sandbox, unrelated to and not exposed by the live Snowflow sandbox in
+`src/sandbox/*` (see status note above and `WORLD_ARCHITECTURE.md`/`WORLD_KERNEL.md` for that one).
 
 The former `editor/world-sandbox.js` was dismantled. Its useful behavior now lives in runtime
 modules:
@@ -174,8 +208,9 @@ The guard must reject:
 
 - restoration of the production `editor/` tree,
 - reintroduction of authored interactive controls into `index.html`,
-- service-worker caching of deleted editor assets,
-- loss of runtime/headless/world-sandbox entry points.
+- service-worker/docs caching or referencing deleted editor assets,
+- deletion of the parked `runtime/*.mjs`/`integrations/*.js` engine files (they stay on disk even
+  while unreachable from `index.html`; see status note above).
 
 ## Legacy and donor rule
 
