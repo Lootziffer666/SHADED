@@ -38,6 +38,13 @@ section (below) — UI-zero is a rule about the parked `runtime/*.mjs` engine an
 `index.html`, not a permanent ban on ever building an editor for the Snowflow line, which is a
 separate product `STUDIO.md` is free to design on its own terms.
 
+`VERIFICATION.md` is a different kind of document from the twelve above: a repo-wide rule (not
+scoped to either subsystem) for how new physical/mathematical core logic gets checked — Consensus
+for literature support (used adversarially, not to confirm a preferred answer), Wolfram for the
+math, Context7 for API correctness, before it becomes SHADED code. Applies to `PHYSICS.md`,
+`HYDROLOGY.md`, `SHADER_IR.md`-driven work and any equivalent claim in the parked engine (material
+science, SVBRDF) alike.
+
 ## Core purpose
 
 SHADED turns one observed image into a small, spatial, reactive world. Rendering style is not the
