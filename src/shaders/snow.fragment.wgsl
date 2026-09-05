@@ -512,9 +512,12 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
 
     // --- glints ------------------------------------------------------------
     // Last, and added as radiance rather than modulated into the BRDF, because
-    // a glint is a specular highlight from a crystal facet that the shading
-    // normal does not represent.
-    if (uniforms.glintIntensity > 0.001 && nonSnow < 0.5) {
+    // a glint is a specular highlight from a crystal facet the shading normal
+    // doesn't represent — sand grains catch grazing light the same way snow
+    // crystals do, so this is gated on rock alone (rock has no such facets),
+    // not on `nonSnow` — sand needs its own light on individual grains just
+    // as much as snow does.
+    if (uniforms.glintIntensity > 0.001 && rockExposed < 0.5) {
         let g = snowGlints(
             world.xz, N, V, L, footprint,
             uniforms.glintIntensity, uniforms.glintGrazing

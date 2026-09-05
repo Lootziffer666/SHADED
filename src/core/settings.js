@@ -51,11 +51,15 @@ export const S = {
      * this gate, so off always renders flat-neutral regardless of their value.
      */
     enableSnowShading: false,
-    glintIntensity: 0.55,
+    // Tuned toward a Journey-style dune read rather than a shiny snowfield:
+    // a faint grazing sparkle on individual grains (glintIntensity), not a
+    // busy fine-grain bump map (detailNormalStrength) fighting the big soft
+    // dune silhouette for attention. Both stay fully adjustable if turned on.
+    glintIntensity: 0.35,
     glintGrazing: 0.72, // how hard the grazing-angle gate bites
     sssStrength: 1.0,
     sssRadius: 1.0,
-    detailNormalStrength: 1.0,
+    detailNormalStrength: 0.5,
     macroHeightScale: 1.0,
     sastrugiStrength: 1.0,
 
