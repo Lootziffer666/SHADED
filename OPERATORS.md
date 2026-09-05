@@ -202,6 +202,11 @@ SHADED TESTS:
   tools/test-single-view-room.py (drei Regressionsfälle: Referenzbild, 2x-Resize mit erwarteter
   Brennweitenverdopplung, Nicht-Manhattan-Bild mit korrektem `declined`/`UNKNOWN`-Fallback statt
   Absturz oder erfundenem Ergebnis).
+  tools/test-2d3d-roundtrip.py (`npm run verify:2d3d-roundtrip`) — der eigentliche
+  Forward/Inverse-Beweis: synthetische 3D-Kanten gegen einen unabhängig berechneten analytischen
+  Fluchtpunkt (exakt bei Rauschfreiheit, < 5 px bei 0,3 px Pixelrauschen), plus `restfehler_px`
+  auf dem echten `messehalle.png` (< 8 px, 31 tragende Linien) — schließt den Kreis auf echten
+  OBSERVED-Pixeln, nicht nur im synthetischen Idealfall.
 
 PROVENANCE-KLASSEN IM CODE:
   single_view_room.py definiert MEASURED/RECONSTRUCTED/DECLARED/UNKNOWN — eine Teilmenge PLUS
@@ -390,11 +395,18 @@ speichern.
 1. ~~WORLD_LANGUAGE-Audit~~ — erledigt (siehe oben): nur die Begriffe geprüft, die heute bereits
    doppelt/anders heißen; `fields.moisture`/`surface_water` für den noch unimplementierten World
    Surface Graph festgelegt, bevor Code davon abhängt.
-2. Bereits bestehende Bausteine (siehe „bestehende SHADED-Strukturen" oben: `single_view_room.py`s
-   `vermessen`/`ransac_fluchtpunkt`, `window.SHADED.intrinsic`) als `OPERATOR`-Einträge
-   formalisieren — nichts Neues erfinden, nur Input/Output/Units/Provenance/Validity/
-   Forward/Inverse/Tests nachtragen.
-3. Ein echter 2D↔3D-Roundtrip: ein Zustand verlässt die 2D-Seite, wird in 3D repräsentiert/
-   angefasst, kommt semantisch identisch zurück (`forward(inverse(observed)) ≈ observed`, wie im
-   `rectify_plane_v1`-Beispiel oben skizziert) — als konkreter Beweis, nicht nur als Diagramm.
+2. ~~OPERATOR-Formalisierung~~ — erledigt (siehe „Bestehende Bausteine, jetzt als OPERATOR
+   formalisiert" oben): `vanishing_point_calibrate_v1`, `metric_calibrate_v1`,
+   `illumination_normalize_v1`.
+3. ~~Ein echter 2D↔3D-Roundtrip~~ — erledigt: `tools/test-2d3d-roundtrip.py`
+   (`npm run verify:2d3d-roundtrip`). Zwei Beweise, keiner davon zirkulär:
+   - **Synthetisch, exakt:** eine 3D-Richtung + Kamera → `FORWARD` (Lochkamera-Projektion) →
+     synthetische 2D-Kantenlinien → `INVERSE` (`ransac_fluchtpunkt`, unverändert) → rekonstruierter
+     Fluchtpunkt. Verglichen wird gegen einen **unabhängig** berechneten analytischen Fluchtpunkt
+     (`K · R · Richtung`, ohne jede RANSAC-/SVD-Maschinerie) — nicht gegen sich selbst. Ergebnis:
+     exakt 0,0000 px Abweichung in vier rauschfreien Kamerastellungen, < 5 px bei 0,3 px
+     Pixelrauschen über 80 Linien.
+   - **Real, auf echtem Bild:** `vermessen(messehalle.png, 0.6)`s eigenes `restfehler_px` — genau
+     `forward(inverse(observed)) ≈ observed` auf echten, verrauschten OBSERVED-Pixeln, nicht nur
+     im rauschfreien Idealfall — schließt auf < 8 px für 31 tragende Linien.
 4. Erst danach über eine gemeinsame State-Schicht oder Differenzierbarkeit nachdenken.
