@@ -196,23 +196,55 @@ npm run verify:physics && npm run verify:math && npm run check
 
 ---
 
-## Task 4 — Schnee-Property-Modell an den `SNOW`-Zustand hängen · **verifikationsbegrenzt**
+## Task 4 — Schnee-Property-Modell an den `SNOW`-Zustand hängen · **umgesetzt, verifikationsbegrenzt**
 
 **Ziel:** WORLD_ARCHITECTURE.md's offener Punkt 4 — SSS, Glints, Wrap-Diffuse und blaue Schatten
 sollen nicht Default sein, sondern aus dem `FIELD.SNOW`-Zustand herein-faden.
 
-**Die Randbedingung, die diese Aufgabe größer macht, als sie aussieht.** `sandboxTex` ist eine
-einzige `RGBA32F`-Textur (`sandboxRenderer.js`, `RawTexture.CreateRGBATexture`) und **alle vier
-Kanäle sind belegt**: R = Höhendelta in Metern, GBA = Farbe. Der `SNOW`-Wert steht dem Shader
-derzeit **nicht** als eigener Kanal zur Verfügung — er ist nur in die Farbe eingebacken. Diese
-Aufgabe braucht also zuerst eine Entscheidung über einen zweiten Texturkanal bzw. eine zweite
-Textur. Wer das übersieht, schreibt Shader-Code gegen Daten, die gar nicht ankommen.
+**Texturkanal-Entscheidung (Gate):** Am Maintainer gefragt, welche Textur/welchen Kanal
+`FIELD.SNOW` zum Shader trägt (`sandboxTex` hat keinen freien Kanal — R=Höhe, GBA=Farbe, alle vier
+belegt). Entschieden: eine zweite, generische **renderer-seitige Hilfsfeld-Container**-Textur
+(nicht „Snow-Textur" ad hoc) — `FIELD.SNOW` bleibt der kanonische Semantikwert, ihre GPU-Form ist
+zunächst eine `RGBA32F`-Textur mit `R = FIELD.SNOW`, `GBA` reserviert für spätere unabhängige
+Skalarfelder (z. B. `FIELD.ICE`) im selben Container statt einer weiteren Textur. `sandboxTex`
+bleibt unverändert. `SNOW` darf im Fragment-Shader nicht prozedural aus etwas anderem hergeleitet
+werden — der Shader darf aus dem kanonischen `SNOW`-Wert nur visuelles Detail ableiten, nicht den
+Zustand selbst erfinden.
 
-**Verifikationsgrenze, ehrlich benannt.** Der sichtbare Teil dieser Aufgabe ist headless **nicht**
-prüfbar. `tools/test-webgpu-shader-compile.mjs` beweist, dass WGSL kompiliert — nicht, dass es
-richtig aussieht. Der `shaded-visual-verify`-Skill braucht eine echte GPU. Erwarteter Abschluss
-dieser Aufgabe ist deshalb: Code + Kompilierbeweis + **ausdrückliche Bitte an den Maintainer um
-visuelle Abnahme**, nicht „sieht gut aus".
+**Umgesetzt:**
+- `sandboxFieldTex` (neue `RGBA32F`-Textur, `R = FIELD.SNOW`, `GBA` reserviert) in
+  `sandboxRenderer.js`, jeden Frame aus `world[o + FIELD.SNOW]` unverändert befüllt — keine
+  Farbe, keine abgeleitete Kurve.
+- `Terrain.setSandboxWindow()` (`src/terrain/terrain.js`) bekommt einen fünften, optionalen
+  Parameter `fieldTex` und bindet ihn **nur** an die Beauty-Material — Depth-/Prepass-Materialien
+  lesen `sandboxTex` ausschließlich für die Vertex-Höhe (`terrainDepth.vertex.wgsl`), haben keine
+  Fragment-Stufe, die ein Materialfeld wie Schneebedeckung bräuchte; ein eigener
+  Textur-Platzhalter (`_sandboxFieldTexPlaceholder`) hält den Sampler gültig, solange die Sandbox
+  aus ist. `src/main.js`s drei `setSandboxWindow`-Aufrufstellen geben `sandbox.sandboxFieldTex`
+  jetzt mit durch.
+- **Der eigentliche Bug, den das freigelegt hat:** `snow.fragment.wgsl` behandelte JEDE Zelle
+  innerhalb des Sandbox-Fensters unbedingt als „kein Schnee" (`nonSnow = max(rockExposed,
+  sandWeight)`), unabhängig vom tatsächlichen `SNOW`-Feldwert — genau das „Zustand aus
+  Fensterzugehörigkeit statt aus dem kanonischen Feld ableiten"-Muster, das die
+  Texturkanal-Entscheidung ausdrücklich verbietet. Jetzt: `sandNonSnow = sandWeight * (1.0 -
+  snowCoverage)`, wobei `snowCoverage` aus `sandboxFieldTex.r` mit **derselben** 0.006/0.054-
+  Normalisierung berechnet wird, die `colorForCell` für seinen eigenen Weiß-Blend benutzt (per
+  Test gegen Formel-Drift abgesichert, siehe unten) — eine schneebedeckte Zelle innerhalb des
+  Sandbox-Fensters behält jetzt ihren SSS/Glint/Wrap-Diffuse-Look statt ihn hart zu verlieren.
+
+**Verifikationsgrenze, ehrlich benannt — größer als der ursprüngliche Plan-Text vermuten ließ.**
+`tools/test-webgpu-shader-compile.mjs` kompiliert ausschließlich die geparkten
+`runtime/world-sandbox-webgpu.mjs`-WGSL-Module — **nicht** `src/shaders/*.wgsl`, dem Live-Pfad
+dieser Aufgabe. Für `src/shaders/*.wgsl` existiert in diesem Repo aktuell **kein** automatisierter
+Test jeder Art (weder Kompilierbeweis noch Text-Check) — das ist eine vorbestehende Lücke, keine,
+die diese Aufgabe eingeführt hat. Was tatsächlich geprüft wurde: `node --check` auf allen
+geänderten `.js`-Dateien (Syntax), ein Text-Test, der die 0.006/0.054-Normalisierung zwischen
+`colorForCell` und `snow.fragment.wgsl` auf Übereinstimmung prüft, sowie eine sorgfältige manuelle
+Zeile-für-Zeile-Prüfung der neuen WGSL gegen die im selben File bereits etablierten Muster
+(`uniform`/`var`-Deklarationen, `sandboxSampleBilinear`-Aufruf, Typen). Weder WGSL-Kompilierbarkeit
+noch der visuelle Eindruck sind damit tatsächlich bewiesen. Erwarteter Abschluss dieser Aufgabe:
+Code + die oben genannten (begrenzten) Prüfungen + **ausdrückliche Bitte an den Maintainer um
+GPU-Sichtprüfung**, nicht „sieht gut aus" oder „kompiliert garantiert".
 
 ---
 
@@ -259,7 +291,7 @@ Task 2  GATE             ✅ erledigt — Maintainer entschied Weg B + kalibrier
    ↓
 Task 3  (Mehrkörper)     ✅ erledigt — vollständig headless bewiesen, bestehende Testsuite erweitert
    ↓
-Task 4  (Schnee/Shader)  offen — braucht erst Texturkanal-Entscheidung + Maintainer-Auge
+Task 4  (Schnee/Shader)  ✅ umgesetzt — Texturkanal entschieden + gebaut; wartet auf Maintainer-Sichtprüfung (keine GPU hier)
 ```
 
 Task 3 steht bewusst **vor** Task 4: Task 3 lässt sich in einer Session vollständig beweisen,

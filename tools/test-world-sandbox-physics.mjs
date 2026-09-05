@@ -9,12 +9,17 @@
 // "Status: two subsystems, one repo"), so a regression in the live Snowflow tree would otherwise
 // go completely unnoticed by `npm run check`.
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
 import {createSphereBody, stepSphereBody, stepSphereBodies, DEFAULT_RESTITUTION} from '../src/physics/rigidBody.mjs';
 import {
   FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal, srgbToLinear,
 } from '../src/sandbox/world-sandbox-reference.mjs';
 import {WorldSandboxRuntime} from '../src/sandbox/world-sandbox-runtime.mjs';
 import {colorForCell} from '../src/sandbox/world-sandbox-cpu-backend.mjs';
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 function ok(condition, message) {
   if (!condition) throw new Error(`FAILED: ${message}`);
@@ -368,5 +373,43 @@ for (const e of [0, 1]) {
 // structurally (stepSphereBody is untouched, unit-tested above, and stepSphereBodies is a
 // separate exported function), not by a new assertion here -- noted rather than silently assumed.
 ok(typeof stepSphereBody === 'function' && typeof stepSphereBodies === 'function', 'both the original single-body stepSphereBody and the new multi-body stepSphereBodies remain exported side by side');
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 4:
+// FIELD.SNOW now reaches snow.fragment.wgsl as its own real value (sandboxFieldTex, see
+// sandboxRenderer.js/terrain.js), not just baked into colour -- and the shader's own snow-coverage
+// normalisation is a hand-written WGSL mirror of colorForCell's JS formula (there is no way to
+// share code between the two languages), so nothing catches the two silently drifting apart except
+// a test that reads both sources as text and compares the actual numbers. This is exactly the kind
+// of coverage gap the plan flags for this task -- it proves the two formulas agree TODAY, not that
+// the shader compiles or looks right (no WGSL compiler and no GPU are available to this test; see
+// tools/test-webgpu-shader-compile.mjs's own scope note -- it only compiles the parked
+// runtime/world-sandbox-webgpu.mjs modules, never src/shaders/*.wgsl).
+{
+  const cpuSource = readFileSync(join(REPO_ROOT, 'src/sandbox/world-sandbox-cpu-backend.mjs'), 'utf8');
+  const shaderSource = readFileSync(join(REPO_ROOT, 'src/shaders/snow.fragment.wgsl'), 'utf8');
+
+  const cpuMatch = cpuSource.match(/snowCoverage = Math\.min\(1, Math\.max\(0, \(snow - ([\d.]+)\) \/ ([\d.]+)\)\)/);
+  ok(cpuMatch, 'colorForCell\'s snowCoverage formula still matches the expected shape (Math.min(1, Math.max(0, (snow - A) / B)))');
+  const shaderMatch = shaderSource.match(/snowCoverage = clamp\(\(snowRaw - ([\d.]+)\) \/ ([\d.]+), 0\.0, 1\.0\)/);
+  ok(shaderMatch, 'snow.fragment.wgsl\'s snowCoverage formula still matches the expected shape (clamp((snowRaw - A) / B, 0.0, 1.0))');
+
+  if (cpuMatch && shaderMatch) {
+    ok(
+      cpuMatch[1] === shaderMatch[1] && cpuMatch[2] === shaderMatch[2],
+      `snow-coverage thresholds agree between colorForCell (${cpuMatch[1]}, ${cpuMatch[2]}) and `
+        + `snow.fragment.wgsl (${shaderMatch[1]}, ${shaderMatch[2]}) -- "how snowy this looks" and `
+        + `"how snowy this IS for SSS/glints/wrap" use the same law`,
+    );
+  }
+
+  ok(
+    shaderSource.includes('var sandboxFieldTex: texture_2d<f32>;') && shaderSource.includes('var sandboxFieldTexSampler: sampler;'),
+    'snow.fragment.wgsl declares the sandboxFieldTex/sandboxFieldTexSampler pair the auxiliary field container needs',
+  );
+  ok(
+    !/nonSnow = max\(rockExposed, sandWeight\)/.test(shaderSource),
+    'the old bug is gone: nonSnow no longer treats raw sandbox-window membership (sandWeight) as automatically snow-free',
+  );
+}
 
 console.log('\n✅ Alle Rigid-Body/Physics-Selbsttests bestanden');

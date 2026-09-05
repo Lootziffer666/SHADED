@@ -68,6 +68,19 @@ export class Terrain {
             false, false, Constants.TEXTURE_NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
         );
 
+        // A renderer-facing auxiliary field container, the first of its kind (EXECUTION_PLAN.md
+        // Task 4) -- not a snow-only binding. R carries FIELD.SNOW's own canonical value straight
+        // from the world-sandbox grid (world-sandbox-reference.mjs's FIELD enum), unmodified;
+        // G/B/A are reserved for future independent scalar fields (e.g. FIELD.ICE) that need the
+        // same treatment, so adding one later is packing a channel here, not adding a texture.
+        // Only the beauty material samples it: depth/prepass only ever read sandboxTex's height
+        // channel for vertex displacement (see terrainDepth.vertex.wgsl), they have no fragment
+        // stage that needs a material field like snow coverage.
+        this._sandboxFieldTexPlaceholder = RawTexture.CreateRGBATexture(
+            new Float32Array([0, 0, 0, 0]), 1, 1, scene,
+            false, false, Constants.TEXTURE_NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
+        );
+
         // Generated snow grain, tiled at three world scales by the material.
         this.detailTex = new ProceduralTexture(
             "detailTex",
@@ -125,7 +138,7 @@ export class Terrain {
                 ],
                 samplers: [
                     "heightTex", "auxTex", "detailTex", "skyLUT",
-                    "cascade0", "cascade1", "cascade2", "deformTex", "sandboxTex",
+                    "cascade0", "cascade1", "cascade2", "deformTex", "sandboxTex", "sandboxFieldTex",
                 ],
                 shaderLanguage: ShaderLanguage.WGSL,
             }
@@ -140,6 +153,7 @@ export class Terrain {
             mat.setTexture("cascade" + i, this.shadows.maps[i]);
         }
         mat.setTexture("sandboxTex", this._sandboxTexPlaceholder);
+        mat.setTexture("sandboxFieldTex", this._sandboxFieldTexPlaceholder);
         // 0 size disables the read outright — see setSandboxWindow.
         mat.setVector2("sandboxCenter", _sandboxCenter);
         mat.setFloat("sandboxSize", 0);
@@ -288,13 +302,19 @@ export class Terrain {
      * self-occlude against a surface it isn't drawing.
      * @param {import("@babylonjs/core/Materials/Textures/texture").Texture|null} tex
      * @param {number} x @param {number} z @param {number} size metres
+     * @param {import("@babylonjs/core/Materials/Textures/texture").Texture|null} [fieldTex]
+     *   The auxiliary field container (R = FIELD.SNOW's canonical value, see the constructor's
+     *   `_sandboxFieldTexPlaceholder` comment) -- only the beauty material reads it, so unlike
+     *   `tex` it is not pushed to the depth/prepass materials below.
      */
-    setSandboxWindow(tex, x, z, size) {
+    setSandboxWindow(tex, x, z, size, fieldTex) {
         const t = tex || this._sandboxTexPlaceholder;
+        const ft = tex ? (fieldTex || this._sandboxFieldTexPlaceholder) : this._sandboxFieldTexPlaceholder;
         const s = tex ? Math.max(0, size) : 0;
         _sandboxCenter.set(x, z);
 
         this.material.setTexture("sandboxTex", t);
+        this.material.setTexture("sandboxFieldTex", ft);
         this.material.setVector2("sandboxCenter", _sandboxCenter);
         this.material.setFloat("sandboxSize", s);
 
@@ -471,5 +491,6 @@ export class Terrain {
         this.deform.dispose();
         this.heightfield.dispose();
         this._sandboxTexPlaceholder.dispose();
+        this._sandboxFieldTexPlaceholder.dispose();
     }
 }
