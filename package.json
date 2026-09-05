@@ -6,15 +6,26 @@
   "scripts": {
     "check": "node tools/check-ui-zero.mjs",
     "serve": "python3 -m http.server 8000",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "verify:pwa": "node tools/verify-pwa.mjs",
     "verify:world-sandbox": "node tools/test-world-sandbox-runtime.mjs && node tools/test-world-sandbox.mjs",
+    "verify:physics": "node tools/test-world-sandbox-physics.mjs",
+    "verify:math": "for f in tools/math-verify/*.py; do python3 \"$f\" || exit 1; done",
     "materials:freestylized": "node tools/freestylized-materials.mjs all --resolution 1k",
     "materials:freestylized:catalog": "node tools/freestylized-materials.mjs catalog",
     "materials:freestylized:sync": "node tools/freestylized-materials.mjs sync --resolution 1k"
   },
+  "dependencies": {
+    "@babylonjs/core": "^9.18.0",
+    "@babylonjs/gui": "^9.18.0",
+    "@babylonjs/materials": "^9.18.0"
+  },
   "devDependencies": {
     "ajv": "^8.17.1",
     "playwright": "^1.62.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5"
   }
 }

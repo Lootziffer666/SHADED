@@ -27,9 +27,29 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript' };
 
+// This test only needs a page context with a real WebGPU device to import
+// `/runtime/world-sandbox-webgpu.mjs` (a plain relative-path module) into --
+// it was never testing the live Snowflow entry point (`index.html` ->
+// `/src/main.js`). Navigating to `index.html` itself would now (a) crash on
+// Snowflow's bare `@babylonjs/core/...` specifiers, which only a bundler
+// resolves (see CLAUDE.md's "Status: two subsystems, one repo" note -- a
+// raw static server can't do this, same as `python3 -m http.server`), and
+// even bundled, (b) race this test's own device/adapter request against
+// Snowflow's own WebGPU init for the sandboxed software adapter, which is
+// exactly the "Instance dropped" teardown instability this test's own
+// top-of-file comment already warns is real for this environment. A blank
+// fixture page sidesteps both: no bare specifiers, nothing else touches
+// WebGPU.
+const FIXTURE_HTML = '<!doctype html><meta charset="utf-8"><script type="module"></script>';
+
 const server = createServer(async (req, res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (pathname === '/_harness.html') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(FIXTURE_HTML);
+      return;
+    }
     const filename = path.resolve(root, '.' + pathname);
     const data = await readFile(filename);
     res.writeHead(200, { 'Content-Type': MIME[path.extname(filename)] || 'application/octet-stream' });
@@ -54,7 +74,7 @@ try {
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('pageerror', error => consoleErrors.push('pageerror: ' + error.message));
 
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://127.0.0.1:${port}/_harness.html`, { waitUntil: 'domcontentloaded' });
 
   const result = await page.evaluate(async () => {
     if (!navigator.gpu) return { skipped: 'navigator.gpu unavailable in this browser' };
