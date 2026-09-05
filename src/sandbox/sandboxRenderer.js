@@ -22,6 +22,15 @@
  * `WORLD_GEN_OPTIONS`) keeps FIELD.SAND high everywhere, because that's
  * what `colorForCell` actually paints with — dunes are sand, not granite.
  *
+ * "Replaces" isn't just this mesh drawing over the real terrain, either:
+ * `cutoutRadius` (below) is fed to `Terrain.setGroundCutout`, which discards
+ * the real clipmap terrain's own fragments within this mesh's fully-opaque
+ * core — the real ground is actually gone there, not just hidden under
+ * another opaque surface, so there's nothing left for this coarse 64² grid
+ * to fight for depth against. Outside that core, in the feather band, the
+ * real terrain is deliberately left alone to show through as this mesh's own
+ * alpha fades toward the window's edge.
+ *
  * The whole point is that this has to work wherever the player actually is,
  * not just in one fixed patch — so the window re-centres on the player once
  * they wander far enough from its middle, the same "follow the player, not
@@ -562,6 +571,17 @@ export class SandboxRenderer {
         const ground = world[o + FIELD.BEDROCK] + world[o + FIELD.SAND];
         const delta = ground - this._initialGround[i];
         return this._baseHeight[i] + delta * HEIGHT_SCALE;
+    }
+
+    /**
+     * Half-size (metres, from `origin`) of the region that's *fully* opaque —
+     * the core the edge feather hasn't started thinning yet. This is the
+     * region `terrain.setGroundCutout` should discard the real terrain
+     * within: outside it this mesh is already fading itself out via alpha,
+     * so the real terrain has to stay to blend under it, not be cut away too.
+     */
+    get cutoutRadius() {
+        return (WORLD_SPAN / 2) * EDGE_FEATHER_START;
     }
 
     setVisible(v) {

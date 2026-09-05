@@ -178,9 +178,11 @@ async function boot() {
     const sandboxHeightOverlay = (x, z) => sandbox.sampleHeight(x, z);
     sandbox.setVisible(S.enableSandbox);
     terrain.heightfield.setOverlaySampler(S.enableSandbox ? sandboxHeightOverlay : null);
+    terrain.setGroundCutout(sandbox.origin.x, sandbox.origin.z, S.enableSandbox ? sandbox.cutoutRadius : 0);
     onChange("enableSandbox", (v) => {
         sandbox.setVisible(v);
         terrain.heightfield.setOverlaySampler(v ? sandboxHeightOverlay : null);
+        terrain.setGroundCutout(sandbox.origin.x, sandbox.origin.z, v ? sandbox.cutoutRadius : 0);
     });
 
     // Primary action (left mouse button) stamps the sandbox's active tool
@@ -291,6 +293,10 @@ async function boot() {
         if (S.enableSandbox) {
             sandbox.handleInput(rig.camera, toolDown);
             sandbox.update(dt, character.position.x, character.position.z);
+            // After sandbox.update(): a re-centre this frame moves
+            // sandbox.origin, and the cutout has to track it, not the spot
+            // it used to be at.
+            terrain.setGroundCutout(sandbox.origin.x, sandbox.origin.z, sandbox.cutoutRadius);
         }
         const tVfx = performance.now();
 

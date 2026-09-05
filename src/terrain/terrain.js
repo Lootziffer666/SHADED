@@ -31,6 +31,7 @@ const DETAIL_RES = 1024;
 const _splits = new Vector4(0, 0, 0, 0);
 const _lod = new Vector2();
 const _screen = new Vector2();
+const _cutoutCenter = new Vector2(0, 0);
 
 const DEBUG_MODES = {
     beauty: 0, deform: 1, normals: 2, depth: 3, cascades: 4,
@@ -106,6 +107,7 @@ export class Terrain {
                     "fogDensity", "fogHeightFalloff", "fogStart", "aerialStrength",
                     "deformCenter", "deformSize", "deformTexel", "deformDepthScale",
                     "ambientIntensity", "debugMode", "screenSize",
+                    "cutoutCenter", "cutoutHalfSize",
                     ...SPELL_LIGHT_UNIFORMS,
                 ],
                 samplers: [
@@ -124,7 +126,37 @@ export class Terrain {
         for (let i = 0; i < CASCADE_COUNT; i++) {
             mat.setTexture("cascade" + i, this.shadows.maps[i]);
         }
+        // 0 half-size disables the cutout outright — see setGroundCutout.
+        mat.setVector2("cutoutCenter", _cutoutCenter);
+        mat.setFloat("cutoutHalfSize", 0);
         return mat;
+    }
+
+    /**
+     * Cut a hole in the real terrain's beauty pass: a square, `halfSize`
+     * metres from `(x, z)`, is discarded outright rather than shaded. This is
+     * how the world sandbox actually *replaces* the ground within its fully
+     * opaque core instead of merely being drawn on top of it — no amount of
+     * height-matching between the sandbox's coarse simulation grid and this
+     * mesh's own fine geometry can be perfectly exact, so the real terrain is
+     * removed there rather than relied on to sit far enough underneath.
+     *
+     * Pass `halfSize <= 0` to disable — the default, and what a disabled
+     * sandbox restores.
+     *
+     * Deliberately beauty-pass only: the shadow and depth-prepass materials
+     * still describe the real terrain surface in the cut region, so a very
+     * close look could catch a faint shadow or AO mismatch there. Not worth
+     * threading a new varying through three more shaders (each already
+     * required to place the *identical* vertex the beauty pass does, on pain
+     * of self-shadow acne) for a mismatch this small relative to what's
+     * actually visible.
+     * @param {number} x @param {number} z @param {number} halfSize metres
+     */
+    setGroundCutout(x, z, halfSize) {
+        _cutoutCenter.set(x, z);
+        this.material.setVector2("cutoutCenter", _cutoutCenter);
+        this.material.setFloat("cutoutHalfSize", Math.max(0, halfSize));
     }
 
     /**

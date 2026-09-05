@@ -86,6 +86,12 @@ uniform ambientIntensity: f32;
 uniform debugMode: f32;
 uniform screenSize: vec2f;
 
+/// World-sandbox ground cutout — see Terrain.setGroundCutout. `cutoutHalfSize`
+/// of 0 or less disables it: the sandbox is off, or this point isn't inside
+/// its currently fully-opaque core.
+uniform cutoutCenter: vec2f;
+uniform cutoutHalfSize: f32;
+
 // Spell lights. See `lib/spellLights.wgsl`; zero-count on almost every frame.
 uniform spellLightPos: array<vec4f, 4>;
 uniform spellLightCol: array<vec4f, 4>;
@@ -177,6 +183,18 @@ fn detailNormal(
 @fragment
 fn main(input: FragmentInputs) -> FragmentOutputs {
     let world = input.vWorld;
+
+    // The world sandbox actually replaces the ground here, not just paints
+    // over it — cut this real terrain fragment outright rather than let two
+    // independently-placed surfaces (this fine clipmap mesh and the
+    // sandbox's own coarse simulation grid) fight for the same pixels.
+    if (uniforms.cutoutHalfSize > 0.0) {
+        let cutoutDist = max(abs(world.x - uniforms.cutoutCenter.x), abs(world.z - uniforms.cutoutCenter.y));
+        if (cutoutDist < uniforms.cutoutHalfSize) {
+            discard;
+        }
+    }
+
     let viewDist = input.vViewDist;
     let V = normalize(uniforms.cameraPos - world);
     let L = uniforms.sunDir;
