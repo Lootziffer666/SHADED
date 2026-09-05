@@ -143,6 +143,7 @@ Keine Property-Panels. Die Welt reagiert auf das, was du tust — und auf das, w
 - **Keine paternalisierenden Bremsen.** Dieses Doc beschreibt die Zielarchitektur, nicht wann was erlaubt ist.
 - **Fails sind erlaubt.** Ideen werden umgesetzt, nicht angezweifelt, bevor sie nicht bewiesen falsch sind.
 - **Kein Claude.md.** Die Richtung gibt der Nutzer vor.
+- **Kausal ausreichend, nicht vollständig.** Nicht TRUE PHYSICS gegen FAKE PHYSICS — SHADED muss nicht die Welt vollständig simulieren, nur genug Zusammenhänge so konsistent halten, dass reale Intuition greift: der Angler erkennt den guten Spot, der Förster den problematischen Hang, die Feuerwehr die Feuerfront, die Gärtnerin die falsche Bodenfeuchte. **Es muss nicht alles sein. Es muss sich so verhalten, dass das Fehlende nicht auffällt.**
 
 ---
 
