@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Rebuild SHADED's repo-local claim.db from versioned migrations + corpus entries."""
+"""Incrementally sync SHADED's repo-local claim.db from tracked corpus deltas.
+
+Normal operation NEVER deletes/rebuilds claim.db. Each immutable corpus file is a
+small delta. Sources whose source_id + content_hash are already present are
+skipped. Migrations are idempotent so an empty checkout can still bootstrap the
+first database when needed.
+"""
 
 from __future__ import annotations
 
@@ -18,15 +24,16 @@ def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def rebuild() -> None:
-    if DB.exists():
-        DB.unlink()
-
+def sync() -> tuple[int, int]:
     con = sqlite3.connect(DB)
     con.execute("PRAGMA foreign_keys = ON")
 
+    # Safe on an existing DB; required only for first bootstrap/schema upgrades.
     for migration in sorted(MIGRATIONS.glob("*.sql")):
         con.executescript(migration.read_text(encoding="utf-8"))
+
+    inserted = 0
+    skipped = 0
 
     for path in sorted(CHAT_CORPUS.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
@@ -35,12 +42,24 @@ def rebuild() -> None:
 
         assert source["content_hash"] == sha256_text(raw_text), path
 
+        existing = con.execute(
+            "SELECT content_hash FROM sources WHERE source_id = ?",
+            (source["source_id"],),
+        ).fetchone()
+        if existing and existing[0] == source["content_hash"]:
+            skipped += 1
+            continue
+        if existing:
+            raise RuntimeError(
+                f"immutable source changed: {source['source_id']} ({path.name}); "
+                "create a new revision/source_id instead"
+            )
+
         con.execute(
             """INSERT INTO sources(
                  source_id, source_key, path, title, source_type, revision,
                  commit_sha, export_time, author_role, content_hash, ingested_at
-               ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(source_id) DO NOTHING""",
+               ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 source["source_id"], source["source_key"], source.get("path"),
                 source["title"], source["source_type"], source.get("revision"),
@@ -49,9 +68,7 @@ def rebuild() -> None:
             ),
         )
         con.execute(
-            """INSERT INTO source_texts(source_id, content, content_hash)
-               VALUES(?,?,?)
-               ON CONFLICT(source_id) DO NOTHING""",
+            "INSERT INTO source_texts(source_id, content, content_hash) VALUES(?,?,?)",
             (source["source_id"], raw_text, source["content_hash"]),
         )
 
@@ -66,7 +83,7 @@ def rebuild() -> None:
                      normalized_claim=excluded.normalized_claim,
                      subject=excluded.subject,
                      scope=excluded.scope,
-                     last_seen=excluded.last_seen,
+                     last_seen=MAX(claims.last_seen, excluded.last_seen),
                      requirement_flag=MAX(claims.requirement_flag, excluded.requirement_flag),
                      assertion_flag=MAX(claims.assertion_flag, excluded.assertion_flag),
                      confidence=MAX(claims.confidence, excluded.confidence)""",
@@ -142,16 +159,20 @@ def rebuild() -> None:
                     ),
                 )
 
+        inserted += 1
+
     con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('project','SHADED')")
     con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('repo','Lootziffer666/SHADED')")
     con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('schema_version','1')")
     con.execute(
-        "INSERT OR REPLACE INTO db_meta(key,value) VALUES('builder','tools/claim-db/build.py')"
+        "INSERT OR REPLACE INTO db_meta(key,value) VALUES('sync','tools/claim-db/build.py')"
     )
     con.commit()
-    con.execute("PRAGMA integrity_check")
+    assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     con.close()
+    return inserted, skipped
 
 
 if __name__ == "__main__":
-    rebuild()
+    inserted, skipped = sync()
+    print(f"claim.db delta sync: {inserted} source(s) added, {skipped} unchanged source(s) skipped")
