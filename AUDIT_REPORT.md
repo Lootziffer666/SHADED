@@ -19,7 +19,7 @@ GOAL.md's own rule).
 | ID | Doc/Section | STATUS | CODE | TEST | EVIDENCE detail |
 |---|---|---|---|---|---|
 | A-0001 | GOAL_ALFRED.md A-0000 | **PASS** | claim.db (SQLite, core tables verified present) | tools/test-claim-db.mjs | See DOC/CODE/TEST columns. |
-| A-0002 | GOAL_ALFRED.md A-0000 | **PASS** | migrations/ + corpus/ versioned, DB regenerable via tools/claim-db/build.py | tools/test-claim-db.mjs | See DOC/CODE/TEST columns. |
+| A-0002 | GOAL_ALFRED.md A-0000 | **PASS** | migrations/ + corpus/ versioned; build.py now syncs claim_targets/per-claim evidence/audits (previously silently dropped) | tools/test-claim-db-regeneration.mjs | See DOC/CODE/TEST columns. |
 | A-0003 | GOAL_ALFRED.md A-0000 | **PASS** | GEFORDERT/BEHAUPTET/VERIFIZIERT/OFFENE_LUECKEN SQL views exist and are queryable | tools/test-claim-db.mjs | See DOC/CODE/TEST columns. |
 | A-0004 | GOAL_ALFRED.md / (preamble) | **OPEN** | N/A | N/A | Not yet started, or started without repo/test evidence to cite honestly. |
 | A-0005 | GOAL_ALFRED.md / (preamble) | **OPEN** | N/A | N/A | Not yet started, or started without repo/test evidence to cite honestly. |

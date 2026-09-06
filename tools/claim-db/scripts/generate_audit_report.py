@@ -51,7 +51,7 @@ EVIDENCE = {
     "G-2570": ("GOAL_WORLD.md Sec.25", "DONOR_MATRIX.md OWNER column = SHADED throughout", "tools/test-donor-matrix.mjs"),
     "F-0124": ("GOAL_FOUNDATION.md 0A", "vite.config.js + main.js buildInfo", "tools/test-build-identifier.mjs"),
     "A-0001": ("GOAL_ALFRED.md A-0000", "claim.db (SQLite, core tables verified present)", "tools/test-claim-db.mjs"),
-    "A-0002": ("GOAL_ALFRED.md A-0000", "migrations/ + corpus/ versioned, DB regenerable via tools/claim-db/build.py", "tools/test-claim-db.mjs"),
+    "A-0002": ("GOAL_ALFRED.md A-0000", "migrations/ + corpus/ versioned; build.py now syncs claim_targets/per-claim evidence/audits (previously silently dropped)", "tools/test-claim-db-regeneration.mjs"),
     "A-0003": ("GOAL_ALFRED.md A-0000", "GEFORDERT/BEHAUPTET/VERIFIZIERT/OFFENE_LUECKEN SQL views exist and are queryable", "tools/test-claim-db.mjs"),
     "A-0101": ("GOAL_ALFRED.md A-0100", "127 markdown sources ingested via generate_markdown_source_inventory.py", "tools/test-claim-db.mjs"),
     "A-0103": ("GOAL_ALFRED.md A-0100", "sources table: source_id/path/type/commit_sha/hash/ingested_at all populated on every DOC row", "tools/test-claim-db.mjs"),

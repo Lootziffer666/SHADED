@@ -65,6 +65,7 @@ const behavior = [
   'tools/test-claim-db.mjs',
   'tools/test-audit-report.mjs',
   'tools/test-gap-query.mjs',
+  'tools/test-claim-db-regeneration.mjs',
 ];
 
 for (const relative of behavior) {

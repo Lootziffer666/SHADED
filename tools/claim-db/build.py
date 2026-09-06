@@ -67,12 +67,65 @@ def insert_claim_sources(con, c, source_id):
                     (s["claim_source_id"], c["claim_id"], s.get("source_id", source_id), s.get("source_location"),
                      s.get("anchor"), s.get("speaker"), s.get("authority"), s["original_text"]))
 
+# A-0002: the DB must be fully regenerable from migrations + versioned corpus. Chat/extraction
+# JSON files carry a "targets" array (claim_targets: which repo_path/symbol/owner a claim is
+# about) and a per-claim "evidence" array (same shape as the standalone EVIDENCE_CORPUS entries
+# below) -- both were present in the corpus JSON from the start but silently ignored by sync(),
+# so claim_targets and several verification_evidence rows in the live DB existed only because a
+# prior session inserted them by hand, not because build.py could reproduce them. Wiring these in
+# closes that gap: a fresh DB built from nothing but migrations/ + corpus/ now matches.
+def insert_claim_targets(con, c):
+    for t in c.get("targets", []):
+        con.execute("""INSERT OR IGNORE INTO claim_targets(target_id,claim_id,repo_path,symbol,subsystem,owner,test_id)
+                       VALUES(?,?,?,?,?,?,?)""",
+                    (t["target_id"], c["claim_id"], t.get("repo_path"), t.get("symbol"),
+                     t.get("subsystem"), t.get("owner"), t.get("test_id")))
+
+def insert_evidence_entry(con, e):
+    if con.execute("SELECT 1 FROM verification_evidence WHERE evidence_id=?", (e["evidence_id"],)).fetchone():
+        return False
+    if not con.execute("SELECT 1 FROM claims WHERE claim_id=?", (e["claim_id"],)).fetchone():
+        raise RuntimeError(f"unknown claim in evidence: {e['claim_id']}")
+    con.execute("""INSERT INTO verification_evidence(evidence_id,claim_id,evidence_kind,repo_path,symbol,
+                   commit_sha,test_id,runtime_artifact,checked_at,checked_commit,result,details)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (e["evidence_id"], e["claim_id"], e["evidence_kind"], e.get("repo_path"), e.get("symbol"),
+                 e.get("commit_sha"), e.get("test_id"), e.get("runtime_artifact"), e["checked_at"],
+                 e.get("checked_commit"), e["result"], e.get("details")))
+    if e.get("set_verification_status"):
+        con.execute("UPDATE claims SET verification_status=? WHERE claim_id=?",
+                    (e["set_verification_status"], e["claim_id"]))
+    return True
+
+def insert_claim_evidence(con, c):
+    added = 0
+    for e in c.get("evidence", []):
+        e = {**e, "claim_id": c["claim_id"]}
+        if insert_evidence_entry(con, e):
+            added += 1
+    return added
+
+def insert_audit(con, audit):
+    if audit is None:
+        return
+    if not con.execute("SELECT 1 FROM audits WHERE audit_id=?", (audit["audit_id"],)).fetchone():
+        con.execute("""INSERT INTO audits(audit_id,corpus_snapshot,repo_commit,created_at,previous_audit_id)
+                       VALUES(?,?,?,?,?)""",
+                    (audit["audit_id"], audit["corpus_snapshot"], audit["repo_commit"], audit["created_at"],
+                     audit.get("previous_audit_id")))
+    for f in audit.get("findings", []):
+        con.execute("""INSERT OR IGNORE INTO audit_findings(finding_id,audit_id,claim_id,finding_type,severity,details,status,created_at)
+                       VALUES(?,?,?,?,?,?,?,?)""",
+                    (f["finding_id"], audit["audit_id"], f["claim_id"], f["finding_type"], f["severity"],
+                     f["details"], f.get("status", "OPEN"), f["created_at"]))
+
 def sync():
     con = sqlite3.connect(DB)
     con.execute("PRAGMA foreign_keys=ON")
     for migration in sorted(MIGRATIONS.glob("*.sql")):
         con.executescript(migration.read_text(encoding="utf-8"))
     added = unchanged = extractions = 0
+    evidence_added = 0
 
     for path in sorted(CHAT_CORPUS.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
@@ -83,6 +136,9 @@ def sync():
             for c in doc.get("claims", []):
                 upsert_claim(con, c)
                 insert_claim_sources(con, c, src["source_id"])
+                insert_claim_targets(con, c)
+                evidence_added += insert_claim_evidence(con, c)
+            insert_audit(con, doc.get("audit"))
         else:
             unchanged += 1
 
@@ -111,11 +167,14 @@ def sync():
             for c in doc.get("claims", []):
                 upsert_claim(con, c)
                 insert_claim_sources(con, c, sid)
+                insert_claim_targets(con, c)
+                evidence_added += insert_claim_evidence(con, c)
                 con.execute("INSERT OR IGNORE INTO extraction_claims(extraction_id,claim_id) VALUES(?,?)",
                             (x["extraction_id"], c["claim_id"]))
             for r in doc.get("relations", []):
                 con.execute("INSERT OR IGNORE INTO claim_relations(from_claim,relation,to_claim,rationale) VALUES(?,?,?,?)",
                             (r["from_claim"], r["relation"], r["to_claim"], r.get("rationale")))
+            insert_audit(con, doc.get("audit"))
             extractions += 1
 
     # A-0304/A-0306/A-0405: verification evidence is how a claim actually moves from UNVERIFIED
@@ -124,25 +183,12 @@ def sync():
     # verification_evidence, so no claim in this DB could ever leave UNVERIFIED. Each file here is
     # {"evidence": [...]}, one entry per (claim_id, evidence_kind) pair; entries are idempotent on
     # evidence_id like every other corpus type.
-    evidence_added = 0
     if EVIDENCE_CORPUS.exists():
         for path in sorted(EVIDENCE_CORPUS.glob("*.json")):
             doc = json.loads(path.read_text(encoding="utf-8"))
             for e in doc.get("evidence", []):
-                if con.execute("SELECT 1 FROM verification_evidence WHERE evidence_id=?", (e["evidence_id"],)).fetchone():
-                    continue
-                if not con.execute("SELECT 1 FROM claims WHERE claim_id=?", (e["claim_id"],)).fetchone():
-                    raise RuntimeError(f"unknown claim in evidence: {e['claim_id']}")
-                con.execute("""INSERT INTO verification_evidence(evidence_id,claim_id,evidence_kind,repo_path,symbol,
-                               commit_sha,test_id,runtime_artifact,checked_at,checked_commit,result,details)
-                               VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                            (e["evidence_id"], e["claim_id"], e["evidence_kind"], e.get("repo_path"), e.get("symbol"),
-                             e.get("commit_sha"), e.get("test_id"), e.get("runtime_artifact"), e["checked_at"],
-                             e.get("checked_commit"), e["result"], e.get("details")))
-                if e.get("set_verification_status"):
-                    con.execute("UPDATE claims SET verification_status=? WHERE claim_id=?",
-                                (e["set_verification_status"], e["claim_id"]))
-                evidence_added += 1
+                if insert_evidence_entry(con, e):
+                    evidence_added += 1
 
     for path in sorted(TAG_CORPUS.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
