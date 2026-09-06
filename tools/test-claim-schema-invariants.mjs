@@ -71,7 +71,12 @@ from pathlib import Path
 import sqlite3
 build.DB = Path(${JSON.stringify(scratchDb)})
 build.sync()
+// Verify insert_source uses the passed connection, not an internal one:
+import sqlite3
 con = sqlite3.connect(build.DB)
+# Confirm con is the same connection build uses internally
+assert con is build._get_connection() or similar
+build.insert_source(con, {...})
 try:
     build.insert_source(con, {
         "source_id": "SRC-CHAT-20260906-0143-001",
