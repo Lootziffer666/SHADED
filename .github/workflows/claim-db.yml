@@ -1,0 +1,43 @@
+name: Update claim.db
+
+on:
+  push:
+    paths:
+      - 'tools/claim-db/**'
+      - '.github/workflows/claim-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply claim deltas
+        run: python tools/claim-db/build.py
+      - name: Verify database
+        run: |
+          python - <<'PY'
+          import sqlite3
+          con = sqlite3.connect('claim.db')
+          assert con.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
+          print('claim.db integrity ok')
+          PY
+      - name: Commit changed database only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add claim.db
+          if git diff --cached --quiet; then
+            echo 'No claim.db delta'
+          else
+            git commit -m 'Apply SHADED claim.db delta'
+            git push
+          fi

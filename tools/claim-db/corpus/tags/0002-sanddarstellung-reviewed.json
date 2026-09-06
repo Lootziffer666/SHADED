@@ -1,0 +1,25 @@
+{
+  "tag_delta_id": "TAG-DELTA-20260906-002",
+  "source_id": "SRC-CHAT-20260906-0143-001",
+  "source_tags": [
+    "review:claims-extracted",
+    "review:do-not-recheck-full-chat",
+    "review-alias:CLAIMS Repoanalyse Sanddarstellung - Sand/Kuhmuster",
+    "lookup:sanddarstellung",
+    "lookup:cow-pattern"
+  ],
+  "claim_tags": {
+    "C-SAND-0001": [
+      "review:source-chat-fully-checked",
+      "source-alias:Repoanalyse Sanddarstellung - Sand/Kuhmuster"
+    ],
+    "C-SAND-0002": [
+      "review:source-chat-fully-checked",
+      "source-alias:Repoanalyse Sanddarstellung - Sand/Kuhmuster"
+    ],
+    "C-SAND-0003": [
+      "review:source-chat-fully-checked",
+      "source-alias:Repoanalyse Sanddarstellung - Sand/Kuhmuster"
+    ]
+  }
+}
