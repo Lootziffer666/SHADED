@@ -58,7 +58,22 @@ for (const [id, , status, code, test] of rows) {
 }
 ok(passCount > 0, 'at least one PASS row was checked (sanity: the PASS-row loop above actually ran)');
 
-// 3. DEFERRED discipline: A-xxxx/F-xxxx items must never be DEFERRED (both GOAL_ALFRED.md and
+// 3. POLICY discipline: a POLICY row exists to honestly cover a standing behavior that cannot be
+// proven PASS the way a built artifact can -- but it must not become a place to dump work that
+// COULD have a real test. Every POLICY row needs a substantive rationale (not a placeholder), and
+// nothing already covered by a real EVIDENCE-backed PASS test may also appear as POLICY (that
+// would mean the "unguardable" claim was false).
+const policyRows = rows.filter(([, , status]) => status.includes('POLICY'));
+ok(policyRows.length > 0, `at least one POLICY row exists to check (found ${policyRows.length})`);
+const passIds = new Set(rows.filter(([, , status]) => status.includes('PASS')).map(([id]) => id));
+for (const row of policyRows) {
+  const [id, , , code, test, detail] = row;
+  ok(!FORBIDDEN.includes((detail || '').trim()) && (detail || '').length > 40, `POLICY row ${id}: has a substantive rationale, not a placeholder (${(detail || '').length} chars)`);
+  ok(code.includes('standing behavior'), `POLICY row ${id}: CODE cell is explicitly marked as a standing behavior, not left ambiguous with a real artifact's N/A`);
+  ok(!passIds.has(id), `POLICY row ${id}: is not ALSO a PASS row (a rule can't be both "unguardable" and mechanically proven)`);
+}
+
+// 4. DEFERRED discipline: A-xxxx/F-xxxx items must never be DEFERRED (both GOAL_ALFRED.md and
 // GOAL_FOUNDATION.md explicitly forbid deferring on size/difficulty grounds), and every section
 // marker the generator treats as legitimately staged-later must be a real, verbatim heading in
 // GOAL_WORLD.md (so the deferred set can't silently grow via a typo'd or invented marker).
