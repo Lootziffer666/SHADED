@@ -342,10 +342,16 @@ async function boot() {
     await loading.done();
     setTimeout(() => overlay.resetSpikes(), 800);
 
+    // GOAL_WORLD.md G-2819 / GOAL_FOUNDATION.md F-0124: a delivered instance must be traceable to
+    // the exact commit it was built from. __SHADED_COMMIT_SHA__/__SHADED_BUILD_TIME__ are replaced
+    // at build time by vite.config.js's own `define` (git rev-parse HEAD, or "unknown" if git
+    // wasn't available at build time -- never a fabricated placeholder).
+    const buildInfo = {commitSha: __SHADED_COMMIT_SHA__, buildTime: __SHADED_BUILD_TIME__};
+
     globalThis.SNOWFLOW = {
         engine, scene, rig, character, figure, contact, spray, wake, spells,
         overlay, terrain, sky, shadows, post, depthPass, sandbox,
-        S, input, perfStats: stats,
+        S, input, perfStats: stats, buildInfo,
     };
 }
 
