@@ -61,6 +61,7 @@ const behavior = [
   'tools/test-input-ownership.mjs',
   'tools/test-build-identifier.mjs',
   'tools/test-legacy-grep-audit.mjs',
+  'tools/test-donor-matrix.mjs',
 ];
 
 for (const relative of behavior) {
