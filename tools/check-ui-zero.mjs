@@ -62,6 +62,8 @@ const behavior = [
   'tools/test-build-identifier.mjs',
   'tools/test-legacy-grep-audit.mjs',
   'tools/test-donor-matrix.mjs',
+  'tools/test-claim-db.mjs',
+  'tools/test-audit-report.mjs',
 ];
 
 for (const relative of behavior) {

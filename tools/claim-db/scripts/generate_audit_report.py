@@ -33,7 +33,7 @@ EVIDENCE = {
     "G-1904": ("GOAL_WORLD.md Sec.19", "src/main.js:initTouchControls() x1 call", "tools/test-input-ownership.mjs"),
     "G-1905": ("GOAL_WORLD.md Sec.19", "stick-zone/base/knob/setupStick: 1 file only", "tools/test-input-ownership.mjs"),
     "G-1906": ("GOAL_WORLD.md Sec.19", "test asserts active call path, not just import", "tools/test-input-ownership.mjs"),
-    "G-1907": ("GOAL_WORLD.md Sec.19", "n/a", "tools/test-input-ownership.mjs (positive+negative)"),
+    "G-1907": ("GOAL_WORLD.md Sec.19", "src/ui/touchControls.js (new owner) + git history (old owner never existed)", "tools/test-input-ownership.mjs (positive+negative)"),
     "G-1908": ("GOAL_WORLD.md Sec.19", "touchState is the canonical move/look contract", "tools/test-input-ownership.mjs"),
     "G-0404": ("GOAL_WORLD.md Sec.4", "snow.fragment.wgsl: rockMask no longer read", "tools/test-world-sandbox-physics.mjs (rockMask-absence check)"),
     "G-0410": ("GOAL_WORLD.md Sec.4", "index.html/main.js Snowflow branding removed", "tools/test-legacy-grep-audit.mjs"),
@@ -50,12 +50,12 @@ EVIDENCE = {
     "G-2565": ("GOAL_WORLD.md Sec.25", "DONOR_MATRIX.md columns", "tools/test-donor-matrix.mjs"),
     "G-2570": ("GOAL_WORLD.md Sec.25", "DONOR_MATRIX.md OWNER column = SHADED throughout", "tools/test-donor-matrix.mjs"),
     "F-0124": ("GOAL_FOUNDATION.md 0A", "vite.config.js + main.js buildInfo", "tools/test-build-identifier.mjs"),
-    "A-0001": ("GOAL_ALFRED.md A-0000", "claim.db (SQLite, real, queried this session)", "python3 tools/claim-db/build.py"),
-    "A-0002": ("GOAL_ALFRED.md A-0000", "migrations/ + corpus/ versioned, DB regenerable", "tools/claim-db/build.py"),
-    "A-0003": ("GOAL_ALFRED.md A-0000", "GEFORDERT/BEHAUPTET/VERIFIZIERT SQL views exist", "SELECT * FROM GEFORDERT (queried this session)"),
-    "A-0101": ("GOAL_ALFRED.md A-0100", "127 markdown sources ingested with real hash/commit", "tools/claim-db/scripts/generate_markdown_source_inventory.py"),
-    "A-0103": ("GOAL_ALFRED.md A-0100", "sources table: source_id/path/type/commit_sha/hash/ingested_at all populated", "python3 -c sqlite3 query, this session"),
-    "A-0304": ("GOAL_ALFRED.md A-0300", "verification_evidence rows store evidence_kind/result/checked_at/checked_commit", "tools/claim-db/corpus/evidence/0001-sand-ownership-fix.json"),
+    "A-0001": ("GOAL_ALFRED.md A-0000", "claim.db (SQLite, core tables verified present)", "tools/test-claim-db.mjs"),
+    "A-0002": ("GOAL_ALFRED.md A-0000", "migrations/ + corpus/ versioned, DB regenerable via tools/claim-db/build.py", "tools/test-claim-db.mjs"),
+    "A-0003": ("GOAL_ALFRED.md A-0000", "GEFORDERT/BEHAUPTET/VERIFIZIERT/OFFENE_LUECKEN SQL views exist and are queryable", "tools/test-claim-db.mjs"),
+    "A-0101": ("GOAL_ALFRED.md A-0100", "127 markdown sources ingested via generate_markdown_source_inventory.py", "tools/test-claim-db.mjs"),
+    "A-0103": ("GOAL_ALFRED.md A-0100", "sources table: source_id/path/type/commit_sha/hash/ingested_at all populated on every DOC row", "tools/test-claim-db.mjs"),
+    "A-0304": ("GOAL_ALFRED.md A-0300", "verification_evidence rows store evidence_kind/result; sand claims left UNVERIFIED (GPU proof outstanding), not fabricated", "tools/test-claim-db.mjs"),
 }
 
 # GOAL_WORLD.md section -> (start line marker, DEFERRED reason) for the sections Section 31
@@ -184,12 +184,12 @@ def main():
         ]
 
     lines += [
-        "| ID | Doc/Section | STATUS | DOC | CODE | TEST | EVIDENCE detail |",
-        "|---|---|---|---|---|---|---|",
+        "| ID | Doc/Section | STATUS | CODE | TEST | EVIDENCE detail |",
+        "|---|---|---|---|---|---|",
     ]
 
     for display_id, doc, status, code, test, detail in classified:
-        lines.append(f"| {display_id} | {doc} | **{status}** | {doc} | {code} | {test} | {detail} |")
+        lines.append(f"| {display_id} | {doc} | **{status}** | {code} | {test} | {detail} |")
 
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote {len(all_rows)} rows to {OUT.relative_to(ROOT)}: PASS={pass_count} DEFERRED={deferred_count} OPEN={open_count}")
