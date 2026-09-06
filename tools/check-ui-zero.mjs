@@ -67,6 +67,7 @@ const behavior = [
   'tools/test-gap-query.mjs',
   'tools/test-claim-db-regeneration.mjs',
   'tools/test-single-canonical-ui.mjs',
+  'tools/test-verification-discipline.mjs',
 ];
 
 for (const relative of behavior) {
