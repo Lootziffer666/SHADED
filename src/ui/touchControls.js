@@ -1,24 +1,27 @@
 /**
- * Twin-stick touch overlay — movement (left) and look (right) sticks plus
- * hold/press buttons for sprint, snow-surf, the five spells, and the
- * world-sandbox's prev/next tool cycle (next to the move stick — a build
- * utility, not a combat action, so it doesn't belong in the spell/run/surf
- * cluster on the right).
+ * Twin-stick touch overlay — movement (left) and look (right) sticks (via
+ * nipplejs, MIT: https://github.com/yoannmoinet/nipplejs) plus hold/press
+ * buttons for sprint, snow-surf, the five spells, and the world-sandbox's
+ * prev/next tool cycle (next to the move stick — a build utility, not a
+ * combat action, so it doesn't belong in the spell/run/surf cluster on the
+ * right).
  *
  * Only mounts on touch-capable devices. Has no dependency on input.js (so
  * input.js can depend on this module without a cycle): it just keeps its own
  * `touchState`, exactly like `gamepadState` in core/gamepad.js, and whoever
  * polls input each frame folds both in.
  *
- * Sizing is `vmin`-based with `clamp()`, so the same rig reads the same
- * physical size in portrait and landscape without separate layouts — only
- * the button cluster's gap shrinks under a short landscape viewport, where
- * vertical room is tightest.
+ * The two stick zones size themselves off `vmin` (recomputed on resize) so
+ * the rig reads the same physical size in portrait and landscape, matching
+ * the button cluster's own CSS `clamp()` sizing — only the button cluster's
+ * gap shrinks under a short landscape viewport, where vertical room is
+ * tightest.
  *
  * Hides itself entirely while a real gamepad is connected (checked at
  * mount and on every connect/disconnect) — a controller does everything
  * this overlay does, and does it better.
  */
+import nipplejs from "nipplejs";
 
 export const touchState = {
     moveActive: false,
@@ -84,20 +87,6 @@ const CSS = `
   position: relative; pointer-events: auto; touch-action: none;
   width: clamp(150px, 38vmin, 220px); height: clamp(150px, 38vmin, 220px);
 }
-#tc .stick-base {
-  position: absolute; inset: 0; border-radius: 50%;
-  background: rgba(219, 230, 242, 0.07);
-  border: 1px solid rgba(143, 196, 232, 0.24);
-  backdrop-filter: blur(6px);
-}
-#tc .stick-knob {
-  position: absolute; left: 29%; top: 29%; width: 42%; height: 42%;
-  border-radius: 50%; background: rgba(143, 196, 232, 0.5);
-  box-shadow: 0 0 14px rgba(143, 196, 232, 0.35);
-  transition: background 120ms ease;
-  will-change: transform;
-}
-#tc .stick-zone.active .stick-knob { background: rgba(234, 244, 255, 0.85); }
 
 #tc .row { display: flex; gap: 10px; }
 
@@ -135,55 +124,63 @@ const CSS = `
 }
 `;
 
-function setupStick(zoneEl, knobEl, onChange, onEnd) {
-    let activeId = null;
-    let originX = 0;
-    let originY = 0;
+/** `clamp(150px, 38vmin, 220px)` evaluated in JS, since nipplejs's `size` option is a fixed
+ *  pixel number, not a CSS length -- kept in step with #tc .stick-zone's own CSS clamp() so the
+ *  nipple visually fills the same zone box it did as a hand-rolled div. */
+function stickSizePx() {
+    const vmin = Math.min(window.innerWidth, window.innerHeight) / 100;
+    return Math.max(150, Math.min(220, 38 * vmin));
+}
 
-    const move = (e) => {
-        if (e.pointerId !== activeId) return;
-        const r = (zoneEl.clientWidth / 2) * DRAG_RADIUS;
-        let nx = (e.clientX - originX) / r;
-        let ny = (e.clientY - originY) / r;
-        const len = Math.hypot(nx, ny);
-        if (len > 1) {
-            nx /= len;
-            ny /= len;
-        }
-        const knobTravel = (zoneEl.clientWidth / 2) * 0.62;
-        knobEl.style.transform = `translate(${nx * knobTravel}px, ${ny * knobTravel}px)`;
-        onChange(nx, ny, Math.min(len, 1));
-    };
-
-    const end = (e) => {
-        if (e.pointerId !== activeId) return;
-        activeId = null;
-        zoneEl.classList.remove("active");
-        knobEl.style.transform = "translate(0,0)";
-        onEnd();
-    };
-
-    zoneEl.addEventListener("pointerdown", (e) => {
-        if (activeId !== null) return;
-        activeId = e.pointerId;
-        // Capture failing (some WebViews, or a pointer the UA doesn't track
-        // as active) must not stop the stick from responding.
-        try {
-            zoneEl.setPointerCapture(activeId);
-        } catch {}
-        zoneEl.classList.add("active");
-        const rect = zoneEl.getBoundingClientRect();
-        originX = rect.left + rect.width / 2;
-        originY = rect.top + rect.height / 2;
-        move(e);
-        e.preventDefault();
+/** Creates one nipplejs manager at the current viewport's stick size. Split out of `setupStick`
+ *  so a real orientation change can tear it down and remount at the new size (see below). */
+function makeManager(zoneEl, onChange, onEnd) {
+    // DRAG_RADIUS's old role (full deflection well inside the zone's physical edge, so an
+    // imprecise thumb still reaches max tilt without dragging to the physical rim) -- shrinking
+    // nipplejs's own size by the same factor keeps full `force` reachable at the same fraction
+    // of the zone's radius the hand-rolled stick used.
+    const manager = nipplejs.create({
+        zone: zoneEl,
+        mode: "static",
+        position: { left: "50%", top: "50%" },
+        size: stickSizePx() * DRAG_RADIUS,
+        color: "rgba(143, 196, 232, 0.85)",
+        restOpacity: 0.6,
     });
-    zoneEl.addEventListener("pointermove", (e) => {
-        move(e);
-        if (e.pointerId === activeId) e.preventDefault();
+    manager.on("move", (_evt, data) => {
+        const len = Math.min(1, data.force || 0);
+        onChange(data.vector.x, data.vector.y, len);
     });
-    zoneEl.addEventListener("pointerup", end);
-    zoneEl.addEventListener("pointercancel", end);
+    manager.on("end", onEnd);
+    return manager;
+}
+
+/**
+ * Mounts a static nipplejs joystick into `zoneEl` and forwards its live
+ * vector to `onChange(nx, ny, len)` / `onEnd()` — the same callback shape the
+ * hand-rolled stick used, so nothing downstream (touchState wiring below)
+ * had to change. nipplejs's `vector.y` is already negative-up, exactly the
+ * raw-pointer-delta convention the old implementation computed by hand, so
+ * signs carry over unchanged.
+ *
+ * nipplejs bakes its pixel `size` in at creation time, so a real orientation
+ * change (not just the on-screen keyboard nudging innerHeight) tears the
+ * manager down and remounts it at the new size rather than trying to resize
+ * it in place.
+ * @param {HTMLElement} zoneEl
+ * @param {(nx: number, ny: number, len: number) => void} onChange
+ * @param {() => void} onEnd
+ */
+function setupStick(zoneEl, onChange, onEnd) {
+    let manager = makeManager(zoneEl, onChange, onEnd);
+    let lastVmin = Math.min(window.innerWidth, window.innerHeight);
+    window.addEventListener("resize", () => {
+        const vmin = Math.min(window.innerWidth, window.innerHeight);
+        if (Math.abs(vmin - lastVmin) < 20) return; // ignore mobile keyboard/URL-bar jitter
+        lastVmin = vmin;
+        manager.destroy();
+        manager = makeManager(zoneEl, onChange, onEnd);
+    });
 }
 
 function setupHoldButton(el, onDown, onUp) {
@@ -223,7 +220,7 @@ export function initTouchControls(_canvas, hooks) {
           <button class="tool-cycle" id="tc-tool-prev" aria-label="Previous tool">&#8249;</button>
           <button class="tool-cycle" id="tc-tool-next" aria-label="Next tool">&#8250;</button>
         </div>
-        <div class="stick-zone" id="tc-move"><div class="stick-base"></div><div class="stick-knob"></div></div>
+        <div class="stick-zone" id="tc-move"></div>
       </div>
       <div class="cluster right">
         <div class="row">
@@ -237,7 +234,7 @@ export function initTouchControls(_canvas, hooks) {
           <button class="hold" id="tc-sprint">RUN</button>
           <button class="hold primary" id="tc-surf">SURF</button>
         </div>
-        <div class="stick-zone" id="tc-look"><div class="stick-base"></div><div class="stick-knob"></div></div>
+        <div class="stick-zone" id="tc-look"></div>
       </div>
       <button id="tc-settings" aria-label="Settings">&#9881;</button>
     `;
@@ -261,10 +258,8 @@ export function initTouchControls(_canvas, hooks) {
     window.addEventListener("gamepaddisconnected", updateGamepadVisibility);
 
     const moveZone = root.querySelector("#tc-move");
-    const moveKnob = moveZone.querySelector(".stick-knob");
     setupStick(
         moveZone,
-        moveKnob,
         (nx, ny, len) => {
             touchState.moveActive = len > STICK_DEADZONE;
             touchState.moveX = nx;
@@ -278,10 +273,8 @@ export function initTouchControls(_canvas, hooks) {
     );
 
     const lookZone = root.querySelector("#tc-look");
-    const lookKnob = lookZone.querySelector(".stick-knob");
     setupStick(
         lookZone,
-        lookKnob,
         (nx, ny, len) => {
             touchState.lookActive = len > STICK_DEADZONE;
             touchState.lookX = nx;

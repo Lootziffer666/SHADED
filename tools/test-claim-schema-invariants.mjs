@@ -176,13 +176,13 @@ for (const state of ['UNVERIFIED', 'VERIFIED', 'CONTRADICTED', 'STALE_NEEDS_RECH
 // A-0402: an unchanged document produces zero re-ingest work on the live corpus (delta-ingest,
 // not blind full reimport) -- exercised directly on the real, committed claim.db + corpus.
 {
+  // Check that claim.db's mtime is unchanged by a no-op re-run of build.py: capture the mtime
+  // before, run build.py exactly once, then check the mtime after -- not two separate runs.
+  const beforeMtime = fs.statSync(join(REPO_ROOT, 'claim.db')).mtimeMs;
   const result = spawnSync('python3', ['tools/claim-db/build.py'], {cwd: REPO_ROOT, encoding: 'utf8'});
   ok(result.status === 0, `A-0402: build.py runs cleanly against the live corpus (stderr: ${result.stderr || '(none)'})`);
-// Check that claim.db's mtime and row counts are unchanged after build.py:
-const beforeMtime = fs.statSync(join(REPO_ROOT, 'claim.db')).mtimeMs;
-const result = spawnSync('python3', ['tools/claim-db/build.py'], {cwd: REPO_ROOT, encoding: 'utf8'});
-const afterMtime = fs.statSync(join(REPO_ROOT, 'claim.db')).mtimeMs;
-ok(afterMtime <= beforeMtime + 1000, `A-0402: build.py does not mutate claim.db file metadata (mtime delta: ${afterMtime - beforeMtime}ms)`);
+  const afterMtime = fs.statSync(join(REPO_ROOT, 'claim.db')).mtimeMs;
+  ok(afterMtime <= beforeMtime + 1000, `A-0402: build.py does not mutate claim.db file metadata (mtime delta: ${afterMtime - beforeMtime}ms)`);
 }
 
 db.close();

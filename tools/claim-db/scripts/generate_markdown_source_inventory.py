@@ -45,18 +45,7 @@ def commit_sha() -> str:
 
 
 def title_for(path: Path) -> str:
-def main():
-    ...
-    for path in md_files:
-        rel = path.relative_to(ROOT).as_posix()
-        text = path.read_text(encoding="utf-8", errors="replace")
-        content_hash = sha256_text(text)
-        ...
-        new_entries.append({
-            ...
-            "title": title_for(text),
-            ...
-        })
+    text = path.read_text(encoding="utf-8", errors="replace")
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("#"):
