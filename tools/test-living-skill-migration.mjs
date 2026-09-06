@@ -71,7 +71,13 @@ for (const rel of trackedFiles) {
   }
 }
 ok(
-  stillReferencing.length === 0,
+const noOldRefs = stillReferencing.length === 0;
+ok(
+  noOldRefs,
+  noOldRefs
+    ? 'no tracked repo file (outside the canonical GOAL docs and the historical corpus ledger) still references the old shaded-geometry skill path'
+    : `still referencing the old path: ${stillReferencing.join(', ')}`,
+);
   stillReferencing.length === 0
     ? 'no tracked repo file (outside the canonical GOAL docs and the historical corpus ledger) still references the old shaded-geometry skill path'
     : `still referencing the old path: ${stillReferencing.join(', ')}`,

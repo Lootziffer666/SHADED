@@ -45,7 +45,18 @@ def commit_sha() -> str:
 
 
 def title_for(path: Path) -> str:
-    text = path.read_text(encoding="utf-8", errors="replace")
+def main():
+    ...
+    for path in md_files:
+        rel = path.relative_to(ROOT).as_posix()
+        text = path.read_text(encoding="utf-8", errors="replace")
+        content_hash = sha256_text(text)
+        ...
+        new_entries.append({
+            ...
+            "title": title_for(text),
+            ...
+        })
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("#"):
@@ -87,7 +98,11 @@ def main():
         if base_id not in latest_hash_by_base:
             source_id = base_id  # genuinely new path
         elif latest_hash_by_base[base_id] == content_hash:
-            source_id = base_id if base_id in existing_by_id else f"{base_id}-R{content_hash[:8].upper()}"
+elif latest_hash_by_base[base_id] == content_hash:
+    if base_id in existing_by_id:
+        continue  # already recorded as base -- nothing new to add
+    # base entry missing but content matches a known revision -- skip to avoid duplicate
+    continue
             # already recorded (as base or as a prior identical revision) -- nothing new to add
             if source_id in existing_by_id:
                 continue
