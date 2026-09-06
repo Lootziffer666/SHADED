@@ -1,0 +1,1 @@
+Cluster A extraction files created from retrieval summaries were invalid provenance and are being removed. Do not use summary hooks as claim evidence; only actual chat transcript content may seed claim extraction.
