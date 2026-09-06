@@ -30,6 +30,6 @@ ok(/^[0-9a-f]{40}$/.test(sha), `git rev-parse HEAD resolves to a real 40-hex-cha
 const mainJs = readFileSync(join(REPO_ROOT, 'src/main.js'), 'utf8');
 ok(mainJs.includes('commitSha: __SHADED_COMMIT_SHA__'), 'src/main.js reads __SHADED_COMMIT_SHA__ into its buildInfo');
 ok(mainJs.includes('buildTime: __SHADED_BUILD_TIME__'), 'src/main.js reads __SHADED_BUILD_TIME__ into its buildInfo');
-ok(/globalThis\.SNOWFLOW\s*=\s*\{[\s\S]{0,400}buildInfo/.test(mainJs), 'the debug handle (globalThis.SNOWFLOW) exposes buildInfo, so a running instance can be asked which commit it is');
+ok(/globalThis\.SHADED_RUNTIME\s*=\s*\{[\s\S]{0,400}buildInfo/.test(mainJs), 'the debug handle (globalThis.SHADED_RUNTIME) exposes buildInfo, so a running instance can be asked which commit it is');
 
 console.log('\n✅ Build/commit identifier: real git-derived SHA wired from vite.config.js through to the runtime debug handle');

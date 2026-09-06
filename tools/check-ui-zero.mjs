@@ -60,6 +60,7 @@ const behavior = [
   'tools/test-gpu-spatial.mjs',
   'tools/test-input-ownership.mjs',
   'tools/test-build-identifier.mjs',
+  'tools/test-legacy-grep-audit.mjs',
 ];
 
 for (const relative of behavior) {

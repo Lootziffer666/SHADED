@@ -127,7 +127,7 @@ const _mat = new Matrix();
 export class SandboxRenderer {
     /**
      * @param {import("@babylonjs/core/scene").Scene} scene
-     * @param {{heightAt(x:number,z:number):number}} terrain — the real Snowflow terrain
+     * @param {{heightAt(x:number,z:number):number}} terrain — the real SHADED terrain (src/terrain/terrain.js)
      * @param {{x?:number, z?:number}} [opts] world-space centre of the patch
      */
     constructor(scene, terrain, opts = {}) {

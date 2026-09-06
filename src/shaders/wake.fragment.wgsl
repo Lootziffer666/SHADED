@@ -63,7 +63,7 @@ uniform sssStrength: f32;
 uniform glintIntensity: f32;
 uniform glintGrazing: f32;
 uniform wakeTime: f32;
-/// Per-term diagnostic. See the switch at the bottom; `SNOWFLOW.wake.debug`.
+/// Per-term diagnostic. See the switch at the bottom; `SHADED_RUNTIME.wake.debug`.
 uniform wakeDebug: f32;
 
 uniform spellLightPos: array<vec4f, 4>;
