@@ -27,7 +27,7 @@ def check(name, condition, detail=""):
 # computes the normal impulse from the normal component of relative velocity alone, exactly the
 # textbook 1D two-body collision problem; the tangential/friction impulse is orthogonal to this
 # and handled separately below.
-m_a, m_b, va, vb, e = sp.symbols("m_a m_b v_a v_b e", real=True, positive=False)
+m_a_pos, m_b_pos = sp.symbols("m_a m_b", positive=True)
 m_a_pos, m_b_pos = sp.symbols("m_a m_b", positive=True)
 
 print("=== symbolic equivalence: two-body sequential impulse vs. the classical collision law ===")
