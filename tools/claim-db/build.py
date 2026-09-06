@@ -4,7 +4,8 @@
 Normal operation NEVER deletes/rebuilds claim.db. Each immutable corpus file is a
 small delta. Sources whose source_id + content_hash are already present are
 skipped. Migrations are idempotent so an empty checkout can still bootstrap the
-first database when needed.
+first database when needed. Tag deltas are independent metadata deltas and are
+applied idempotently without rewriting source imports.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DB = ROOT / "claim.db"
 MIGRATIONS = Path(__file__).resolve().parent / "migrations"
 CHAT_CORPUS = Path(__file__).resolve().parent / "corpus" / "chats"
+TAG_CORPUS = Path(__file__).resolve().parent / "corpus" / "tags"
 
 
 def sha256_text(text: str) -> str:
@@ -161,9 +163,36 @@ def sync() -> tuple[int, int]:
 
         inserted += 1
 
+    for path in sorted(TAG_CORPUS.glob("*.json")):
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        source_id = doc["source_id"]
+        if not con.execute(
+            "SELECT 1 FROM sources WHERE source_id = ?", (source_id,)
+        ).fetchone():
+            raise RuntimeError(f"tag delta references unknown source: {source_id} ({path.name})")
+
+        for tag in doc.get("source_tags", []):
+            con.execute(
+                "INSERT OR IGNORE INTO source_tags(source_id, tag) VALUES(?,?)",
+                (source_id, tag),
+            )
+
+        for claim_id, tags in doc.get("claim_tags", {}).items():
+            if not con.execute(
+                "SELECT 1 FROM claims WHERE claim_id = ?", (claim_id,)
+            ).fetchone():
+                raise RuntimeError(
+                    f"tag delta references unknown claim: {claim_id} ({path.name})"
+                )
+            for tag in tags:
+                con.execute(
+                    "INSERT OR IGNORE INTO claim_tags(claim_id, tag) VALUES(?,?)",
+                    (claim_id, tag),
+                )
+
     con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('project','SHADED')")
     con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('repo','Lootziffer666/SHADED')")
-    con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('schema_version','1')")
+    con.execute("INSERT OR REPLACE INTO db_meta(key,value) VALUES('schema_version','2')")
     con.execute(
         "INSERT OR REPLACE INTO db_meta(key,value) VALUES('sync','tools/claim-db/build.py')"
     )
