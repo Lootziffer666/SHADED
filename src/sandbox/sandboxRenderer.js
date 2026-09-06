@@ -76,7 +76,6 @@ import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 import { WorldSandboxRuntime } from "./world-sandbox-runtime.mjs";
 import { CELL_STRIDE, FIELD, srgbToLinear } from "./world-sandbox-reference.mjs";
-import { colorForCell } from "./world-sandbox-cpu-backend.mjs";
 
 const SIZE = 64; // field grid resolution
 // 80m — matches terrain/deformation.js's own COVERAGE constant, so the soil
@@ -567,20 +566,34 @@ export class SandboxRenderer {
             // R = height delta in metres, no LIFT — this is the real ground
             // now, sampled by Terrain's own shaders (see
             // Terrain.setSandboxWindow) exactly as sampleHeight() computes
-            // it for the character. GBA = ground colour, straight from the
-            // same field/colour law the old mesh used.
-            // colorForCell's coefficients (e.g. r = 73.977 + sand*1014.199) are
-            // additive/multiplicative and unclamped by design -- mode 1..7 debug views
-            // deliberately let them overshoot to make field magnitudes visible. Reachable field
-            // states (dune crest SAND=0.24, sand stamps, fire) push raw/255 past 1.0; clamped
-            // here, at the one place this colour stops being a debug value and becomes GBA texel
-            // data (EXECUTION_PLAN.md Task 1) -- not inside colorForCell, which must stay
-            // unclamped for its debug modes. colorForCell's return values are authored as
-            // sRGB-encoded bytes (WORLD_ARCHITECTURE.md's "sRGB -> Linear" open point), so after
-            // clamping they're decoded to real linear albedo before reaching
+            // it for the character.
+            //
+            // GBA = ground colour. This is deliberately NOT colorForCell(world, o, 0)'s full
+            // formula: that mix also tints from wetness/biomass/heat/ice/snowCoverage/ash/fire/
+            // smoke, and this window (a desert dune field, WORLD_GEN_OPTIONS.terrain === 'desert')
+            // has no business showing any of those -- ground here is sand, full stop. The old
+            // full mix let those secondary fields paint dark/blotchy patches over otherwise-flat
+            // dunes the moment any of them left zero (e.g. rain-driven wetness), which is exactly
+            // the "Kuhflecken" the player reported: high-contrast patches on the sand that have
+            // nothing to do with the terrain's own shape. Using just colorForCell's sand-driven
+            // base term keeps the tan shading that DOES belong (it still varies smoothly with
+            // dune height via the SAND field) and drops every modifier this window was never
+            // meant to render in the first place.
+            const sand = world[o + FIELD.SAND];
+            const rgb = [
+                73.977 + sand * 1014.199,
+                74.888 + sand * 653.572,
+                68.467 + sand * 270.685,
+            ];
+            // colorForCell's coefficients are additive/multiplicative and unclamped by design --
+            // mode 1..7 debug views deliberately let them overshoot to make field magnitudes
+            // visible. Reachable field states (dune crest SAND=0.24, sand stamps) push raw/255
+            // past 1.0; clamped here, at the one place this colour stops being a debug value and
+            // becomes GBA texel data (EXECUTION_PLAN.md Task 1). colorForCell's return values are
+            // authored as sRGB-encoded bytes (WORLD_ARCHITECTURE.md's "sRGB -> Linear" open
+            // point), so after clamping they're decoded to real linear albedo before reaching
             // snow.fragment.wgsl's linear PBR mix (EXECUTION_PLAN.md Task 2) -- clamp first,
             // decode second, since sRGB decode is only defined on the encoded [0,1] range.
-            const rgb = colorForCell(world, o, 0);
             tex[i * 4] = delta * HEIGHT_SCALE;
             tex[i * 4 + 1] = srgbToLinear(Math.min(1, Math.max(0, rgb[0] / 255)));
             tex[i * 4 + 2] = srgbToLinear(Math.min(1, Math.max(0, rgb[1] / 255)));
