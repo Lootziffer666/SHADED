@@ -16,7 +16,11 @@
  * (`snowSandbox` in `src/shaders/lib/sandbox.wgsl`), the exact pattern
  * footprints, the surf wake and every spell already use for
  * `terrain/deformation.js`'s state buffer — a proven single-mesh mechanism,
- * not a new one.
+ * not a new one. A second, smaller texture, `sandboxFieldTex` (R = FIELD.SNOW's
+ * own canonical value; see its own comment in `_buildSandboxTexture`), goes
+ * only to the beauty material — the renderer-facing auxiliary field container
+ * so real field magnitudes (not colour, not a derived proxy) reach the
+ * fragment shader's own material-property terms.
  *
  * Height is *also* the real ground for the character: `heightfield.js`'s
  * `heightAt` reads this same delta through an overlay hook
@@ -71,7 +75,7 @@ import { Vector3, Matrix, Quaternion } from "@babylonjs/core/Maths/math.vector";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 import { WorldSandboxRuntime } from "./world-sandbox-runtime.mjs";
-import { CELL_STRIDE, FIELD } from "./world-sandbox-reference.mjs";
+import { CELL_STRIDE, FIELD, srgbToLinear } from "./world-sandbox-reference.mjs";
 import { colorForCell } from "./world-sandbox-cpu-backend.mjs";
 
 const SIZE = 64; // field grid resolution
@@ -195,6 +199,21 @@ export class SandboxRenderer {
         // but clamping is the safe default regardless.
         this.sandboxTex.wrapU = Constants.TEXTURE_CLAMP_ADDRESSMODE;
         this.sandboxTex.wrapV = Constants.TEXTURE_CLAMP_ADDRESSMODE;
+
+        // Renderer-facing auxiliary field container (EXECUTION_PLAN.md Task 4) -- the first
+        // scalar SHADED field (FIELD.SNOW) exposed to the shader as its own real value instead of
+        // only baked into `colorForCell`'s colour. R = FIELD.SNOW's canonical value, unmodified;
+        // G/B/A are reserved for future independent scalar fields (e.g. FIELD.ICE) needing the
+        // same treatment -- packing a channel here later, not building a second texture. Same
+        // NEAREST/CLAMP reasoning as sandboxTex above (unfilterable rgba32float, hard-reset
+        // window, not a toroidal buffer).
+        this._fieldTexData = new Float32Array(n * 4);
+        this.sandboxFieldTex = RawTexture.CreateRGBATexture(
+            this._fieldTexData, size, size, this.scene,
+            false, false, Constants.TEXTURE_NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT
+        );
+        this.sandboxFieldTex.wrapU = Constants.TEXTURE_CLAMP_ADDRESSMODE;
+        this.sandboxFieldTex.wrapV = Constants.TEXTURE_CLAMP_ADDRESSMODE;
 
         // Per-cell bookkeeping the height sampling (both the texture upload
         // below and the CPU-side sampleHeight/heightAt overlay) is built
@@ -543,11 +562,29 @@ export class SandboxRenderer {
             // Terrain.setSandboxWindow) exactly as sampleHeight() computes
             // it for the character. GBA = ground colour, straight from the
             // same field/colour law the old mesh used.
+            // colorForCell's coefficients (e.g. r = 73.977 + sand*1014.199) are
+            // additive/multiplicative and unclamped by design -- mode 1..7 debug views
+            // deliberately let them overshoot to make field magnitudes visible. Reachable field
+            // states (dune crest SAND=0.24, sand stamps, fire) push raw/255 past 1.0; clamped
+            // here, at the one place this colour stops being a debug value and becomes GBA texel
+            // data (EXECUTION_PLAN.md Task 1) -- not inside colorForCell, which must stay
+            // unclamped for its debug modes. colorForCell's return values are authored as
+            // sRGB-encoded bytes (WORLD_ARCHITECTURE.md's "sRGB -> Linear" open point), so after
+            // clamping they're decoded to real linear albedo before reaching
+            // snow.fragment.wgsl's linear PBR mix (EXECUTION_PLAN.md Task 2) -- clamp first,
+            // decode second, since sRGB decode is only defined on the encoded [0,1] range.
             const rgb = colorForCell(world, o, 0);
             tex[i * 4] = delta * HEIGHT_SCALE;
-            tex[i * 4 + 1] = rgb[0] / 255;
-            tex[i * 4 + 2] = rgb[1] / 255;
-            tex[i * 4 + 3] = rgb[2] / 255;
+            tex[i * 4 + 1] = srgbToLinear(Math.min(1, Math.max(0, rgb[0] / 255)));
+            tex[i * 4 + 2] = srgbToLinear(Math.min(1, Math.max(0, rgb[1] / 255)));
+            tex[i * 4 + 3] = srgbToLinear(Math.min(1, Math.max(0, rgb[2] / 255)));
+
+            // Field container (EXECUTION_PLAN.md Task 4): FIELD.SNOW's own canonical value,
+            // unmodified -- not a colour, not a coverage curve derived from it. snow.fragment.wgsl
+            // applies whatever normalisation it needs for its own visual terms (SSS/glints/wrap);
+            // that is deriving visual detail FROM this value, not deriving the value itself from
+            // something else (colour, height, sandWeight) the way `nonSnow` used to.
+            this._fieldTexData[i * 4] = world[o + FIELD.SNOW];
 
             this._waterPositions[i * 3 + 1] = localBase + delta * HEIGHT_SCALE + water * WATER_HEIGHT_SCALE + LIFT + 0.01;
             const wVisible = water > WATER_THRESHOLD ? Math.min(1, 0.55 + water * 6) : 0;
@@ -557,6 +594,7 @@ export class SandboxRenderer {
             this._waterColors[i * 4 + 3] = wVisible;
         }
         this.sandboxTex.update(tex);
+        this.sandboxFieldTex.update(this._fieldTexData);
 
         this.water.updateVerticesData(VertexBuffer.PositionKind, this._waterPositions, true);
         this.water.updateVerticesData(VertexBuffer.ColorKind, this._waterColors, false);
@@ -678,6 +716,7 @@ export class SandboxRenderer {
 
     dispose() {
         this.sandboxTex.dispose();
+        this.sandboxFieldTex.dispose();
         this.water.dispose();
         this.veg.dispose();
         this.particleMesh.dispose();

@@ -132,6 +132,17 @@ const smoothstep = (a, b, value) => {
   return t * t * (3 - 2 * t);
 };
 
+// IEC 61966-2-1 sRGB electro-optical transfer function (decode). colorForCell()
+// (world-sandbox-cpu-backend.mjs) returns colour authored as sRGB-encoded 0..255 bytes -- the
+// domain WORLD_ARCHITECTURE.md's Journey-style section names explicitly ("sRGB -> Linear:
+// colorForCell-Werte kommen als 0..255 ... landen unverwandelt in linearer HDR-Pipeline ...
+// Konvertieren"). sandboxRenderer.js applies this after dividing by 255 and clamping to [0,1],
+// so the value written into sandboxTex's GBA channels is real linear albedo, matching the linear
+// PBR pipeline snow.fragment.wgsl mixes it into (see EXECUTION_PLAN.md Task 2).
+export function srgbToLinear(c) {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
 export function mulberry32(seed) {
   let value = seed >>> 0;
   return () => {

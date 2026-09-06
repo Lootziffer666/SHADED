@@ -202,6 +202,11 @@ SHADED TESTS:
   tools/test-single-view-room.py (drei Regressionsfälle: Referenzbild, 2x-Resize mit erwarteter
   Brennweitenverdopplung, Nicht-Manhattan-Bild mit korrektem `declined`/`UNKNOWN`-Fallback statt
   Absturz oder erfundenem Ergebnis).
+  tools/test-2d3d-roundtrip.py (`npm run verify:2d3d-roundtrip`) — der eigentliche
+  Forward/Inverse-Beweis: synthetische 3D-Kanten gegen einen unabhängig berechneten analytischen
+  Fluchtpunkt (exakt bei Rauschfreiheit, < 5 px bei 0,3 px Pixelrauschen), plus `restfehler_px`
+  auf dem echten `messehalle.png` (< 8 px, 31 tragende Linien) — schließt den Kreis auf echten
+  OBSERVED-Pixeln, nicht nur im synthetischen Idealfall.
 
 PROVENANCE-KLASSEN IM CODE:
   single_view_room.py definiert MEASURED/RECONSTRUCTED/DECLARED/UNKNOWN — eine Teilmenge PLUS
@@ -367,6 +372,40 @@ eine abgeleitete Größe (`moisture / pore_capacity`), kein eigenes gespeicherte
 Prinzip, dass Operatoren abgeleitete Größen berechnen, statt jede Ableitung zusätzlich zu
 speichern.
 
+## Kanonische Feldbedeutung vs. Speicherrepräsentation (Maintainer-Entscheidung, 2026-09-05)
+
+Der geparkte Bild→Generierung→Wettershowcase-Pfad (`runtime/*.mjs`) ist **kein Legacy und nicht
+optional** — er ist nur eingefroren, damit die Sandbox entstehen konnte (siehe CLAUDE.md's Status-
+Abschnitt, „parked, not dead"), und muss ihn später wieder dieselbe kanonische Welt lesen und
+darstellen können. Daraus folgt eine Entscheidung, die den WORLD_LANGUAGE-Audit oben eine Stufe
+weiterträgt, ohne die „Nicht jetzt"-Grenze darunter zu verletzen:
+
+- **`FIELD.SNOW` und die übrigen WORLD_LANGUAGE-Felder (`FIELD.WETNESS`, `FIELD.WATER`, …) sind ab
+  jetzt gemeinsame semantische Wahrheit.** Ihre Bedeutung (Bodenwassergehalt vs. Oberflächenwasser,
+  Einheiten, was „Schnee" als Zustand ausmacht) gilt für beide Subsysteme identisch — das ist
+  bereits, was der WORLD_LANGUAGE-Audit oben für `WETNESS`/`WATER`/`moisture`/`surface_water`
+  festgelegt hat, jetzt ausdrücklich als bindend markiert statt nur beobachtet.
+- **`CELL_STRIDE` selbst ist nur eine konkrete Speicherrepräsentation** (24 Floats, die im
+  geparkten WGSL-`Cell`-Struct zufällig exakt 6 `vec4`s ohne Restpadding füllen — ein
+  Implementierungsdetail, keine Bedeutung) und wird **nicht blind** in einen aktuell nicht
+  ausführbaren WGSL-Pfad hineingezogen, nur weil `src/`'s eigener Stride wächst. Unterschiedliche
+  interne Repräsentation zwischen Snowflow und der geparkten Engine ist erlaubt; unterschiedliche
+  Bedeutung ist es nicht.
+- **Vor Reaktivierung des geparkten Pfads** (nicht vorher, nicht spekulativ): er muss auf den dann
+  aktuellen World-State-Vertrag migriert und gegen die Sandbox getestet werden, auf — nicht mehr,
+  nicht weniger als — **Feldbedeutung, Einheiten, Material-IDs, Phasen, Provenienz und
+  Erhaltung** (letzteres z. B. Masse-/Energieerhaltung, wo eine Weltregel das für Snowflow bereits
+  behauptet, siehe `world sandbox: deterministic CA · mass-conserving sand/sediment`-Kommentar in
+  `tools/check-ui-zero.mjs`). Ein bestandener Vergleich auf diesen sechs Achsen ist die
+  DONE-Bedingung für die Migration, nicht „läuft wieder".
+
+Das ist eine Bedeutungs-/Vertrags-Entscheidung, keine Implementierung — sie ersetzt nicht die unten
+weiterhin gültige Feststellung, dass eine tatsächlich gemeinsame State-Repräsentation ein eigenes,
+hier nicht begonnenes Architekturprojekt ist. Sie legt nur fest, woran dieses Projekt gemessen wird,
+wenn es beginnt, und dass `CELL_STRIDE`s Erweiterung (EXECUTION_PLAN.md, „Blockiert" Punkt 2) bis
+dahin eine reine `src/`-Repräsentationsfrage bleibt, keine, die vorab Bedeutung für den geparkten
+Pfad festlegt.
+
 ## Nicht jetzt
 
 - **Eine gemeinsame State-Repräsentation zwischen Snowflow (Grid/CA, `FIELD.*`) und der
@@ -374,7 +413,9 @@ speichern.
   derselbe Code in beiden Richtungen ist statt zweimal derselben Idee, braucht es eine
   gemeinsame Zustandsschicht, über die beide Seiten sprechen können — ein eigenes
   Architekturprojekt, kein Dokumentationsschritt, und hier nicht angefangen. Der
-  WORLD_LANGUAGE-Audit oben legt nur die Namen fest, die diese künftige Schicht verwenden würde.
+  WORLD_LANGUAGE-Audit oben legt nur die Namen fest, die diese künftige Schicht verwenden würde;
+  die Entscheidung direkt darüber legt zusätzlich fest, dass diese Namen verbindliche Bedeutung
+  tragen, sobald das Projekt beginnt — nicht, dass es jetzt beginnt.
 - **Kontinuierliches, differenzierbares `argmin_x`.** Siehe Einschränkung 1 — kommt erst, wenn
   diskrete Hypothesenprüfung an ihre Grenze stößt, und dann mit eigener Prüfung (welcher Operator
   wird differenzierbar gebraucht, welche Kosten sind das).
@@ -390,11 +431,18 @@ speichern.
 1. ~~WORLD_LANGUAGE-Audit~~ — erledigt (siehe oben): nur die Begriffe geprüft, die heute bereits
    doppelt/anders heißen; `fields.moisture`/`surface_water` für den noch unimplementierten World
    Surface Graph festgelegt, bevor Code davon abhängt.
-2. Bereits bestehende Bausteine (siehe „bestehende SHADED-Strukturen" oben: `single_view_room.py`s
-   `vermessen`/`ransac_fluchtpunkt`, `window.SHADED.intrinsic`) als `OPERATOR`-Einträge
-   formalisieren — nichts Neues erfinden, nur Input/Output/Units/Provenance/Validity/
-   Forward/Inverse/Tests nachtragen.
-3. Ein echter 2D↔3D-Roundtrip: ein Zustand verlässt die 2D-Seite, wird in 3D repräsentiert/
-   angefasst, kommt semantisch identisch zurück (`forward(inverse(observed)) ≈ observed`, wie im
-   `rectify_plane_v1`-Beispiel oben skizziert) — als konkreter Beweis, nicht nur als Diagramm.
+2. ~~OPERATOR-Formalisierung~~ — erledigt (siehe „Bestehende Bausteine, jetzt als OPERATOR
+   formalisiert" oben): `vanishing_point_calibrate_v1`, `metric_calibrate_v1`,
+   `illumination_normalize_v1`.
+3. ~~Ein echter 2D↔3D-Roundtrip~~ — erledigt: `tools/test-2d3d-roundtrip.py`
+   (`npm run verify:2d3d-roundtrip`). Zwei Beweise, keiner davon zirkulär:
+   - **Synthetisch, exakt:** eine 3D-Richtung + Kamera → `FORWARD` (Lochkamera-Projektion) →
+     synthetische 2D-Kantenlinien → `INVERSE` (`ransac_fluchtpunkt`, unverändert) → rekonstruierter
+     Fluchtpunkt. Verglichen wird gegen einen **unabhängig** berechneten analytischen Fluchtpunkt
+     (`K · R · Richtung`, ohne jede RANSAC-/SVD-Maschinerie) — nicht gegen sich selbst. Ergebnis:
+     exakt 0,0000 px Abweichung in vier rauschfreien Kamerastellungen, < 5 px bei 0,3 px
+     Pixelrauschen über 80 Linien.
+   - **Real, auf echtem Bild:** `vermessen(messehalle.png, 0.6)`s eigenes `restfehler_px` — genau
+     `forward(inverse(observed)) ≈ observed` auf echten, verrauschten OBSERVED-Pixeln, nicht nur
+     im rauschfreien Idealfall — schließt auf < 8 px für 31 tragende Linien.
 4. Erst danach über eine gemeinsame State-Schicht oder Differenzierbarkeit nachdenken.

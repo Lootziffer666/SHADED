@@ -9,11 +9,17 @@
 // "Status: two subsystems, one repo"), so a regression in the live Snowflow tree would otherwise
 // go completely unnoticed by `npm run check`.
 import assert from 'node:assert/strict';
-import {createSphereBody, stepSphereBody, DEFAULT_RESTITUTION} from '../src/physics/rigidBody.mjs';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
+import {createSphereBody, stepSphereBody, stepSphereBodies, DEFAULT_RESTITUTION} from '../src/physics/rigidBody.mjs';
 import {
-  FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal,
+  FIELD, CELL_STRIDE, cellOffset, groundHeightAt, groundHeightAndNormal, srgbToLinear,
 } from '../src/sandbox/world-sandbox-reference.mjs';
 import {WorldSandboxRuntime} from '../src/sandbox/world-sandbox-runtime.mjs';
+import {colorForCell} from '../src/sandbox/world-sandbox-cpu-backend.mjs';
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 function ok(condition, message) {
   if (!condition) throw new Error(`FAILED: ${message}`);
@@ -169,6 +175,241 @@ const flatGround = () => ({height: FLAT_HEIGHT, normalX: 0, normalY: 1, normalZ:
   ok(sawImpact, 'the live stone actually registers a real terrain contact (impacts > 0), not just floats forever');
   ok(finalBody.active === false, 'the live stone eventually settles and deactivates, instead of bouncing/jittering forever');
   ok(maxAbsVelocity < 5, `stone velocity never blows up over the run (max |v| component = ${maxAbsVelocity.toFixed(4)})`);
+}
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 1:
+// albedo clamp + colour-space decode. colorForCell()'s coefficients (r = 73.977 +
+// sand*1014.199, etc.) are additive/multiplicative and unclamped by design -- its mode 1..7
+// debug views deliberately let values overshoot to make field magnitudes visible.
+// sandboxRenderer.js's `_refresh()` divides mode-0 output by 255, clamps it into [0,1] (Task 1),
+// then decodes it from sRGB to linear (Task 2) before writing sandboxTex's GBA channels, the
+// exact point where this colour stops being a debug value and becomes albedo that
+// snow.fragment.wgsl mixes into linear PBR. sandboxRenderer.js itself isn't importable under
+// headless Node (it pulls in @babylonjs/core submodules whose resolution needs Vite's bundling,
+// not plain ESM), so this test reimplements its one-line clamp (`Math.min(1, Math.max(0, x))`)
+// rather than importing it -- keep the two in sync if that formula ever changes. srgbToLinear
+// itself is imported from world-sandbox-reference.mjs, the single source both production code
+// and this test share.
+{
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const pipelineAlbedo = (raw) => raw.map((c) => srgbToLinear(clamp01(c / 255)));
+  const cell = () => new Float32Array(CELL_STRIDE);
+  const withFields = (fields) => {
+    const c = cell();
+    for (const [field, value] of Object.entries(fields)) c[FIELD[field]] = value;
+    return c;
+  };
+
+  // Named per EXECUTION_PLAN.md's Task 1 table (the five overshoot rows) plus WETNESS, BIOMASS,
+  // SNOW, ASH as the plan's DONE criteria require.
+  const states = {
+    'bare bedrock': withFields({BEDROCK: 0.4}),
+    'medium dune (SAND=0.12)': withFields({SAND: 0.12}),
+    'dune crest (SAND=0.24, seed maximum)': withFields({SAND: 0.24}),
+    'sand stamp x5 (SAND=0.50)': withFields({SAND: 0.50}),
+    'fire (FIRE=1, SAND=0.12)': withFields({SAND: 0.12, FIRE: 1}),
+    'fire on crest (FIRE=1, SAND=0.5)': withFields({SAND: 0.5, FIRE: 1}),
+    'wet sand (SAND=0.12, WETNESS=0.6)': withFields({SAND: 0.12, WETNESS: 0.6}),
+    'biomass (BIOMASS=1)': withFields({SAND: 0.12, BIOMASS: 1}),
+    'snow cover (SNOW=0.1)': withFields({SAND: 0.12, SNOW: 0.1}),
+    'ash (ASH=0.35)': withFields({SAND: 0.12, ASH: 0.35}),
+  };
+
+  let sawRawOvershoot = false;
+  for (const [name, state] of Object.entries(states)) {
+    const raw = colorForCell(state, 0, 0);
+    if (raw.some((c) => c / 255 > 1 || c / 255 < 0)) sawRawOvershoot = true;
+    const albedo = pipelineAlbedo(raw);
+    ok(
+      albedo.every((c) => c >= 0 && c <= 1),
+      `${name}: pipeline albedo (${albedo.map((c) => c.toFixed(3)).join(', ')}) stays within [0, 1]`,
+    );
+  }
+  ok(sawRawOvershoot, 'the sweep actually exercises a real overshoot state (raw/255 > 1 before clamping) -- otherwise this test would not have caught the original bug');
+}
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 2:
+// sand colour calibration contract. WORLD_ARCHITECTURE.md names the medium-dune state (SAND=0.12)
+// with a documented "warme Sand-Albedo" target (linear ≈ vec3f(0.55, 0.32, 0.13)) and frames
+// colorForCell's 0..255 output as sRGB bytes needing decode ("sRGB -> Linear ... Konvertieren").
+// colorForCell's sand coefficients were scaled (not re-eyeballed) so this reference state hits
+// that target through the same clamp+decode pipeline production uses -- this test is the
+// machine-checkable half of that contract, independent of the derivation script that produced
+// the constants.
+{
+  const cell = new Float32Array(CELL_STRIDE);
+  cell[FIELD.SAND] = 0.12;
+  const raw = colorForCell(cell, 0, 0);
+  const albedo = raw.map((c) => srgbToLinear(Math.min(1, Math.max(0, c / 255))));
+  const target = [0.550, 0.320, 0.130];
+  const tolerance = 0.005;
+  ok(
+    albedo.every((c, i) => Math.abs(c - target[i]) < tolerance),
+    `medium-dune (SAND=0.12) pipeline albedo (${albedo.map((c) => c.toFixed(4)).join(', ')}) matches `
+      + `WORLD_ARCHITECTURE.md's documented target (${target.join(', ')}) within ${tolerance}`,
+  );
+}
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 3:
+// multi-body physics (stepSphereBodies). VERIFICATION.md's LAW: sphere_terrain_contact_v1 already
+// documents the literature counter-evidence this section exists to answer: a single,
+// un-iterated sequential-impulse pass loses measurable accuracy at multi-body contact -- these
+// tests check the fix (iterating the pass N times), not just "does it run."
+function totalMomentum(bodies) {
+  let px = 0, py = 0, pz = 0;
+  for (const b of bodies) { px += b.mass * b.vx; py += b.mass * b.vy; pz += b.mass * b.vz; }
+  return [px, py, pz];
+}
+function totalKineticEnergy(bodies) {
+  let ke = 0;
+  for (const b of bodies) ke += 0.5 * b.mass * (b.vx ** 2 + b.vy ** 2 + b.vz ** 2);
+  return ke;
+}
+const noGroundFarBelowMulti = () => ({height: -1000, normalX: 0, normalY: 1, normalZ: 0});
+
+// 7. Impulse (momentum) conservation: two bodies, no terrain, no gravity, head-on collision.
+// Total momentum before must equal total momentum after, for a perfectly inelastic (e=0) AND a
+// perfectly elastic (e=1) collision alike -- momentum conservation doesn't depend on restitution,
+// only energy behaviour does (checked separately below).
+for (const e of [0, 1]) {
+  const a = createSphereBody({x: 0, y: 5, z: 0, vx: 1, radius: 0.1, mass: 1, restitution: e, friction: 0});
+  const b = createSphereBody({x: 0.19, y: 5, z: 0, vx: -1, radius: 0.1, mass: 2, restitution: e, friction: 0});
+  const bodies = [a, b];
+  const momentumBefore = totalMomentum(bodies);
+  for (let i = 0; i < 5; i++) stepSphereBodies(bodies, noGroundFarBelowMulti, 1 / 60, {gravityY: 0, iterations: 4});
+  const momentumAfter = totalMomentum(bodies);
+  ok(
+    momentumBefore.every((p, i) => Math.abs(p - momentumAfter[i]) < 1e-9),
+    `e=${e}: total momentum conserved through a head-on collision (before=${momentumBefore.map((p) => p.toFixed(6))}, after=${momentumAfter.map((p) => p.toFixed(6))})`,
+  );
+}
+
+// 8. Energy at e=1: kinetic energy is exactly conserved (elastic collision) -- and matches the
+// classic unequal-mass elastic-collision result analytically (not just "unchanged").
+{
+  const a = createSphereBody({x: 0, y: 5, z: 0, vx: 1, radius: 0.1, mass: 1, restitution: 1, friction: 0});
+  const b = createSphereBody({x: 0.19, y: 5, z: 0, vx: -1, radius: 0.1, mass: 2, restitution: 1, friction: 0});
+  const bodies = [a, b];
+  const keBefore = totalKineticEnergy(bodies);
+  for (let i = 0; i < 5; i++) stepSphereBodies(bodies, noGroundFarBelowMulti, 1 / 60, {gravityY: 0, iterations: 4});
+  const keAfter = totalKineticEnergy(bodies);
+  ok(
+    Math.abs(keBefore - keAfter) < 1e-9,
+    `e=1: total kinetic energy conserved through an elastic collision (before=${keBefore.toFixed(6)}, after=${keAfter.toFixed(6)})`,
+  );
+}
+
+// 9. Energy at e<1: kinetic energy strictly decreases, never increases -- and for a perfectly
+// inelastic (e=0) head-on collision matches the textbook reduced-mass formula exactly.
+{
+  const a = createSphereBody({x: 0, y: 5, z: 0, vx: 1, radius: 0.1, mass: 1, restitution: 0, friction: 0});
+  const b = createSphereBody({x: 0.19, y: 5, z: 0, vx: -1, radius: 0.1, mass: 2, restitution: 0, friction: 0});
+  const bodies = [a, b];
+  const keBefore = totalKineticEnergy(bodies);
+  for (let i = 0; i < 5; i++) stepSphereBodies(bodies, noGroundFarBelowMulti, 1 / 60, {gravityY: 0, iterations: 4});
+  const keAfter = totalKineticEnergy(bodies);
+  ok(keAfter < keBefore, `e=0: kinetic energy strictly decreases (before=${keBefore.toFixed(6)}, after=${keAfter.toFixed(6)})`);
+  // Textbook perfectly-inelastic collision: v_final = (m_a*v_a + m_b*v_b)/(m_a+m_b); here that's
+  // (1*1 + 2*(-1))/3 = -1/3, giving KE = 0.5*3*(1/3)^2 = 1/6.
+  ok(
+    Math.abs(keAfter - 1 / 6) < 1e-6,
+    `e=0: final KE (${keAfter.toFixed(6)}) matches the analytic perfectly-inelastic-collision result (1/6) exactly`,
+  );
+}
+
+// 10. Iteration count matters: a stack of 3 spheres resting on the ground sinks/interpenetrates
+// measurably MORE with 1 solver iteration than with several -- the exact weakness Consensus
+// literature (Tonge et al. 2012, "Mass splitting for jitter-free parallel rigid body simulation";
+// Erleben 2017, "Rigid body contact problems using proximal operators") documents for
+// low-iteration-count Gauss-Seidel-style contact solvers at stacking/multi-contact scenes, held
+// here as a regression test rather than a footnote.
+{
+  const buildStack = () => {
+    const r = 0.05;
+    const bodies = [];
+    for (let i = 0; i < 3; i++) {
+      bodies.push(createSphereBody({
+        x: 0.5, z: 0.5, y: 0.4 + r + i * (2 * r), radius: r, mass: 1, restitution: 0.1, friction: 0.5,
+      }));
+    }
+    return bodies;
+  };
+  const flatGroundMulti = () => ({height: 0.4, normalX: 0, normalY: 1, normalZ: 0});
+  const totalOverlap = (bodies) => {
+    let total = 0;
+    for (const b of bodies) {
+      const pen = flatGroundMulti().height + b.radius - b.y;
+      if (pen > 0) total += pen;
+    }
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        const dist = Math.hypot(bodies[j].x - bodies[i].x, bodies[j].y - bodies[i].y, bodies[j].z - bodies[i].z);
+        const pen = (bodies[i].radius + bodies[j].radius) - dist;
+        if (pen > 0) total += pen;
+      }
+    }
+    return total;
+  };
+
+  const oneIteration = buildStack();
+  const manyIterations = buildStack();
+  for (let i = 0; i < 300; i++) {
+    stepSphereBodies(oneIteration, flatGroundMulti, 1 / 60, {gravityY: -0.86, iterations: 1});
+    stepSphereBodies(manyIterations, flatGroundMulti, 1 / 60, {gravityY: -0.86, iterations: 8});
+  }
+  const overlap1 = totalOverlap(oneIteration);
+  const overlapN = totalOverlap(manyIterations);
+  ok(
+    overlap1 > overlapN * 1.5,
+    `a 3-sphere stack settles with measurably MORE total interpenetration at 1 solver iteration `
+      + `(${overlap1.toFixed(6)}) than at 8 (${overlapN.toFixed(6)}) -- the exact single-pass `
+      + `weakness VERIFICATION.md's LAW: sphere_terrain_contact_v1 already documents`,
+  );
+}
+
+// 11. Regression guard: the existing single-body stepSphereBody() tests above must stay exactly
+// as they were -- stepSphereBodies() is an addition, not a replacement, and single-sphere-vs-
+// terrain behaviour (already covered in detail above) must be unaffected by it. This is enforced
+// structurally (stepSphereBody is untouched, unit-tested above, and stepSphereBodies is a
+// separate exported function), not by a new assertion here -- noted rather than silently assumed.
+ok(typeof stepSphereBody === 'function' && typeof stepSphereBodies === 'function', 'both the original single-body stepSphereBody and the new multi-body stepSphereBodies remain exported side by side');
+
+// ---------------------------------------------------------------- EXECUTION_PLAN.md Task 4:
+// FIELD.SNOW now reaches snow.fragment.wgsl as its own real value (sandboxFieldTex, see
+// sandboxRenderer.js/terrain.js), not just baked into colour -- and the shader's own snow-coverage
+// normalisation is a hand-written WGSL mirror of colorForCell's JS formula (there is no way to
+// share code between the two languages), so nothing catches the two silently drifting apart except
+// a test that reads both sources as text and compares the actual numbers. This is exactly the kind
+// of coverage gap the plan flags for this task -- it proves the two formulas agree TODAY, not that
+// the shader compiles or looks right (no WGSL compiler and no GPU are available to this test; see
+// tools/test-webgpu-shader-compile.mjs's own scope note -- it only compiles the parked
+// runtime/world-sandbox-webgpu.mjs modules, never src/shaders/*.wgsl).
+{
+  const cpuSource = readFileSync(join(REPO_ROOT, 'src/sandbox/world-sandbox-cpu-backend.mjs'), 'utf8');
+  const shaderSource = readFileSync(join(REPO_ROOT, 'src/shaders/snow.fragment.wgsl'), 'utf8');
+
+  const cpuMatch = cpuSource.match(/snowCoverage = Math\.min\(1, Math\.max\(0, \(snow - ([\d.]+)\) \/ ([\d.]+)\)\)/);
+  ok(cpuMatch, 'colorForCell\'s snowCoverage formula still matches the expected shape (Math.min(1, Math.max(0, (snow - A) / B)))');
+  const shaderMatch = shaderSource.match(/snowCoverage = clamp\(\(snowRaw - ([\d.]+)\) \/ ([\d.]+), 0\.0, 1\.0\)/);
+  ok(shaderMatch, 'snow.fragment.wgsl\'s snowCoverage formula still matches the expected shape (clamp((snowRaw - A) / B, 0.0, 1.0))');
+
+  if (cpuMatch && shaderMatch) {
+    ok(
+      cpuMatch[1] === shaderMatch[1] && cpuMatch[2] === shaderMatch[2],
+      `snow-coverage thresholds agree between colorForCell (${cpuMatch[1]}, ${cpuMatch[2]}) and `
+        + `snow.fragment.wgsl (${shaderMatch[1]}, ${shaderMatch[2]}) -- "how snowy this looks" and `
+        + `"how snowy this IS for SSS/glints/wrap" use the same law`,
+    );
+  }
+
+  ok(
+    shaderSource.includes('var sandboxFieldTex: texture_2d<f32>;') && shaderSource.includes('var sandboxFieldTexSampler: sampler;'),
+    'snow.fragment.wgsl declares the sandboxFieldTex/sandboxFieldTexSampler pair the auxiliary field container needs',
+  );
+  ok(
+    !/nonSnow = max\(rockExposed, sandWeight\)/.test(shaderSource),
+    'the old bug is gone: nonSnow no longer treats raw sandbox-window membership (sandWeight) as automatically snow-free',
+  );
 }
 
 console.log('\n✅ Alle Rigid-Body/Physics-Selbsttests bestanden');

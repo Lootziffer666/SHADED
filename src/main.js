@@ -184,12 +184,13 @@ async function boot() {
     terrain.heightfield.setOverlaySampler(S.enableSandbox ? sandboxHeightOverlay : null);
     terrain.setSandboxWindow(
         S.enableSandbox ? sandbox.sandboxTex : null,
-        sandbox.origin.x, sandbox.origin.z, sandbox.windowSize
+        sandbox.origin.x, sandbox.origin.z, sandbox.windowSize,
+        S.enableSandbox ? sandbox.sandboxFieldTex : null
     );
     onChange("enableSandbox", (v) => {
         sandbox.setVisible(v);
         terrain.heightfield.setOverlaySampler(v ? sandboxHeightOverlay : null);
-        terrain.setSandboxWindow(v ? sandbox.sandboxTex : null, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize);
+        terrain.setSandboxWindow(v ? sandbox.sandboxTex : null, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize, v ? sandbox.sandboxFieldTex : null);
     });
 
     // Primary action (left mouse button, or a gamepad trigger — see
@@ -307,7 +308,7 @@ async function boot() {
             // After sandbox.update(): a re-centre this frame moves
             // sandbox.origin, and the terrain's shaders have to track it,
             // not the spot it used to be at.
-            terrain.setSandboxWindow(sandbox.sandboxTex, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize);
+            terrain.setSandboxWindow(sandbox.sandboxTex, sandbox.origin.x, sandbox.origin.z, sandbox.windowSize, sandbox.sandboxFieldTex);
         }
         const tVfx = performance.now();
 

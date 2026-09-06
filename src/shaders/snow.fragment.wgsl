@@ -94,6 +94,12 @@ uniform sandboxCenter: vec2f;
 uniform sandboxSize: f32;
 var sandboxTex: texture_2d<f32>;
 var sandboxTexSampler: sampler;
+/// Renderer-facing auxiliary field container (EXECUTION_PLAN.md Task 4) — R is FIELD.SNOW's own
+/// canonical value from the world-sandbox grid, unmodified (not colour, not a derived proxy).
+/// G/B/A are reserved for future independent scalar fields (e.g. FIELD.ICE); this shader only
+/// ever reads R today.
+var sandboxFieldTex: texture_2d<f32>;
+var sandboxFieldTexSampler: sampler;
 
 // Spell lights. See `lib/spellLights.wgsl`; zero-count on almost every frame.
 uniform spellLightPos: array<vec4f, 4>;
@@ -362,23 +368,40 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     // packed into this texture's GBA channels every frame) — not a
     // procedural guess the way the rock blend above is.
     var sandWeight = 0.0;
+    // How much of `sandWeight` should count as "not snow" for the downstream terms below —
+    // defaults to the full sandWeight (bare/sandy ground), but is pulled back toward 0 wherever
+    // the sandbox's own SNOW field says this cell actually IS snow-covered (see below). Previously
+    // this was just `sandWeight` unconditionally, which treated the entire sandbox window as
+    // permanently snow-free regardless of the live simulation's own FIELD.SNOW state — exactly the
+    // "derive the state from something else (here: mere window membership) instead of reading the
+    // canonical field" mistake EXECUTION_PLAN.md Task 4 exists to fix.
+    var sandNonSnow = 0.0;
     if (uniforms.sandboxSize > 0.0) {
         sandWeight = deformFalloff(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
+        sandNonSnow = sandWeight;
         if (sandWeight > 0.001) {
-            let sc = sandboxSampleBilinear(
-                sandboxTex, sandboxTexSampler,
-                sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize)
-            );
+            let sandUV = sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
+            let sc = sandboxSampleBilinear(sandboxTex, sandboxTexSampler, sandUV);
             albedo = mix(albedo, sc.gba, sandWeight);
             roughness = mix(roughness, 0.82, sandWeight);
             thickness = mix(thickness, 0.0, sandWeight);
+
+            // FIELD.SNOW's own canonical value (unmodified, from sandboxFieldTex.r) — the same
+            // 0.006..0.054 normalisation colorForCell (world-sandbox-cpu-backend.mjs) uses for its
+            // own snowCoverage blend, mirrored here deliberately so "how snowy this cell looks" and
+            // "how snowy this cell IS for the SSS/glint/wrap-diffuse terms below" agree with each
+            // other, not just each internally consistent with a different threshold.
+            let snowRaw = sandboxSampleBilinear(sandboxFieldTex, sandboxFieldTexSampler, sandUV).r;
+            let snowCoverage = clamp((snowRaw - 0.006) / 0.054, 0.0, 1.0);
+            sandNonSnow = sandWeight * (1.0 - snowCoverage);
         }
     }
 
-    // Rock and sandbox sand are both "this fragment isn't snow" for every
-    // downstream term keyed off that (wrap diffuse, subsurface, glints) —
-    // whichever is stronger here wins.
-    let nonSnow = max(rockExposed, sandWeight);
+    // Rock and sandbox ground are both "this fragment isn't snow" for every downstream term keyed
+    // off that (wrap diffuse, subsurface, glints) — whichever is stronger here wins. Sandbox ground
+    // only counts as non-snow in proportion to `sandNonSnow`, not the raw window membership
+    // `sandWeight` — a snow-covered cell inside the sandbox window keeps its snow look.
+    let nonSnow = max(rockExposed, sandNonSnow);
 
     // --- carved-snow surface state -----------------------------------------
     // Freshly displaced mass is the opposite of trodden snow: it has just been

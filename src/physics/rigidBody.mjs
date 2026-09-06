@@ -47,10 +47,18 @@ export function createSphereBody({
   x = 0, y = 0, z = 0,
   vx = 0, vy = 0, vz = 0,
   radius = 0.02,
+  mass = 1,
   restitution = DEFAULT_RESTITUTION,
   friction = DEFAULT_FRICTION,
 } = {}) {
-  return {x, y, z, vx, vy, vz, radius, restitution, friction, resting: false};
+  // invMass, not mass, is what every impulse formula below actually divides by (Catto's
+  // sequential-impulse derivation uses 1/m throughout so a zero-mass/infinite-mass body -- a
+  // static wall, here unused but kept for completeness -- drops out of the equations instead of
+  // dividing by zero). stepSphereBody (single-body vs. static terrain) never reads mass at all --
+  // the terrain has no mass of its own to weigh against, so this field is inert there and only
+  // matters once a body contacts another body via stepSphereBodies() below.
+  const invMass = mass > 0 ? 1 / mass : 0;
+  return {x, y, z, vx, vy, vz, radius, mass, invMass, restitution, friction, resting: false};
 }
 
 // Integrates one sphere body one fixed step against a heightfield ground and resolves contact.
@@ -147,4 +155,173 @@ export function stepSphereBody(body, groundSample, dt, {gravityY = -0.86, accelX
     normalY: ny,
     normalZ: nz,
   };
+}
+
+// -------------------------------------------------------------------------------------------
+// Multi-body extension (PHYSICS.md "Rigid Bodies + Contacts", the limitation this module's
+// terrain-only slice above named as its own open point). stepSphereBody() resolves one sphere
+// against a static, infinite-mass heightfield -- correct as far as it goes
+// (VERIFICATION.md's LAW: sphere_terrain_contact_v1), but that same law's own literature search
+// names exactly what breaks once bodies can hit EACH OTHER: a single, unrepeated pass of
+// sequential impulses loses measurable accuracy (angular velocity, energy) at multi-body/
+// multi-point contact versus either a real constraint solver or -- Catto/Box2D's own answer, and
+// the one this module takes -- iterating the same sequential-impulse pass over every contact
+// multiple times per step, so an impulse actually propagates through a stack instead of only
+// through whichever contact happened to be solved last.
+
+// Box2D's own default mixing rules for two DYNAMIC bodies meeting each other (stepSphereBody's
+// static-terrain case only ever reads one body's own restitution/friction, since the terrain has
+// none of its own to mix in): max() for restitution (the bouncier of the two dominates how a
+// first contact feels) and sqrt(a*b) for friction (a standard heuristic: already 1 if both are, 0
+// if either is frictionless, bounded appropriately in between).
+function mixRestitution(a, b) { return Math.max(a, b); }
+function mixFriction(a, b) { return Math.sqrt(Math.max(0, a) * Math.max(0, b)); }
+
+// One velocity-only impulse resolution between two dynamic bodies along `nx,ny,nz` (a unit
+// normal pointing from `a` to `b`). Reuses stepSphereBody's exact restitution-threshold
+// reasoning rather than assuming it transfers for free (EXECUTION_PLAN.md Task 3 flags this as
+// something to check): a resting contact re-penetrates by about |gravityY|*dt every step purely
+// because gravity integrates before contact response runs, and that argument doesn't care what is
+// on the other side of the contact -- a static heightfield or another dynamic sphere sitting
+// under the same gravity produces the same-sized spurious "impact" speed. The impulse-
+// conservation and elastic-energy tests in tools/test-world-sandbox-physics.mjs independently
+// confirm this doesn't corner-cut genuine collisions: their closing speeds sit far above this
+// threshold, so it never engages for them, only for gravity-driven resting contact.
+function resolvePairVelocity(a, b, nx, ny, nz, dt, gravityY) {
+  const invSum = a.invMass + b.invMass;
+  if (invSum <= 0) return 0; // two infinite-mass bodies -- nothing to solve
+  const relVelN = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny + (b.vz - a.vz) * nz;
+  if (relVelN >= 0) return 0; // already separating, nothing to do this pass
+  const impactSpeed = -relVelN;
+  const restitutionThreshold = Math.abs(gravityY) * dt * 2;
+  const restitution = impactSpeed > restitutionThreshold ? mixRestitution(a.restitution, b.restitution) : 0;
+
+  // Two-body sequential impulse (Catto): j = -(1+e) * relVelN / (invMassA + invMassB) -- the
+  // static-terrain formula in stepSphereBody is this exact equation with invMassB = 0 and the
+  // terrain's own velocity fixed at 0.
+  const j = -(1 + restitution) * relVelN / invSum;
+  a.vx -= j * nx * a.invMass; a.vy -= j * ny * a.invMass; a.vz -= j * nz * a.invMass;
+  b.vx += j * nx * b.invMass; b.vy += j * ny * b.invMass; b.vz += j * nz * b.invMass;
+
+  const rvx2 = b.vx - a.vx, rvy2 = b.vy - a.vy, rvz2 = b.vz - a.vz;
+  const vn2 = rvx2 * nx + rvy2 * ny + rvz2 * nz;
+  const tx = rvx2 - vn2 * nx, ty = rvy2 - vn2 * ny, tz = rvz2 - vn2 * nz;
+  const tangentSpeed = Math.hypot(tx, ty, tz);
+  if (tangentSpeed > 1e-9) {
+    // Coulomb friction cone, same as stepSphereBody's, but capped at the impulse that would fully
+    // cancel the remaining relative tangential velocity (tangentSpeed / invSum) rather than at
+    // tangentSpeed itself -- stepSphereBody's static-terrain cap of `tangentSpeed` is this same
+    // formula with invSum = 1 (unit body mass, infinite-mass terrain).
+    const friction = mixFriction(a.friction, b.friction);
+    const tangentImpulseFull = tangentSpeed / invSum;
+    const frictionImpulse = Math.min(friction * Math.abs(j), tangentImpulseFull);
+    const scale = frictionImpulse / tangentSpeed;
+    a.vx -= tx * scale * a.invMass; a.vy -= ty * scale * a.invMass; a.vz -= tz * scale * a.invMass;
+    b.vx += tx * scale * b.invMass; b.vy += ty * scale * b.invMass; b.vz += tz * scale * b.invMass;
+  }
+  return impactSpeed;
+}
+
+// Baumgarte positional correction for two dynamic bodies -- the two-body generalisation of
+// stepSphereBody's single-body correction: instead of moving the (infinite-mass) terrain, split
+// the correction between both bodies in proportion to their inverse mass, so a heavier body moves
+// less and the correction itself (a pure positional nudge, not an impulse) does not disturb
+// momentum.
+function correctPairPenetration(a, b, nx, ny, nz, penetration) {
+  const invSum = a.invMass + b.invMass;
+  if (invSum <= 0) return;
+  const correction = Math.max(0, penetration - PENETRATION_SLOP) * BAUMGARTE;
+  const moveA = correction * (a.invMass / invSum);
+  const moveB = correction * (b.invMass / invSum);
+  a.x -= nx * moveA; a.y -= ny * moveA; a.z -= nz * moveA;
+  b.x += nx * moveB; b.y += ny * moveB; b.z += nz * moveB;
+}
+
+// Advances an array of sphere bodies one fixed step, resolving both sphere-vs-ground and
+// sphere-vs-sphere contact. `iterations` (default 4) is the solver-iteration count Task 3 exists
+// to introduce: contacts are detected once per step against the post-integration positions, then
+// the same sequential-impulse pass runs over every contact `iterations` times (Gauss-Seidel style)
+// before positions are corrected once. iterations=1 reproduces the single-pass behaviour
+// VERIFICATION.md's LAW: sphere_terrain_contact_v1 already documents as measurably inaccurate at
+// multi-body contact; this function exists so a caller can choose a higher count instead.
+//
+// Bodies not currently touching anything (ground or another body) are simply left at their
+// gravity-integrated position/velocity, exactly as stepSphereBody leaves an airborne body.
+export function stepSphereBodies(bodies, groundSample, dt, {gravityY = -0.86, iterations = 4} = {}) {
+  for (const body of bodies) {
+    body.vy += gravityY * dt;
+    body.x += body.vx * dt;
+    body.y += body.vy * dt;
+    body.z += body.vz * dt;
+  }
+
+  const contacts = [];
+  for (let i = 0; i < bodies.length; i++) {
+    const body = bodies[i];
+    const ground = groundSample(body.x, body.z);
+    const penetration = ground.height + body.radius - body.y;
+    if (penetration > 0) {
+      contacts.push({kind: 'ground', a: i, nx: ground.normalX, ny: ground.normalY, nz: ground.normalZ, penetration});
+    }
+  }
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i], b = bodies[j];
+      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+      const dist = Math.hypot(dx, dy, dz);
+      const penetration = (a.radius + b.radius) - dist;
+      if (penetration > 0 && dist > 1e-9) {
+        contacts.push({kind: 'pair', a: i, b: j, nx: dx / dist, ny: dy / dist, nz: dz / dist, penetration});
+      }
+    }
+  }
+
+  const lastImpactSpeed = new Array(bodies.length).fill(0);
+  for (let iter = 0; iter < iterations; iter++) {
+    for (const c of contacts) {
+      if (c.kind === 'ground') {
+        const body = bodies[c.a];
+        const relVelN = body.vx * c.nx + body.vy * c.ny + body.vz * c.nz;
+        if (relVelN >= 0) continue;
+        const impactSpeed = -relVelN;
+        const restitutionThreshold = Math.abs(gravityY) * dt * 2;
+        const restitution = impactSpeed > restitutionThreshold ? body.restitution : 0;
+        const j = -(1 + restitution) * relVelN;
+        body.vx += j * c.nx; body.vy += j * c.ny; body.vz += j * c.nz;
+
+        const vn2 = body.vx * c.nx + body.vy * c.ny + body.vz * c.nz;
+        const tx = body.vx - vn2 * c.nx, ty = body.vy - vn2 * c.ny, tz = body.vz - vn2 * c.nz;
+        const tangentSpeed = Math.hypot(tx, ty, tz);
+        if (tangentSpeed > 1e-9) {
+          const frictionImpulse = Math.min(body.friction * j, tangentSpeed);
+          const scale = frictionImpulse / tangentSpeed;
+          body.vx -= tx * scale; body.vy -= ty * scale; body.vz -= tz * scale;
+        }
+        lastImpactSpeed[c.a] = impactSpeed;
+      } else {
+        const impactSpeed = resolvePairVelocity(bodies[c.a], bodies[c.b], c.nx, c.ny, c.nz, dt, gravityY);
+        if (impactSpeed > 0) { lastImpactSpeed[c.a] = impactSpeed; lastImpactSpeed[c.b] = impactSpeed; }
+      }
+    }
+  }
+
+  // Positional correction runs once per contact, using the penetration measured at detection
+  // time -- iterating this too would fight the velocity solve itself; one pass matches
+  // stepSphereBody's own single-body behaviour exactly for the ground case.
+  for (const c of contacts) {
+    if (c.kind === 'ground') {
+      const body = bodies[c.a];
+      const correction = Math.max(0, c.penetration - PENETRATION_SLOP) * BAUMGARTE;
+      body.x += c.nx * correction; body.y += c.ny * correction; body.z += c.nz * correction;
+    } else {
+      correctPairPenetration(bodies[c.a], bodies[c.b], c.nx, c.ny, c.nz, c.penetration);
+    }
+  }
+
+  const restitutionThreshold = Math.abs(gravityY) * dt * 2;
+  for (let i = 0; i < bodies.length; i++) {
+    bodies[i].resting = lastImpactSpeed[i] > 0 && lastImpactSpeed[i] <= restitutionThreshold;
+  }
+
+  return {contactCount: contacts.length};
 }

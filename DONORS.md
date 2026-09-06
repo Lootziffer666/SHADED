@@ -1,8 +1,10 @@
 # Donors
 
-Companion to [`WORLD_ARCHITECTURE.md`](./WORLD_ARCHITECTURE.md).
+Companion to [`WORLD_ARCHITECTURE.md`](./WORLD_ARCHITECTURE.md) and [`GOAL.md`](./GOAL.md).
 
-Sechs feste Donors, jeder mit genau einer Rolle. Die Ebene-Spalte ist verbindlich — Rendering, Solver und Habitat werden nicht durcheinandergeworfen.
+> **Scope note:** The six entries below are the fixed **water / weather / fire** donor set. They are not the complete SHADED donor universe. The binding cross-domain donor registry (Snow/UI, terrain/material, reconstruction, runtime/editor, physics/solver, graph/composer, animation and additional high-priority donor clusters) lives in `GOAL.md` and must be audited together with this file. A donor is a source of behaviour/technique/reference, never an implicit runtime owner.
+
+Sechs feste Donors für diesen Domänenblock, jeder mit genau einer Rolle. Die Ebene-Spalte ist verbindlich — Rendering, Solver und Habitat werden nicht durcheinandergeworfen.
 
 **Shader-Übersetzung:** GLSL/WGSL-Übertragung aus den Donor-Repos läuft über [fragcoor.xyz](https://fragcoor.xyz) — kein manueller Port nötig.
 
@@ -26,4 +28,4 @@ Nicht „noch mehr Wasser", sondern die anderen hydrologischen Zustände:
 
 **Fluss/Strömung → Grund-/Sickerwasser → Schlamm/Nassboden → Eis/Schnee → Küsteninteraktion.**
 
-Dafür wird nicht wieder auf Donor-Jagd gegangen. Diese sechs reichen, um Wasser + Wetter + Feuer als zusammenhängendes System zu definieren.
+Dafür wird nicht wieder auf Donor-Jagd gegangen. Diese sechs reichen, um Wasser + Wetter + Feuer als zusammenhängendes System zu definieren. Andere bereits festgelegte SHADED-Donors für Solver/Material/Runtime/Reconstruction bleiben davon unberührt und werden im `GOAL.md`-Registry geführt.

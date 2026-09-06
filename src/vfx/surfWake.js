@@ -414,8 +414,6 @@ export class SurfWake {
             const ampR = base * clampRange(0.45 + 0.55 * biasR, 0.05, 1.0);
             // A wall that is barely there does not curl; a hard carve throws snow
             // far enough over that the lip hangs back across its own face.
-            // A wall that is barely there does not curl; a hard carve throws snow
-            // far enough over that the lip hangs back across its own face.
             const curlL = clampRange(0.42 + 0.58 * biasL, 0.26, 1.0);
             const curlR = clampRange(0.42 + 0.58 * biasR, 0.26, 1.0);
 

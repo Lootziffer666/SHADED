@@ -13,6 +13,7 @@
     "verify:world-sandbox": "node tools/test-world-sandbox-runtime.mjs && node tools/test-world-sandbox.mjs",
     "verify:physics": "node tools/test-world-sandbox-physics.mjs",
     "verify:math": "for f in tools/math-verify/*.py; do python3 \"$f\" || exit 1; done",
+    "verify:2d3d-roundtrip": "python3 tools/test-single-view-room.py && python3 tools/test-2d3d-roundtrip.py",
     "materials:freestylized": "node tools/freestylized-materials.mjs all --resolution 1k",
     "materials:freestylized:catalog": "node tools/freestylized-materials.mjs catalog",
     "materials:freestylized:sync": "node tools/freestylized-materials.mjs sync --resolution 1k"

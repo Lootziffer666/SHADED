@@ -222,6 +222,80 @@ nicht mehr ignorierbar — dann entweder mehrere Solver-Iterationen pro Schritt 
 tatsächliche Sequential-Impulse-Praxis es vorsieht) oder gezielt gegen ETI/QP-Alternativen prüfen,
 bevor die einfache Ein-Iterations-Version einfach linear auf N Körper hochskaliert wird.
 
+## Worked Example: `rigidBody.mjs`s Mehrkörper-Erweiterung (EXECUTION_PLAN.md Task 3)
+
+Die oben angekündigte nächste Stufe — jetzt tatsächlich umgesetzt (2026-09-05):
+`stepSphereBodies()`/`resolvePairVelocity()` in `src/physics/rigidBody.mjs` lösen Kugel-gegen-
+Kugel-Kontakt mit beiden inversen Massen im Nenner und iterieren N-mal pro Schritt über alle
+Kontakte (Gauss-Seidel-artig), statt wie die Einzelkörper-Version nur einmal.
+
+```
+LAW: sphere_sphere_contact_v1
+
+SOURCE:
+Zwei-Körper-Sequential-Impulse (Erin Catto-Linie, Box2D/Bullet), Box2D-artige Mixing-Regeln für
+Restitution (max) und Reibung (sqrt(a·b)) zwischen zwei dynamischen Körpern, Baumgarte-
+Positionskorrektur aufgeteilt nach inverser Masse, N Solver-Iterationen pro Schritt statt einer.
+
+CONSENSUS:
+Die in `LAW: sphere_terrain_contact_v1` bereits gefundene Gegenevidenz (Ein-Iterations-Sequential-
+Impulse verliert bei Mehrkörper-/Mehrpunkt-Kontakt an Genauigkeit) wird hier direkt adressiert, mit
+zusätzlich gezielt gesuchter Literatur zur Iterationszahl selbst: Tonge et al. 2012, "Mass
+splitting for jitter-free parallel rigid body simulation" (ACM TOG, 85 Zitationen) — Projected-
+Gauss-Seidel-artige Solver zeigen bei zu wenigen Iterationen sichtbares Jitter nahe Ruhezuständen,
+weil die Konvergenz vor Erreichen der Lösung abgebrochen wird; Erleben 2017, "Rigid body contact
+problems using proximal operators" (ACM SIGGRAPH/Eurographics SCA, 33 Zitationen) — beweist
+Konvergenz für PROX-Iterationsschemata (Jacobi- und geblockte Gauss-Seidel-Varianten) und findet
+die Gauss-Seidel-Variante insbesondere bei strukturierten Stapel-Szenarien überlegen. Beide stützen
+direkt, was Task 3 als Regressionstest festhält: ein Stapel aus mehreren Kugeln dringt bei 1
+Solver-Iteration pro Schritt messbar tiefer ineinander ein als bei mehreren — nicht nur eine
+Vermutung, sondern die von der Literatur beschriebene Eigenschaft dieser Solver-Klasse. GEGENEVIDENZ
+wurde hier nicht neu gesucht (sie steht bereits im `sphere_terrain_contact_v1`-Block); dieser Block
+adressiert sie, ersetzt sie aber nicht — echte Constraint-basierte QP-Löser oder ETI blieben
+ungeprüfte Alternativen, absichtlich außerhalb des Umfangs von PHYSICS.md's "kein gigantischer
+Physics-Engine-Rewrite".
+
+MATH_VERIFICATION (implementer: SymPy 1.14, tools/math-verify/sphere_sphere_contact_v1.py):
+symbolic equivalence  PASS — die Zwei-Körper-Impulsformel j = -(1+e)·v_rel,n / (1/m_a+1/m_b)
+                       reduziert sich exakt auf die klassische Stoßformel mit Restitution
+                       (unabhängig aus Impulserhaltung + Restitutionsdefinition hergeleitet, nicht
+                       aus der Implementierung kopiert).
+boundary conditions   PASS — e=0 liefert für beide Körper dieselbe Geschwindigkeit (Verschmelzen,
+                       exakt die massegewichtete Schwerpunktsgeschwindigkeit); e=1 bei gleichen
+                       Massen tauscht die Geschwindigkeiten exakt (Newton's-Cradle-Fall);
+                       Reibungs-„Friction Cone" — dieselbe Monotonie-Argumentation wie im
+                       Einzelkörper-Fall, jetzt mit dem verallgemeinerten Cap
+                       tangentSpeed/(1/m_a+1/m_b) statt tangentSpeed.
+numerical reference   PASS — Impulserhaltung ist für JEDES e identisch Null bewiesen (nicht nur an
+                       Stichproben getestet); Energieverlust pro Kontakt entspricht exakt der
+                       Standardformel (1/2)·reduzierte_Masse·(1-e²)·(Relativgeschwindigkeit)²;
+                       Newton's-Cradle-Zahlenbeispiel (m_a=m_b=1, v_a=2, v_b=0, e=1 → v_a'=0,
+                       v_b'=2) bestätigt.
+approximation error   PASS — geerbt von `sphere_terrain_contact_v1`, nicht neu hergeleitet: dieselbe
+                       semi-implizite-Euler-Integration, unverändert durch die Frage, wogegen ein
+                       Körper kontaktiert.
+dimensional sanity    PASS — (1-e²) ist auf [0,1] monoton fallend (Ableitung -2e ≤ 0 dort) mit
+                       Minimum 0 bei e=1 → Energieverlust ist für jedes e in [0,1] nachweisbar ≥ 0
+                       (kein Energiezugewinn möglich), nicht nur an den Rändern geprüft.
+
+CONTEXT7:
+N/A — weiterhin reines Vanilla-JS, keine externe Physics-Engine-API.
+
+SHADED TESTS:
+tools/test-world-sandbox-physics.mjs — Impulserhaltung (e=0 und e=1), Energieerhaltung bei e=1,
+Energieabnahme + analytischer Referenzwert bei e=0, und der Iterationszahl-Regressionstest (Stapel
+aus 3 Kugeln, 1 vs. 8 Iterationen, > 1.5× mehr Gesamtüberlappung bei 1 Iteration) — in
+`npm run check` verdrahtet.
+tools/math-verify/sphere_sphere_contact_v1.py (analytischer Beweis, npm run verify:math).
+```
+
+**Bewusst nicht angefasst:** Die bestehende Einzelkörper-Funktion `stepSphereBody()` bleibt
+unverändert (eigene Funktion, eigene Tests, weiterhin grün) — `stepSphereBodies()` ist eine
+Ergänzung für den Mehrkörper-Fall, keine Ablösung. Ein echter Constraint-Solver oder ETI wurde
+nicht eingeführt; die hier gewählte Antwort (mehrfach iterieren) ist exakt die von der oben
+zitierten Literatur beschriebene und von `LAW: sphere_terrain_contact_v1` bereits benannte
+Minimallösung.
+
 ## Wann die Kette übersprungen werden darf
 
 - Reine Rendering-/Optik-Entscheidungen ohne physikalischen Anspruch (Farbgebung, Stil) — dafür
