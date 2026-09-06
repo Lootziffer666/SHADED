@@ -59,6 +59,10 @@ EVIDENCE = {
     "A-0511": ("GOAL_ALFRED.md A-0500", "tools/claim-db/gap_query.py --about/--file/--unverified/--old-owners", "tools/test-gap-query.mjs"),
     "A-0512": ("GOAL_ALFRED.md A-0500", "gap_query.py output: Claim-ID + Forderungsquelle + STATUS + Evidence + betroffene Dateien/Symbole per claim", "tools/test-gap-query.mjs"),
     "A-0808": ("GOAL_ALFRED.md A-0800", "gap_query.py names missing evidence and points at real claim_targets files/symbols for a chosen scope", "tools/test-gap-query.mjs"),
+    "G-1801": ("GOAL_WORLD.md Sec.18", "index.html is the sole tracked canonical UI root; all other *.html files are named, isolated exceptions", "tools/test-single-canonical-ui.mjs"),
+    "G-1803": ("GOAL_WORLD.md Sec.18", "no editor/ tree, no gui.html, no exempt research page wired into index.html", "tools/test-single-canonical-ui.mjs + tools/verify-no-legacy-ui.mjs + tools/verify-no-legacy-ui-meta.mjs"),
+    "G-1805": ("GOAL_WORLD.md Sec.18", "index.html contains no authored button/input/select/textarea/nav/aside control", "tools/verify-no-legacy-ui.mjs"),
+    "G-1806": ("GOAL_WORLD.md Sec.18", "index.html: 1 <script type=module> importing /src/main.js, <300 lines", "tools/test-single-canonical-ui.mjs"),
 }
 
 # GOAL_WORLD.md section -> (start line marker, DEFERRED reason) for the sections Section 31
@@ -139,6 +143,12 @@ def main():
     for display_id, rid, filename, section, deferred in all_rows:
         if rid in EVIDENCE:
             doc, code, test = EVIDENCE[rid]
+            for cell in (doc, code, test):
+                if "|" in cell:
+                    raise ValueError(
+                        f"{rid}: EVIDENCE cell contains a raw '|', which corrupts the markdown "
+                        f"table row (test-audit-report.mjs splits rows on '|'): {cell!r}"
+                    )
             status = "PASS"
             pass_count += 1
             detail = "See DOC/CODE/TEST columns."
