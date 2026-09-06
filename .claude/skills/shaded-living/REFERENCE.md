@@ -1,9 +1,12 @@
----
-name: shaded-geometry
-description: AKTIV. Vollständige Methodik zum kurzen Eintragspunkt in SKILL.md — Denkgrammatik (OBSERVE→…→VERIFY), Relations-/Operatorvokabular, Vier Wahrheiten, Constraint-Value-Heuristik, Perceptual Geometry, PREPARE FOR EXTENSION, die Drei Wissenszustände und der Failure-Driven-Growth-Loop, ein nach Problem statt Fachgebiet sortiertes Seed-Curriculum.
----
+# SHADED Geometry — vollständige Methodik (Geometry/Spatial Construction-Modul von `shaded-living`)
 
-# SHADED Geometry — vollständige Methodik
+Vollständige Methodik zum kurzen Eintragspunkt in `SKILL.md` — Denkgrammatik
+(OBSERVE→…→VERIFY), Relations-/Operatorvokabular, Vier Wahrheiten, Constraint-Value-Heuristik,
+Perceptual Geometry, PREPARE FOR EXTENSION, die Drei Wissenszustände und der
+Failure-Driven-Growth-Loop, ein nach Problem statt Fachgebiet sortiertes Seed-Curriculum.
+
+Kein eigener Skill-Eintragspunkt: nur `SKILL.md` (im selben Verzeichnis) trägt die für die
+Skill-Discovery relevante Frontmatter.
 
 ## 0. Herkunft und Selbstbeschränkung
 

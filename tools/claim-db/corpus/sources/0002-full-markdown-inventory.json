@@ -2158,6 +2158,125 @@
         "markdown",
         "full-corpus-inventory"
       ]
+    },
+    {
+      "source_id": "SRC-DOC-BF106B2374B92283",
+      "source_key": "doc:.claude/skills/shaded-living/REFERENCE.md",
+      "path": ".claude/skills/shaded-living/REFERENCE.md",
+      "title": "SHADED Geometry — vollständige Methodik (Geometry/Spatial Construction-Modul von `shaded-living`)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "06b24e412eed22a876b5939ff6ac4ea460aa0478b3406b141e27b1814d5fddac",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D5CAA1563EE8079A",
+      "source_key": "doc:.claude/skills/shaded-living/RULES.md",
+      "path": ".claude/skills/shaded-living/RULES.md",
+      "title": "SHADED Geometry — Regelgedächtnis",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e251197e85278291c6b4d5cd64297051ee03eaaf426482f4264644f3652de21d",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D7EB320CCAAE6598",
+      "source_key": "doc:.claude/skills/shaded-living/SKILL.md",
+      "path": ".claude/skills/shaded-living/SKILL.md",
+      "title": "SHADED Living Skill — projektweites, failure-getriebenes Regelgedächtnis",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b1a02769a8a4885cb4274f6a312e923b0457f1d2fbbedd6a34929a08e967c7af",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-C05B0E81130FBA65",
+      "source_key": "doc:AUDIT_REPORT.md",
+      "path": "AUDIT_REPORT.md",
+      "title": "AUDIT_REPORT.md — GOAL.md / GOAL_ALFRED.md / GOAL_FOUNDATION.md / GOAL_WORLD.md",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "77b6a0165df3c07b349f6b4a796f05236625b1a492a892c91af78c4c8349cf99",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-4CB5B78B1B62189A",
+      "source_key": "doc:FOUNDATION_DONOR_REGISTRY.md",
+      "path": "FOUNDATION_DONOR_REGISTRY.md",
+      "title": "FOUNDATION_DONOR_REGISTRY.md — Repo-Dorfältester donor pins (GOAL_FOUNDATION.md 0B)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "72896b0a05c7d6f30d005e0ffd15e1d9927b6b7f9b79df23bcc146428f33a57c",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-414AFE1250E3A473-R0ED51B5D",
+      "source_key": "doc:docs/geometry-library/README.md",
+      "path": "docs/geometry-library/README.md",
+      "title": "SHADED Geometry Library",
+      "source_type": "DOC",
+      "revision": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "0ed51b5ddc3c759e9c8577f65ed9110813a2b53a148005c59fc10c3232f0ded0",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-75850DABC1D1A1D2-RAB8941C9",
+      "source_key": "doc:docs/village-site-plan-reference/README.md",
+      "path": "docs/village-site-plan-reference/README.md",
+      "title": "Village Site-Plan Reference",
+      "source_type": "DOC",
+      "revision": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ab8941c9533b3fd132a831443c3d592b512840326f0a13316c302a41208264db",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
     }
   ]
 }

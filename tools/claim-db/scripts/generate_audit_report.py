@@ -95,6 +95,8 @@ EVIDENCE = {
     "A-0803": ("GOAL_ALFRED.md A-0800", "C-BOOT-0002-NEW SUPERSEDES C-BOOT-0001-OLD (real commit ec32657) with commit-level provenance; old claim retained; gap_query.py --resolve walks the chain to current truth", "tools/test-claim-supersession.mjs"),
     "A-0807": ("GOAL_ALFRED.md A-0800", "C-INPUT-0001 (claim.db) VERIFIED only via positive+NEGATIVE_ABSENCE evidence; sand-ownership cross-check proves the invariant is not vacuous", "tools/test-verification-discipline.mjs"),
     "F-0205": ("GOAL_FOUNDATION.md 0B", "FOUNDATION_DONOR_REGISTRY.md + its claim.db entries (the only Graph/Memory/Wiki-adjacent artifact that exists) scanned clean of secret/token/credential patterns", "tools/test-foundation-donor-registry.mjs"),
+    "F-0310": (".claude/skills/shaded-geometry -> shaded-living", "old dir gone, new dir + SKILL.md name=shaded-living, all live references migrated (negative-checked)", "tools/test-living-skill-migration.mjs"),
+    "F-0311": (".claude/skills/shaded-living/SKILL.md", "Geometry/Spatial Construction named as a retained module; OBSERVE..VERIFY grammar content preserved intact", "tools/test-living-skill-migration.mjs"),
 }
 
 # Maintainer-approved addition (2026-09-06): a fourth STATUS, POLICY, for rows that describe a

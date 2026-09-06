@@ -73,6 +73,7 @@ const behavior = [
   'tools/test-claim-supersession.mjs',
   'tools/test-foundation-donor-registry.mjs',
   'tools/test-claim-schema-invariants.mjs',
+  'tools/test-living-skill-migration.mjs',
 ];
 
 for (const relative of behavior) {

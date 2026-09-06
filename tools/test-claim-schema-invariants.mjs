@@ -89,6 +89,21 @@ except RuntimeError as e:
   rmSync(scratchDir, {recursive: true, force: true});
 }
 
+// A-0104 (real, not just synthetic): editing docs/geometry-library/README.md and
+// docs/village-site-plan-reference/README.md this session actually exercised versioning, not just
+// the raise -- the ORIGINAL entry for each path is still present with its OLD content_hash, and a
+// NEW, deterministically content-hash-suffixed entry exists for the current content. Both
+// queryable; neither overwritten.
+const revisionRows = db.prepare("SELECT source_id, path, content_hash FROM sources WHERE source_id LIKE '%-R%'").all();
+ok(revisionRows.length >= 2, `A-0104: at least 2 real revision entries exist from actual edits this session (found ${revisionRows.length})`);
+for (const rev of revisionRows) {
+  const baseId = rev.source_id.split('-R')[0];
+  const base = db.prepare('SELECT content_hash FROM sources WHERE source_id=?').get(baseId);
+  ok(base !== undefined, `A-0104: revision ${rev.source_id}'s base entry ${baseId} still exists (original never deleted)`);
+  ok(base.content_hash !== rev.content_hash, `A-0104: revision ${rev.source_id} has a DIFFERENT content_hash than its retained original ${baseId} (real edit, not a duplicate)`);
+  ok(rev.source_id === `${baseId}-R${rev.content_hash.slice(0, 8).toUpperCase()}`, `A-0104: revision id ${rev.source_id} is deterministically derived from content_hash (re-running the generator reproduces the same id, not a random/incrementing one)`);
+}
+
 // A-0105: claim_sources rows carry a precise anchor/source_location, not just a bare filename.
 const missingAnchor = db.prepare("SELECT claim_source_id FROM claim_sources WHERE anchor IS NULL OR source_location IS NULL").all();
 ok(missingAnchor.length === 0, `A-0105: every claim_sources row has a non-null anchor and source_location (found ${missingAnchor.length} missing)`);
