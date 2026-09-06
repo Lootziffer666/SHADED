@@ -2,20 +2,22 @@
 
 > **Bindende Reihenfolge.** Diese Datei ist absichtlich klein. Die ausführlichen Anforderungen liegen in zwei Dokumenten und werden in exakt dieser Reihenfolge abgearbeitet:
 >
-> 1. [`GOAL_FOUNDATION.md`](GOAL_FOUNDATION.md) — Claude-Code-Harness, Repo-Dorfältester, Living Skill.
+> 1. [`GOAL_FOUNDATION.md`](GOAL_FOUNDATION.md) — Claude-Code-Harness, Repo-Dorfältester, projektweiter Living Skill und failure-getriebene Reference Library.
 > 2. [`GOAL_WORLD.md`](GOAL_WORLD.md) — vollständiger SHADED Canon zu Ownership, Snowflow-Absorption, World/Surface, Sand, Physics, Hydrology, Reconstruction, UI, Verification usw.
 >
 > **Kein World-/Runtime-/Snowflow-/Surface-Goal darf als abgeschlossen gelten, solange die Foundation nicht bestanden ist.**
 
-## Gate 0 — zuerst das Repo selbst arbeitsfähig machen
+## Gate 0 — zuerst das Repo selbst arbeitsfähig und erinnerungsfähig machen
 
 - [ ] **G-0000** `GOAL_FOUNDATION.md` vollständig lesen und **jede `F-xxxx`-Anforderung** umsetzen und einzeln verifizieren.
 - [ ] **G-0001** Claude-Code-Control-Plane/Hooks/Scopes so aufbauen, dass Regeln nicht nur dokumentiert, sondern deterministisch durchgesetzt werden.
 - [ ] **G-0002** Den Repo-Dorfältesten als ein System aus **Graphify + codebase-memory-mcp + MemWiki** etablieren: Strukturbeziehungen, persistente Code-Erfahrung und lesbares Warum/Entscheidungswissen; aktuelle Primärevidenz bleibt immer Autorität.
 - [ ] **G-0003** Den bestehenden `.claude/skills/shaded-geometry`-Mechanismus zum **projektweiten Living Skill** generalisieren, ohne seine Geometry-/Spatial-Construction-Denkgrammatik zu verlieren.
 - [ ] **G-0004** Der Living Skill bleibt failure-getrieben: kleiner CORE, `CANDIDATE → Gegenproben → LEARNED`, Herkunft/Evidence, keine Wissens-Enzyklopädie und kein Literatur-Bulk-Import.
-- [ ] **G-0005** Die bestehende Reference Library wird problemorientiert über Geometry hinaus erweitert; die bereits benannten Scenic-Painting-/Perspective-/Set-Construction-/Matte-Painting-/VFX-/Film-Nachschlagewerke werden legal indiziert und nur bei konkretem Wissensloch konsultiert.
-- [ ] **G-0006** Foundation-Self-Test bestehen: falsches „done“ wird blockiert; ein früherer Regression-Fall ist über Dorfältesten-Preflight auffindbar; ein realer Failure kann durch Living Skill gelernt oder verworfen und danach wieder abgerufen werden.
+- [ ] **G-0005** Die bestehende Reference Library wird problemorientiert über Geometry hinaus erweitert. Bereits identifizierte Regale umfassen Scenic Painting/Bühnenmalerei, Perspective/Drawing, Architectural/Descriptive Geometry, Set Construction, Matte Painting/VFX, Film/Cinematography sowie fachliche Regale für Materials/Surface, Physics, Hydrology, Atmosphere/Light, Vegetation/Life, Reconstruction/Providers, Performance/Backends und Verification.
+- [ ] **G-0006** Die Reference Library unterscheidet explizit **Implementation-derived Donors** von **Literature-derived Core**. Für Physics werden als bereits benannte Seed-Quellen geführt: Christer Ericson — *Real-Time Collision Detection*; Baraff/Witkin + moderne iterative Constraint-Solver-Literatur; Erin Catto — Sequential Impulses; Müller et al. — Position Based Dynamics; Macklin et al. — XPBD; PBF/PBD für Fluid-/Unified-Particle-Interaction. Weitere Literatur zu granular matter, fracture, soil mechanics, snow, cloth, vegetation mechanics und multiphase coupling wird nur bei realem Failure ergänzt.
+- [ ] **G-0007** Bereits benannte visuelle Nachschlagewerke werden legal indiziert und failure-getrieben konsultiert: Scott Robertson — *How to Draw*; Craig Barron/Mark Cotta Vaz — *The Invisible Art*; David B. Mattingly — *The Digital Matte Painting Handbook*; *The VES Handbook of Visual Effects*; Eran Dinur — *The Filmmaker's Guide to Visual Effects*; Steven D. Katz — *Film Directing: Shot by Shot*.
+- [ ] **G-0008** Foundation-Self-Test bestehen: falsches „done“ wird blockiert; ein früherer Regression-Fall ist über Dorfältesten-Preflight auffindbar; ein realer Failure kann durch Living Skill gelernt oder verworfen und danach wieder abgerufen werden.
 
 ### Gate-0-Härte
 
@@ -23,8 +25,13 @@
 CLAUDE HARNESS
       +
 REPO-DORFÄLTESTER
+  Graphify + codebase-memory-mcp + MemWiki
       +
 LIVING SKILL
+  shared learning loop + domain shelves
+      +
+REFERENCE LIBRARY
+  implementation-derived + literature-derived
       +
 SELF-TEST
       ↓
@@ -55,15 +62,19 @@ Nach Foundation-PASS:
 2. LIVING-SKILL RETRIEVAL
    existing CORE/LEARNED rules · relevant reference shelf only if needed
 
-3. IMPLEMENT
+3. KNOWLEDGE ESCALATION ONLY IF NEEDED
+   implementation donor OR literature-derived core, chosen by the actual failure
+
+4. IMPLEMENT
    active path, not parallel side-path
 
-4. VERIFY
+5. VERIFY
    positive proof + negative proof + real runtime where relevant
 
-5. STORE
+6. STORE
    verified experience → Dorfältester
    generalizable verified rule → Living Skill
+   new source → Reference Library index with provenance/license
 ```
 
 ## Abschlussbericht — Pflicht
