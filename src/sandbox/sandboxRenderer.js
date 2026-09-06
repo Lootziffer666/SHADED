@@ -254,9 +254,13 @@ export class SandboxRenderer {
         mesh.isPickable = false;
         mesh.renderingGroupId = 2;
 
+        // No Babylon Light exists anywhere in this scene (terrain and character are lit by their
+        // own custom WGSL shaders instead) -- a lit StandardMaterial with nothing to multiply
+        // against renders flat black, not its diffuseColor. disableLighting + emissiveColor make
+        // this mesh self-illuminating the same way sandboxParticleMat/sandboxCursorMat already are.
         const mat = new StandardMaterial("sandboxWaterMat", this.scene);
-        mat.diffuseColor = new Color3(0.14, 0.42, 0.5);
-        mat.specularColor = new Color3(0.5, 0.55, 0.6);
+        mat.disableLighting = true;
+        mat.emissiveColor = new Color3(0.14, 0.42, 0.5);
         mat.hasVertexAlpha = true;
         mat.backFaceCulling = false;
         mesh.material = mat;
@@ -271,9 +275,10 @@ export class SandboxRenderer {
             "sandboxVeg", { diameterTop: 0, diameterBottom: 0.18, height: 1, tessellation: 5 }, this.scene
         );
         cone.position.copyFrom(this.origin);
+        // Same "no scene Light exists" reasoning as sandboxWaterMat above.
         const mat = new StandardMaterial("sandboxVegMat", this.scene);
-        mat.diffuseColor = new Color3(0.16, 0.42, 0.14);
-        mat.specularColor = new Color3(0.02, 0.02, 0.02);
+        mat.disableLighting = true;
+        mat.emissiveColor = new Color3(0.16, 0.42, 0.14);
         cone.material = mat;
         cone.renderingGroupId = 1;
         cone.thinInstanceCount = 0;
@@ -298,8 +303,10 @@ export class SandboxRenderer {
 
     _buildStone() {
         const sphere = MeshBuilder.CreateSphere("sandboxStone", { diameter: 0.7, segments: 8 }, this.scene);
+        // Same "no scene Light exists" reasoning as sandboxWaterMat above.
         const mat = new StandardMaterial("sandboxStoneMat", this.scene);
-        mat.diffuseColor = new Color3(0.35, 0.36, 0.34);
+        mat.disableLighting = true;
+        mat.emissiveColor = new Color3(0.35, 0.36, 0.34);
         sphere.material = mat;
         sphere.renderingGroupId = 1;
         sphere.isPickable = false;
