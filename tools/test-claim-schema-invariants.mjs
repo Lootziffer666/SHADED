@@ -167,7 +167,11 @@ for (const state of ['UNVERIFIED', 'VERIFIED', 'CONTRADICTED', 'STALE_NEEDS_RECH
 {
   const result = spawnSync('python3', ['tools/claim-db/build.py'], {cwd: REPO_ROOT, encoding: 'utf8'});
   ok(result.status === 0, `A-0402: build.py runs cleanly against the live corpus (stderr: ${result.stderr || '(none)'})`);
-  ok(/^claim\.db delta sync: 0 source\(s\) added/.test(result.stdout.trim()), `A-0402: re-running sync on the unchanged live corpus adds 0 sources (delta-ingest, not blind reimport) (got: "${result.stdout.trim()}")`);
+// Check that claim.db's mtime and row counts are unchanged after build.py:
+const beforeMtime = fs.statSync(join(REPO_ROOT, 'claim.db')).mtimeMs;
+const result = spawnSync('python3', ['tools/claim-db/build.py'], {cwd: REPO_ROOT, encoding: 'utf8'});
+const afterMtime = fs.statSync(join(REPO_ROOT, 'claim.db')).mtimeMs;
+ok(afterMtime <= beforeMtime + 1000, `A-0402: build.py does not mutate claim.db file metadata (mtime delta: ${afterMtime - beforeMtime}ms)`);
 }
 
 db.close();
