@@ -387,7 +387,12 @@ ok(typeof stepSphereBody === 'function' && typeof stepSphereBodies === 'function
 {
   const cpuSource = readFileSync(join(REPO_ROOT, 'src/sandbox/world-sandbox-cpu-backend.mjs'), 'utf8');
   const shaderSource = readFileSync(join(REPO_ROOT, 'src/shaders/snow.fragment.wgsl'), 'utf8');
-
+// Extract the numeric thresholds and compare them directly:
+const cpuThresholds = cpuSource.match(/snowCoverage = Math\.min\(1, Math\.max\(0, \(snow - ([\d.]+)\) \/ ([\d.]+)\)\)/);
+const shaderThresholds = shaderSource.match(/snowCoverage = clamp\(\(snowRaw - ([\d.]+)\) \/ ([\d.]+), 0\.0, 1\.0\)/);
+if (cpuThresholds && shaderThresholds) {
+  ok(cpuThresholds[1] === shaderThresholds[1] && cpuThresholds[2] === shaderThresholds[2], ...);
+}
 // Extract the numeric thresholds and compare them directly:
 const cpuThresholds = cpuSource.match(/snowCoverage = Math\.min\(1, Math\.max\(0, \(snow - ([\d.]+)\) \/ ([\d.]+)\)\)/);
 const shaderThresholds = shaderSource.match(/snowCoverage = clamp\(\(snowRaw - ([\d.]+)\) \/ ([\d.]+), 0\.0, 1\.0\)/);
