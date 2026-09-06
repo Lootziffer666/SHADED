@@ -68,6 +68,7 @@ EVIDENCE = {
     "A-0802": ("GOAL_ALFRED.md A-0800", "detect_conflicts.py proves CONFLICT from 5 conditions (not ID-duplication alone) on the real GOAL.md/GOAL_WORLD.md G-0006 collision; negative case (SUPERSEDES-resolved shared symbol) confirmed not flagged", "tools/test-claim-conflict.mjs"),
     "A-0803": ("GOAL_ALFRED.md A-0800", "C-BOOT-0002-NEW SUPERSEDES C-BOOT-0001-OLD (real commit ec32657) with commit-level provenance; old claim retained; gap_query.py --resolve walks the chain to current truth", "tools/test-claim-supersession.mjs"),
     "A-0807": ("GOAL_ALFRED.md A-0800", "C-INPUT-0001 (claim.db) VERIFIED only via positive+NEGATIVE_ABSENCE evidence; sand-ownership cross-check proves the invariant is not vacuous", "tools/test-verification-discipline.mjs"),
+    "F-0205": ("GOAL_FOUNDATION.md 0B", "FOUNDATION_DONOR_REGISTRY.md + its claim.db entries (the only Graph/Memory/Wiki-adjacent artifact that exists) scanned clean of secret/token/credential patterns", "tools/test-foundation-donor-registry.mjs"),
 }
 
 # GOAL_WORLD.md section -> (start line marker, DEFERRED reason) for the sections Section 31

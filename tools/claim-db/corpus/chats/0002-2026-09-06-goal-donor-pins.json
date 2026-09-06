@@ -1,0 +1,16 @@
+{
+  "source": {
+    "source_id": "SRC-CHAT-20260906-0552-001",
+    "source_key": "chat:SHADED:2026-09-06T05:52:00+00:00:goal-donor-pins",
+    "path": "chat://SHADED/2026-09-06T05:52:00+00:00/goal-donor-pins",
+    "title": "Maintainer /goal: Foundation donor upstream pins + A-0802/A-0803 rigor correction",
+    "source_type": "CHAT_EXPORT",
+    "revision": "v1",
+    "commit_sha": null,
+    "author_role": "maintainer",
+    "content_hash": "bfdcaf00dc4a68ae45583fb88563fe64366698b9fef46209c7065ce1ac09e524",
+    "ingested_at": "2026-09-06T05:53:00+00:00"
+  },
+  "raw_text": "2026-09-06T05:52:00+00:00 | maintainer (via /goal)\nweiter, hier ein paar fehlende Infos:\n\nCanonical donor:\nGRAPHIFY_UPSTREAM=https://github.com/Graphify-Labs/graphify\nMEMWIKI_UPSTREAM=https://github.com/hereisSwapnil/memwiki\nCODEBASE_MEMORY_MCP_UPSTREAM=https://github.com/DeusData/codebase-memory-mcp\n\nResolved snapshot:\n<exact SHA used during implementation>\n\nPolicy:\nUpstream is an implementation donor, not a runtime dependency.\nAfter ingestion, Alfret/Shaded owns the integrated implementation.\nNo automatic upstream updates.\nNo runtime dependency on donor repositories.\nRequired license / copyright / NOTICE provenance remains intact.\n\nBei A-0802 / CONFLICT reicht nicht:\nG-0006 exists twice\n-> CONFLICT\nSondern Alfret sollte beweisen, warum es ein Konflikt ist:\nsame Claim-ID\ndifferent source\ndifferent semantic assertion\nboth active\nno supersession relation\n-> CONFLICT\nSonst wird spaeter jede harmlose ID-Duplikation automatisch zum Konflikt.\nDasselbe bei SUPERSEDES:\nnewer claim exists\nist nicht genug.\nEs sollte eine echte Beziehung geben wie:\nold claim\n-> replaced by\n-> new claim\n-> with provenance\n-> old claim retained historically\n-> current truth resolves to new claim\n",
+  "claims": []
+}
