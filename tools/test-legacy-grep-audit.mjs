@@ -92,4 +92,12 @@ for (const c of classifications) {
   ok(hits.length > 0, `"${c.term}" -- classified ${c.classification}: ${c.reason} (${hits.length} file(s))`);
 }
 
-console.log('\n✅ Legacy-grep audit: every term on GOAL_WORLD.md Section 29\'s list is either gone from user-facing/entry-point identity, or explicitly classified as history-provenance, material-specific, generic, current-sole-owner, or a logged open item -- none left unclassified');
+// 3. Terms from the same list that should have zero hits outright -- no classification needed
+// because there is nothing here to classify.
+for (const term of ['legacy editor', 'compatibility UI', 'hidden UI', 'private material state', 'private wind', 'private temperature']) {
+  const pattern = new RegExp(term, 'i');
+  const hits = readAll().filter(({text}) => pattern.test(text));
+  ok(hits.length === 0, `"${term}" -- zero hits in src/ and index.html (nothing to classify)`);
+}
+
+console.log('\n✅ Legacy-grep audit: every term on GOAL_WORLD.md Section 29\'s list is either gone from user-facing/entry-point identity, genuinely absent, or explicitly classified as history-provenance, material-specific, generic, current-sole-owner, or a logged open item -- none left unclassified');
