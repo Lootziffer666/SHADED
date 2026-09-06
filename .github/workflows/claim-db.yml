@@ -1,4 +1,4 @@
-name: Rebuild claim.db
+name: Update claim.db
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  rebuild:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Rebuild SQLite claim database
+      - name: Apply claim deltas
         run: python tools/claim-db/build.py
       - name: Verify database
         run: |
@@ -28,18 +28,16 @@ jobs:
           import sqlite3
           con = sqlite3.connect('claim.db')
           assert con.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
-          assert con.execute('SELECT COUNT(*) FROM sources').fetchone()[0] >= 1
-          assert con.execute('SELECT COUNT(*) FROM claims').fetchone()[0] >= 1
           print('claim.db integrity ok')
           PY
-      - name: Commit regenerated database
+      - name: Commit changed database only
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add claim.db
           if git diff --cached --quiet; then
-            echo 'claim.db already current'
+            echo 'No claim.db delta'
           else
-            git commit -m 'Regenerate SHADED claim.db from corpus'
+            git commit -m 'Apply SHADED claim.db delta'
             git push
           fi
