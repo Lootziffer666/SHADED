@@ -148,7 +148,12 @@ function makeManager(zoneEl, onChange, onEnd) {
         restOpacity: 0.6,
     });
     manager.on("move", (_evt, data) => {
-        const len = Math.min(1, data.force || 0);
+        // `force` is a separate, distance/size-derived "strength" metric that isn't guaranteed
+        // to sit in a clean 0..1 range at ordinary deflection -- the deadzone check needs the
+        // vector's OWN magnitude (nipplejs already clamps vector.x/y to a unit circle, exactly
+        // like the old hand-rolled stick's post-clamp nx/ny), or a normal touch can read as
+        // permanently below STICK_DEADZONE and movement/look never activates at all.
+        const len = Math.min(1, Math.hypot(data.vector.x, data.vector.y));
         onChange(data.vector.x, data.vector.y, len);
     });
     manager.on("end", onEnd);
