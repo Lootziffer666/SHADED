@@ -1,0 +1,52 @@
+{
+  "evidence": [
+    {
+      "evidence_id": "EV-SAND-0001-CODE",
+      "claim_id": "C-SAND-0001",
+      "evidence_kind": "CODE",
+      "repo_path": "src/shaders/snow.fragment.wgsl",
+      "symbol": "worldDefaultSandDepth / worldDefaultSnowCoverage",
+      "commit_sha": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "checked_at": "2026-09-06T05:20:00+02:00",
+      "checked_commit": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "result": "PARTIAL",
+      "details": "The shader's default material authority (previously Snowflow's own rockMask texture, aux.z, applied unconditionally and only ever describing the sandbox's local 80m window's surroundings) was replaced with a real SHADED-owned world-state parameter pair. rockExposed is now (1.0 - worldDefaultSandDepth) * slopeExposure instead of rockMask * slopeExposure; the base albedo before any override is mix(sandAlbedo, rockColDefault, rockExposed) mixed toward snow only by worldDefaultSnowCoverage, replacing an unconditional snow-white base. This closes the MISSING_IMPLEMENTATION gap named in F-SAND-0001-MISSING at the code level: the claim 'all visible ground must be sand' is now something SHADED's own code can make true everywhere the sandbox window has no data, not just inside it. NOT yet full VERIFIED: this is source-code + unit-test evidence only (see EV-SAND-0001-TEST); no real browser/GPU runtime screenshot exists yet (this environment's headless WebGPU crashes on a real scene boot, not just shader compilation -- see F-SAND-0003-EVIDENCE, still open). Per A-0301/A-0302, code+test evidence alone does not promote a visible-runtime claim to VERIFIED."
+    },
+    {
+      "evidence_id": "EV-SAND-0001-TEST",
+      "claim_id": "C-SAND-0001",
+      "evidence_kind": "TEST",
+      "repo_path": "tools/test-world-sandbox-physics.mjs",
+      "test_id": "GOAL_WORLD.md Section 5/6 default-surface-state sweep",
+      "commit_sha": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "checked_at": "2026-09-06T05:20:00+02:00",
+      "checked_commit": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "result": "PASS",
+      "details": "Mirrors the shader's own default-material formula (mix/clamp on plain numbers, since this repo has no WGSL compiler for src/shaders/*.wgsl at all) and asserts: at Terrain's own constructor defaults (worldDefaultSandDepth=1, worldDefaultSnowCoverage=0), a fragment with N.y in {1.0, 0.8, 0.5, 0.1, 0.0} (flat to vertical) classifies as pure sand (rockExposed=0, albedo exactly the Task-2-calibrated (0.550,0.320,0.130)) -- independent of slope and independent of any sandbox window's position/existence. Also proves the two parameters are real switches (worldDefaultSandDepth=0 on a vertical face does expose rock; worldDefaultSnowCoverage=1 does activate snow), not dead code. Run: node tools/test-world-sandbox-physics.mjs (wired into npm run check via tools/check-ui-zero.mjs)."
+    },
+    {
+      "evidence_id": "EV-SAND-0002-CODE",
+      "claim_id": "C-SAND-0002",
+      "evidence_kind": "CODE",
+      "repo_path": "src/shaders/snow.fragment.wgsl",
+      "symbol": "sandNonSnow / nonSnow",
+      "commit_sha": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "checked_at": "2026-09-06T05:20:00+02:00",
+      "checked_commit": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "result": "PARTIAL",
+      "details": "Inside the sandbox window, real per-cell FIELD.SAND/FIELD.SNOW state now REPLACES (mix by sandWeight) the default classification rather than being max()'d against Snowflow's independent rockExposed -- previously a steep synthetic slope inside the window could still force 'rock' shading terms even where the live simulation said otherwise, because rockExposed was computed from Snowflow's own bake-time texture and combined via max(), not replaced. The sandbox's own per-cell data is now the sole authority wherever its window is active, matching 'visible sand must be the ground material itself, not a thin visual layer over visible rock'. Same NOT-yet-VERIFIED caveat as EV-SAND-0001-CODE: code+test only, no GPU/browser confirmation yet."
+    },
+    {
+      "evidence_id": "EV-SAND-0002-TEST",
+      "claim_id": "C-SAND-0002",
+      "evidence_kind": "TEST",
+      "repo_path": "tools/test-world-sandbox-physics.mjs",
+      "test_id": "old-bug-regex-absence + rockMask-usage-absence checks",
+      "commit_sha": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "checked_at": "2026-09-06T05:20:00+02:00",
+      "checked_commit": "4f782028817ce4917d03aa28079d5161efc15f63",
+      "result": "PASS",
+      "details": "Asserts snow.fragment.wgsl no longer reads/uses Snowflow's rockMask as material authority (textual absence of `let rockMask =` / `rockMask *`), and that rockExposed is computed from uniforms.worldDefaultSandDepth. Does not and cannot prove the rendered pixel result without a GPU (see F-SAND-0003-EVIDENCE)."
+    }
+  ]
+}

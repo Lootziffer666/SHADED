@@ -10,6 +10,7 @@ CHAT_CORPUS = Path(__file__).resolve().parent / "corpus" / "chats"
 SOURCE_CORPUS = Path(__file__).resolve().parent / "corpus" / "sources"
 EXTRACTION_CORPUS = Path(__file__).resolve().parent / "corpus" / "extractions"
 TAG_CORPUS = Path(__file__).resolve().parent / "corpus" / "tags"
+EVIDENCE_CORPUS = Path(__file__).resolve().parent / "corpus" / "evidence"
 
 def sha256_text(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -117,6 +118,32 @@ def sync():
                             (r["from_claim"], r["relation"], r["to_claim"], r.get("rationale")))
             extractions += 1
 
+    # A-0304/A-0306/A-0405: verification evidence is how a claim actually moves from UNVERIFIED
+    # to VERIFIED (or CONTRADICTED) -- documentation alone never does (A-0301/A-0006). This corpus
+    # was the missing half of build.py: claims/extractions could be ingested, but nothing wrote to
+    # verification_evidence, so no claim in this DB could ever leave UNVERIFIED. Each file here is
+    # {"evidence": [...]}, one entry per (claim_id, evidence_kind) pair; entries are idempotent on
+    # evidence_id like every other corpus type.
+    evidence_added = 0
+    if EVIDENCE_CORPUS.exists():
+        for path in sorted(EVIDENCE_CORPUS.glob("*.json")):
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            for e in doc.get("evidence", []):
+                if con.execute("SELECT 1 FROM verification_evidence WHERE evidence_id=?", (e["evidence_id"],)).fetchone():
+                    continue
+                if not con.execute("SELECT 1 FROM claims WHERE claim_id=?", (e["claim_id"],)).fetchone():
+                    raise RuntimeError(f"unknown claim in evidence: {e['claim_id']}")
+                con.execute("""INSERT INTO verification_evidence(evidence_id,claim_id,evidence_kind,repo_path,symbol,
+                               commit_sha,test_id,runtime_artifact,checked_at,checked_commit,result,details)
+                               VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                            (e["evidence_id"], e["claim_id"], e["evidence_kind"], e.get("repo_path"), e.get("symbol"),
+                             e.get("commit_sha"), e.get("test_id"), e.get("runtime_artifact"), e["checked_at"],
+                             e.get("checked_commit"), e["result"], e.get("details")))
+                if e.get("set_verification_status"):
+                    con.execute("UPDATE claims SET verification_status=? WHERE claim_id=?",
+                                (e["set_verification_status"], e["claim_id"]))
+                evidence_added += 1
+
     for path in sorted(TAG_CORPUS.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
         sid = doc["source_id"]
@@ -130,8 +157,8 @@ def sync():
     con.commit()
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     con.close()
-    return added, unchanged, extractions
+    return added, unchanged, extractions, evidence_added
 
 if __name__ == "__main__":
-    a,u,e = sync()
-    print(f"claim.db delta sync: {a} source(s) added, {u} source(s) unchanged, {e} topic extraction(s) applied")
+    a,u,e,v = sync()
+    print(f"claim.db delta sync: {a} source(s) added, {u} source(s) unchanged, {e} topic extraction(s) applied, {v} evidence record(s) applied")
