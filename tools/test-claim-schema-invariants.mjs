@@ -2,7 +2,7 @@
 // by schema/construction and provable against real data, rather than one bespoke test file per
 // item -- these are small, related facts about the same schema, not separate features.
 //
-// Covers: A-0004, A-0005, A-0104, A-0105, A-0106, A-0107, A-0203, A-0204, A-0205, A-0207, A-0006,
+// Covers: A-0004, A-0005, A-0006, A-0007, A-0104, A-0105, A-0106, A-0107, A-0203, A-0204, A-0205, A-0207, A-0306, A-0402.
 // A-0007, A-0306.
 import {DatabaseSync} from 'node:sqlite';
 import {spawnSync} from 'node:child_process';
