@@ -58,6 +58,7 @@ const behavior = [
   'tools/test-production-adapter.mjs',
   'tools/test-style-discovery.mjs',
   'tools/test-gpu-spatial.mjs',
+  'tools/test-input-ownership.mjs',
 ];
 
 for (const relative of behavior) {
