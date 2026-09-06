@@ -55,6 +55,7 @@ Diese Dokumente müssen gegeneinander und gegen den aktiven Code geprüft werden
 - [ ] **G-0106** Snowflow-„Surfing“ wird nicht als benötigtes Gameplay-Feature dokumentiert; siehe Scher-/Schichtstabilität.
 - [ ] **G-0107** Particles4All wird nicht mehr als kanonischer SHADED-Materialkern geführt; diese frühere Richtung ist ausdrücklich verworfen.
 - [ ] **G-0108** Snow-spezifische Regeln werden nicht pauschal zu Sand/Mud/Earth-Regeln umbenannt. **Der Vertrag wird generalisiert, material-spezifische Gesetze bleiben material-spezifisch.**
+- [ ] **G-0109** `DONORS.md` wird als scoped water/weather/fire donor block behandelt, nicht als vollständige globale Donor-Liste; der verbindliche cross-domain Registry steht in Abschnitt 25 dieser Datei.
 
 ## 2. Ein Projekt, eine semantische Maschine
 
@@ -397,18 +398,109 @@ BODY LOSES SUPPORT / IS CARRIED WITH IT
 - [ ] **G-2413** Schwere Modelle dürfen leichte Residuals lehren; nichts trainieren, was klassische Methoden bereits sauber repräsentieren.
 - [ ] **G-2414** Provider, Renderer und Repräsentation bleiben austauschbar; Repräsentation ist Budgetentscheidung, nicht Identität.
 
-## 25. Donor-Vertrag
+## 25. Donor-Vertrag und verbindlicher Donor-Registry
 
-- [ ] **G-2501** Donor liefert Verhalten, Algorithmus, Shadertechnik, UI-Muster oder Referenz; er übernimmt nicht unbemerkt Architekturhoheit.
+### 25.1 Grundvertrag
+
+- [ ] **G-2501** Donor liefert Verhalten, Algorithmus, Shadertechnik, UI-Muster, Solveridee, Datenfluss oder Referenz; er übernimmt nicht unbemerkt Architekturhoheit.
 - [ ] **G-2502** Donor-Repräsentation, Dateistruktur, API, Sprache und Bufferlayout sind nicht automatisch SHADED-Semantik.
 - [ ] **G-2503** Donor-Verhalten wird hinter SHADED Contracts/IR eingebunden.
 - [ ] **G-2504** Codeübernahme, Verhaltensreferenz, Literature-derived Core und Implementation-derived Donor bleiben unterscheidbar.
 - [ ] **G-2505** Lizenz/Attribution/Provenienz sind dokumentiert.
 - [ ] **G-2506** Ein Donor darf nach Absorption technisch verschwinden, während seine Herkunft erhalten bleibt.
-- [ ] **G-2507** Sandspiel ist vor allem CA-/Fallback-/Materialregel-Donor; seine 2D-Form ist nicht SHADEDs 3D-Raumarchitektur.
-- [ ] **G-2508** niels747/2D-Weather-Sandbox ist Wetter-/Troposphären-Referenz, nicht 3D-Runtime-Owner.
-- [ ] **G-2509** Snowflow ist ausschließlich UI-/Snow-Donor plus Credit, nicht Runtime-Owner.
-- [ ] **G-2510** Particles4All ist **nicht** kanonische SHADED-Grundarchitektur.
+- [ ] **G-2507** Donor-Sprache ist kein Ausschlusskriterium; SHADED bleibt sprachagnostisch und übersetzt Semantik selbst.
+- [ ] **G-2508** Kein Donor darf eine zweite World Truth, Materialbilanz, Inputsemantik oder Renderwahrheit neben SHADED etablieren.
+- [ ] **G-2509** Jeder festgelegte Donor wird in `DONORS.md` oder einer kanonischen Donor-Matrix mit Rolle, Rang, Lizenzstatus, erlaubter Nutzungsform und Integrationsstatus geführt.
+- [ ] **G-2510** Integrationsstatus folgt mindestens `DISCOVERED → TRIAGED → INSPECTED → EXTRACTION_CANDIDATE → EXTRACTED → BENCHED → INTEGRATED` bzw. `REJECTED / SUPERSEDED / REFERENCE_ONLY`; „interessant“ ist kein Endzustand.
+
+### 25.2 Feste water / weather / fire donors aus `DONORS.md`
+
+Diese sechs Donors sind für ihren Domänenblock verbindlich festgelegt; weitere Donors ergänzen andere SHADED-Domänen.
+
+- [ ] **G-2511** `forbiddenlink/ocean-simulator` bleibt **Ocean Habitat Runtime Donor**: bitECS, Populationen, Food Chains, schooling/predator-prey, current influence, underwater lighting/caustics. Habitatwissen wird hinter SHADED World/Life Contracts integriert.
+- [ ] **G-2512** `GarrettGunnell/Water` bleibt **Ocean Surface Reference**: Sum-of-Sines/Gerstner → FFT/Tessendorf/JONSWAP, analytische Normalen, Fresnel, Microfacet BRDF, approx. SSS. Referenzcharakter/Lizenzhinweise werden respektiert.
+- [ ] **G-2513** `idootop/webgl2-water` bleibt **Fresh/Pool Water Donor**: begrenztes klares Wasser, refraction, caustics, soft shadows, float-heightfield simulation.
+- [ ] **G-2514** `rarietta/WebGL` bleibt **Lightweight Calm-Surface Donor**: günstige sinus/noise surface motion, normals/specular; kein Ersatz für Hydrologie/Stillgewässer-Solver.
+- [ ] **G-2515** `niels747/2D-Weather-Sandbox` bleibt **Atmospheric Solver Donor**: pressure/temperature/humidity/condensation/precipitation/phase exchange/downdrafts/surface coupling. Die 2D-Repräsentation wird nicht zum 3D-Raumvertrag.
+- [ ] **G-2516** `niels747/GLFW_fire_simulation` bleibt **Fire/Gas Behaviour Donor**: multi-gas, pressure, temperature, fluid motion. Fire-Look bleibt getrennte Darstellung; bekannte Donor-Lücken werden nicht als SHADED-Gesetz übernommen.
+
+### 25.3 Snow / UI / Material World / Ecology
+
+- [ ] **G-2517** **Snowflow / snowflow_demo** ist verbindlicher **Snow + UI Donor** und sonst nichts. Kein anderer Snow-Simulator wird gesucht, solange Snowflow diese Rolle erfüllt. Snowmelt geht in den gemeinsamen Water Ledger; Snowflow bleibt kein Runtime-Owner.
+- [ ] **G-2518** `MaxBittker/sandspiel` bleibt **S++ Behaviour + Fallback Architecture Donor**: Rust/WASM CA core, RGBA-kompatibler state transport, WebGL render/fluid glue. 2D ist Repräsentation, nicht SHADED-Raum.
+- [ ] **G-2519** `MaxBittker/sandspiel-studio` bleibt **S Material-/World-Law Composer Donor**: regelbasierte Materialdefinition/Remix-UX, nicht World-State-Owner.
+- [ ] **G-2520** `MaxBittker/orb.farm` bleibt **S+ Ecosystem / Persistent World-State Donor**: aquatische Stoffkreisläufe, Licht, Pflanzen/Tiere, Nährstoffe/Gase, Emergenz und persistente Habitatkopplung.
+- [ ] **G-2521** `MaxBittker/shaderbooth` bleibt Teil des festen Max-Bittker-Clusters für browserbasierte Shader-Authoring/Experiment-Mechanik.
+- [ ] **G-2522** `MaxBittker/walky.space` bleibt Teil des festen Max-Bittker-Clusters für räumliche/interaktive Experimentmuster; konkrete Extraktion muss vor Integration in der Donor-Matrix explizit benannt werden.
+- [ ] **G-2523** `VoxelWorld` bleibt **S++ 3D CA / Material-World Behaviour Donor**; GPL-3.0 bedeutet Architektur/Verhaltensstudium bzw. saubere Lizenzgrenze, nicht stilles Vendoring.
+- [ ] **G-2524** `Sandboxels` bleibt **S Feature-/Interaction-Mine**, nicht Copy-Donor; R74n Content License / All Rights Reserved wird respektiert.
+- [ ] **G-2525** `Particles4All` ist **kein kanonischer SHADED-Materialkern und kein Owner**. Frühere Material-interaction-Nutzung darf nur als klar begrenzter Reference/Technique Donor fortbestehen, wenn sie den gemeinsamen World State nicht dupliziert.
+
+### 25.4 Sand / Soil / Water Solver Donors
+
+- [ ] **G-2526** RTSW (`kuiwuchn.github.io/rtsw.html`) bleibt **S++ target solver reference** für gekoppelte Height-Field-Sand/Wasser-Dynamik, saturation/friction/diffusion/momentum exchange/elastoplasticity/seepage/erosion.
+- [ ] **G-2527** `RaymondMcGuire/sph_seepage_flows` bleibt **S++ subsurface water/soil donor** für porosity/permeability/capillarity/cohesion/internal erosion; MIT-Grenze/Provenienz dokumentieren.
+- [ ] **G-2528** `aparis69/Desertscapes-Simulation` bleibt **S+ dune/wind/erosion donor** für aeolian transport, dune evolution und desert-surface laws; Materialgesetze werden semantisch integriert, nicht als separate Welt.
+- [ ] **G-2529** `devdynaf/falling-sand` bleibt **S Golden Behaviour / exact-donor reference** für Falling-Sand-Verhalten und Regression; fehlender/unklarer Lizenzstatus verbietet ungeprüftes Copy-Vendoring.
+- [ ] **G-2530** `Fluid Frenzy` bleibt **S terrain↔fluid architecture/behaviour reference**, nicht Code-Owner.
+- [ ] **G-2531** `webgpu-water-playcanvas` bleibt **S++ water donor**; MIT; als Wassertechnik/Renderer-/GPU-Referenz, nicht hydrologische Wahrheit.
+- [ ] **G-2532** `jeantimex/threejs-water` bleibt **S++ pool geometry / water-integration donor**; MIT.
+- [ ] **G-2533** `evanw/webgl-water` bleibt **S++ water optics/rendering donor** für heightfield water, reflection/refraction, caustics, soft shadows/AO; MIT.
+- [ ] **G-2534** `threejs-caustics` bleibt **A+ caustics reference**; ungeklärte Lizenz wird vor Codeübernahme geklärt.
+
+### 25.5 Rendering / Shader / Visual Material Donors
+
+- [ ] **G-2535** GameIdea **3D Grass Shader** bleibt **A++ vegetation visual/interaction reference**; Nutzung nur entsprechend der bekannten Redistribution/Derivative-Grenze, daher Referenz/Reimplementation statt verbotener Weiterverteilung.
+- [ ] **G-2536** GameIdea Fire und Gerstner/Water Shader bleiben visuelle Materialreferenzen mit derselben Lizenzdisziplin; sie definieren keine World Laws.
+- [ ] **G-2537** `erichlof/THREE.js-PathTracing-Renderer` bleibt **S++ rendering/water/volume donor**; CC0; relevante Rendering-/Volume-/Light-Techniken dürfen studiert/extrahiert werden, ohne den SHADED World Contract zu ersetzen.
+- [ ] **G-2538** `bgolus/WorldNormalFromDepthTexture.shader` bleibt **Depth-Normal Reference A**; mangels klarer Lizenz wird die Mathematik sauber reimplementiert statt Code kopiert.
+- [ ] **G-2539** `SDL_shadercross` bleibt **Shader Portability Donor A−** für native multi-target architecture; nicht als aktueller Browser-Compiler missverstehen.
+- [ ] **G-2540** `Kompute/scripts/convert_shaders.py` bleibt Reference für deterministische Shader-Ingestion/Build-Pipeline.
+- [ ] **G-2541** GLSL/WGSL-/andere Donor-Sprachen werden über SHADED Shader IR/semantische Übersetzung integriert; `fragcoor.xyz` darf Tooling helfen, ersetzt aber nicht die semantische Prüfung.
+
+### 25.6 Reconstruction / Spatial Representation Donors
+
+- [ ] **G-2542** `Anttwo/MILo` plus **SuGaR / Frosting / MAtCha** bleibt **S+ reconstruction / surface-aligned Gaussian cluster** für mesh-in-the-loop, editable radiance fields und geometry↔GS coupling.
+- [ ] **G-2543** `xiaobiaodu/Flux-GS` bleibt **S+ mobile Gaussian-Splatting donor** für mobile WebGL rendering, compressed representation und decoding.
+- [ ] **G-2544** `samchopra2003/PhysGS` bleibt **S++ physical Gaussian / physics-representation donor**; seine Trennung/Kopplung wird gegen SHADEDs Physics/World Contracts geprüft.
+- [ ] **G-2545** `harry7557558/spirula-studio` bleibt **architectural reconstruction/provider donor**: MoGe point maps, native SfM, normals, sky mask, ALIKED/LightGlue, meshing. GPL-3.0 → Adapter/Provider/clean-room reference statt ungeprüfter Codeübernahme.
+- [ ] **G-2546** `forbiddenlink/trace` bleibt **S++ provenance / reconstruction UX / spatial-editor donor**.
+- [ ] **G-2547** Anttwo/Flux-GS/PhysGS/spirula/trace dürfen Reconstruction repräsentieren, aber `OBSERVED / MEASURED / INFERRED / GENERATED`-Provenienz niemals verwischen.
+
+### 25.7 Runtime / Composer / Animation / Architecture Donors
+
+- [ ] **G-2548** `XenolithEngine/xenolith-graph` / XenolithGraph bleibt **S+ Composer/Node-Editor Donor**: typed pins, macros/templates/subgraphs, command-bus undo/redo, migrations, graph LOD; Graph ist Editor/Operator-Repräsentation, nicht zweite World Truth.
+- [ ] **G-2549** `doriaxengine/doriax` bleibt **S+ Runtime/Editor Donor** (MIT); Rendering A+/S, UI A+. Relevante ECS, Inspector/Hierarchy/Timeline/Play-Mode, terrain/physics/shader-recompile/export patterns werden geprüft, nicht blind übernommen.
+- [ ] **G-2550** `localai-org/motion-bricks.cpp` bleibt **S animation/agent donor** für lokale generative Bewegung, planning, pose tokens, decoding/style alignment; G1-spezifische Joint-Annahmen werden nicht zur SHADED-Semantik.
+- [ ] **G-2551** `ryokun6/ryos` bleibt **A+/S shell/app-architecture reference**; AGPL-3.0 → study/reference boundary, kein ungeklärtes Copy-Vendoring.
+- [ ] **G-2552** `forbiddenlink/lumira` bleibt **A+ World-Director donor** für world-direction/orchestration patterns ohne Ownership über World State.
+- [ ] **G-2553** `forbiddenlink/specter` bleibt **S+ dev-layer impact/risk donor**; MIT; nur konkret belegte Mechanismen extrahieren.
+- [ ] **G-2554** `GS-Agent` bleibt **A+ responsibility-boundary donor** für Agent/Physics/Rendering-Trennung; Agenten dürfen World Laws nicht ersetzen.
+
+### 25.8 KilledByAPixel / procedural donor hub
+
+- [ ] **G-2555** `KilledByAPixel` bleibt **Top-Tier SHADED Donor Hub**; sowohl eigene Repos als auch ausgewählte Starred Repos werden aktiv in der Donor-Matrix gepflegt und nicht nach einmaligem Lob vergessen.
+- [ ] **G-2556** Eigene KilledByAPixel-Cluster wie `VaseFX`, `stereogram`, `Golf13K`, `Drive13K`, `TinyCode`, `OS13k`, `LittleJS`, `FrankEngine` werden für procedural minimalism, rendering, interpolation, compact runtime patterns und ShaderLab-artige Techniken geprüft; jede konkrete Extraktion erhält eine explizite Rolle.
+- [ ] **G-2557** Hochpriorisierte Stars aus diesem Hub wie Depth Anything, MarkovJunior, Hydraulic-Erosion/worldgen und weitere bereits klassifizierte A1/S-Kandidaten bleiben im Donor-Inventar; Starred Repo ≠ automatisch integriert, aber auch ≠ vergessen.
+- [ ] **G-2558** KilledByAPixel-Donors werden mit Clean-room/Study-only-Grenzen genutzt, wo Lizenz/Provenienz dies verlangt.
+
+### 25.9 Weitere festgelegte Solver-/Methoden-Donors
+
+- [ ] **G-2559** `monman53` / Tetsuro-Sakamoto-Cluster bleibt **S technique donor** für WebGL fragment-compute, FFT, WebGL2 Transform Feedback, snow-crystal simulation, camera/light-ray techniques und kd-tree patterns.
+- [ ] **G-2560** `lele394/Lattice-Boltzmann-WebGL` bleibt **S+ fluid-solver donor** für D2Q9 LBM, MRT, Boundary Conditions und Density/Velocity visualization.
+- [ ] **G-2561** `Sand Homogenization` bleibt **A+ material-parameter donor** für Ableitung günstiger Continuum-Parameter aus granularer Materie.
+- [ ] **G-2562** Literature-derived Physics Core bleibt bevorzugt für etablierte Mechanik: collision/broadphase/narrowphase/contact manifolds, sequential impulses/constraints, friction/restitution, CCD, sleeping, joints, PBD/XPBD und passende fluid/granular extensions werden aus Literatur/Mathematik in SHADED-Semantik implementiert statt einen fremden Physics-Monolithen zum Owner zu machen.
+- [ ] **G-2563** Protectwise/Troika, Adriwin06/black-hole und andere bereits dauerhaft gerankte A/S-Donors bleiben in der Donor-Matrix; ihre konkrete Rolle muss vor Integration explizit dokumentiert sein, nicht aus dem Rang allein erfunden werden.
+
+### 25.10 Donor-Compliance Gate
+
+- [ ] **G-2564** Vor Abschluss dieses Goals existiert eine maschinen-/menschenlesbare Donor-Matrix, die mindestens alle G-2511…G-2563 genannten Donors/Cluster enthält.
+- [ ] **G-2565** Für jeden Eintrag stehen `ROLE`, `RANK/PRIORITY`, `LICENSE`, `USE MODE` (`COPY_ALLOWED / REIMPLEMENT / REFERENCE_ONLY / PROVIDER_ADAPTER / STUDY_ONLY`), `STATUS`, `SHADED CONTRACT`, `OWNER AFTER INTEGRATION`.
+- [ ] **G-2566** Kein festgelegter Donor wird still gelöscht, durch einen zufälligen neuen Donor ersetzt oder „nicht relevant“ erklärt, ohne Evidenz und dokumentierte Maintainer-/Ablation-Entscheidung.
+- [ ] **G-2567** „Donor berücksichtigt“ bedeutet mindestens gelesen/inspected und gegen seinen festgelegten Zweck bewertet; bloßes Vorhandensein eines Links zählt nicht.
+- [ ] **G-2568** Wenn zwei Donors dieselbe Ebene bedienen, wird ihre Überlappung bewusst als Benchmark/Komposition/Ablation behandelt; nicht zufällig einer vergessen.
+- [ ] **G-2569** Lizenzgrenzen sind Teil der Architekturentscheidung. Reference-only/Study-only Donors dürfen nicht durch Übersetzung/Portierung faktisch kopiert werden.
+- [ ] **G-2570** Donors liefern Mechanismen, nicht Weltwahrheit: Nach Integration ist der Owner immer SHADED.
 
 ## 26. Style / Darstellung
 
@@ -461,6 +553,7 @@ Für jede Migration:
 - [ ] **G-2817** Build und Shadercompile sind grün.
 - [ ] **G-2818** Visuelle GPU-Pfade werden in echtem Browser/GPU-Pfad geprüft; reine DOM-/Unit-Tests ersetzen das nicht.
 - [ ] **G-2819** Runtime/About/Debug zeigt Commit-/Build-ID, damit eine ausgelieferte Instanz eindeutig dem geprüften Code zugeordnet werden kann.
+- [ ] **G-2820** Donor-Compliance-Test prüft, dass alle bindenden G-2511…G-2570-Einträge in der kanonischen Donor-Matrix vorhanden, klassifiziert und lizenzseitig bewertet sind.
 
 ## 29. Repo-weite Legacy-/Contradiction-Suche
 
@@ -530,6 +623,7 @@ Diese Reihenfolge dient dazu, zuerst Wahrheiten und Owner zu reparieren, dann Br
 - [ ] **G-3102** Keine „40 Materialien“, bevor Sand den vollständigen Vertrag beweist.
 - [ ] **G-3103** Keine Habitat-/Fauna-Breite, solange Ground/Water/Light/Life konkurrierende Wahrheiten haben.
 - [ ] **G-3104** Keine neue spektakuläre Demo-Funktion ersetzt strukturelle Reparatur.
+- [ ] **G-3105** Donor-Audit/Registry wird als Querschnittsgate früh durchgeführt; Donor-Integration folgt trotzdem der funktionalen Gate-Reihenfolge und darf sie nicht umgehen.
 
 ## 32. Definition of Done
 
@@ -554,6 +648,7 @@ Es ist erfüllt, wenn alle folgenden Aussagen wahr und belegt sind:
 - [ ] **G-3215** Kanonische Repo-Dokumente sind untereinander widerspruchsfrei oder sauber gescoped/superseded.
 - [ ] **G-3216** Ersetzte Implementierungen sind tatsächlich aus dem aktiven Pfad verschwunden.
 - [ ] **G-3217** Build, Tests, Browser/GPU-Verifikation und Runtime-Build-ID belegen den ausgelieferten Stand.
+- [ ] **G-3218** Alle festgelegten Donors aus Abschnitt 25 sind in der kanonischen Donor-Matrix vorhanden, gegen ihren festgelegten Zweck geprüft, lizenzseitig klassifiziert und entweder integriert, bewusst reference-only/study-only geführt oder evidenzbasiert superseded/rejected — kein Top-Tier-/Fixed-Donor ist still vergessen.
 
 ## Abschlussbericht — Pflichtformat
 
