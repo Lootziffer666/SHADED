@@ -65,6 +65,8 @@ EVIDENCE = {
     "G-1806": ("GOAL_WORLD.md Sec.18", "index.html: 1 <script type=module> importing /src/main.js, <300 lines", "tools/test-single-canonical-ui.mjs"),
     "A-0804": ("GOAL_ALFRED.md A-0800", "invariant: zero-evidence claims never VERIFIED (C-SAND-0003); evidence-backed claims promote (C-INPUT-0001)", "tools/test-verification-discipline.mjs"),
     "A-0805": ("GOAL_ALFRED.md A-0800", "tools/claim-db/check_staleness.py: real detect (C-INPUT-0001 vs src/main.js post-9ecd208 changes) -> STALE_NEEDS_RECHECK -> recheck evidence -> re-VERIFIED", "tools/test-claim-staleness.mjs"),
+    "A-0802": ("GOAL_ALFRED.md A-0800", "detect_conflicts.py proves CONFLICT from 5 conditions (not ID-duplication alone) on the real GOAL.md/GOAL_WORLD.md G-0006 collision; negative case (SUPERSEDES-resolved shared symbol) confirmed not flagged", "tools/test-claim-conflict.mjs"),
+    "A-0803": ("GOAL_ALFRED.md A-0800", "C-BOOT-0002-NEW SUPERSEDES C-BOOT-0001-OLD (real commit ec32657) with commit-level provenance; old claim retained; gap_query.py --resolve walks the chain to current truth", "tools/test-claim-supersession.mjs"),
     "A-0807": ("GOAL_ALFRED.md A-0800", "C-INPUT-0001 (claim.db) VERIFIED only via positive+NEGATIVE_ABSENCE evidence; sand-ownership cross-check proves the invariant is not vacuous", "tools/test-verification-discipline.mjs"),
 }
 

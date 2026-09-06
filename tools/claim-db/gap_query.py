@@ -107,18 +107,54 @@ def query_old_owners(con):
     return [r["claim_id"] for r in rows]
 
 
+def resolve_current_truth(con, claim_id):
+    """GOAL_ALFRED.md A-0803: a SUPERSEDES chain must let a caller ask 'what is CURRENTLY true
+    about X?' and get the newest, non-superseded claim -- while every earlier claim in the chain
+    stays retained and queryable as history, never deleted. Walks claim_relations SUPERSEDES edges
+    forward from claim_id (following whichever claim supersedes it, and so on) to the terminal
+    (currently active) claim; returns (chain, current) where chain lists every claim from oldest
+    to newest and current is the terminal claim_id."""
+    chain = [claim_id]
+    seen = {claim_id}
+    current = claim_id
+    while True:
+        newer = con.execute(
+            "SELECT from_claim FROM claim_relations WHERE relation='SUPERSEDES' AND to_claim=?", (current,)
+        ).fetchone()
+        if newer is None or newer["from_claim"] in seen:
+            break
+        current = newer["from_claim"]
+        seen.add(current)
+        chain.append(current)
+    return chain, current
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--about", help='"Was fehlt fuer <TERM>?"')
     p.add_argument("--file", help='"Welche Claims betreffen <PATH>?"')
     p.add_argument("--unverified", help='"Welche Requirements zu <TERM> sind nicht verifiziert?"')
     p.add_argument("--old-owners", action="store_true", help='"Welche alten Owner sind noch behauptet/aktiv?"')
+    p.add_argument("--resolve", metavar="CLAIM_ID", help='A-0803: "Was gilt gerade fuer diesen Claim, ueber alle SUPERSEDES-Schritte hinweg?"')
     args = p.parse_args()
 
-    if not any([args.about, args.file, args.unverified, args.old_owners]):
-        p.error("pass at least one of --about/--file/--unverified/--old-owners")
+    if not any([args.about, args.file, args.unverified, args.old_owners, args.resolve]):
+        p.error("pass at least one of --about/--file/--unverified/--old-owners/--resolve")
 
     con = connect()
+
+    if args.resolve:
+        chain, current = resolve_current_truth(con, args.resolve)
+        print(f"History (oldest -> newest): {' -> '.join(chain)}")
+        print(f"Current truth: {current}\n")
+        print(render_claim(con, current))
+        if len(chain) > 1:
+            print("\nSuperseded history (retained, not deleted):")
+            for old_id in chain[:-1]:
+                print(f"\n--- {old_id} (superseded) ---")
+                print(render_claim(con, old_id))
+        return
+
     claim_ids = []
     if args.about:
         claim_ids = query_about(con, args.about)

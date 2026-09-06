@@ -1,0 +1,140 @@
+{
+  "extractions": [
+    {
+      "extraction": {
+        "extraction_id": "EXT-0003-SNOWFLOW-BOOT-SUPERSESSION",
+        "source_id": "SRC-DOC-EEE4DDFA0157EEFD",
+        "topic": "GOAL_ALFRED.md A-0803 (Supersession): the real Snowflow-boot architectural switch at commit ec32657",
+        "extracted_at": "2026-09-06T05:48:00+00:00",
+        "status": "COMPLETE",
+        "retrieval_anchor": "CLAUDE.md 'Status: two subsystems, one repo' section",
+        "notes": "A real, already-documented supersession event: commit ec3265749dd2648d74327bbc51ef8d21648a0c88 ('Drop in Snowflow as SHADED's runtime appearance (1:1 import)') changed index.html's boot chain from the direct runtime/*.mjs engine to /src/main.js (Snowflow). CLAUDE.md's own status note requires the old chain's files to remain on disk, unreachable but not deleted -- 'parked, not dead'. This is the concrete SUPERSEDES-without-history-loss case A-0803 asks for: the old claim is never deleted from claim.db, only superseded, exactly as the old runtime files are never deleted from the repo, only parked."
+      },
+      "claims": [
+        {
+          "claim_id": "C-BOOT-0001-OLD",
+          "normalized_claim": "index.html boots the SHADED image-to-world engine directly via runtime/shaded-engine.mjs and its sibling runtime/integration scripts.",
+          "subject": "index.html boot chain",
+          "scope": "repo-history/entry-point",
+          "first_seen": "2026-09-04T13:59:14+00:00",
+          "last_seen": "2026-09-04T13:59:14+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "VERIFIED",
+          "confidence": 1.0,
+          "epistemic_kind": "FACT",
+          "sources": [
+            {
+              "claim_source_id": "CS-BOOT-0001-OLD-DOC001",
+              "source_id": "SRC-DOC-EEE4DDFA0157EEFD",
+              "source_location": "git history: index.html at commit 681213a7e0726171ec8e92bba1038b3df6e3fdbe (parent of ec32657)",
+              "anchor": "runtime/shaded-engine.mjs",
+              "speaker": "git history",
+              "authority": "REPO_HISTORY",
+              "original_text": "<script type=\"module\" src=\"runtime/shaded-engine.mjs\"></script> (and 6 sibling runtime/integrations script tags), verifiable via: git show 681213a7e0726171ec8e92bba1038b3df6e3fdbe:index.html"
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-BOOT-0001-OLD-INDEX",
+              "repo_path": "index.html",
+              "symbol": "boot script tags (pre-ec32657)",
+              "subsystem": "parked SHADED image-to-world engine",
+              "owner": "runtime/shaded-engine.mjs",
+              "test_id": null
+            }
+          ],
+          "evidence": [
+            {
+              "evidence_id": "EV-BOOT-0001-OLD-GITHISTORY",
+              "evidence_kind": "SOURCE_CODE_ACTIVE_PATH",
+              "repo_path": "index.html",
+              "symbol": "runtime/shaded-engine.mjs boot chain",
+              "commit_sha": "681213a7e0726171ec8e92bba1038b3df6e3fdbe",
+              "checked_at": "2026-09-06T05:48:00+00:00",
+              "checked_commit": "3b5b5412d8daff95c365a37c25522ff52f5a5543",
+              "result": "PASS",
+              "details": "git show 681213a7e0726171ec8e92bba1038b3df6e3fdbe:index.html shows the direct runtime/*.mjs + integrations/*.js boot chain, confirming this was the real, active boot chain immediately before the Snowflow switch. This claim describes historical state (as of that commit), not current state -- see C-BOOT-0002-NEW for what superseded it.",
+              "set_verification_status": "VERIFIED"
+            }
+          ]
+        },
+        {
+          "claim_id": "C-BOOT-0002-NEW",
+          "normalized_claim": "index.html boots Snowflow via /src/main.js as SHADED's live runtime appearance; the previous runtime/shaded-engine.mjs chain is parked (kept on disk, unreachable from index.html) rather than deleted.",
+          "subject": "index.html boot chain",
+          "scope": "live-world/entry-point",
+          "first_seen": "2026-09-04T13:59:15+00:00",
+          "last_seen": "2026-09-06T05:48:00+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 1.0,
+          "epistemic_kind": "FACT",
+          "sources": [
+            {
+              "claim_source_id": "CS-BOOT-0002-NEW-DOC001",
+              "source_id": "SRC-DOC-EEE4DDFA0157EEFD",
+              "source_location": "commit ec3265749dd2648d74327bbc51ef8d21648a0c88 ('Drop in Snowflow as SHADED's runtime appearance (1:1 import)'); CLAUDE.md 'Status' section",
+              "anchor": "/src/main.js",
+              "speaker": "git history + CLAUDE.md",
+              "authority": "REPO_HISTORY",
+              "original_text": "index.html currently boots /src/main.js -- Snowflow, a WebGPU-only Babylon.js world-sandbox game -- not the runtime/*.mjs chain described below. This has been true since commit ec32657."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-BOOT-0002-NEW-INDEX",
+              "repo_path": "index.html",
+              "symbol": "boot script tag (post-ec32657)",
+              "subsystem": "SHADED (Snowflow-derived)",
+              "owner": "src/main.js",
+              "test_id": "tools/test-single-canonical-ui.mjs"
+            },
+            {
+              "target_id": "T-BOOT-0002-NEW-PARKED",
+              "repo_path": "runtime/shaded-engine.mjs",
+              "symbol": "parked, still present on disk",
+              "subsystem": "parked SHADED image-to-world engine",
+              "owner": "runtime/shaded-engine.mjs",
+              "test_id": "tools/verify-no-legacy-ui.mjs"
+            }
+          ],
+          "evidence": [
+            {
+              "evidence_id": "EV-BOOT-0002-NEW-INDEX",
+              "evidence_kind": "CODE",
+              "repo_path": "index.html",
+              "symbol": "/src/main.js script tag",
+              "commit_sha": "3b5b5412d8daff95c365a37c25522ff52f5a5543",
+              "checked_at": "2026-09-06T05:48:00+00:00",
+              "checked_commit": "3b5b5412d8daff95c365a37c25522ff52f5a5543",
+              "result": "PASS",
+              "details": "tools/test-single-canonical-ui.mjs directly asserts index.html's single script tag imports /src/main.js as a module."
+            },
+            {
+              "evidence_id": "EV-BOOT-0002-NEW-PARKED-PRESENT",
+              "evidence_kind": "SOURCE_CODE_ACTIVE_PATH",
+              "repo_path": "runtime/shaded-engine.mjs",
+              "symbol": "file presence (not deleted)",
+              "commit_sha": "3b5b5412d8daff95c365a37c25522ff52f5a5543",
+              "checked_at": "2026-09-06T05:48:00+00:00",
+              "checked_commit": "3b5b5412d8daff95c365a37c25522ff52f5a5543",
+              "result": "PASS",
+              "details": "tools/verify-no-legacy-ui.mjs asserts runtime/shaded-engine.mjs (and its sibling parked-engine files) still exist on disk -- the supersession did not delete the old chain, satisfying A-0803's 'ohne History-Verlust'.",
+              "set_verification_status": "VERIFIED"
+            }
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "from_claim": "C-BOOT-0002-NEW",
+          "relation": "SUPERSEDES",
+          "to_claim": "C-BOOT-0001-OLD",
+          "rationale": "Commit ec3265749dd2648d74327bbc51ef8d21648a0c88 ('Drop in Snowflow as SHADED's runtime appearance (1:1 import)') is the explicit maintainer decision that replaced index.html's boot chain. C-BOOT-0001-OLD is NOT deleted or overwritten in claim.db -- it remains queryable as the historical fact it was, exactly as runtime/shaded-engine.mjs itself remains on disk, parked rather than deleted. This is A-0803's own requirement: supersession without history loss."
+        }
+      ]
+    }
+  ]
+}

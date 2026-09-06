@@ -78,6 +78,24 @@ for (const [table, prefixCol] of [['audits', 'audit_id'], ['audit_findings', 'fi
   );
 }
 
+// claim_relations: same split as above. A corpus-authored relation (e.g. C-BOOT-0002-NEW
+// SUPERSEDES C-BOOT-0001-OLD, an authored historical/maintainer fact) must be regenerable exactly
+// like everything else. But tools/claim-db/detect_conflicts.py (A-0802) also writes
+// claim_relations rows (CONTRADICTS) as a DERIVED conclusion from the current state of the
+// claims/claim_targets/claim_sources tables -- rerunning it is deterministic given the same input,
+// but it is still a computed audit pass layered on top of the corpus, not corpus data itself, so
+// it is excluded here and covered instead by tools/test-claim-conflict.mjs.
+{
+  const where = "rationale IS NULL OR rationale NOT LIKE '%detect_conflicts.py%'";
+  const liveCount = countRows(liveDb, 'claim_relations', where);
+  const freshCount = countRows(scratchDb, 'claim_relations', where);
+  ok(liveCount > 0, `sanity: committed claim.db has corpus-authored rows in claim_relations to compare against (found ${liveCount})`);
+  ok(
+    liveCount === freshCount,
+    `claim_relations (corpus-authored rows only, excluding detect_conflicts.py's derived CONTRADICTS rows): fresh rebuild matches committed claim.db (live=${liveCount}, fresh=${freshCount})`,
+  );
+}
+
 rmSync(scratchDir, {recursive: true, force: true});
 
 console.log('\n✅ claim.db is fully regenerable from migrations/ + corpus/ alone -- claim_targets, per-claim evidence and audits/audit_findings all reproduce, not just claims/sources');

@@ -1,0 +1,88 @@
+{
+  "extractions": [
+    {
+      "extraction": {
+        "extraction_id": "EXT-0002-GOAL-DOC-ID-COLLISION",
+        "source_id": "SRC-DOC-525566F7A8B7CB8D",
+        "topic": "GOAL_ALFRED.md A-0802 (Widerspruch/CONFLICT): real cross-document requirement-ID collision on G-0006",
+        "extracted_at": "2026-09-06T05:48:00+00:00",
+        "status": "COMPLETE",
+        "retrieval_anchor": "GOAL.md G-0006 vs GOAL_WORLD.md G-0006",
+        "notes": "This extraction deliberately ingests both claims NEUTRALLY (epistemic_kind=CLAIM, verification_status=UNVERIFIED, no claim_relations) -- per maintainer correction, 'same ID exists twice' is not itself sufficient grounds to declare CONFLICT (that would flag every harmless ID duplication as a conflict). CONFLICT is a CONCLUSION tools/claim-db/detect_conflicts.py must derive by checking all four conditions: same external ID (claim_targets.symbol), different source, different semantic assertion (normalized_claim text differs), both claims currently active, and no existing SUPERSEDES/DUPLICATES relation between them. Only then does the detector itself set epistemic_kind=CONFLICT/verification_status=CONTRADICTED and record the CONTRADICTS relation with its reasoning -- see tools/test-claim-conflict.mjs."
+      },
+      "claims": [
+        {
+          "claim_id": "C-CONFLICT-G0006-GOAL",
+          "normalized_claim": "GOAL.md's requirement ID G-0006 defines the Reference Library's distinction between Implementation-derived Donors and Literature-derived Core, with named Physics seed sources (Ericson, Baraff/Witkin, Catto, Mueller et al., Macklin et al.).",
+          "subject": "meaning of requirement ID G-0006 in the SHADED goal-document set",
+          "scope": "goal-docs/reference-library",
+          "first_seen": "2026-09-06T05:48:00+00:00",
+          "last_seen": "2026-09-06T05:48:00+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 0,
+          "verification_status": "UNVERIFIED",
+          "confidence": 1.0,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-CONFLICT-G0006-GOAL-DOC001",
+              "source_id": "SRC-DOC-525566F7A8B7CB8D",
+              "source_location": "GOAL.md line 53",
+              "anchor": "G-0006",
+              "speaker": "GOAL.md",
+              "authority": "CANONICAL_DOCUMENT",
+              "original_text": "Die Reference Library unterscheidet explizit Implementation-derived Donors von Literature-derived Core. Fuer Physics werden als bereits benannte Seed-Quellen gefuehrt: Christer Ericson - Real-Time Collision Detection; Baraff/Witkin + moderne iterative Constraint-Solver-Literatur; Erin Catto - Sequential Impulses; Mueller et al. - Position Based Dynamics; Macklin et al. - XPBD; PBF/PBD fuer Fluid-/Unified-Particle-Interaction."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-CONFLICT-G0006-GOAL-DOC",
+              "repo_path": "GOAL.md",
+              "symbol": "G-0006",
+              "subsystem": "GOAL specification set",
+              "owner": "GOAL.md",
+              "test_id": "tools/test-claim-conflict.mjs"
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-CONFLICT-G0006-WORLD",
+          "normalized_claim": "GOAL_WORLD.md's requirement ID G-0006 requires that contradictions between documents be resolved explicitly, never by silently picking the more convenient document.",
+          "subject": "meaning of requirement ID G-0006 in the SHADED goal-document set",
+          "scope": "goal-docs/contradiction-resolution",
+          "first_seen": "2026-09-06T05:48:00+00:00",
+          "last_seen": "2026-09-06T05:48:00+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 0,
+          "verification_status": "UNVERIFIED",
+          "confidence": 1.0,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-CONFLICT-G0006-WORLD-DOC001",
+              "source_id": "SRC-DOC-EEE4DDFA0157EEFD",
+              "source_location": "GOAL_WORLD.md line 22",
+              "anchor": "G-0006",
+              "speaker": "GOAL_WORLD.md",
+              "authority": "CANONICAL_DOCUMENT",
+              "original_text": "Widerspruche zwischen Dokumenten werden explizit aufgeloest; es wird nicht stillschweigend das bequemste Dokument gewaehlt."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-CONFLICT-G0006-WORLD-DOC",
+              "repo_path": "GOAL_WORLD.md",
+              "symbol": "G-0006",
+              "subsystem": "GOAL specification set",
+              "owner": "GOAL_WORLD.md",
+              "test_id": "tools/test-claim-conflict.mjs"
+            }
+          ],
+          "evidence": []
+        }
+      ],
+      "relations": []
+    }
+  ]
+}
