@@ -1,5 +1,7 @@
 /**
- * SNOWFLOW — entry point and frame orchestration.
+ * SHADED runtime entry point and frame orchestration (GOAL_WORLD.md G-0410/G-4008 -- absorbed
+ * from the "Snowflow" donor import, see CLAUDE.md's status note; the runtime itself is SHADED's,
+ * not Snowflow's, so it no longer carries that name).
  *
  * WebGPU only, by design. No WebGL path, no feature-detect branches: if the
  * adapter isn't there we say so once and stop.
@@ -70,7 +72,7 @@ async function boot() {
     // this feature. Every desktop GPU that can run this demo has it.
     const filterable = engine.getCaps().textureFloatLinearFiltering;
     if (!filterable) {
-        console.warn("[snowflow] float32-filterable unavailable; height will step");
+        console.warn("[shaded] float32-filterable unavailable; height will step");
     }
 
     const applyScale = () => engine.setHardwareScalingLevel(1 / S.resolutionScale);
@@ -342,10 +344,21 @@ async function boot() {
     await loading.done();
     setTimeout(() => overlay.resetSpikes(), 800);
 
-    globalThis.SNOWFLOW = {
+    // GOAL_WORLD.md G-2819 / GOAL_FOUNDATION.md F-0124: a delivered instance must be traceable to
+    // the exact commit it was built from. __SHADED_COMMIT_SHA__/__SHADED_BUILD_TIME__ are replaced
+    // at build time by vite.config.js's own `define` (git rev-parse HEAD, or "unknown" if git
+    // wasn't available at build time -- never a fabricated placeholder).
+    const buildInfo = {commitSha: __SHADED_COMMIT_SHA__, buildTime: __SHADED_BUILD_TIME__};
+
+    // Named SHADED_RUNTIME, not bare `SHADED` -- `window.SHADED` is already the parked
+    // image-to-world engine's own documented public contract (CLAUDE.md's "Stable public engine
+    // contract"), and this debug handle must never collide with that name even though the parked
+    // engine isn't reachable from this page today (GOAL_WORLD.md G-3001/G-3002: parked ≠ dead, and
+    // must never become a second competing world truth under the same identifier).
+    globalThis.SHADED_RUNTIME = {
         engine, scene, rig, character, figure, contact, spray, wake, spells,
         overlay, terrain, sky, shadows, post, depthPass, sandbox,
-        S, input, perfStats: stats,
+        S, input, perfStats: stats, buildInfo,
     };
 }
 

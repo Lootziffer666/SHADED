@@ -412,4 +412,66 @@ ok(typeof stepSphereBody === 'function' && typeof stepSphereBodies === 'function
   );
 }
 
+// ---------------------------------------------------------------- GOAL_WORLD.md Section 5/6:
+// SHADED-owned default surface state (G-0601/G-0602/G-0606/G-2101/G-2102/G-2805). Structural proof
+// that the shader's default classification is SHADED's own (worldDefaultSandDepth/
+// worldDefaultSnowCoverage), not Snowflow's rockMask, and that "100% sand" really does mean the
+// entire visible world, not just the sandbox's local window -- since this repo has no way to
+// compile/render src/shaders/*.wgsl (see the note above: test-webgpu-shader-compile.mjs never
+// touches this file), the shader's own default-material formulas are mirrored here exactly and
+// checked for both textual presence (so a future edit that removes them fails loudly) and the
+// actual arithmetic they claim to do.
+{
+  const shaderSource = readFileSync(join(REPO_ROOT, 'src/shaders/snow.fragment.wgsl'), 'utf8');
+
+  ok(
+    !/let\s+rockMask\s*=|\brockMask\s*\*/.test(shaderSource),
+    'snow.fragment.wgsl no longer reads/uses Snowflow\'s own rockMask value as material authority (comments documenting its removal are fine)',
+  );
+  ok(shaderSource.includes('uniform worldDefaultSandDepth: f32;'), 'snow.fragment.wgsl declares worldDefaultSandDepth as a real uniform');
+  ok(shaderSource.includes('uniform worldDefaultSnowCoverage: f32;'), 'snow.fragment.wgsl declares worldDefaultSnowCoverage as a real uniform');
+  ok(
+    shaderSource.includes('let rockExposed = (1.0 - uniforms.worldDefaultSandDepth) * slopeExposure;'),
+    'rockExposed authority is worldDefaultSandDepth (SHADED-owned), not a Snowflow texture sample',
+  );
+
+  // Mirror the shader's own default-classification math (mix/clamp on plain numbers, no GPU
+  // needed) for a sweep of slopes and window states, and assert the actual claim: at
+  // worldDefaultSandDepth=1 / worldDefaultSnowCoverage=0 (Terrain's own constructor defaults),
+  // every fragment classifies as sand -- independent of slope, independent of whether the
+  // sandbox window is active nearby -- because this default is now evaluated identically
+  // everywhere the window has no opinion, not just inside an 80 m patch.
+  const mix = (a, b, t) => a + (b - a) * t;
+  const smoothstep = (edge0, edge1, x) => {
+    const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+  };
+  const sandAlbedo = [0.550, 0.320, 0.130];
+  const classify = (worldDefaultSandDepth, worldDefaultSnowCoverage, normalY) => {
+    const slopeExposure = smoothstep(0.32, 0.66, 1.0 - normalY);
+    const rockExposed = (1.0 - worldDefaultSandDepth) * slopeExposure;
+    let albedo = sandAlbedo.map((c) => mix(c, 0.08, rockExposed)); // rock is dark; exact tone doesn't matter for this proof, only that it's not sand once exposed
+    albedo = albedo.map((c) => mix(c, 0.9, worldDefaultSnowCoverage));
+    const sandNonSnow = Math.max(rockExposed, 1.0 - worldDefaultSnowCoverage);
+    return {albedo, sandNonSnow, rockExposed};
+  };
+
+  const DESERT_DEFAULT = {sandDepth: 1.0, snowCoverage: 0.0}; // Terrain constructor's own defaults
+  for (const normalY of [1.0, 0.8, 0.5, 0.1, 0.0]) {
+    const r = classify(DESERT_DEFAULT.sandDepth, DESERT_DEFAULT.snowCoverage, normalY);
+    ok(
+      r.rockExposed === 0 && r.sandNonSnow === 1 && r.albedo.every((c, i) => Math.abs(c - sandAlbedo[i]) < 1e-9),
+      `at SHADED's default world state (sandDepth=1, snowCoverage=0), a fragment with N.y=${normalY} (flat to vertical-cliff) still classifies as pure sand -- ` +
+        `no slope, and no distance from any sandbox window, can turn on rock or snow by default (rockExposed=${r.rockExposed}, albedo=${r.albedo.map((c) => c.toFixed(3))})`,
+    );
+  }
+
+  // Sanity check the formula actually CAN produce rock/snow -- otherwise the sweep above would be
+  // vacuously true because rockExposed/snowCoverage never engage at all.
+  const steepRock = classify(0.0, 0.0, 0.0); // sandDepth=0: bare rock authorized, near-vertical face
+  ok(steepRock.rockExposed > 0.9, `worldDefaultSandDepth=0 on a near-vertical face genuinely exposes rock (rockExposed=${steepRock.rockExposed.toFixed(3)}) -- the default is a real switch, not a dead parameter`);
+  const snowyDefault = classify(1.0, 1.0, 1.0);
+  ok(snowyDefault.sandNonSnow === 0, 'worldDefaultSnowCoverage=1 genuinely activates the snow state (sandNonSnow=0) -- also a real switch');
+}
+
 console.log('\n✅ Alle Rigid-Body/Physics-Selbsttests bestanden');

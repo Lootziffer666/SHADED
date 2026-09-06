@@ -1,0 +1,88 @@
+{
+  "extractions": [
+    {
+      "extraction": {
+        "extraction_id": "EXT-0001-INPUT-OWNERSHIP",
+        "source_id": "SRC-DOC-EEE4DDFA0157EEFD",
+        "topic": "GOAL_WORLD.md Section 19 (Input Ownership / Virtual Joystick Regression)",
+        "extracted_at": "2026-09-06T05:27:00+00:00",
+        "status": "COMPLETE",
+        "retrieval_anchor": "## 19. Input Ownership / Virtual Joystick Regression",
+        "notes": "GOAL_ALFRED.md A-0807 regression scenario: a 'new control installed' claim must not be VERIFIED while the old owner is still mounted. This claim is the concrete instance already proven this session by tools/test-input-ownership.mjs, which asserts both halves (positive: new provider wired; negative: no other file mounts a competing stick-zone/stick-base/stick-knob/setupStick, and git history shows no prior joystick ever existed)."
+      },
+      "claims": [
+        {
+          "claim_id": "C-INPUT-0001",
+          "normalized_claim": "src/ui/touchControls.js is the sole active touch-movement and touch-look input provider; no other active input owner remains mounted.",
+          "subject": "touch input ownership",
+          "scope": "live-world/input",
+          "first_seen": "2026-09-06T05:27:00+00:00",
+          "last_seen": "2026-09-06T05:27:00+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 1.0,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-INPUT-0001-DOC001",
+              "source_location": "## 19. Input Ownership / Virtual Joystick Regression",
+              "anchor": "G-1901..G-1908",
+              "speaker": "GOAL_WORLD.md",
+              "authority": "CANONICAL_DOCUMENT",
+              "original_text": "Es existiert exakt ein aktiver Touch-Movement-Provider. ... Alte .stick-zone, .stick-base, .stick-knob, setupStick() etc. duerfen nach Replacement nicht weiter mounten. ... Tests beweisen sowohl Existenz des neuen Controls als auch Abwesenheit des alten aktiven Owners."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-INPUT-0001-TOUCHCONTROLS",
+              "repo_path": "src/ui/touchControls.js",
+              "symbol": "setupStick / initTouchControls",
+              "subsystem": "SHADED input",
+              "owner": "SHADED",
+              "test_id": "tools/test-input-ownership.mjs"
+            },
+            {
+              "target_id": "T-INPUT-0001-MAIN",
+              "repo_path": "src/main.js",
+              "symbol": "initTouchControls() call site",
+              "subsystem": "SHADED input",
+              "owner": "SHADED",
+              "test_id": "tools/test-input-ownership.mjs"
+            }
+          ],
+          "evidence": [
+            {
+              "evidence_id": "EV-INPUT-0001-POSITIVE",
+              "evidence_kind": "TEST",
+              "repo_path": "tools/test-input-ownership.mjs",
+              "symbol": "initTouchControls / setupStick call-site count",
+              "commit_sha": "9ecd2085928c955ad335ae0b62f695d5f431d308",
+              "test_id": "tools/test-input-ownership.mjs",
+              "runtime_artifact": null,
+              "checked_at": "2026-09-06T05:27:00+00:00",
+              "checked_commit": "9ecd2085928c955ad335ae0b62f695d5f431d308",
+              "result": "PASS",
+              "details": "Proves the positive half: src/ui/touchControls.js exports initTouchControls, main.js calls it exactly once, and setupStick (the actual zone/base/knob mount) is invoked exactly twice (move + look) from that single owner."
+            },
+            {
+              "evidence_id": "EV-INPUT-0001-NEGATIVE-ABSENCE",
+              "evidence_kind": "NEGATIVE_ABSENCE",
+              "repo_path": "src/",
+              "symbol": "stick-zone / stick-base / stick-knob / setupStick (repo-wide scan)",
+              "commit_sha": "9ecd2085928c955ad335ae0b62f695d5f431d308",
+              "test_id": "tools/test-input-ownership.mjs",
+              "runtime_artifact": null,
+              "checked_at": "2026-09-06T05:27:00+00:00",
+              "checked_commit": "9ecd2085928c955ad335ae0b62f695d5f431d308",
+              "result": "PASS",
+              "details": "Proves the negative half GOAL_ALFRED.md A-0807 requires: walking every .js/.mjs/.ts file under src/, exactly one file (src/ui/touchControls.js) contains the stick-zone/stick-base/stick-knob/setupStick pattern -- no second, competing input owner is mounted anywhere else in the tree. This is the check that distinguishes 'new joystick installed' from 'new joystick installed AND old owner replaced', per A-0807's own wording.",
+              "set_verification_status": "VERIFIED"
+            }
+          ]
+        }
+      ],
+      "relations": []
+    }
+  ]
+}

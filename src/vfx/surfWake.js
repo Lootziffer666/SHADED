@@ -153,7 +153,7 @@ export class SurfWake {
 
         /**
          * Per-term diagnostic, settable from the console as
-         * `SNOWFLOW.wake.debug = n`. See the switch at the bottom of
+         * `SHADED_RUNTIME.wake.debug = n`. See the switch at the bottom of
          * `wake.fragment.wgsl` for the modes.
          */
         this.debug = 0;

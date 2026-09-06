@@ -58,6 +58,22 @@ const behavior = [
   'tools/test-production-adapter.mjs',
   'tools/test-style-discovery.mjs',
   'tools/test-gpu-spatial.mjs',
+  'tools/test-input-ownership.mjs',
+  'tools/test-build-identifier.mjs',
+  'tools/test-legacy-grep-audit.mjs',
+  'tools/test-donor-matrix.mjs',
+  'tools/test-claim-db.mjs',
+  'tools/test-audit-report.mjs',
+  'tools/test-gap-query.mjs',
+  'tools/test-claim-db-regeneration.mjs',
+  'tools/test-single-canonical-ui.mjs',
+  'tools/test-verification-discipline.mjs',
+  'tools/test-claim-staleness.mjs',
+  'tools/test-claim-conflict.mjs',
+  'tools/test-claim-supersession.mjs',
+  'tools/test-foundation-donor-registry.mjs',
+  'tools/test-claim-schema-invariants.mjs',
+  'tools/test-living-skill-migration.mjs',
 ];
 
 for (const relative of behavior) {

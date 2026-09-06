@@ -102,6 +102,10 @@ export class Terrain {
 
         this.mesh = buildClipmapMesh(scene);
 
+        // Defaults read by _makeSnowMaterial() below -- see setWorldDefaults()'s own doc comment.
+        this._worldDefaultSandDepth = 1.0;
+        this._worldDefaultSnowCoverage = 0.0;
+
         this.material = this._makeSnowMaterial();
         this.mesh.material = this.material;
 
@@ -134,6 +138,7 @@ export class Terrain {
                     "deformCenter", "deformSize", "deformTexel", "deformDepthScale",
                     "ambientIntensity", "ambientFloor", "debugMode", "screenSize",
                     "sandboxCenter", "sandboxSize",
+                    "worldDefaultSandDepth", "worldDefaultSnowCoverage",
                     ...SPELL_LIGHT_UNIFORMS,
                 ],
                 samplers: [
@@ -157,7 +162,32 @@ export class Terrain {
         // 0 size disables the read outright — see setSandboxWindow.
         mat.setVector2("sandboxCenter", _sandboxCenter);
         mat.setFloat("sandboxSize", 0);
+        // SHADED's own default surface state (GOAL_WORLD.md G-0601/G-0708) -- desert by default,
+        // no snow by default. See setWorldDefaults() and snow.fragment.wgsl's material section.
+        mat.setFloat("worldDefaultSandDepth", this._worldDefaultSandDepth);
+        mat.setFloat("worldDefaultSnowCoverage", this._worldDefaultSnowCoverage);
         return mat;
+    }
+
+    /**
+     * SHADED's own default surface state, everywhere the sandbox's local window has no per-cell
+     * data (GOAL_WORLD.md G-0601/G-0602/G-2101/G-2102/G-2805). `sandDepth` (default 1) is how much
+     * of the default world reads as sand vs. exposed rock on a slope -- 1 means "100% sand" holds
+     * across the entire visible terrain, not just the sandbox window; 0 means the whole world's
+     * default falls back to exposed rock wherever slope allows it. `snowCoverage` (default 0)
+     * activates the snow material state on top of that default -- snow is never the baseline (see
+     * GOAL_WORLD.md G-3203, "Snow ist ein SHADED World State/Materialprovider, kein
+     * Rendererfundament"). Both apply immediately to the beauty material's live uniforms; the
+     * sandbox window's own real per-cell FIELD.SAND/FIELD.SNOW state (set via setSandboxWindow)
+     * still overrides this default wherever that window is active, unchanged.
+     * @param {number} sandDepth 0..1
+     * @param {number} snowCoverage 0..1
+     */
+    setWorldDefaults(sandDepth, snowCoverage) {
+        this._worldDefaultSandDepth = Math.max(0, Math.min(1, sandDepth));
+        this._worldDefaultSnowCoverage = Math.max(0, Math.min(1, snowCoverage));
+        this.material.setFloat("worldDefaultSandDepth", this._worldDefaultSandDepth);
+        this.material.setFloat("worldDefaultSnowCoverage", this._worldDefaultSnowCoverage);
     }
 
     /**

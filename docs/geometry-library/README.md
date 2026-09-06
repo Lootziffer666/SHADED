@@ -1,7 +1,8 @@
 # SHADED Geometry Library
 
-Lokal gespiegelte, **wirklich frei verfügbare** Primärquellen für den
-`shaded-geometry`-Skill (`.claude/skills/shaded-geometry/`). Lokal, damit
+Lokal gespiegelte, **wirklich frei verfügbare** Primärquellen für das Geometry/Spatial
+Construction-Modul des `shaded-living`-Skills (`.claude/skills/shaded-living/`, vormals
+`shaded-geometry`, generalisiert per GOAL_FOUNDATION.md F-0310). Lokal, damit
 Recherche in Abschnitt 6/7 der `REFERENCE.md` nicht von Live-Internetzugriff
 abhängt und damit tatsächlich aus der Primärquelle gearbeitet wird statt aus
 einer Trainingsdaten-Paraphrase.

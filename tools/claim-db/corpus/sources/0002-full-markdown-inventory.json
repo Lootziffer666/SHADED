@@ -1,0 +1,2282 @@
+{
+  "sources": [
+    {
+      "source_id": "SRC-DOC-69A5819C1ACEECDB",
+      "source_key": "doc:.claude/skills/shaded-geometry/REFERENCE.md",
+      "path": ".claude/skills/shaded-geometry/REFERENCE.md",
+      "title": "SHADED Geometry — vollständige Methodik",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "3667e47c7d90987ef8c9ab7a654c82226756c2a83eea7bad36b66776e0a01530",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-E50B3D7083806161",
+      "source_key": "doc:.claude/skills/shaded-geometry/RULES.md",
+      "path": ".claude/skills/shaded-geometry/RULES.md",
+      "title": "SHADED Geometry — Regelgedächtnis",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e251197e85278291c6b4d5cd64297051ee03eaaf426482f4264644f3652de21d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-8BD428B45EA83515",
+      "source_key": "doc:.claude/skills/shaded-geometry/SKILL.md",
+      "path": ".claude/skills/shaded-geometry/SKILL.md",
+      "title": "SHADED Geometry — Denkgrammatik statt Enzyklopädie",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "8f9aed324753c9cdd5c5fdb2aed4d777a2cbffdee85b4661ad0dc80d27ff004d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-988CFDB15146363D",
+      "source_key": "doc:.claude/skills/shaded-materials/SKILL.md",
+      "path": ".claude/skills/shaded-materials/SKILL.md",
+      "title": "SHADED-Materialien",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "cd00dc2f3e49036f0488080037f9e9ff54a3ec68efabf577983e12befcfb707a",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-6E995E9598895E6B",
+      "source_key": "doc:.claude/skills/shaded-pipeline/SKILL.md",
+      "path": ".claude/skills/shaded-pipeline/SKILL.md",
+      "title": "SHADED-Pipeline: Wo was lebt",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "9a6073985c98b47d604959e1c62e0a1514a95f2d55f3c377c698d57ba9ed0577",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D3FED18D818787ED",
+      "source_key": "doc:.claude/skills/shaded-reconstruction/SKILL.md",
+      "path": ".claude/skills/shaded-reconstruction/SKILL.md",
+      "title": "SHADED-Rekonstruktion",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "dcddc74c2d6e9ecdc6a0053af5623262f4772b64d37af2912cd10907bc4e5f18",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-45544017F60BB5AF",
+      "source_key": "doc:.claude/skills/shaded-sdf/SKILL.md",
+      "path": ".claude/skills/shaded-sdf/SKILL.md",
+      "title": "SHADED-SDF",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e0cd5a7e2764d17c93da45daf83b27a58566128eaaa7ee5fd7607fbef4f4188d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0F45C74795FBB6A7",
+      "source_key": "doc:.claude/skills/shaded-spatial-primitive-solver/REFERENCE.md",
+      "path": ".claude/skills/shaded-spatial-primitive-solver/REFERENCE.md",
+      "title": "SHADED Spatial Primitive Solver (klassische Single-View-Metrologie + Operator-Solver + Cultivation)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "10679e3e2632d12afefbedf998a94f23716c673948b6ead531f95e59a907a9b4",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D72FD1E192D90662",
+      "source_key": "doc:.claude/skills/shaded-spatial-primitive-solver/SKILL.md",
+      "path": ".claude/skills/shaded-spatial-primitive-solver/SKILL.md",
+      "title": "SHADED Spatial Primitive Solver",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ccb6f5ae96345b9c2287bce929ecec575a4d782578dc2fae10d19f439b961eb5",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-BC94A1EED9609FF5",
+      "source_key": "doc:.claude/skills/shaded-visual-verify/SKILL.md",
+      "path": ".claude/skills/shaded-visual-verify/SKILL.md",
+      "title": "SHADED visuell verifizieren",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6214b718631eedf298632d23fb8d323cd118950d746ac817cce20a315a593d99",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-739BC0C875E22ECB",
+      "source_key": "doc:.kiro/specs/round-10-sprite-export-dialogue/design.md",
+      "path": ".kiro/specs/round-10-sprite-export-dialogue/design.md",
+      "title": "Runde 10 – Sprite-Export & Dialog-Engine: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6115b1e4cdb99b539e25cd2f64fdd7249a7aa2b10c2157f8990c7cc05aa9e13a",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-3AAC5F661DF55DEA",
+      "source_key": "doc:.kiro/specs/round-10-sprite-export-dialogue/requirements.md",
+      "path": ".kiro/specs/round-10-sprite-export-dialogue/requirements.md",
+      "title": "Runde 10 – Sprite-Export & Dialog-Engine: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "4ee388121585a64d7f3ef72e317b195d539ecfa4fced4440a68dbb1c88e94ed8",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-C35F4FCD6FF5D791",
+      "source_key": "doc:.kiro/specs/round-10-sprite-export-dialogue/tasks.md",
+      "path": ".kiro/specs/round-10-sprite-export-dialogue/tasks.md",
+      "title": "Runde 10 – Sprite-Export & Dialog-Engine: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "2f0b02816e80dfcaf8dfd2d11b4c58d9f69d19b27c174aaa9e7c0c36514ed6d8",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-E87631915F612E23",
+      "source_key": "doc:.kiro/specs/round-2-seasons-climate/design.md",
+      "path": ".kiro/specs/round-2-seasons-climate/design.md",
+      "title": "Runde 2 – Jahreszeiten & Klima: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "004070f8f1d787c61314c8963312c6784be7973311dc915995aae9a1c1ea7195",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-4695A0D7DBF72E93",
+      "source_key": "doc:.kiro/specs/round-2-seasons-climate/requirements.md",
+      "path": ".kiro/specs/round-2-seasons-climate/requirements.md",
+      "title": "Runde 2 – Jahreszeiten & Klima: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "d6b29e2d66219d8d934769a57f769e80f537396a0beeebb65847903e70935e29",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-92EC3104F346F579",
+      "source_key": "doc:.kiro/specs/round-2-seasons-climate/tasks.md",
+      "path": ".kiro/specs/round-2-seasons-climate/tasks.md",
+      "title": "Runde 2 – Jahreszeiten & Klima: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "484ba7c22dfa0b2b3df2f1763ced219a32f0234b310c75663801dbfd1ae365e6",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-B19EBC72C4C2DFC8",
+      "source_key": "doc:.kiro/specs/round-3-material-fatigue/design.md",
+      "path": ".kiro/specs/round-3-material-fatigue/design.md",
+      "title": "Runde 3 – Material Fatigue & Verfall: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "38a68386a872277d0ea63ea8e82a1cfaee4e4f7463ccb0852e043c87aec91bf2",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-E1C6B3A82E6C5C73",
+      "source_key": "doc:.kiro/specs/round-3-material-fatigue/requirements.md",
+      "path": ".kiro/specs/round-3-material-fatigue/requirements.md",
+      "title": "Runde 3 – Material Fatigue & Verfall: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "9c3cda45ab8aeb39a0f9de8ee6f5d1ca4b2b684fd159e8ccbc10e6999f708215",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-9FBBBD6B3C4DA15C",
+      "source_key": "doc:.kiro/specs/round-3-material-fatigue/tasks.md",
+      "path": ".kiro/specs/round-3-material-fatigue/tasks.md",
+      "title": "Runde 3 – Material Fatigue & Verfall: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b1ce6dc233b573653c43c203546f2d4339b8f5044b145633d4a2f6c25ab4d270",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-B0B6ECD0E99B9882",
+      "source_key": "doc:.kiro/specs/round-4-interaction-ecosystem/design.md",
+      "path": ".kiro/specs/round-4-interaction-ecosystem/design.md",
+      "title": "Runde 4 – Interaktion & Ökosystem: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ccc3ccad4f21b408c54fb4f04d6d83dc12d6cb57bc97fbed760b820b2ffc4cd9",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-BC6F067BC09E3967",
+      "source_key": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+      "path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+      "title": "Runde 4 – Interaktion & Ökosystem: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7e1683e2ab985e36bb9665fadc1ba243e2593af4c07a09c7f389abdd61f9941b",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-6DC7E730C940AFF0",
+      "source_key": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+      "path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+      "title": "Runde 4 – Interaktion & Ökosystem: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7d89342c291ea7fe721eeafc6f3052ac23c0cc8afbe9644b3969228c2c887ac5",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0A9720C292AC97C9",
+      "source_key": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+      "path": ".kiro/specs/round-5-structural-segmentation/design.md",
+      "title": "Runde 5 – Strukturelle Segmentierung: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "f85586ca05cf8e8bc391c8823e9b6d0cec9eed1c74aca43c25e484844d1f4e22",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+      "source_key": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+      "path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+      "title": "Runde 5 – Strukturelle Segmentierung: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "8e45b71bf2450bb187e0dee765340300c18b9b78dd66fb0334b6be58419800c6",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+      "source_key": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+      "path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+      "title": "Runde 5 – Strukturelle Segmentierung: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "655bdb13f32073780ddb925a9ab9446384db09467274b4babe6dd10334d14a79",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-21E850C22CA34CD9",
+      "source_key": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+      "path": ".kiro/specs/round-8-inspection-lenses/design.md",
+      "title": "Runde 8 – Wally-Monokel: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "1e72c542cb3c62155109fbec16c0ce928b3f225a49af931d61f45d9310cc9f67",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-2986311FC7AFCD05",
+      "source_key": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+      "path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+      "title": "Runde 8 – Wally-Monokel: Inspektions-Linsen: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "f82d2916ea39a89b9b76b49194bdda1b7be131d4cc5cc55013b14cbd3a2502b2",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-1C90F4886F043B3F",
+      "source_key": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+      "path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+      "title": "Runde 8 – Wally-Monokel: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "0a023ca5b9b533caa645f2003a3799548d03039d47a81d4651bbf5dfb734904c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-3B199A51AF9035D9",
+      "source_key": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+      "path": ".kiro/specs/round-9-asset-pipeline/design.md",
+      "title": "Runde 9 – Asset-Pipeline: Design",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "069f6284ff7dbb478e6d61a1e690732dda63babafff089c509e7f21659f5a3ae",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-605310B6E7F2442E",
+      "source_key": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+      "path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+      "title": "Runde 9 – Asset-Pipeline: Requirements",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "16ea7cf035c8d5ee0989d7b3f8bdf371b0f047b880433ac28c1fa2c53332cd90",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-8B7E377EAAC551D9",
+      "source_key": "doc:.kiro/specs/round-9-asset-pipeline/tasks.md",
+      "path": ".kiro/specs/round-9-asset-pipeline/tasks.md",
+      "title": "Runde 9 – Asset-Pipeline: Tasks",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "4e77ee259802adf837281d671e0530a853ae18daf7908128ef7ed67fe1713b12",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-391FEEE052E3300C",
+      "source_key": "doc:.kiro/steering/product.md",
+      "path": ".kiro/steering/product.md",
+      "title": "Produkt: SHADED",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "4f861e9dca87e2de6e1e75a79d79c54076d875c17ef3baa31eaa5a5417e0f191",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-ADE75E758EFCEB8C",
+      "source_key": "doc:.kiro/steering/shader-pipeline.md",
+      "path": ".kiro/steering/shader-pipeline.md",
+      "title": "SHADED-Pipeline: Wo was lebt",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7545c4ead89f5421109810171e7a2d482439f496586011ebf8b3f7fa33f080dc",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-07A4267601F2A3E1",
+      "source_key": "doc:.kiro/steering/structure.md",
+      "path": ".kiro/steering/structure.md",
+      "title": "Repo-Struktur & Asset-Rollen",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "8d99ed177803e065c2bfa191f7066849df1f1c76a601842c17eef602cb1e8da3",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-F66CB076F79CD8D4",
+      "source_key": "doc:.kiro/steering/tech.md",
+      "path": ".kiro/steering/tech.md",
+      "title": "Tech-Stack & Invarianten",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "59655cd77c719f90c4e3d8fba8ad96100af4f6d6ebfc5a07410c599702942b91",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-352C7E270CF9B8FA",
+      "source_key": "doc:.kiro/steering/visual-verification.md",
+      "path": ".kiro/steering/visual-verification.md",
+      "title": "SHADED visuell verifizieren",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "1782420e84836a39c4fa9687aef3c7f16dc11373877b3cc3722417e012d17b00",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-6EBDB617A8104A77",
+      "source_key": "doc:CLAUDE.md",
+      "path": "CLAUDE.md",
+      "title": "CLAUDE.md — SHADED canonical project rules",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "198daf0c6f7cf1780b3b420a6e3a023b49dc95fc12ac20e9518b782c3249260b",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-DABF14104CEF7D84",
+      "source_key": "doc:DONORS.md",
+      "path": "DONORS.md",
+      "title": "Donors",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "5c1b0f0988f5f78d15c7b28c19405c5a938545456aade520a9bb05bccd2a5cbf",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-4B6EF32D5B82EEDB",
+      "source_key": "doc:DONOR_MATRIX.md",
+      "path": "DONOR_MATRIX.md",
+      "title": "Donor Matrix — GOAL_WORLD.md Section 25 Compliance (G-2564..G-2570)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b43126cd12f420c8bd7662ea6e1cbf1b40aa02ca994a4d25b4e9a2ee23c72d8a",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-3FC62B9BC09BCFFD",
+      "source_key": "doc:GAMEPLAY.md",
+      "path": "GAMEPLAY.md",
+      "title": "Gameplay — Viva Piñata für Welten",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "185eebf3f641be1f6903f9ea246656497dfeb21121d0cc51c9416f64d95dd54d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-525566F7A8B7CB8D",
+      "source_key": "doc:GOAL.md",
+      "path": "GOAL.md",
+      "title": "GOAL.md — SHADED Goal Control Plane",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "312078e4470a72f0358fbfa9de5c30986a3e2063047cfad267daf5af63988866",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-A87C6B07B7520F2E",
+      "source_key": "doc:GOAL_ALFRED.md",
+      "path": "GOAL_ALFRED.md",
+      "title": "GOAL_ALFRED.md — `claim.db`: Gefordert / Behauptet / Verifiziert",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "10b6d906a495ad123e398d09896ed9bcd13b89ac4372ada2dd3d0f12d3e74f68",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-16AF1B2A60631558",
+      "source_key": "doc:GOAL_FOUNDATION.md",
+      "path": "GOAL_FOUNDATION.md",
+      "title": "GOAL_FOUNDATION.md — SHADED Pre-Gate: Harness, Repo-Dorfältester, Living Skill",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "111bbcd30289038e1190b052325bf99905606abbaa134e4b0efc4bdc6bb486e0",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-EEE4DDFA0157EEFD",
+      "source_key": "doc:GOAL_WORLD.md",
+      "path": "GOAL_WORLD.md",
+      "title": "GOAL.md — SHADED Canon / Architecture / Implementation / Verification Goal",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6b9b407eb29907d398b5dd12b3fc030724d34f7b719b3f53fdae0ca703e1142f",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-DEDF58C29ED168DD",
+      "source_key": "doc:HABITATS.md",
+      "path": "HABITATS.md",
+      "title": "Habitats",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "839b1df374c376355fe551598b142d4107524e8080c992290e6823bb7ea6318f",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D6C4DFA2715100D4",
+      "source_key": "doc:HYDROLOGY.md",
+      "path": "HYDROLOGY.md",
+      "title": "Hydrology — Hydrological Continuity",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "16396c661a2894492bff9ccd90b755ca096f1a18025871546da49a84eab9031b",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-7D84DCD0BA334AA2",
+      "source_key": "doc:MATERIALS.md",
+      "path": "MATERIALS.md",
+      "title": "Materials — Geometry-agnostic Material Contracts",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "972439c58337beeb341417114ca7c60d739c08cec9ddc143c4fbbbc5cb846020",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-3E18611E65240D59",
+      "source_key": "doc:OPERATORS.md",
+      "path": "OPERATORS.md",
+      "title": "Operators — dieselbe Maschine vorwärts und rückwärts",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "67e889bf83255bd6cc63ad91e05c8dfa269caddad18d140f20230fa51531c634",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0BC93D2570B0426E",
+      "source_key": "doc:PHYSICS.md",
+      "path": "PHYSICS.md",
+      "title": "Physics",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "3389af1ff09a67fe13f625e7c101802e4b66f80caeb081ae7d38c92ccc3be483",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-B335630551682C19",
+      "source_key": "doc:README.md",
+      "path": "README.md",
+      "title": "README",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "fb4955451d8ed1ac59c5987155705c815556d405cf284ecc26ed6fbb42f42fe9",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-09DDF12632E5201B",
+      "source_key": "doc:SHADER_IR.md",
+      "path": "SHADER_IR.md",
+      "title": "Shader IR — Donor Translation Layer",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7853d44bd9ba1cd3c3c5f710dbe5b5cffdb65caf1d0056319915820a8a74e487",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D000431607080793",
+      "source_key": "doc:STATE.md",
+      "path": "STATE.md",
+      "title": "State — Immutable Source, Persistent State, History",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "2550bd61206b96e7835cb23f94fe18eb3a99e7c0f47d789fd71e0cfaa781ff2e",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-617F0DEF1EE3F9D3",
+      "source_key": "doc:STUDIO.md",
+      "path": "STUDIO.md",
+      "title": "Studio — Editor und Runtime",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "d1992564ac087d93ad0a2d3588b637e95dee8c6f3fc7faad71d195146d732ba3",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D448B8E7FEFE6C0B",
+      "source_key": "doc:THIRD_PARTY_NOTICES.md",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "title": "Third-party notices",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "696c7d596159acd3aa264472ade5bf267895fca5ec8962566f9a004a82de3523",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-50E3EE08D280F039",
+      "source_key": "doc:UI_ZERO_REMNANT_AUDIT.md",
+      "path": "UI_ZERO_REMNANT_AUDIT.md",
+      "title": "UI-Zero Remnant Audit",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "605a8e99f790eb61780931b520c5caac776016ac96cc88e4cba735235e674882",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-CB8545C6222E7AE1",
+      "source_key": "doc:VEGETATION.md",
+      "path": "VEGETATION.md",
+      "title": "Vegetation",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "fde8cbd8a0c7dc4b0b6cb329f995d87c30fcf7c500711d374a9814e5b743e5e9",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D6CF5C10D83511FC",
+      "source_key": "doc:VERIFICATION.md",
+      "path": "VERIFICATION.md",
+      "title": "Verification — Consensus / Math Check / Context7",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "bf8502ca97f125df12a5e3a12d9b43cd27df8a0870a9114bb4904890b9f852a2",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-1406C6D2167E2EF4",
+      "source_key": "doc:WINDOWS.md",
+      "path": "WINDOWS.md",
+      "title": "SHADED auf Windows",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "fc3a636960d7998844a7a862151596490be1100d028eb36f124daec1dcd8d2d2",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-56C36216DD7BA492",
+      "source_key": "doc:WORLD_ARCHITECTURE.md",
+      "path": "WORLD_ARCHITECTURE.md",
+      "title": "World Architecture",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "eafc7b5a21de0cc75a4c78edcfef1d0f9f9cc9bd5d2206dc884f7eb6668e4396",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D57DC4F65758160C",
+      "source_key": "doc:WORLD_KERNEL.md",
+      "path": "WORLD_KERNEL.md",
+      "title": "World Kernel",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "dfcd71b747ff4a25a959721ae64a8783baa324fa5c2c2ba023617625b3b7cf8c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-5E9E0791CDC6BD39",
+      "source_key": "doc:assetpilot.md",
+      "path": "assetpilot.md",
+      "title": "ergänze bitte weiter 😅",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e44204698b1de97953d3ac438e2cbb0456bedc53dbaefad697b6535f5aaf3e63",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-658927B16A330120",
+      "source_key": "doc:docs/ENTRYPOINTS_AND_CONTRACTS.md",
+      "path": "docs/ENTRYPOINTS_AND_CONTRACTS.md",
+      "title": "SHADED entry points and contracts",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "eaeae1e6bcff0143ae1c148616e9a562e5cbd98292f8ee0fa1cf39228d3c8468",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-1935187D3A1876D3",
+      "source_key": "doc:docs/EXECUTION_PLAN.md",
+      "path": "docs/EXECUTION_PLAN.md",
+      "title": "Execution Plan — nächste Schritte",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "fa3cbfd66895f2689a4d019f04b5651f6291a2ee3c82ec2c85ea2387d315128a",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0B37EC2236B12FFF",
+      "source_key": "doc:docs/LAB_INTEGRATION.md",
+      "path": "docs/LAB_INTEGRATION.md",
+      "title": "SHADED ↔ LAB",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e1e8d9e9e15687c9085f9e673a6ac4d93ca1820d5ffc496afd5b8d3678a87d4c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+      "source_key": "doc:docs/ORCHESTRATION.md",
+      "path": "docs/ORCHESTRATION.md",
+      "title": "SHADED orchestration contract",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "c19121ec96d8012be8691ecfd489eac22a94050db203e14332b37777ff68a4bb",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0B5CA119D2BE595A",
+      "source_key": "doc:docs/README.md",
+      "path": "docs/README.md",
+      "title": "SHADED-Dokumentation",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "fed93bef3b3693933c5037b958a6bfff6fa73e7572c908341732b6de67e2f91c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-A1186266FD56DC28",
+      "source_key": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+      "path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+      "title": "SHADED / BEUTELTIER -- Konsolidierte Architektur- und Denkmodell-Referenz",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6e8baf44104a9adb4aa96127bb3fedce8b6be7a8bb2d082a6b1588850d0e746e",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-9B9155BF217CC0BC",
+      "source_key": "doc:docs/STYLE_DISCOVERY.md",
+      "path": "docs/STYLE_DISCOVERY.md",
+      "title": "SHADED Style Discovery Sandbox",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "f9853e363940c56cf37a41e952afcc117edf964fd53076981cee8cf43f5c38d1",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-CAAE966D39499B0E",
+      "source_key": "doc:docs/THIRD_PARTY_THEMES.md",
+      "path": "docs/THIRD_PARTY_THEMES.md",
+      "title": "Third-party UI theme palettes",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b8d59e2097ed0108cf651476012eeba26c96aa483903802e90243b4a366bc4ca",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-92B7467F42C46AC9",
+      "source_key": "doc:docs/TRIVIUM_INTEGRATION.md",
+      "path": "docs/TRIVIUM_INTEGRATION.md",
+      "title": "SHADED ↔ TRIVIUM Integration Contract",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "78dda1801b2a0372b65e0a1d92b84663c975a2d553f7d5ef36595fc8c7f3657f",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+      "source_key": "doc:docs/UI_ZERO.md",
+      "path": "docs/UI_ZERO.md",
+      "title": "UI ZERO — branch constitution",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "39c1d56707f097d1232469c2de2d49b00e3f00248945fc1267d38b7519612e7a",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-65CA7A7525E55DAD",
+      "source_key": "doc:docs/bildkanon.md",
+      "path": "docs/bildkanon.md",
+      "title": "SHADED Bildkanon – Der Weltbau-Vertrag",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b039462e72117e9f07d43573c659d65f06587554156f0448de1c1973ef6cbfd9",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-1295A6BB084E1356",
+      "source_key": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+      "path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+      "title": "SHADED: Billige räumliche Hypothesen aus Tiefengrenzen",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6c91ef524e495a4d0bbc3599cd55f38270482bab75663807afd6aa97b6f268c7",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-9C2AA1031E1F2070",
+      "source_key": "doc:docs/browser-native-provider-kandidaten.md",
+      "path": "docs/browser-native-provider-kandidaten.md",
+      "title": "Browser-native Provider-Kandidaten für die Cultivation-Arbeit",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "862b70bbbee7cc1462dd05c293db635fde5cc7eba8503d8c6e6da3964ef94302",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-38D9D3D09BEF1831",
+      "source_key": "doc:docs/einbild-raumrekonstruktion.md",
+      "path": "docs/einbild-raumrekonstruktion.md",
+      "title": "Raum aus einem Bild — der `SingleViewRoomProvider`",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "920c70fe1bb678f91764a57029028d7a9b04a5c4f34c8a8a6856d1c75d503572",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-6B64315CC4A0A37F",
+      "source_key": "doc:docs/einzelbild-raeumlichkeit-providerlandschaft.md",
+      "path": "docs/einzelbild-raeumlichkeit-providerlandschaft.md",
+      "title": "SHADED – Providerlandschaft für Räumlichkeit aus einem Einzelbild",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ed7b900301c09bf8a570b600433969ef158383f70bade495187b34f68e615e4b",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-980F5DB6D5901F6D",
+      "source_key": "doc:docs/engine-decomposition-plan.md",
+      "path": "docs/engine-decomposition-plan.md",
+      "title": "runtime/shaded-engine.mjs — Decomposition Plan",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "f79ff0f2f04ea144214720524c1fab25706c67fe9dc28ea61065f04d13176ba0",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-05BD727B6895543B",
+      "source_key": "doc:docs/first-glimpse-depth-layers.md",
+      "path": "docs/first-glimpse-depth-layers.md",
+      "title": "First Glimpse: SHADED-eigene Tiefenschicht statt externer Provider",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ec959a9cdd1f87da247d7b456f65e5c7731b813485566b07802a49be49a2c80c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-760EFB09E6E7C12A",
+      "source_key": "doc:docs/fixture-taxonomie.md",
+      "path": "docs/fixture-taxonomie.md",
+      "title": "SHADED Struktur-Taxonomie — Geometrie, nicht Szenenerkennung",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "782be1f7551911391999b053efc79e61c190adcbe829c010724b871bb9ce53fc",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-791CB6FFC6E54E62",
+      "source_key": "doc:docs/freestylized-material-library.md",
+      "path": "docs/freestylized-material-library.md",
+      "title": "FreeStylized local material library",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7a5d0b282e9bbba42771fc6784e0d7612cae77df553c34a66eb964f84859af77",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-414AFE1250E3A473",
+      "source_key": "doc:docs/geometry-library/README.md",
+      "path": "docs/geometry-library/README.md",
+      "title": "SHADED Geometry Library",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "efc4402b13ee74767f0fb5ad7ebc169ded35a916b2e0b9cfcaee81c2b6ce50c9",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-258A59D291F5C5D4",
+      "source_key": "doc:docs/material-geometrie-ohne-farbe.md",
+      "path": "docs/material-geometrie-ohne-farbe.md",
+      "title": "Material & Geometrie ohne Farbwerte — Forschungsnotiz",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "4f03aff0e4afdfc0759b7b6d36207f329cf70f3d164d2838c6356655491cab21",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-27170C6E4660DE2A",
+      "source_key": "doc:docs/neuronale-materialien-svbrdf-pbr.md",
+      "path": "docs/neuronale-materialien-svbrdf-pbr.md",
+      "title": "SHADED – Neuronale Materialien, SVBRDF und PBR-Rekonstruktion: Stand 2026",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "de13f5467c81d5a0281d2349a55df5be891d6a4cef7b9359cb1c13369aa8dfab",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0E36A764566BF6FA",
+      "source_key": "doc:docs/phase-b2-depth-rendering.md",
+      "path": "docs/phase-b2-depth-rendering.md",
+      "title": "Phase B2: Depth-Rendering für Actors",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "9f55f83d6d9c8c7858f58e61d408b28db145426c6507498def94c148c523bfd2",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-214A2C4558C0E857",
+      "source_key": "doc:docs/phase-c-weltgesetze.md",
+      "path": "docs/phase-c-weltgesetze.md",
+      "title": "Phase C: Weltgesetze-Erweiterung (World Laws Extension)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "110959ab1f061a9b5d03166c8bdd2212630a20ad9fde93a99f3efd956b736253",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-CE5FAD0603178FEB",
+      "source_key": "doc:docs/phase-c-world-laws.md",
+      "path": "docs/phase-c-world-laws.md",
+      "title": "Phase C: Weltgesetze-Erweiterung (World Laws Extension)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "491b3f5323eec49eef2eaeec463da74d2ea3a48887b8b9b8a30fd3aa2e1b73b4",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-5CE2ECC46206944A",
+      "source_key": "doc:docs/raeumliche-algorithmen-arsenal.md",
+      "path": "docs/raeumliche-algorithmen-arsenal.md",
+      "title": "SHADED – Räumliche Algorithmen: Einordnung und Constraint-Projektion",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "f66d812c524fc23237153ce35909d786fc05353cebcd4cfc2eb268e738ad1975",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-5F95F15706722428",
+      "source_key": "doc:docs/raumrekonstruktion-dykstra-dijkstra.md",
+      "path": "docs/raumrekonstruktion-dykstra-dijkstra.md",
+      "title": "SHADED – Raumrekonstruktion: Dykstra und Dijkstra",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "9c62fdf420d32c4550eb9e49a0be7387fcfd1cb853b81f7d5092b466920a1957",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-AB330D04BCF7547E",
+      "source_key": "doc:docs/reconstruction-provider-und-world-surface-graph.md",
+      "path": "docs/reconstruction-provider-und-world-surface-graph.md",
+      "title": "SHADED – Reconstruction Provider und World Surface Graph",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "d49e543667201dd3ce1b96e915fac3ff7c2bf9ea5331399c6a52e2dc7d8c29b5",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-752043350A25D1AB",
+      "source_key": "doc:docs/registrierung.md",
+      "path": "docs/registrierung.md",
+      "title": "Registrierung vor Ableitung – Der Projektions-Vertrag",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "073772e8e272efa003b993cf775c891c76e0cf8de9bcb44b2d6e90ebce23f3fb",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-8A4A898F00A17527",
+      "source_key": "doc:docs/rendergraph-lastverteilung.md",
+      "path": "docs/rendergraph-lastverteilung.md",
+      "title": "SHADED – Rendergraph, Weltgesetz-Scheduler und Lastverteilung",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "1d7cbbc89e6e4638dc87594b468b810a9514d913ed68b595f39139c60dd6efdf",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-EA4B83CC657F9EF9",
+      "source_key": "doc:docs/research/BUILDING_RECONSTRUCTION_MATRIX.md",
+      "path": "docs/research/BUILDING_RECONSTRUCTION_MATRIX.md",
+      "title": "Gebäudeanlagen-Rekonstruktion: Distraktor-Robuste Pipeline",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7740523bd01ae71491a6ea7d942feb0c5eadf9f754e0bc9c7738547180164ed8",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-37EAD283F056F00A",
+      "source_key": "doc:docs/research/CROSS_DOMAIN_TECHNIQUES.md",
+      "path": "docs/research/CROSS_DOMAIN_TECHNIQUES.md",
+      "title": "Forgotten & Cross-Domain Techniques",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "34859df851654eb076013bc39d9631accc0f30351116e98aba6b648bfa2f7102",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-F52A30749FAEC20C",
+      "source_key": "doc:docs/research/CURRENT_STATE_AUDIT.md",
+      "path": "docs/research/CURRENT_STATE_AUDIT.md",
+      "title": "Current State Audit — SHADED Post-GOLD Research Pass",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "997b385e13a3cbd6b06ba445577d9d7ea1e4c93517d42695c191c6e9bb8323c4",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-47E1246AA684136D",
+      "source_key": "doc:docs/research/DONOR_LICENSES.md",
+      "path": "docs/research/DONOR_LICENSES.md",
+      "title": "Donor License Audit",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ef611012ff34ae3ce55e50f1d496846c7437eb8f1a085f5474c70c07d177fe95",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-9E294599B1DE0FC1",
+      "source_key": "doc:docs/research/EG_DONOR_MATRIX.md",
+      "path": "docs/research/EG_DONOR_MATRIX.md",
+      "title": "SHADED Experimental Operator Donor Matrix (EG_DONOR_MATRIX)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "228c42f3ea3cbcafa86281d02d9e3994e74a7cd2f123ef1afda24363efa9a34d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-78A1964145EB2A06",
+      "source_key": "doc:docs/research/EVALUATION_SPEC.md",
+      "path": "docs/research/EVALUATION_SPEC.md",
+      "title": "Evaluation Specification",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ebb271281f36eaf319ad2ea798efff159048d3126d5e69fe19a1d78b89c152d7",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-2C95559EA6480C95",
+      "source_key": "doc:docs/research/EXPERIMENT_ARCHITECTURE.md",
+      "path": "docs/research/EXPERIMENT_ARCHITECTURE.md",
+      "title": "Experiment Architecture Specification",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "912a918234bbe8a36ed9e1b390491da75560d19331510657a4bfeb21ee330ec4",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-752CDAE07D756A8A",
+      "source_key": "doc:docs/research/GOLD_FREEZE.md",
+      "path": "docs/research/GOLD_FREEZE.md",
+      "title": "SHADED GOLD Freeze — Reproducible State Record",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7dd720c8de324fc955fe37be8ea9798b9c2b5466b31acf087df9732a4127c76d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-343ADD8FECB14BC2",
+      "source_key": "doc:docs/research/HALL_TEXTURE_PIPELINE.md",
+      "path": "docs/research/HALL_TEXTURE_PIPELINE.md",
+      "title": "Hall Texture Pipeline",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "d4c436d30826d7a0299fae186a243fac69173f32900421ee7b4698e67784d3eb",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-639B445CC9E1F776",
+      "source_key": "doc:docs/research/IMPLEMENTATION_ROADMAP.md",
+      "path": "docs/research/IMPLEMENTATION_ROADMAP.md",
+      "title": "Implementation Roadmap",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "0a36871f2be8e04d23b1e4fee4009819293e4fddff41b8f70b8b85559ab0e1b8",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-4C9E938C221267B1",
+      "source_key": "doc:docs/research/POST_GOLD_BENCHMARK_BASELINE.md",
+      "path": "docs/research/POST_GOLD_BENCHMARK_BASELINE.md",
+      "title": "POST-GOLD Benchmark Baseline",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e6ac5060c366175c8b66d3779eba03fa66f307a02df4d6b480179c09a6dd7db4",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-2717D8E6C5D2DB00",
+      "source_key": "doc:docs/research/RETENTION_AND_ARTIFACT_SPEC.md",
+      "path": "docs/research/RETENTION_AND_ARTIFACT_SPEC.md",
+      "title": "Retention and Artifact Specification",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b592f3dcb9af2748652a00d7658de42b657e9320100139be7a566a7048f12a2c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-B115F665207965D8",
+      "source_key": "doc:docs/research/SINGLE_IMAGE_TO_WORLD_MATRIX.md",
+      "path": "docs/research/SINGLE_IMAGE_TO_WORLD_MATRIX.md",
+      "title": "Einzelbild-zu-Welt Generierung: Generative Splat-Verfahren",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "dcb68f975b5ca8605732d525b7b79069c444aad9ff795fc52d835c58ea939453",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-34D5C270B8A04F53",
+      "source_key": "doc:docs/research/STYLE_TECHNIQUE_REGISTRY.md",
+      "path": "docs/research/STYLE_TECHNIQUE_REGISTRY.md",
+      "title": "Style-Technique-Registry — Donor-/Provenance-Tabelle",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "23191122778e246557158a4d59544d0679f27534159f3e183a00ee8f42963c61",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-8F9F14A14F3F2F51",
+      "source_key": "doc:docs/research/STYLIZED_RENDER_PIPELINE.md",
+      "path": "docs/research/STYLIZED_RENDER_PIPELINE.md",
+      "title": "Stylized Rendering Pipeline",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e589d211957d19d81c044fedb603e82081e1dece2aacc1a3e7a00078481a9849",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-204AE6A83D2C9D1A",
+      "source_key": "doc:docs/research/SWIFT_MOTION_RESEARCH.md",
+      "path": "docs/research/SWIFT_MOTION_RESEARCH.md",
+      "title": "SWIFT Motion Research",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "948c1ce4a666873a7cda56913a776771c8f83a0d47c0d9a1143784b71d7df435",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D00B740C1BA70627",
+      "source_key": "doc:docs/research/_probe.md",
+      "path": "docs/research/_probe.md",
+      "title": "placeholder",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "9d9f2cc91d124e1c4a995d0c99dfa67fda7fa98b6b9ab972c18e6c36dd3de7d2",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-16845E31C85A040C",
+      "source_key": "doc:docs/research/spatial-kernel-donor-map.md",
+      "path": "docs/research/spatial-kernel-donor-map.md",
+      "title": "SHADED Spatial Kernel — Current System Inventory & Donor Map",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "26d520e30fa6b4bc9529ba2bcce80d6ec6835764125e35144ca5425ad00656b3",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-DE0505BE1D61E99D",
+      "source_key": "doc:docs/research-radar-themen.md",
+      "path": "docs/research-radar-themen.md",
+      "title": "SHADED – Research Radar: größere Themen",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e68e1c80458c88114f099e8ea023b6b95c99e04dcab8664f8602a1de0f2bf75c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-0FDC29C888F947D4",
+      "source_key": "doc:docs/round-7-ecosystem.md",
+      "path": "docs/round-7-ecosystem.md",
+      "title": "Runde 7: Ökosystem-Integration",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "4e0bdd731c41c4bf3442c7cd4f9d5033aeffdb684c9b1367c7eb1b5c88a19bb1",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-3EFCA16F7B108330",
+      "source_key": "doc:docs/round-8-asset-boundary.md",
+      "path": "docs/round-8-asset-boundary.md",
+      "title": "Runde 8 – Asset-Boundary: Was in die Kalibrierung einfloss",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "77290e54441805765363122d972a65e30a0449eef51bc2e7b1d2ba3c64090790",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-BF7E31A0829C9D4F",
+      "source_key": "doc:docs/round-9-asset-boundary.md",
+      "path": "docs/round-9-asset-boundary.md",
+      "title": "Runde 9 – Asset-Boundary",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "564875d34a42f92a2f9b674a800b24054801e373bdc17e893626417ec4cf0fe1",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-805684E1B6193F6F",
+      "source_key": "doc:docs/sandbox-element-donor-matrix.md",
+      "path": "docs/sandbox-element-donor-matrix.md",
+      "title": "SHADED Sandbox — Element / Simulation Donor Matrix",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6669b0ff473f2d36610a0ed6f1fba4042e688d9a3b124a0ab8d18a2b628a0bb8",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-35032E54781FD6C9",
+      "source_key": "doc:docs/sandbox-element-license-audit.md",
+      "path": "docs/sandbox-element-license-audit.md",
+      "title": "SHADED Sandbox — Element Donor License Audit",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "a3cd5516d211a42494acc090dec4839651aed994b2ad2992e52c6022b1f1fd9e",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-B223874DEC7FC468",
+      "source_key": "doc:docs/sandbox-sand-water-sources.md",
+      "path": "docs/sandbox-sand-water-sources.md",
+      "title": "SHADED Sandbox — sand, water and particle source map",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "c6d731c1eef530e9917b7e0a632b2e70210a8b1b20010908ca9686ab23713a7c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-6860106239CD7756",
+      "source_key": "doc:docs/sdf-geometrie-stand-2026.md",
+      "path": "docs/sdf-geometrie-stand-2026.md",
+      "title": "SHADED – SDF-Geometrie: Stand 2026 und Architekturrolle",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "6000ef8ec969e7af1bedc24758d0d9260887060bba6b3b17e3e841f9ea3741d8",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-AAD25F47B9C42CF2",
+      "source_key": "doc:docs/shaded-faehigkeiten.md",
+      "path": "docs/shaded-faehigkeiten.md",
+      "title": "SHADED-Fähigkeiten – ausführbarer Stand",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "c8f3e223da11ffc4fa7a3d279f70b2f7a9c94804eaf06265520293387f64d944",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-CAF1058191EED01D",
+      "source_key": "doc:docs/shader-referenzmatrix.md",
+      "path": "docs/shader-referenzmatrix.md",
+      "title": "SHADED – Kanonische Shader-Referenzmatrix",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b11f8d3a17e259c6b5fa922ec32b6d8f6fb6192eedca9a6e4d281e9f9499e4c6",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-F2E81C134D62931E",
+      "source_key": "doc:docs/synthetic-visual-reverse-engineering.md",
+      "path": "docs/synthetic-visual-reverse-engineering.md",
+      "title": "Synthetic Visual Reverse Engineering — Methodenreferenz",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b80d71bbe94e7da9c18008c706313f8804aeed06c96911bbfd206722bd6fd617",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-00741F973EA2D983",
+      "source_key": "doc:docs/village-box-cultivation-experimente.md",
+      "path": "docs/village-box-cultivation-experimente.md",
+      "title": "Village-Box-Segmentierung: Multikanal-Fusions-Experimente",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "7345b81e7f78044f2e53d973622282bceb10493a51a7a28e81dea6703df2a506",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-75850DABC1D1A1D2",
+      "source_key": "doc:docs/village-site-plan-reference/README.md",
+      "path": "docs/village-site-plan-reference/README.md",
+      "title": "Village Site-Plan Reference",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "37b5c9dc412d319eb73223bcfd7bd2be6ecc328bcc2a959daca052c2cff2364c",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-88F053C56D07AC26",
+      "source_key": "doc:docs/vision-weltgesetze.md",
+      "path": "docs/vision-weltgesetze.md",
+      "title": "60 Sichtbare Weltgesetze — Shader-First Systemkatalog",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e76407110d691ebbc354f40397217d77190f33c2868d9dbda81b4fa4a028c37d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-26E3F99F0E19522F",
+      "source_key": "doc:tools/claim-db/corpus/extractions/INVALID_CLUSTER_A_RETRACTION_NOTE.md",
+      "path": "tools/claim-db/corpus/extractions/INVALID_CLUSTER_A_RETRACTION_NOTE.md",
+      "title": "INVALID_CLUSTER_A_RETRACTION_NOTE",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "26df58fe8fc7c0ca24ff56dcccd72d48ec118427a77d28612dc703b27888fe8a",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-A20CE4A3819E2B31",
+      "source_key": "doc:tools/provenance_matrix.md",
+      "path": "tools/provenance_matrix.md",
+      "title": "Provenance Matrix — Provider Source Audit",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b23d3ee5b8002cadca480a7e911782c68459ff88ca1a1813bce18a6f1aca8107",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D07288CFDFFC356E",
+      "source_key": "doc:webgpu-depth-anything/README.md",
+      "path": "webgpu-depth-anything/README.md",
+      "title": "Device-Agnostic Depth Anything Inference for SHADED",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "10ddf1cdafe9c63e5433622a137083912bfca51c37bebefa99fcb5f73600391d",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-97061135EE900254",
+      "source_key": "doc:webgpu-depth-anything/TECHNICAL_PLAN.md",
+      "path": "webgpu-depth-anything/TECHNICAL_PLAN.md",
+      "title": "Technical Implementation Plan: Device-Agnostic Depth Anything Inference in SHADED",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "64e93e380b2a65f9735b1aac09c7c6b4c786ddd0",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "9d9dd49a25b331ed746ff1ef5da5e9e0bb36b2b541f9628fde4fa4b0500c9024",
+      "ingested_at": "2026-09-06T04:49:15.280406+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-BF106B2374B92283",
+      "source_key": "doc:.claude/skills/shaded-living/REFERENCE.md",
+      "path": ".claude/skills/shaded-living/REFERENCE.md",
+      "title": "SHADED Geometry — vollständige Methodik (Geometry/Spatial Construction-Modul von `shaded-living`)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "06b24e412eed22a876b5939ff6ac4ea460aa0478b3406b141e27b1814d5fddac",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D5CAA1563EE8079A",
+      "source_key": "doc:.claude/skills/shaded-living/RULES.md",
+      "path": ".claude/skills/shaded-living/RULES.md",
+      "title": "SHADED Geometry — Regelgedächtnis",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "e251197e85278291c6b4d5cd64297051ee03eaaf426482f4264644f3652de21d",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-D7EB320CCAAE6598",
+      "source_key": "doc:.claude/skills/shaded-living/SKILL.md",
+      "path": ".claude/skills/shaded-living/SKILL.md",
+      "title": "SHADED Living Skill — projektweites, failure-getriebenes Regelgedächtnis",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "b1a02769a8a4885cb4274f6a312e923b0457f1d2fbbedd6a34929a08e967c7af",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-C05B0E81130FBA65",
+      "source_key": "doc:AUDIT_REPORT.md",
+      "path": "AUDIT_REPORT.md",
+      "title": "AUDIT_REPORT.md — GOAL.md / GOAL_ALFRED.md / GOAL_FOUNDATION.md / GOAL_WORLD.md",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "77b6a0165df3c07b349f6b4a796f05236625b1a492a892c91af78c4c8349cf99",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-4CB5B78B1B62189A",
+      "source_key": "doc:FOUNDATION_DONOR_REGISTRY.md",
+      "path": "FOUNDATION_DONOR_REGISTRY.md",
+      "title": "FOUNDATION_DONOR_REGISTRY.md — Repo-Dorfältester donor pins (GOAL_FOUNDATION.md 0B)",
+      "source_type": "DOC",
+      "revision": null,
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "72896b0a05c7d6f30d005e0ffd15e1d9927b6b7f9b79df23bcc146428f33a57c",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-414AFE1250E3A473-R0ED51B5D",
+      "source_key": "doc:docs/geometry-library/README.md",
+      "path": "docs/geometry-library/README.md",
+      "title": "SHADED Geometry Library",
+      "source_type": "DOC",
+      "revision": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "0ed51b5ddc3c759e9c8577f65ed9110813a2b53a148005c59fc10c3232f0ded0",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    },
+    {
+      "source_id": "SRC-DOC-75850DABC1D1A1D2-RAB8941C9",
+      "source_key": "doc:docs/village-site-plan-reference/README.md",
+      "path": "docs/village-site-plan-reference/README.md",
+      "title": "Village Site-Plan Reference",
+      "source_type": "DOC",
+      "revision": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "commit_sha": "596ce8306b20ba9534ff09df6948d49e80dea197",
+      "export_time": null,
+      "author_role": "REPO_DOCUMENT",
+      "content_hash": "ab8941c9533b3fd132a831443c3d592b512840326f0a13316c302a41208264db",
+      "ingested_at": "2026-09-06T06:57:22.833909+00:00",
+      "tags": [
+        "markdown",
+        "full-corpus-inventory"
+      ]
+    }
+  ]
+}

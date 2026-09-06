@@ -18,7 +18,7 @@
 
 #include<snowNoise>
 #include<snowTerrain>
-#include<snowDeform>
+#include<sharedDeform>
 #include<snowSandbox>
 #include<snowShading>
 #include<snowSpellLights>
@@ -87,6 +87,20 @@ uniform ambientIntensity: f32;
 uniform ambientFloor: f32;
 uniform debugMode: f32;
 uniform screenSize: vec2f;
+
+/// SHADED-owned default surface state (GOAL_WORLD.md G-0601/G-0602/G-2101/G-2102): the world's
+/// baseline material everywhere the sandbox's own dynamic per-cell simulation has no data --
+/// i.e. everywhere outside `sandboxSize`'s local window. Previously this baseline was Snowflow's
+/// own `rockMask` (`aux.z`, a bake-time texture SHADED had no authority over) combined with an
+/// unconditional snow-white base albedo -- so no test could ever make "the whole visible world"
+/// read as sand, because most of it was never SHADED's to set. These two floats ARE SHADED's:
+/// `worldDefaultSandDepth` (1.0 = full desert coverage, matching "Default-Welt ist Wüste/Sand")
+/// and `worldDefaultSnowCoverage` (0.0 = no snow by default -- snow is an activated state on top
+/// of the default, never the baseline). The local sandbox window still overrides both with real,
+/// dynamic per-cell FIELD.SAND/FIELD.SNOW state exactly as before; only what happens where that
+/// window has no opinion has changed owner.
+uniform worldDefaultSandDepth: f32;
+uniform worldDefaultSnowCoverage: f32;
 
 /// World-sandbox ground replacement — see Terrain.setSandboxWindow.
 /// `sandboxSize` of 0 or less disables it outright (the sandbox is off).
@@ -219,7 +233,8 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     // ---------------------------------------------------------------- slopes
     let aux = textureSampleLevel(auxTex, auxTexSampler, input.vHeightUV, 0.0);
     var grad = aux.xy;
-    let rockMask = aux.z;
+    // aux.z was Snowflow's own bake-time rockMask -- no longer read (GOAL_WORLD.md G-0404):
+    // exposed-rock authority is worldDefaultSandDepth now, see the material section below.
     let exposure = aux.w;
 
     let fine = terrainFineFiltered(
@@ -329,13 +344,37 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     ).z;
 
     // ------------------------------------------------------------- material
-    // Snow albedo sits in a narrow, high, slightly blue band. It is never 1.0:
-    // pushing albedo to white is what produces the blown-out clipped highlights
-    // that read as "untextured white blob" rather than as snow.
-    var albedo = vec3f(0.855, 0.885, 0.945);
-    var roughness = 0.62;
+    // SHADED's own default surface state (GOAL_WORLD.md Section 5/6, G-0601/G-0606/G-3203).
+    // Previously this whole function started from an unconditional snow-white albedo and only
+    // *added* rock (via Snowflow's own bake-time rockMask) or sand (only inside the sandbox's
+    // local window) on top of it -- so nothing SHADED owned could ever make "the whole visible
+    // world" read as sand, because the baseline everywhere else was still Snowflow's. The
+    // baseline is now desert by default (sand, or exposed rock where worldDefaultSandDepth says
+    // the sand has genuinely thinned on a slope), with snow mixed in only as far as
+    // worldDefaultSnowCoverage says -- an activated state on top of the default, never the
+    // default itself.
+    let sandAlbedo = vec3f(0.550, 0.320, 0.130); // EXECUTION_PLAN.md Task 2's calibrated desert sand target (linear)
+    let snowAlbedoDefault = vec3f(0.855, 0.885, 0.945); // Snow albedo sits in a narrow, high, slightly blue band. Never 1.0: pushing albedo to white produces the blown-out clipped highlights that read as "untextured white blob" rather than as snow.
+    let rockNoise = noise2(world.xz * 2.3) * 0.5 + 0.5;
+    let rockColDefault = mix(vec3f(0.055, 0.058, 0.068), vec3f(0.115, 0.112, 0.118), rockNoise);
+
+    // Slope-driven exposure is a legitimate general terrain law (steeper faces show more bare
+    // rock) absorbed from Snowflow's technique (GOAL_WORLD.md G-0407) -- but the AUTHORITY over
+    // how much sand covers a slope before it counts as "exposed" is worldDefaultSandDepth, a real
+    // SHADED world-state parameter a caller (or a 100%-sand test) can set and have it mean
+    // everywhere, not Snowflow's own bake-time rockMask texture that only ever described its own
+    // terrain.
+    let slopeExposure = smoothstep(0.32, 0.66, 1.0 - N.y);
+    let rockExposed = (1.0 - uniforms.worldDefaultSandDepth) * slopeExposure;
+
+    var albedo = mix(sandAlbedo, rockColDefault, rockExposed);
+    var roughness = mix(0.82, 0.85, rockExposed);
     var f0 = vec3f(0.028);
-    var thickness = 1.0; // 1 = deep drift, 0 = thin crust
+    var thickness = 0.0; // 1 = deep drift, 0 = thin crust -- sand and exposed rock are both thin by default
+
+    albedo = mix(albedo, snowAlbedoDefault, uniforms.worldDefaultSnowCoverage);
+    roughness = mix(roughness, 0.62, uniforms.worldDefaultSnowCoverage);
+    thickness = mix(thickness, 1.0, uniforms.worldDefaultSnowCoverage);
 
     // Compressed snow: denser, darker, tighter specular, scatters less.
     albedo = mix(albedo, vec3f(0.62, 0.665, 0.755), compression * 0.85);
@@ -348,17 +387,6 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     f0 = mix(f0, vec3f(0.045), iceAmount);
     thickness = mix(thickness, 0.15, iceAmount);
 
-    // Exposed rock. Snow keeps its grip on the flatter faces, so the mask is
-    // gated by slope rather than applied flat.
-    let rockExposed = rockMask * smoothstep(0.32, 0.66, 1.0 - N.y);
-    if (rockExposed > 0.001) {
-        let rn = noise2(world.xz * 2.3) * 0.5 + 0.5;
-        let rockCol = mix(vec3f(0.055, 0.058, 0.068), vec3f(0.115, 0.112, 0.118), rn);
-        albedo = mix(albedo, rockCol, rockExposed);
-        roughness = mix(roughness, 0.85, rockExposed);
-        thickness = mix(thickness, 0.0, rockExposed);
-    }
-
     // World-sandbox ground: within its window this *replaces* the ground —
     // one continuous mesh, the sandbox's own live colour and roughness
     // blended in by the same falloff the vertex stage used for the height
@@ -366,19 +394,17 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     // own colour, straight from the same field/colour law the sandbox
     // simulation itself uses (colorForCell in world-sandbox-cpu-backend.mjs,
     // packed into this texture's GBA channels every frame) — not a
-    // procedural guess the way the rock blend above is.
+    // procedural guess the way the default rock blend above is.
     var sandWeight = 0.0;
-    // How much of `sandWeight` should count as "not snow" for the downstream terms below —
-    // defaults to the full sandWeight (bare/sandy ground), but is pulled back toward 0 wherever
-    // the sandbox's own SNOW field says this cell actually IS snow-covered (see below). Previously
-    // this was just `sandWeight` unconditionally, which treated the entire sandbox window as
-    // permanently snow-free regardless of the live simulation's own FIELD.SNOW state — exactly the
-    // "derive the state from something else (here: mere window membership) instead of reading the
-    // canonical field" mistake EXECUTION_PLAN.md Task 4 exists to fix.
-    var sandNonSnow = 0.0;
+    // "How non-snow is this fragment" for every downstream term keyed off that (wrap diffuse,
+    // subsurface, glints). Starts at SHADED's own default classification (exposed rock, or
+    // whatever worldDefaultSnowCoverage says) -- not a hardcoded "assume snow" -- then, inside
+    // the sandbox window, is REPLACED (mix by sandWeight, not max'd against the default) by the
+    // live simulation's own FIELD.SNOW-derived value, because inside its window the sandbox's
+    // per-cell state is the sole authority, not a heuristic blended against it.
+    var sandNonSnow = max(rockExposed, 1.0 - uniforms.worldDefaultSnowCoverage);
     if (uniforms.sandboxSize > 0.0) {
         sandWeight = deformFalloff(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
-        sandNonSnow = sandWeight;
         if (sandWeight > 0.001) {
             let sandUV = sandboxUV(world.xz, uniforms.sandboxCenter, uniforms.sandboxSize);
             let sc = sandboxSampleBilinear(sandboxTex, sandboxTexSampler, sandUV);
@@ -393,15 +419,11 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
             // other, not just each internally consistent with a different threshold.
             let snowRaw = sandboxSampleBilinear(sandboxFieldTex, sandboxFieldTexSampler, sandUV).r;
             let snowCoverage = clamp((snowRaw - 0.006) / 0.054, 0.0, 1.0);
-            sandNonSnow = sandWeight * (1.0 - snowCoverage);
+            sandNonSnow = mix(sandNonSnow, 1.0 - snowCoverage, sandWeight);
         }
     }
 
-    // Rock and sandbox ground are both "this fragment isn't snow" for every downstream term keyed
-    // off that (wrap diffuse, subsurface, glints) — whichever is stronger here wins. Sandbox ground
-    // only counts as non-snow in proportion to `sandNonSnow`, not the raw window membership
-    // `sandWeight` — a snow-covered cell inside the sandbox window keeps its snow look.
-    let nonSnow = max(rockExposed, sandNonSnow);
+    let nonSnow = sandNonSnow;
 
     // --- carved-snow surface state -----------------------------------------
     // Freshly displaced mass is the opposite of trodden snow: it has just been

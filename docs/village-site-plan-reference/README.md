@@ -23,7 +23,7 @@ Als Testfall für einen Solver sind sie dadurch entwertet.
 
 ## Wofür sie tatsächlich verwendet werden
 
-1. **`shaded-geometry` REFERENCE.md, Abschnitt 5 (PREPARE FOR EXTENSION):**
+1. **`shaded-living` (Geometry/Spatial Construction module) REFERENCE.md, Abschnitt 5 (PREPARE FOR EXTENSION):**
    `site-plan-de-anschluss.png` ist ein konkretes Beispiel für das dort
    abstrakt beschriebene Vokabular — „Fluchtlinien, Anschlusskanten … Stellen
    für den Repräsentationswechsel" wird hier real als
