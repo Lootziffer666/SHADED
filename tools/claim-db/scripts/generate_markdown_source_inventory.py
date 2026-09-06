@@ -87,7 +87,11 @@ def main():
         if base_id not in latest_hash_by_base:
             source_id = base_id  # genuinely new path
         elif latest_hash_by_base[base_id] == content_hash:
-            source_id = base_id if base_id in existing_by_id else f"{base_id}-R{content_hash[:8].upper()}"
+elif latest_hash_by_base[base_id] == content_hash:
+    if base_id in existing_by_id:
+        continue  # already recorded as base -- nothing new to add
+    # base entry missing but content matches a known revision -- skip to avoid duplicate
+    continue
             # already recorded (as base or as a prior identical revision) -- nothing new to add
             if source_id in existing_by_id:
                 continue
