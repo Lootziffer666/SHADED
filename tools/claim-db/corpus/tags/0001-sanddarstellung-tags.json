@@ -1,0 +1,38 @@
+{
+  "tag_delta_id": "TAG-DELTA-20260906-001",
+  "source_id": "SRC-CHAT-20260906-0143-001",
+  "source_tags": [
+    "project:SHADED",
+    "chat-title:Teilgespräch Repoanalyse Sanddarstellung",
+    "topic:repoanalyse-sanddarstellung",
+    "subsystem:terrain-rendering",
+    "material:sand"
+  ],
+  "claim_tags": {
+    "C-SAND-0001": [
+      "project:SHADED",
+      "chat:repoanalyse-sanddarstellung",
+      "kind:requirement",
+      "scope:visible-ground",
+      "material:sand",
+      "topic:terrain-rendering"
+    ],
+    "C-SAND-0002": [
+      "project:SHADED",
+      "chat:repoanalyse-sanddarstellung",
+      "kind:requirement",
+      "scope:material-ownership",
+      "material:sand",
+      "material:rock-negative-boundary",
+      "topic:terrain-rendering"
+    ],
+    "C-SAND-0003": [
+      "project:SHADED",
+      "chat:repoanalyse-sanddarstellung",
+      "kind:runtime-observation",
+      "issue:cow-pattern",
+      "material:sand",
+      "topic:terrain-rendering"
+    ]
+  }
+}
