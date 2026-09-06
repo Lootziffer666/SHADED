@@ -56,6 +56,9 @@ EVIDENCE = {
     "A-0101": ("GOAL_ALFRED.md A-0100", "127 markdown sources ingested via generate_markdown_source_inventory.py", "tools/test-claim-db.mjs"),
     "A-0103": ("GOAL_ALFRED.md A-0100", "sources table: source_id/path/type/commit_sha/hash/ingested_at all populated on every DOC row", "tools/test-claim-db.mjs"),
     "A-0304": ("GOAL_ALFRED.md A-0300", "verification_evidence rows store evidence_kind/result; sand claims left UNVERIFIED (GPU proof outstanding), not fabricated", "tools/test-claim-db.mjs"),
+    "A-0511": ("GOAL_ALFRED.md A-0500", "tools/claim-db/gap_query.py --about/--file/--unverified/--old-owners", "tools/test-gap-query.mjs"),
+    "A-0512": ("GOAL_ALFRED.md A-0500", "gap_query.py output: Claim-ID + Forderungsquelle + STATUS + Evidence + betroffene Dateien/Symbole per claim", "tools/test-gap-query.mjs"),
+    "A-0808": ("GOAL_ALFRED.md A-0800", "gap_query.py names missing evidence and points at real claim_targets files/symbols for a chosen scope", "tools/test-gap-query.mjs"),
 }
 
 # GOAL_WORLD.md section -> (start line marker, DEFERRED reason) for the sections Section 31
