@@ -68,6 +68,7 @@ const behavior = [
   'tools/test-claim-db-regeneration.mjs',
   'tools/test-single-canonical-ui.mjs',
   'tools/test-verification-discipline.mjs',
+  'tools/test-claim-staleness.mjs',
 ];
 
 for (const relative of behavior) {

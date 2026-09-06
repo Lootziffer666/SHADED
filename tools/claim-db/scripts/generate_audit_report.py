@@ -63,6 +63,8 @@ EVIDENCE = {
     "G-1803": ("GOAL_WORLD.md Sec.18", "no editor/ tree, no gui.html, no exempt research page wired into index.html", "tools/test-single-canonical-ui.mjs + tools/verify-no-legacy-ui.mjs + tools/verify-no-legacy-ui-meta.mjs"),
     "G-1805": ("GOAL_WORLD.md Sec.18", "index.html contains no authored button/input/select/textarea/nav/aside control", "tools/verify-no-legacy-ui.mjs"),
     "G-1806": ("GOAL_WORLD.md Sec.18", "index.html: 1 <script type=module> importing /src/main.js, <300 lines", "tools/test-single-canonical-ui.mjs"),
+    "A-0804": ("GOAL_ALFRED.md A-0800", "invariant: zero-evidence claims never VERIFIED (C-SAND-0003); evidence-backed claims promote (C-INPUT-0001)", "tools/test-verification-discipline.mjs"),
+    "A-0805": ("GOAL_ALFRED.md A-0800", "tools/claim-db/check_staleness.py: real detect (C-INPUT-0001 vs src/main.js post-9ecd208 changes) -> STALE_NEEDS_RECHECK -> recheck evidence -> re-VERIFIED", "tools/test-claim-staleness.mjs"),
     "A-0807": ("GOAL_ALFRED.md A-0800", "C-INPUT-0001 (claim.db) VERIFIED only via positive+NEGATIVE_ABSENCE evidence; sand-ownership cross-check proves the invariant is not vacuous", "tools/test-verification-discipline.mjs"),
 }
 

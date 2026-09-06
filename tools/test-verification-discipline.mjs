@@ -65,4 +65,28 @@ ok(
   `C-SAND-0002 correctly stays ${sandClaim.verification_status}, not VERIFIED, given it has no negative/absence evidence -- the invariant is not vacuously true`,
 );
 
-console.log('\n✅ verification-discipline (A-0807): the concrete input-ownership regression claim is legitimately VERIFIED via positive+negative evidence, the general invariant holds over every VERIFIED ownership claim in claim.db, and the sand-ownership counter-example confirms the check is not vacuous');
+// A-0804: "reine Dokumentbehauptung bleibt UNVERIFIED; Code/Test/Runtime-Evidence promotet zu
+// VERIFIED." Mechanical invariant: no claim with zero verification_evidence rows may be VERIFIED
+// (a bare claim_sources citation -- a document/chat assertion -- is never enough by itself), and
+// at least one real claim demonstrates the positive path (evidence present -> promoted).
+const allClaims = db.prepare('SELECT claim_id, verification_status FROM claims').all();
+ok(allClaims.length > 0, `sanity: claim.db has claims to check for A-0804 (found ${allClaims.length})`);
+const evidenceCountStmt = db.prepare('SELECT count(*) as c FROM verification_evidence WHERE claim_id=?');
+let noEvidenceCount = 0;
+let verifiedWithEvidenceCount = 0;
+for (const claim of allClaims) {
+  const {c} = evidenceCountStmt.get(claim.claim_id);
+  if (c === 0) {
+    noEvidenceCount += 1;
+    ok(
+      claim.verification_status !== 'VERIFIED',
+      `${claim.claim_id}: has zero verification_evidence rows (document/chat assertion only) and correctly is NOT VERIFIED (found: ${claim.verification_status}) (A-0804)`,
+    );
+  } else if (claim.verification_status === 'VERIFIED') {
+    verifiedWithEvidenceCount += 1;
+  }
+}
+ok(noEvidenceCount > 0, `sanity: at least one doc/chat-only claim with zero evidence exists to check (found ${noEvidenceCount})`);
+ok(verifiedWithEvidenceCount > 0, `A-0804 positive path: at least one claim was actually promoted to VERIFIED by real evidence (found ${verifiedWithEvidenceCount})`);
+
+console.log('\n✅ verification-discipline (A-0804/A-0807): document-only claims stay UNVERIFIED, evidence-backed claims promote to VERIFIED, the concrete input-ownership regression claim is legitimately VERIFIED via positive+negative evidence, the general A-0807 invariant holds over every VERIFIED ownership claim in claim.db, and the sand-ownership counter-example confirms the check is not vacuous');

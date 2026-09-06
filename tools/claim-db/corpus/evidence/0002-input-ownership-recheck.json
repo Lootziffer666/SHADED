@@ -1,0 +1,31 @@
+{
+  "evidence": [
+    {
+      "evidence_id": "EV-INPUT-0001-RECHECK-POSITIVE",
+      "claim_id": "C-INPUT-0001",
+      "evidence_kind": "TEST",
+      "repo_path": "tools/test-input-ownership.mjs",
+      "symbol": "initTouchControls / setupStick call-site count",
+      "commit_sha": "c4bfd8852427e173bb4f0821ee887c2413729c1f",
+      "test_id": "tools/test-input-ownership.mjs",
+      "checked_at": "2026-09-06T05:36:00+00:00",
+      "checked_commit": "c4bfd8852427e173bb4f0821ee887c2413729c1f",
+      "result": "PASS",
+      "details": "GOAL_ALFRED.md A-0805 recheck cycle: tools/claim-db/check_staleness.py correctly demoted C-INPUT-0001 to STALE_NEEDS_RECHECK because src/main.js (one of its claim_targets) changed twice after the original checked_commit 9ecd208 (branding removal in d904775, build-identifier addition in b9e2512), even though neither change touched the initTouchControls() call site itself. Re-running tools/test-input-ownership.mjs at HEAD c4bfd88 confirms the underlying claim is still true: exactly one touch-stick provider, wired exactly once, no competing owner. This evidence's checked_commit is fresh as of c4bfd88, so the claim is legitimately re-promoted below rather than left permanently stale after a harmless doc/branding change to an unrelated part of the same file."
+    },
+    {
+      "evidence_id": "EV-INPUT-0001-RECHECK-NEGATIVE-ABSENCE",
+      "claim_id": "C-INPUT-0001",
+      "evidence_kind": "NEGATIVE_ABSENCE",
+      "repo_path": "src/",
+      "symbol": "stick-zone / stick-base / stick-knob / setupStick (repo-wide scan)",
+      "commit_sha": "c4bfd8852427e173bb4f0821ee887c2413729c1f",
+      "test_id": "tools/test-input-ownership.mjs",
+      "checked_at": "2026-09-06T05:36:00+00:00",
+      "checked_commit": "c4bfd8852427e173bb4f0821ee887c2413729c1f",
+      "result": "PASS",
+      "details": "Repo-wide scan at HEAD c4bfd88 re-confirms no second input owner exists anywhere under src/ -- the negative half of A-0807's own requirement still holds after the recheck, not just the positive half.",
+      "set_verification_status": "VERIFIED"
+    }
+  ]
+}
