@@ -163,6 +163,8 @@ export class SandboxRenderer {
 
         this._toolWasDown = false;
         this._aiming = false;
+        /** Caller's own setVisible() intent -- see that method's comment. */
+        this._externallyVisible = true;
 
         this._updateWorldPositions();
         this._captureBaseline();
@@ -555,6 +557,7 @@ export class SandboxRenderer {
         if (!world) return;
         const size = SIZE;
         const tex = this._texData;
+        let maxWater = 0;
 
         for (let i = 0; i < size * size; i++) {
             const o = i * CELL_STRIDE;
@@ -612,12 +615,20 @@ export class SandboxRenderer {
             this._waterColors[i * 4 + 1] = 1;
             this._waterColors[i * 4 + 2] = 1;
             this._waterColors[i * 4 + 3] = wVisible;
+            if (water > maxWater) maxWater = water;
         }
         this.sandboxTex.update(tex);
         this.sandboxFieldTex.update(this._fieldTexData);
 
         this.water.updateVerticesData(VertexBuffer.PositionKind, this._waterPositions, true);
         this.water.updateVerticesData(VertexBuffer.ColorKind, this._waterColors, false);
+        // Belt-and-braces on top of the per-vertex alpha above: this mesh is a full
+        // WORLD_SPAN-covering grid regardless of how little water actually exists, so if vertex
+        // alpha blending doesn't engage for any reason (material/pipeline state this class
+        // doesn't control), a bone-dry desert must still never show it as an opaque sheet over
+        // the sand. Setting the whole mesh disabled below the visibility threshold is a hard
+        // guarantee independent of whether alpha blending is doing its job.
+        this.water.setEnabled(this._externallyVisible && maxWater > WATER_THRESHOLD);
 
         this._refreshVegetation(world);
         this._refreshParticles();
@@ -724,6 +735,11 @@ export class SandboxRenderer {
     }
 
     setVisible(v) {
+        // _refresh() re-derives this.water's own enabled state from live water depth every
+        // frame regardless of this flag, so it has to remember the caller's intent too --
+        // otherwise the very next _refresh() call after setVisible(false) would flip a
+        // genuinely wet mesh back on, overriding an explicit "hide the whole sandbox" request.
+        this._externallyVisible = v;
         this.water.setEnabled(v);
         this.veg.setEnabled(v);
         this.particleMesh.setEnabled(v);
