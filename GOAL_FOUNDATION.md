@@ -225,7 +225,7 @@ VERIFY
 ESCALATE
 ```
 
-Sie werden um weitere SHADED-Bedarfe erweitert (z. B. MATERIAL RESPONSE, FLOW/TRANSPORT, STABILITY/CONTACT, LIGHT/HEAT, LIFE/GROWTH, PERFORMANCE/REPRESENTATION), wenn echte Failures dies verlangen.
+Sie werden um weitere SHADED-Bedarfe erweitert, z. B. `MATERIAL RESPONSE`, `FLOW/TRANSPORT`, `STABILITY/CONTACT`, `LIGHT/HEAT`, `LIFE/GROWTH`, `PERFORMANCE/REPRESENTATION`, wenn echte Failures dies verlangen.
 
 - [ ] **F-0330** Bestehende Geometry-Seeds (Architectural Geometry, Shape Grammars, Pattern Design, PCG usw.) bleiben erhalten.
 - [ ] **F-0331** Die von Kimi/der Maintainer-Diskussion bereits identifizierten Wahrnehmungs-/Konstruktionsregale werden ausdrücklich aufgenommen: **Scenic Painting/Bühnenmalerei zuerst**, Drawing & Perspective, Descriptive/Architectural Geometry, Set Construction, Matte Painting/VFX und Film/Cinematography.
@@ -234,6 +234,26 @@ Sie werden um weitere SHADED-Bedarfe erweitert (z. B. MATERIAL RESPONSE, FLOW/TR
 - [ ] **F-0334** Bereits frei/legal gespiegelt vorhandene Primärquellen behalten Source/License/Revision-Metadaten.
 - [ ] **F-0335** Neue Literatur wird nicht „vorsorglich komplett gelernt“; sie wird erst bei einem nachgewiesenen Wissensloch gezielt geöffnet.
 - [ ] **F-0336** Scenic Painting/Set Construction/Matte Painting/Cinematography werden nicht als bloße Kunstinspiration behandelt, sondern als technische Quellen für **Physical Geometry + Surface Information = Perceived Geometry**, Implikation, Occlusion, Attention, Forced Perspective, Anschluss/Extension und bewusste Repräsentationswechsel.
+
+## Literature-derived Core — derselbe Living-Skill-Mechanismus jenseits von Geometry
+
+Für etablierte Mathematik/Physik ist ein Repo oft nicht die beste Primärquelle. Hier gilt bewusst:
+
+```text
+LEHRBUCH / PAPER
+      ↓
+MATHEMATISCHES VERFAHREN
+      ↓
+SHADED IR / CORE SEMANTICS
+      ↓
+CPU / WASM / GPU COMPUTE / NATIVE
+      ↓
+GEMEINSAMER WORLD STATE
+```
+
+- [ ] **F-0337** Die Reference Library führt **Literature-derived Core** als eigene Quellenklasse neben **Implementation-derived Donors**. Bei etablierter Physik wird möglichst direkt zur Literatur gegangen; Donor-Repos bleiben Benchmark/Implementation-Referenz, nicht zwingend Architekturvorlage.
+- [ ] **F-0338** Das Physics-Regal wird mit den bereits benannten Seed-Linien indiziert: Christer Ericson — *Real-Time Collision Detection* für Collision/Spatial Queries; Baraff/Witkin + moderne iterative Constraint-Solver-Literatur für Rigid-Body Dynamics/Constraints; Erin Catto — Sequential Impulses für game-orientierte Contact Solver; Müller et al. — Position Based Dynamics für deformierbare/partikelbasierte Materialien; Macklin et al. — XPBD für stabilere Constraints; PBF/PBD als Linie für Fluid-/Unified-Particle-Interaction.
+- [ ] **F-0339** Weitere Physics-/Matter-Literatur wird **nicht vorab gesammelt**, sondern failure-getrieben ergänzt, wenn SHADED sie konkret benötigt: granular matter, fracture, soil mechanics, snow, cloth, vegetation mechanics und multiphase coupling. Der Bedarf bestimmt das Regal; kein „Physics Engine Rewrite“-Epic.
 
 ## Living Skill ≠ autonomer Architekturautor
 
@@ -263,7 +283,8 @@ Gate 0 ist bestanden, wenn:
 3. Verifizierte Erfahrungen nach Änderungen wieder gespeichert werden.
 4. Der bisherige `shaded-geometry`-Mechanismus als **projektweiter Living Skill** funktioniert, ohne seine Geometry-Stärken zu verlieren.
 5. Nachschlagewerke problemorientiert und failure-getrieben verfügbar sind, nicht als unkontrollierter Wissensdump.
-6. Erst danach die eigentlichen SHADED World-/Ownership-/Snowflow-/Surface-Goals beginnen.
+6. Literature-derived Core und Implementation-derived Donors sind getrennt indexiert und beide durch denselben Evidence-/Learning-Mechanismus nutzbar.
+7. Erst danach die eigentlichen SHADED World-/Ownership-/Snowflow-/Surface-Goals beginnen.
 
 ## Abschlussnachweis für Foundation
 
