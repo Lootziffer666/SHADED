@@ -70,7 +70,7 @@ def find_conflicts(con):
                 continue
 
             sources_a, sources_b = claim_sources_of(con, a), claim_sources_of(con, b)
-            different_source = bool(sources_a) and bool(sources_b) and sources_a.isdisjoint(sources_b)
+different_source = sources_a.isdisjoint(sources_b) and (sources_a or sources_b)
             different_assertion = claim_a[0] != claim_b[0]
             both_active = is_active(con, a) and is_active(con, b)
             relation = existing_relation(con, a, b)
