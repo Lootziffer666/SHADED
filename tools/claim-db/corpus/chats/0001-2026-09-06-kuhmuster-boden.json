@@ -1,0 +1,229 @@
+{
+  "source": {
+    "source_id": "SRC-CHAT-20260906-0143-001",
+    "source_key": "chat:SHADED:2026-09-06T01:43:00+02:00:kuhmuster-boden",
+    "path": "chat://SHADED/2026-09-06T01:43:00+02:00/kuhmuster-boden",
+    "title": "Kuhmuster-Boden: alles Sichtbare soll Sand sein",
+    "source_type": "CHAT_EXPORT",
+    "revision": "v1",
+    "commit_sha": null,
+    "export_time": "2026-09-06T01:43:00+02:00",
+    "author_role": "maintainer",
+    "content_hash": "b636d1f0233975501ee20b29377c773f55c4b8d267cf641355fa6a8b58ca2ba2",
+    "ingested_at": "2026-09-06T03:37:00+02:00"
+  },
+  "raw_text": "2026-09-06T01:43:00+02:00 | maintainer\n<<ImageDisplayed>>Schau Du bitte mal ins repo... Vielleicht findest Du den Grund, warum der Boden hartnäckig ein Kuh-muster behält... Alles sichtbare soll Sand sein. Nicht ein bisschen Sand auf Felsen.\n",
+  "claims": [
+    {
+      "claim_id": "C-SAND-0001",
+      "normalized_claim": "All visible ground in the live SHADED world must be sand.",
+      "subject": "sand surface identity",
+      "scope": "live-world/surface",
+      "first_seen": "2026-09-06T01:43:00+02:00",
+      "last_seen": "2026-09-06T01:43:00+02:00",
+      "requirement_flag": 1,
+      "assertion_flag": 0,
+      "verification_status": "UNVERIFIED",
+      "confidence": 1.0,
+      "epistemic_kind": "CLAIM",
+      "sources": [
+        {
+          "claim_source_id": "CS-SAND-0001-CHAT001",
+          "source_location": "maintainer message",
+          "anchor": "Alles sichtbare soll Sand sein.",
+          "speaker": "maintainer",
+          "authority": "MAINTAINER_DECISION",
+          "original_text": "Alles sichtbare soll Sand sein."
+        }
+      ],
+      "targets": [
+        {
+          "target_id": "T-SAND-0001-RENDERER",
+          "repo_path": "src/sandbox/sandboxRenderer.js",
+          "symbol": "WORLD_SPAN / SandboxRenderer",
+          "subsystem": "Snowflow world sandbox",
+          "owner": "SandboxRenderer",
+          "test_id": null
+        },
+        {
+          "target_id": "T-SAND-0001-FRAGMENT",
+          "repo_path": "src/shaders/snow.fragment.wgsl",
+          "symbol": "sandWeight / sandboxSize",
+          "subsystem": "Snowflow terrain material",
+          "owner": "snow.fragment.wgsl",
+          "test_id": null
+        },
+        {
+          "target_id": "T-SAND-0001-TERRAIN",
+          "repo_path": "src/terrain/terrain.js",
+          "symbol": "Terrain.setSandboxWindow",
+          "subsystem": "Snowflow terrain",
+          "owner": "Terrain",
+          "test_id": null
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "E-SAND-0001-WINDOW",
+          "evidence_kind": "SOURCE_CODE_ACTIVE_PATH",
+          "repo_path": "src/sandbox/sandboxRenderer.js",
+          "symbol": "WORLD_SPAN / RECENTER_MARGIN / SandboxRenderer",
+          "commit_sha": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+          "test_id": null,
+          "runtime_artifact": null,
+          "checked_at": "2026-09-06T03:37:00+02:00",
+          "checked_commit": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+          "result": "PARTIAL",
+          "details": "Active renderer configures the live sandbox as an 80 m window and recentres it. This proves a sand-capable local patch, not that every visible ground fragment is sand."
+        },
+        {
+          "evidence_id": "E-SAND-0001-FALLOFF",
+          "evidence_kind": "SOURCE_CODE_ACTIVE_PATH",
+          "repo_path": "src/shaders/snow.fragment.wgsl",
+          "symbol": "sandWeight / deformFalloff",
+          "commit_sha": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+          "test_id": null,
+          "runtime_artifact": null,
+          "checked_at": "2026-09-06T03:37:00+02:00",
+          "checked_commit": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+          "result": "PARTIAL",
+          "details": "Sandbox ground material is weighted by a window falloff. Outside that authority the base terrain material remains active; therefore the all-visible-ground requirement is not proven."
+        }
+      ]
+    },
+    {
+      "claim_id": "C-SAND-0002",
+      "normalized_claim": "Visible sand must be the ground material itself, not a thin visual layer over visible rock.",
+      "subject": "sand material ownership",
+      "scope": "live-world/surface",
+      "first_seen": "2026-09-06T01:43:00+02:00",
+      "last_seen": "2026-09-06T01:43:00+02:00",
+      "requirement_flag": 1,
+      "assertion_flag": 0,
+      "verification_status": "UNVERIFIED",
+      "confidence": 1.0,
+      "epistemic_kind": "CLAIM",
+      "sources": [
+        {
+          "claim_source_id": "CS-SAND-0002-CHAT001",
+          "source_location": "maintainer message",
+          "anchor": "Nicht ein bisschen Sand auf Felsen.",
+          "speaker": "maintainer",
+          "authority": "MAINTAINER_DECISION",
+          "original_text": "Nicht ein bisschen Sand auf Felsen."
+        }
+      ],
+      "targets": [
+        {
+          "target_id": "T-SAND-0002-RENDERER",
+          "repo_path": "src/sandbox/sandboxRenderer.js",
+          "symbol": "SandboxRenderer / sandboxTex",
+          "subsystem": "Snowflow world sandbox",
+          "owner": "SandboxRenderer",
+          "test_id": null
+        },
+        {
+          "target_id": "T-SAND-0002-FRAGMENT",
+          "repo_path": "src/shaders/snow.fragment.wgsl",
+          "symbol": "sandWeight / albedo mix",
+          "subsystem": "Snowflow terrain material",
+          "owner": "snow.fragment.wgsl",
+          "test_id": null
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "E-SAND-0002-REPLACE",
+          "evidence_kind": "SOURCE_CODE_ACTIVE_PATH",
+          "repo_path": "src/sandbox/sandboxRenderer.js",
+          "symbol": "SandboxRenderer",
+          "commit_sha": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+          "test_id": null,
+          "runtime_artifact": null,
+          "checked_at": "2026-09-06T03:37:00+02:00",
+          "checked_commit": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+          "result": "PARTIAL",
+          "details": "Within the sandbox window the implementation explicitly reuses the real Terrain clipmap mesh instead of drawing a second ground mesh. That supports the ownership requirement locally, but does not establish it for all visible terrain."
+        }
+      ]
+    },
+    {
+      "claim_id": "C-SAND-0003",
+      "normalized_claim": "The live ground currently retains a persistent cow-like mottled pattern.",
+      "subject": "ground visual artifact",
+      "scope": "live-world/rendering",
+      "first_seen": "2026-09-06T01:43:00+02:00",
+      "last_seen": "2026-09-06T01:43:00+02:00",
+      "requirement_flag": 0,
+      "assertion_flag": 1,
+      "verification_status": "UNVERIFIED",
+      "confidence": 0.95,
+      "epistemic_kind": "CLAIM",
+      "sources": [
+        {
+          "claim_source_id": "CS-SAND-0003-CHAT001",
+          "source_location": "maintainer message + attached runtime image",
+          "anchor": "der Boden hartnäckig ein Kuh-muster behält",
+          "speaker": "maintainer",
+          "authority": "MAINTAINER_RUNTIME_REPORT",
+          "original_text": "der Boden hartnäckig ein Kuh-muster behält"
+        }
+      ],
+      "targets": [
+        {
+          "target_id": "T-SAND-0003-FRAGMENT",
+          "repo_path": "src/shaders/snow.fragment.wgsl",
+          "symbol": "rockExposed / sandWeight",
+          "subsystem": "Snowflow terrain material",
+          "owner": "snow.fragment.wgsl",
+          "test_id": null
+        },
+        {
+          "target_id": "T-SAND-0003-RENDERER",
+          "repo_path": "src/sandbox/sandboxRenderer.js",
+          "symbol": "sandboxTex / WORLD_GEN_OPTIONS",
+          "subsystem": "Snowflow world sandbox",
+          "owner": "SandboxRenderer",
+          "test_id": null
+        }
+      ],
+      "evidence": []
+    }
+  ],
+  "audit": {
+    "audit_id": "AUD-20260906-CHAT001",
+    "corpus_snapshot": "5024b83be7c374c30e6d2a296c5b5633a5597576935959fe39280170f6e1d85b",
+    "repo_commit": "00c9b8f11667c5ffe887ab72a7d982b420e34104",
+    "created_at": "2026-09-06T03:37:00+02:00",
+    "previous_audit_id": null,
+    "findings": [
+      {
+        "finding_id": "F-SAND-0001-MISSING",
+        "claim_id": "C-SAND-0001",
+        "finding_type": "MISSING_IMPLEMENTATION",
+        "severity": "HIGH",
+        "details": "Requirement is global ('all visible ground'), while current active evidence only establishes an 80 m sandbox authority window with falloff. Global visible sand ownership is missing or at least unproven.",
+        "status": "OPEN",
+        "created_at": "2026-09-06T03:37:00+02:00"
+      },
+      {
+        "finding_id": "F-SAND-0002-GLOBAL",
+        "claim_id": "C-SAND-0002",
+        "finding_type": "MISSING_IMPLEMENTATION",
+        "severity": "HIGH",
+        "details": "Single-mesh ground replacement is evidenced inside the sandbox window, but the requirement forbids visible rock-under-sand semantics across the visible terrain. Global ownership remains unverified.",
+        "status": "OPEN",
+        "created_at": "2026-09-06T03:37:00+02:00"
+      },
+      {
+        "finding_id": "F-SAND-0003-EVIDENCE",
+        "claim_id": "C-SAND-0003",
+        "finding_type": "MISSING_EVIDENCE",
+        "severity": "MEDIUM",
+        "details": "The maintainer reports and attached an image of the cow-like pattern, but no traceable runtime artifact/screenshot file or reproducible capture is yet linked in the repo-local evidence ledger.",
+        "status": "OPEN",
+        "created_at": "2026-09-06T03:37:00+02:00"
+      }
+    ]
+  }
+}
