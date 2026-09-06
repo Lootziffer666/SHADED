@@ -1,0 +1,4148 @@
+{
+  "extractions": [
+    {
+      "extraction": {
+        "extraction_id": "EXT-BULK-0007-DOCS-61-70",
+        "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+        "topic": "Bulk doc-claim reconciliation: 0007-docs-61-70.json",
+        "extracted_at": "2026-09-06T10:12:06.045629+00:00",
+        "status": "COMPLETE",
+        "retrieval_anchor": null,
+        "notes": "Reconciled from maintainer-provided raw extraction 0007-docs-61-70.json (mode: append-only, no comparison/reconciliation done at extraction time). This pass: verified every referenced source path still exists in the repo and is unchanged since the extraction's branch snapshot; skipped 0 claim(s) that duplicate an already richly-modeled claim.db entry (see BULK_DOC_CLAIMS_SKIPPED.md) rather than creating a parallel duplicate; ingested the remaining 118 as UNVERIFIED/BEHAUPTET per A-0006 (a document claim alone is never VERIFIED)."
+      },
+      "claims": [
+        {
+          "claim_id": "C-DOC061-001",
+          "normalized_claim": "Orchestration ist ein Aufrufer der echten Engine, keine zweite Engine und keine UI-Automation.",
+          "subject": "orchestration ist ein aufrufer der echten engine keine",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-001-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Orchestration ist ein Aufrufer der echten Engine, keine zweite Engine und keine UI-Automation.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Orchestration ist ein Aufrufer der echten Engine, keine zweite Engine und keine UI-Automation."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-001-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-002",
+          "normalized_claim": "window.SHADED_ORCHESTRATOR delegiert über die Scene-Runtime-Fassade an das kanonische window.SHADED.",
+          "subject": "windowshaded_orchestrator delegiert über die sceneruntimefassade an das kanonische",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-002-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "window.SHADED_ORCHESTRATOR delegiert über die Scene-Runtime-Fassade an das kanonische window.SHADED.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "window.SHADED_ORCHESTRATOR delegiert über die Scene-Runtime-Fassade an das kanonische window.SHADED."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-002-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-003",
+          "normalized_claim": "Die öffentlichen Orchestrator-Methoden sind präsentationsunabhängig.",
+          "subject": "die öffentlichen orchestratormethoden sind präsentationsunabhängig",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-003-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die öffentlichen Orchestrator-Methoden sind präsentationsunabhängig.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die öffentlichen Orchestrator-Methoden sind präsentationsunabhängig."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-003-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-004",
+          "normalized_claim": "Struktureller Projektzustand liegt in shaded.scene-project/v1; Binär- und Bildassets bleiben out-of-band.",
+          "subject": "struktureller projektzustand liegt in shadedsceneprojectv1 binär und bildassets",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-004-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Struktureller Projektzustand liegt in shaded.scene-project/v1; Binär- und Bildassets bleiben out-of-band.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Struktureller Projektzustand liegt in shaded.scene-project/v1; Binär- und Bildassets bleiben out-of-band."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-004-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-005",
+          "normalized_claim": "Orchestration darf keine versteckten Buttons klicken, Editor-Selektoren voraussetzen, altes DOM manipulieren, Shader-/Materiallogik duplizieren oder parallelen Szenenzustand erfinden.",
+          "subject": "orchestration darf keine versteckten buttons klicken editorselektoren voraussetzen",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-005-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Orchestration darf keine versteckten Buttons klicken, Editor-Selektoren voraussetzen, altes DOM manipulieren, Shader-/Ma",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Orchestration darf keine versteckten Buttons klicken, Editor-Selektoren voraussetzen, altes DOM manipulieren, Shader-/Materiallogik duplizieren oder parallelen Szenenzustand erfinden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-005-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-006",
+          "normalized_claim": "Fehlt eine benötigte Fähigkeit, muss zuerst ein benannter Runtime-Vertrag geschaffen werden.",
+          "subject": "fehlt eine benötigte fähigkeit muss zuerst ein benannter",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-006-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Fehlt eine benötigte Fähigkeit, muss zuerst ein benannter Runtime-Vertrag geschaffen werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Fehlt eine benötigte Fähigkeit, muss zuerst ein benannter Runtime-Vertrag geschaffen werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-006-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-007",
+          "normalized_claim": "World-Sandbox-Orchestration ist von Scene-Orchestration getrennt und über window.SHADEDWorldSandbox zugänglich.",
+          "subject": "worldsandboxorchestration ist von sceneorchestration getrennt und über windowshadedworldsandbox",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-007-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "World-Sandbox-Orchestration ist von Scene-Orchestration getrennt und über window.SHADEDWorldSandbox zugänglich.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "World-Sandbox-Orchestration ist von Scene-Orchestration getrennt und über window.SHADEDWorldSandbox zugänglich."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-007-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC061-008",
+          "normalized_claim": "Browserautomation soll die echte Runtime über ihre Verträge prüfen, nicht UI-Chrome simulieren.",
+          "subject": "browserautomation soll die echte runtime über ihre verträge",
+          "scope": "doc:docs/ORCHESTRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC061-008-BULK",
+              "source_id": "SRC-DOC-9F9AA73E6FD4E44E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Browserautomation soll die echte Runtime über ihre Verträge prüfen, nicht UI-Chrome simulieren.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Browserautomation soll die echte Runtime über ihre Verträge prüfen, nicht UI-Chrome simulieren."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC061-008-DOC",
+              "repo_path": "docs/ORCHESTRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC062-001",
+          "normalized_claim": "SHADED trennt seine Architekturthemen in Rendergraph/Lastverteilung, Reconstruction, Einzelbild-Räumlichkeit, SDF, Materialien und räumliche Algorithmen.",
+          "subject": "shaded trennt seine architekturthemen in rendergraphlastverteilung reconstruction einzelbildräumlichkeit",
+          "scope": "doc:docs/README.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC062-001-BULK",
+              "source_id": "SRC-DOC-0B5CA119D2BE595A",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED trennt seine Architekturthemen in Rendergraph/Lastverteilung, Reconstruction, Einzelbild-Räumlichkeit, SDF, Mater",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED trennt seine Architekturthemen in Rendergraph/Lastverteilung, Reconstruction, Einzelbild-Räumlichkeit, SDF, Materialien und räumliche Algorithmen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC062-001-DOC",
+              "repo_path": "docs/README.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC062-002",
+          "normalized_claim": "Die Style-Discovery-Sandbox bildet WorldState → Solver → MaterialResponse → StyleProfile → RenderBudget → Final Render als Vertical Slice ab.",
+          "subject": "die stylediscoverysandbox bildet worldstate solver materialresponse styleprofile renderbudget",
+          "scope": "doc:docs/README.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC062-002-BULK",
+              "source_id": "SRC-DOC-0B5CA119D2BE595A",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Style-Discovery-Sandbox bildet WorldState → Solver → MaterialResponse → StyleProfile → RenderBudget → Final Render a",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Style-Discovery-Sandbox bildet WorldState → Solver → MaterialResponse → StyleProfile → RenderBudget → Final Render als Vertical Slice ab."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC062-002-DOC",
+              "repo_path": "docs/README.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC062-003",
+          "normalized_claim": "Style Discovery ist ein Beweisfeld und keine dauerhafte Parallelarchitektur.",
+          "subject": "style discovery ist ein beweisfeld und keine dauerhafte",
+          "scope": "doc:docs/README.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC062-003-BULK",
+              "source_id": "SRC-DOC-0B5CA119D2BE595A",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Style Discovery ist ein Beweisfeld und keine dauerhafte Parallelarchitektur.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Style Discovery ist ein Beweisfeld und keine dauerhafte Parallelarchitektur."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC062-003-DOC",
+              "repo_path": "docs/README.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC062-004",
+          "normalized_claim": "Der Style-Kern ist rendererunabhängiges ESM; WebGL2/SDF bildet nur eine dünne austauschbare Schicht.",
+          "subject": "der stylekern ist rendererunabhängiges esm webgl2sdf bildet nur",
+          "scope": "doc:docs/README.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC062-004-BULK",
+              "source_id": "SRC-DOC-0B5CA119D2BE595A",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Der Style-Kern ist rendererunabhängiges ESM; WebGL2/SDF bildet nur eine dünne austauschbare Schicht.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Der Style-Kern ist rendererunabhängiges ESM; WebGL2/SDF bildet nur eine dünne austauschbare Schicht."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC062-004-DOC",
+              "repo_path": "docs/README.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC062-005",
+          "normalized_claim": "SHADED wird produktseitig als materialbewusste 2D-Weltsimulation und nicht als reine Shader-Effektliste eingeordnet.",
+          "subject": "shaded wird produktseitig als materialbewusste 2dweltsimulation und nicht",
+          "scope": "doc:docs/README.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC062-005-BULK",
+              "source_id": "SRC-DOC-0B5CA119D2BE595A",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED wird produktseitig als materialbewusste 2D-Weltsimulation und nicht als reine Shader-Effektliste eingeordnet.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED wird produktseitig als materialbewusste 2D-Weltsimulation und nicht als reine Shader-Effektliste eingeordnet."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC062-005-DOC",
+              "repo_path": "docs/README.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-001",
+          "normalized_claim": "Das historische Grundziel lautet „One image. One small world.“",
+          "subject": "das historische grundziel lautet one image one small",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-001-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Das historische Grundziel lautet „One image. One small world.“",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Das historische Grundziel lautet „One image. One small world.“"
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-001-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-002",
+          "normalized_claim": "SHADED muss keine objektiv wahre unsichtbare Realität rekonstruieren; genug plausible Welt für glaubwürdige Immersion genügt.",
+          "subject": "shaded muss keine objektiv wahre unsichtbare realität rekonstruieren",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-002-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED muss keine objektiv wahre unsichtbare Realität rekonstruieren; genug plausible Welt für glaubwürdige Immersion ge",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED muss keine objektiv wahre unsichtbare Realität rekonstruieren; genug plausible Welt für glaubwürdige Immersion genügt."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-002-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-003",
+          "normalized_claim": "Dauerhafte Rechen-, Speicher-, Energie- und Abhängigkeitskosten sollen so weit wie möglich reduziert werden.",
+          "subject": "dauerhafte rechen speicher energie und abhängigkeitskosten sollen so",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-003-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Dauerhafte Rechen-, Speicher-, Energie- und Abhängigkeitskosten sollen so weit wie möglich reduziert werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Dauerhafte Rechen-, Speicher-, Energie- und Abhängigkeitskosten sollen so weit wie möglich reduziert werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-003-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-004",
+          "normalized_claim": "Große Modelle und Provider können als Lehrer, Messinstrumente und Wegwerfwerkzeuge dienen, wenn aus ihnen billigere Regeln oder Algorithmen destilliert werden.",
+          "subject": "große modelle und provider können als lehrer messinstrumente",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-004-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Große Modelle und Provider können als Lehrer, Messinstrumente und Wegwerfwerkzeuge dienen, wenn aus ihnen billigere Rege",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Große Modelle und Provider können als Lehrer, Messinstrumente und Wegwerfwerkzeuge dienen, wenn aus ihnen billigere Regeln oder Algorithmen destilliert werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-004-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-005",
+          "normalized_claim": "Ein teurer erster Lauf ist sinnvoll, wenn er spätere Berechnungen dauerhaft überflüssig macht.",
+          "subject": "ein teurer erster lauf ist sinnvoll wenn er",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-005-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ein teurer erster Lauf ist sinnvoll, wenn er spätere Berechnungen dauerhaft überflüssig macht.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ein teurer erster Lauf ist sinnvoll, wenn er spätere Berechnungen dauerhaft überflüssig macht."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-005-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-006",
+          "normalized_claim": "Providerqualität und Systemnutzen sind nicht identisch.",
+          "subject": "providerqualität und systemnutzen sind nicht identisch",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-006-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Providerqualität und Systemnutzen sind nicht identisch.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Providerqualität und Systemnutzen sind nicht identisch."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-006-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-007",
+          "normalized_claim": "GitHub-Sterne, Modellgröße und Hardwarebedarf sind keine räumliche Evidenz und kein Qualitätsbeweis für SHADEDs konkrete Aufgabe.",
+          "subject": "githubsterne modellgröße und hardwarebedarf sind keine räumliche evidenz",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-007-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "GitHub-Sterne, Modellgröße und Hardwarebedarf sind keine räumliche Evidenz und kein Qualitätsbeweis für SHADEDs konkrete",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "GitHub-Sterne, Modellgröße und Hardwarebedarf sind keine räumliche Evidenz und kein Qualitätsbeweis für SHADEDs konkrete Aufgabe."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-007-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-008",
+          "normalized_claim": "Die Optimierung soll nicht die stärkste Einzelkomponente suchen, sondern verbleibende Systemschwächen mit dem billigsten ausreichenden Mittel kompensieren.",
+          "subject": "die optimierung soll nicht die stärkste einzelkomponente suchen",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-008-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Optimierung soll nicht die stärkste Einzelkomponente suchen, sondern verbleibende Systemschwächen mit dem billigsten",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Optimierung soll nicht die stärkste Einzelkomponente suchen, sondern verbleibende Systemschwächen mit dem billigsten ausreichenden Mittel kompensieren."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-008-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-009",
+          "normalized_claim": "Die Reihenfolge von Komponenten ist selbst Teil der Lösung.",
+          "subject": "die reihenfolge von komponenten ist selbst teil der",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-009-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Reihenfolge von Komponenten ist selbst Teil der Lösung.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Reihenfolge von Komponenten ist selbst Teil der Lösung."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-009-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-010",
+          "normalized_claim": "Raumrekonstruktion kann als Möglichkeitsreduktion verstanden werden: Constraints reduzieren den Raum zulässiger Welten, bis nur lokale Mehrdeutigkeiten verbleiben.",
+          "subject": "raumrekonstruktion kann als möglichkeitsreduktion verstanden werden constraints reduzieren",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-010-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Raumrekonstruktion kann als Möglichkeitsreduktion verstanden werden: Constraints reduzieren den Raum zulässiger Welten, ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Raumrekonstruktion kann als Möglichkeitsreduktion verstanden werden: Constraints reduzieren den Raum zulässiger Welten, bis nur lokale Mehrdeutigkeiten verbleiben."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-010-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-011",
+          "normalized_claim": "Ein nachgelagerter Provider muss bei stark eingeschränkter Welthypothese nicht mehr die gesamte Welt rekonstruieren, sondern eventuell nur noch verbleibende Alternativen unterscheiden.",
+          "subject": "ein nachgelagerter provider muss bei stark eingeschränkter welthypothese",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-011-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ein nachgelagerter Provider muss bei stark eingeschränkter Welthypothese nicht mehr die gesamte Welt rekonstruieren, son",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ein nachgelagerter Provider muss bei stark eingeschränkter Welthypothese nicht mehr die gesamte Welt rekonstruieren, sondern eventuell nur noch verbleibende Alternativen unterscheiden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-011-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-012",
+          "normalized_claim": "Point Clouds müssen nicht sauber fusionieren, um räumliche Evidenz zu liefern.",
+          "subject": "point clouds müssen nicht sauber fusionieren um räumliche",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-012-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Point Clouds müssen nicht sauber fusionieren, um räumliche Evidenz zu liefern.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Point Clouds müssen nicht sauber fusionieren, um räumliche Evidenz zu liefern."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-012-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-013",
+          "normalized_claim": "Wiederholte räumliche Unterstützung mehrerer unsicherer Beobachtungen kann Information tragen, obwohl die einzelnen Wolken Lücken und Fehler besitzen.",
+          "subject": "wiederholte räumliche unterstützung mehrerer unsicherer beobachtungen kann information",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-013-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Wiederholte räumliche Unterstützung mehrerer unsicherer Beobachtungen kann Information tragen, obwohl die einzelnen Wolk",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Wiederholte räumliche Unterstützung mehrerer unsicherer Beobachtungen kann Information tragen, obwohl die einzelnen Wolken Lücken und Fehler besitzen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-013-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-014",
+          "normalized_claim": "Die Borsten-/Besen-Hypothese besagt, dass unabhängige schwache Beobachtungen unter gemeinsamen Raumconstraints Mehrdeutigkeiten reduzieren können, bevor sie geometrisch exakt zusammentreffen.",
+          "subject": "die borstenbesenhypothese besagt dass unabhängige schwache beobachtungen unter",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-014-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Borsten-/Besen-Hypothese besagt, dass unabhängige schwache Beobachtungen unter gemeinsamen Raumconstraints Mehrdeuti",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Borsten-/Besen-Hypothese besagt, dass unabhängige schwache Beobachtungen unter gemeinsamen Raumconstraints Mehrdeutigkeiten reduzieren können, bevor sie geometrisch exakt zusammentreffen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-014-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-015",
+          "normalized_claim": "Prozentwerte wie 30 %, 50 % oder 0 % müssen relativ zur benötigten Raumrelation und zu einem Nullmodell bewertet werden, nicht relativ zu perfekter Rekonstruktions-Coverage.",
+          "subject": "prozentwerte wie 30 50 oder 0 müssen relativ",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-015-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Prozentwerte wie 30 %, 50 % oder 0 % müssen relativ zur benötigten Raumrelation und zu einem Nullmodell bewertet werden,",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Prozentwerte wie 30 %, 50 % oder 0 % müssen relativ zur benötigten Raumrelation und zu einem Nullmodell bewertet werden, nicht relativ zu perfekter Rekonstruktions-Coverage."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-015-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-016",
+          "normalized_claim": "COLMAP kann bereits ausreichend sein, wenn seine Evidenz nur noch verbleibende Hypothesen voneinander unterscheiden muss.",
+          "subject": "colmap kann bereits ausreichend sein wenn seine evidenz",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-016-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "COLMAP kann bereits ausreichend sein, wenn seine Evidenz nur noch verbleibende Hypothesen voneinander unterscheiden muss",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "COLMAP kann bereits ausreichend sein, wenn seine Evidenz nur noch verbleibende Hypothesen voneinander unterscheiden muss."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-016-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-017",
+          "normalized_claim": "Möglichkeitreduktion hebt Provenienz nicht auf; beobachtete, abgeleitete, inferierte, erfundene und unbekannte Information bleiben getrennt.",
+          "subject": "möglichkeitreduktion hebt provenienz nicht auf beobachtete abgeleitete inferierte",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-017-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Möglichkeitreduktion hebt Provenienz nicht auf; beobachtete, abgeleitete, inferierte, erfundene und unbekannte Informati",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Möglichkeitreduktion hebt Provenienz nicht auf; beobachtete, abgeleitete, inferierte, erfundene und unbekannte Information bleiben getrennt."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-017-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC063-018",
+          "normalized_claim": "Das chaotische Gamescom-Material ist als Worst Case nützlich, weil es offenlegt, welche Information tatsächlich unverzichtbar ist.",
+          "subject": "das chaotische gamescommaterial ist als worst case nützlich",
+          "scope": "doc:docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC063-018-BULK",
+              "source_id": "SRC-DOC-A1186266FD56DC28",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Das chaotische Gamescom-Material ist als Worst Case nützlich, weil es offenlegt, welche Information tatsächlich unverzic",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Das chaotische Gamescom-Material ist als Worst Case nützlich, weil es offenlegt, welche Information tatsächlich unverzichtbar ist."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC063-018-DOC",
+              "repo_path": "docs/SHADED_BEUTELTIER_ARCHITEKTUR_REFERENZ_ERWEITERT_CHAT_INTEGRIERT.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-001",
+          "normalized_claim": "Style Discovery ist ein lauffähiger Vertical Slice und keine dauerhafte Parallelarchitektur.",
+          "subject": "style discovery ist ein lauffähiger vertical slice und",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-001-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Style Discovery ist ein lauffähiger Vertical Slice und keine dauerhafte Parallelarchitektur.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Style Discovery ist ein lauffähiger Vertical Slice und keine dauerhafte Parallelarchitektur."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-001-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-002",
+          "normalized_claim": "runtime/style/ enthält den rendererunabhängigen Kern; sandbox/ ist nur die dünne WebGL2/SDF-Darstellung.",
+          "subject": "runtimestyle enthält den rendererunabhängigen kern sandbox ist nur",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-002-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "runtime/style/ enthält den rendererunabhängigen Kern; sandbox/ ist nur die dünne WebGL2/SDF-Darstellung.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "runtime/style/ enthält den rendererunabhängigen Kern; sandbox/ ist nur die dünne WebGL2/SDF-Darstellung."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-002-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-003",
+          "normalized_claim": "MaterialResponse bewahrt Nässe, Ruß, Risse, Frost, Schnee, Rost, Hitze, Feuer, Rauch und Matsch als semantisch getrennte Kanäle.",
+          "subject": "materialresponse bewahrt nässe ruß risse frost schnee rost",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-003-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "MaterialResponse bewahrt Nässe, Ruß, Risse, Frost, Schnee, Rost, Hitze, Feuer, Rauch und Matsch als semantisch getrennte",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "MaterialResponse bewahrt Nässe, Ruß, Risse, Frost, Schnee, Rost, Hitze, Feuer, Rauch und Matsch als semantisch getrennte Kanäle."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-003-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-004",
+          "normalized_claim": "Ein Style darf dieselbe Materialsemantik unterschiedlich darstellen, ohne deren Bedeutung zu verändern.",
+          "subject": "ein style darf dieselbe materialsemantik unterschiedlich darstellen ohne",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-004-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ein Style darf dieselbe Materialsemantik unterschiedlich darstellen, ohne deren Bedeutung zu verändern.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ein Style darf dieselbe Materialsemantik unterschiedlich darstellen, ohne deren Bedeutung zu verändern."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-004-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-005",
+          "normalized_claim": "StyleProfile besitzt 20 kategoriale und kontinuierliche Stildimensionen.",
+          "subject": "styleprofile besitzt 20 kategoriale und kontinuierliche stildimensionen",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-005-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "StyleProfile besitzt 20 kategoriale und kontinuierliche Stildimensionen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "StyleProfile besitzt 20 kategoriale und kontinuierliche Stildimensionen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-005-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-006",
+          "normalized_claim": "Style-Vektoren bleiben menschenlesbar; kategoriale Werte werden nicht zu undurchsichtigen Indizes reduziert.",
+          "subject": "stylevektoren bleiben menschenlesbar kategoriale werte werden nicht zu",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-006-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Style-Vektoren bleiben menschenlesbar; kategoriale Werte werden nicht zu undurchsichtigen Indizes reduziert.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Style-Vektoren bleiben menschenlesbar; kategoriale Werte werden nicht zu undurchsichtigen Indizes reduziert."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-006-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-007",
+          "normalized_claim": "Die Technique Registry enthält 18 Deskriptoren, davon 16 implementiert und 2 researchOnly.",
+          "subject": "die technique registry enthält 18 deskriptoren davon 16",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-007-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Technique Registry enthält 18 Deskriptoren, davon 16 implementiert und 2 researchOnly.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Technique Registry enthält 18 Deskriptoren, davon 16 implementiert und 2 researchOnly."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-007-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-008",
+          "normalized_claim": "FULL und MOBILE sind die nutzersichtbaren Renderbudgets dieser Sandbox.",
+          "subject": "full und mobile sind die nutzersichtbaren renderbudgets dieser",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-008-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "FULL und MOBILE sind die nutzersichtbaren Renderbudgets dieser Sandbox.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "FULL und MOBILE sind die nutzersichtbaren Renderbudgets dieser Sandbox."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-008-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-009",
+          "normalized_claim": "Budget-Substitution darf Kostenparameter verändern, aber definierte Stilidentitätsmerkmale nicht.",
+          "subject": "budgetsubstitution darf kostenparameter verändern aber definierte stilidentitätsmerkmale nicht",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-009-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Budget-Substitution darf Kostenparameter verändern, aber definierte Stilidentitätsmerkmale nicht.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Budget-Substitution darf Kostenparameter verändern, aber definierte Stilidentitätsmerkmale nicht."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-009-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-010",
+          "normalized_claim": "Pair Selection soll primär die unsicherste Stildimension isoliert variieren.",
+          "subject": "pair selection soll primär die unsicherste stildimension isoliert",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-010-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Pair Selection soll primär die unsicherste Stildimension isoliert variieren.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Pair Selection soll primär die unsicherste Stildimension isoliert variieren."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-010-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-011",
+          "normalized_claim": "Sichere Annahmen werden periodisch erneut getestet.",
+          "subject": "sichere annahmen werden periodisch erneut getestet",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-011-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Sichere Annahmen werden periodisch erneut getestet.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Sichere Annahmen werden periodisch erneut getestet."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-011-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-012",
+          "normalized_claim": "A/B-Seiten wechseln deterministisch, damit Bildschirmposition nicht als Stilpräferenz gelernt wird.",
+          "subject": "abseiten wechseln deterministisch damit bildschirmposition nicht als stilpräferenz",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-012-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "A/B-Seiten wechseln deterministisch, damit Bildschirmposition nicht als Stilpräferenz gelernt wird.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "A/B-Seiten wechseln deterministisch, damit Bildschirmposition nicht als Stilpräferenz gelernt wird."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-012-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-013",
+          "normalized_claim": "Breeding mutiert nur explizit freigegebene, typischerweise unsichere Dimensionen.",
+          "subject": "breeding mutiert nur explizit freigegebene typischerweise unsichere dimensionen",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-013-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Breeding mutiert nur explizit freigegebene, typischerweise unsichere Dimensionen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Breeding mutiert nur explizit freigegebene, typischerweise unsichere Dimensionen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-013-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-014",
+          "normalized_claim": "Die Sandbox rendert Material/G-Buffer, Style und Post als drei getrennte GPU-Draws.",
+          "subject": "die sandbox rendert materialgbuffer style und post als",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-014-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Sandbox rendert Material/G-Buffer, Style und Post als drei getrennte GPU-Draws.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Sandbox rendert Material/G-Buffer, Style und Post als drei getrennte GPU-Draws."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-014-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-015",
+          "normalized_claim": "Die Weltzustände der Style-Sandbox sind manuell gesetzte Presets und keine Simulation.",
+          "subject": "die weltzustände der stylesandbox sind manuell gesetzte presets",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-015-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Weltzustände der Style-Sandbox sind manuell gesetzte Presets und keine Simulation.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Weltzustände der Style-Sandbox sind manuell gesetzte Presets und keine Simulation."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-015-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-016",
+          "normalized_claim": "Discovery-Zustand und Kandidaten sollen vollständig reproduzierbar und deterministisch rekonstruierbar sein.",
+          "subject": "discoveryzustand und kandidaten sollen vollständig reproduzierbar und deterministisch",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-016-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Discovery-Zustand und Kandidaten sollen vollständig reproduzierbar und deterministisch rekonstruierbar sein.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Discovery-Zustand und Kandidaten sollen vollständig reproduzierbar und deterministisch rekonstruierbar sein."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-016-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC064-017",
+          "normalized_claim": "Produktionsmigration erfolgt schrittweise pro real ersetztbarer Legacy-Funktion, nicht als Big Bang.",
+          "subject": "produktionsmigration erfolgt schrittweise pro real ersetztbarer legacyfunktion nicht",
+          "scope": "doc:docs/STYLE_DISCOVERY.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC064-017-BULK",
+              "source_id": "SRC-DOC-9B9155BF217CC0BC",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Produktionsmigration erfolgt schrittweise pro real ersetztbarer Legacy-Funktion, nicht als Big Bang.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Produktionsmigration erfolgt schrittweise pro real ersetztbarer Legacy-Funktion, nicht als Big Bang."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC064-017-DOC",
+              "repo_path": "docs/STYLE_DISCOVERY.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC065-001",
+          "normalized_claim": "SHADED verwendet adaptierte Farbpaletten aus daylerees/colour-schemes.",
+          "subject": "shaded verwendet adaptierte farbpaletten aus daylereescolourschemes",
+          "scope": "doc:docs/THIRD_PARTY_THEMES.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC065-001-BULK",
+              "source_id": "SRC-DOC-CAAE966D39499B0E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED verwendet adaptierte Farbpaletten aus daylerees/colour-schemes.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED verwendet adaptierte Farbpaletten aus daylerees/colour-schemes."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC065-001-DOC",
+              "repo_path": "docs/THIRD_PARTY_THEMES.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC065-002",
+          "normalized_claim": "Carbonight, Darkside, Earthsong, Legacy und Glowfish werden auf SHADED-UI-Rollen abgebildet, nicht als Editor-Syntaxregeln kopiert.",
+          "subject": "carbonight darkside earthsong legacy und glowfish werden auf",
+          "scope": "doc:docs/THIRD_PARTY_THEMES.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC065-002-BULK",
+              "source_id": "SRC-DOC-CAAE966D39499B0E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Carbonight, Darkside, Earthsong, Legacy und Glowfish werden auf SHADED-UI-Rollen abgebildet, nicht als Editor-Syntaxrege",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Carbonight, Darkside, Earthsong, Legacy und Glowfish werden auf SHADED-UI-Rollen abgebildet, nicht als Editor-Syntaxregeln kopiert."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC065-002-DOC",
+              "repo_path": "docs/THIRD_PARTY_THEMES.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC065-003",
+          "normalized_claim": "SHADED Neutral ist eine projektlokale Palette.",
+          "subject": "shaded neutral ist eine projektlokale palette",
+          "scope": "doc:docs/THIRD_PARTY_THEMES.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC065-003-BULK",
+              "source_id": "SRC-DOC-CAAE966D39499B0E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED Neutral ist eine projektlokale Palette.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED Neutral ist eine projektlokale Palette."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC065-003-DOC",
+              "repo_path": "docs/THIRD_PARTY_THEMES.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC065-004",
+          "normalized_claim": "Weitere Theme-Paletten stammen aus vom Nutzer gelieferten visuellen Referenzen.",
+          "subject": "weitere themepaletten stammen aus vom nutzer gelieferten visuellen",
+          "scope": "doc:docs/THIRD_PARTY_THEMES.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC065-004-BULK",
+              "source_id": "SRC-DOC-CAAE966D39499B0E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Weitere Theme-Paletten stammen aus vom Nutzer gelieferten visuellen Referenzen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Weitere Theme-Paletten stammen aus vom Nutzer gelieferten visuellen Referenzen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC065-004-DOC",
+              "repo_path": "docs/THIRD_PARTY_THEMES.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC065-005",
+          "normalized_claim": "Von diesen Referenzen wurden nur sichtbare Farbwerte übernommen, kein Quellcode und keine Bildassets.",
+          "subject": "von diesen referenzen wurden nur sichtbare farbwerte übernommen",
+          "scope": "doc:docs/THIRD_PARTY_THEMES.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC065-005-BULK",
+              "source_id": "SRC-DOC-CAAE966D39499B0E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Von diesen Referenzen wurden nur sichtbare Farbwerte übernommen, kein Quellcode und keine Bildassets.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Von diesen Referenzen wurden nur sichtbare Farbwerte übernommen, kein Quellcode und keine Bildassets."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC065-005-DOC",
+              "repo_path": "docs/THIRD_PARTY_THEMES.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC065-006",
+          "normalized_claim": "Die Dayle-Rees-Paletten stehen unter MIT und erfordern Erhalt von Copyright- und Permission-Notice.",
+          "subject": "die daylereespaletten stehen unter mit und erfordern erhalt",
+          "scope": "doc:docs/THIRD_PARTY_THEMES.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC065-006-BULK",
+              "source_id": "SRC-DOC-CAAE966D39499B0E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Dayle-Rees-Paletten stehen unter MIT und erfordern Erhalt von Copyright- und Permission-Notice.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Dayle-Rees-Paletten stehen unter MIT und erfordern Erhalt von Copyright- und Permission-Notice."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC065-006-DOC",
+              "repo_path": "docs/THIRD_PARTY_THEMES.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-001",
+          "normalized_claim": "TRIVIUM definiert die Bedeutung eines Weltzustands; SHADED projiziert diese Bedeutung in wahrnehmbares und reaktives Weltverhalten.",
+          "subject": "trivium definiert die bedeutung eines weltzustands shaded projiziert",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-001-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "TRIVIUM definiert die Bedeutung eines Weltzustands; SHADED projiziert diese Bedeutung in wahrnehmbares und reaktives Wel",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "TRIVIUM definiert die Bedeutung eines Weltzustands; SHADED projiziert diese Bedeutung in wahrnehmbares und reaktives Weltverhalten."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-001-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-002",
+          "normalized_claim": "Ein einzelner High-Level-State soll Materialien, Wetter, Spuren, Actors, Atmosphäre und verzögerte Konsequenzen treiben können.",
+          "subject": "ein einzelner highlevelstate soll materialien wetter spuren actors",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-002-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ein einzelner High-Level-State soll Materialien, Wetter, Spuren, Actors, Atmosphäre und verzögerte Konsequenzen treiben ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ein einzelner High-Level-State soll Materialien, Wetter, Spuren, Actors, Atmosphäre und verzögerte Konsequenzen treiben können."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-002-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-003",
+          "normalized_claim": "SHADED soll semantische Achsen und Weltverpflichtungen statt engine-spezifischer Effekt-Toggles konsumieren.",
+          "subject": "shaded soll semantische achsen und weltverpflichtungen statt enginespezifischer",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-003-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED soll semantische Achsen und Weltverpflichtungen statt engine-spezifischer Effekt-Toggles konsumieren.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED soll semantische Achsen und Weltverpflichtungen statt engine-spezifischer Effekt-Toggles konsumieren."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-003-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-004",
+          "normalized_claim": "Der Adapter entscheidet, ob eine Verpflichtung durch Shader, Felder, Geometrie, Partikel, Audio oder Engine-Hooks realisiert wird.",
+          "subject": "der adapter entscheidet ob eine verpflichtung durch shader",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-004-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Der Adapter entscheidet, ob eine Verpflichtung durch Shader, Felder, Geometrie, Partikel, Audio oder Engine-Hooks realis",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Der Adapter entscheidet, ob eine Verpflichtung durch Shader, Felder, Geometrie, Partikel, Audio oder Engine-Hooks realisiert wird."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-004-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-005",
+          "normalized_claim": "Visuelle Shaderdeformation allein genügt nicht, wenn Geometrie, Collision, Navigation, Actors oder Audio dem Zustand folgen müssen.",
+          "subject": "visuelle shaderdeformation allein genügt nicht wenn geometrie collision",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-005-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Visuelle Shaderdeformation allein genügt nicht, wenn Geometrie, Collision, Navigation, Actors oder Audio dem Zustand fol",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Visuelle Shaderdeformation allein genügt nicht, wenn Geometrie, Collision, Navigation, Actors oder Audio dem Zustand folgen müssen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-005-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-006",
+          "normalized_claim": "Eine Vertex-Illusion darf nicht als physische Deformation ausgewiesen werden.",
+          "subject": "eine vertexillusion darf nicht als physische deformation ausgewiesen",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-006-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Eine Vertex-Illusion darf nicht als physische Deformation ausgewiesen werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Eine Vertex-Illusion darf nicht als physische Deformation ausgewiesen werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-006-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-007",
+          "normalized_claim": "Wahrnehmungsprofile dürfen neben Vision auch Audio, Sprache, Timing, Haptik, Licht, Gestik und verschiedene Darstellungsräume verwenden.",
+          "subject": "wahrnehmungsprofile dürfen neben vision auch audio sprache timing",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-007-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Wahrnehmungsprofile dürfen neben Vision auch Audio, Sprache, Timing, Haptik, Licht, Gestik und verschiedene Darstellungs",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Wahrnehmungsprofile dürfen neben Vision auch Audio, Sprache, Timing, Haptik, Licht, Gestik und verschiedene Darstellungsräume verwenden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-007-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-008",
+          "normalized_claim": "Für jede TRIVIUM-Projektion soll SHADED Zustands-Snapshots, Law-Traces, relevante Aufnahmen, Übergangsevidenz und die Grenze zwischen visuell und physisch gekoppelt offenlegen.",
+          "subject": "für jede triviumprojektion soll shaded zustandssnapshots lawtraces relevante",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-008-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Für jede TRIVIUM-Projektion soll SHADED Zustands-Snapshots, Law-Traces, relevante Aufnahmen, Übergangsevidenz und die Gr",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Für jede TRIVIUM-Projektion soll SHADED Zustands-Snapshots, Law-Traces, relevante Aufnahmen, Übergangsevidenz und die Grenze zwischen visuell und physisch gekoppelt offenlegen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-008-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC066-009",
+          "normalized_claim": "SHADED definiert nicht selbst die kanonische Weltbedeutung und ersetzt nicht TRIVIUMs Loss Ledger.",
+          "subject": "shaded definiert nicht selbst die kanonische weltbedeutung und",
+          "scope": "doc:docs/TRIVIUM_INTEGRATION.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC066-009-BULK",
+              "source_id": "SRC-DOC-92B7467F42C46AC9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED definiert nicht selbst die kanonische Weltbedeutung und ersetzt nicht TRIVIUMs Loss Ledger.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED definiert nicht selbst die kanonische Weltbedeutung und ersetzt nicht TRIVIUMs Loss Ledger."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC066-009-DOC",
+              "repo_path": "docs/TRIVIUM_INTEGRATION.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-001",
+          "normalized_claim": "Die alte Produktions-/Editor-UI wurde gelöscht, um Runtime-Grenzen vor einer neuen Authoring-Oberfläche real zu machen.",
+          "subject": "die alte produktionseditorui wurde gelöscht um runtimegrenzen vor",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-001-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die alte Produktions-/Editor-UI wurde gelöscht, um Runtime-Grenzen vor einer neuen Authoring-Oberfläche real zu machen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die alte Produktions-/Editor-UI wurde gelöscht, um Runtime-Grenzen vor einer neuen Authoring-Oberfläche real zu machen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-001-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-002",
+          "normalized_claim": "index.html ist Runtime-Host, keine Editor-Komposition.",
+          "subject": "indexhtml ist runtimehost keine editorkomposition",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-002-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "index.html ist Runtime-Host, keine Editor-Komposition.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "index.html ist Runtime-Host, keine Editor-Komposition."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-002-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-003",
+          "normalized_claim": "Ein Produktions-editor/-Baum gehört nicht zur UI-Zero-Architektur.",
+          "subject": "ein produktionseditorbaum gehört nicht zur uizeroarchitektur",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-003-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ein Produktions-editor/-Baum gehört nicht zur UI-Zero-Architektur.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ein Produktions-editor/-Baum gehört nicht zur UI-Zero-Architektur."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-003-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-004",
+          "normalized_claim": "Versteckte Controls, display:none und transparente Compatibility-Buttons sind keine zulässige Migrationstechnik.",
+          "subject": "versteckte controls displaynone und transparente compatibilitybuttons sind keine",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-004-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Versteckte Controls, display:none und transparente Compatibility-Buttons sind keine zulässige Migrationstechnik.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Versteckte Controls, display:none und transparente Compatibility-Buttons sind keine zulässige Migrationstechnik."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-004-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-005",
+          "normalized_claim": "Runtime-Fähigkeiten müssen ohne authored DOM aufrufbar sein.",
+          "subject": "runtimefähigkeiten müssen ohne authored dom aufrufbar sein",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-005-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Runtime-Fähigkeiten müssen ohne authored DOM aufrufbar sein.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Runtime-Fähigkeiten müssen ohne authored DOM aufrufbar sein."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-005-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-006",
+          "normalized_claim": "Eine zukünftige UI ruft benannte Contracts; die Runtime sucht niemals die UI.",
+          "subject": "eine zukünftige ui ruft benannte contracts die runtime",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-006-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Eine zukünftige UI ruft benannte Contracts; die Runtime sucht niemals die UI.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Eine zukünftige UI ruft benannte Contracts; die Runtime sucht niemals die UI."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-006-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-007",
+          "normalized_claim": "window.SHADED, window.SHADED_ORCHESTRATOR und window.SHADEDWorldSandbox bilden Browser-Vertragsflächen.",
+          "subject": "windowshaded windowshaded_orchestrator und windowshadedworldsandbox bilden browservertragsflächen",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-007-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "window.SHADED, window.SHADED_ORCHESTRATOR und window.SHADEDWorldSandbox bilden Browser-Vertragsflächen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "window.SHADED, window.SHADED_ORCHESTRATOR und window.SHADEDWorldSandbox bilden Browser-Vertragsflächen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-007-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-008",
+          "normalized_claim": "Runtime-Code darf einen expliziten Render-Target erhalten, aber keinen Legacy-Canvas-Selector fest einbauen.",
+          "subject": "runtimecode darf einen expliziten rendertarget erhalten aber keinen",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-008-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Runtime-Code darf einen expliziten Render-Target erhalten, aber keinen Legacy-Canvas-Selector fest einbauen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Runtime-Code darf einen expliziten Render-Target erhalten, aber keinen Legacy-Canvas-Selector fest einbauen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-008-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-009",
+          "normalized_claim": "Input-Adapter übersetzen Events in Runtime-Aufrufe; die Runtime installiert keine Präsentations-Eventlistener.",
+          "subject": "inputadapter übersetzen events in runtimeaufrufe die runtime installiert",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-009-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Input-Adapter übersetzen Events in Runtime-Aufrufe; die Runtime installiert keine Präsentations-Eventlistener.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Input-Adapter übersetzen Events in Runtime-Aufrufe; die Runtime installiert keine Präsentations-Eventlistener."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-009-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-010",
+          "normalized_claim": "Gelöschte UI darf aus Git-History auf Verhalten untersucht, aber nicht strukturell zurückkopiert werden.",
+          "subject": "gelöschte ui darf aus githistory auf verhalten untersucht",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-010-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Gelöschte UI darf aus Git-History auf Verhalten untersucht, aber nicht strukturell zurückkopiert werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Gelöschte UI darf aus Git-History auf Verhalten untersucht, aber nicht strukturell zurückkopiert werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-010-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-011",
+          "normalized_claim": "Solver- und Research-Labs sind keine Produktions-UI.",
+          "subject": "solver und researchlabs sind keine produktionsui",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-011-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Solver- und Research-Labs sind keine Produktions-UI.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Solver- und Research-Labs sind keine Produktions-UI."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-011-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC067-012",
+          "normalized_claim": "Jedes zukünftige Control muss als Gesture → Contract → State/Result → Presentation beschreibbar sein.",
+          "subject": "jedes zukünftige control muss als gesture contract stateresult",
+          "scope": "doc:docs/UI_ZERO.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC067-012-BULK",
+              "source_id": "SRC-DOC-BE76C8C64AB3CEF2",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Jedes zukünftige Control muss als Gesture → Contract → State/Result → Presentation beschreibbar sein.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Jedes zukünftige Control muss als Gesture → Contract → State/Result → Presentation beschreibbar sein."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC067-012-DOC",
+              "repo_path": "docs/UI_ZERO.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-001",
+          "normalized_claim": "Der Bildkanon ist ein verbindlicher Vertrag zwischen Bilderzeugung und Engine.",
+          "subject": "der bildkanon ist ein verbindlicher vertrag zwischen bilderzeugung",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-001-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Der Bildkanon ist ein verbindlicher Vertrag zwischen Bilderzeugung und Engine.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Der Bildkanon ist ein verbindlicher Vertrag zwischen Bilderzeugung und Engine."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-001-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-002",
+          "normalized_claim": "Kanonkonforme Bilder sollen ohne KI und ohne Overlay automatisch analysierbar sein.",
+          "subject": "kanonkonforme bilder sollen ohne ki und ohne overlay",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-002-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Kanonkonforme Bilder sollen ohne KI und ohne Overlay automatisch analysierbar sein.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Kanonkonforme Bilder sollen ohne KI und ohne Overlay automatisch analysierbar sein."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-002-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-003",
+          "normalized_claim": "Abweichungen vom Kanon sollen kontrolliert zu Heuristiken und schließlich Nutzer-Markern degradieren.",
+          "subject": "abweichungen vom kanon sollen kontrolliert zu heuristiken und",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-003-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Abweichungen vom Kanon sollen kontrolliert zu Heuristiken und schließlich Nutzer-Markern degradieren.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Abweichungen vom Kanon sollen kontrolliert zu Heuristiken und schließlich Nutzer-Markern degradieren."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-003-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-004",
+          "normalized_claim": "Gebäude werden durch sichtbares Fachwerk maschinenlesbar markiert.",
+          "subject": "gebäude werden durch sichtbares fachwerk maschinenlesbar markiert",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-004-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Gebäude werden durch sichtbares Fachwerk maschinenlesbar markiert.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Gebäude werden durch sichtbares Fachwerk maschinenlesbar markiert."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-004-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-005",
+          "normalized_claim": "Dächer besitzen sichtbare periodische Ziegel-/Schindel-/Schieferstruktur und liegen über Fachwerk.",
+          "subject": "dächer besitzen sichtbare periodische ziegelschindelschieferstruktur und liegen über",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-005-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Dächer besitzen sichtbare periodische Ziegel-/Schindel-/Schieferstruktur und liegen über Fachwerk.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Dächer besitzen sichtbare periodische Ziegel-/Schindel-/Schieferstruktur und liegen über Fachwerk."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-005-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-006",
+          "normalized_claim": "Fenster bestehen aus einer Nicht-Holz-Füllung in einem geschlossenen Holzrahmen.",
+          "subject": "fenster bestehen aus einer nichtholzfüllung in einem geschlossenen",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-006-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Fenster bestehen aus einer Nicht-Holz-Füllung in einem geschlossenen Holzrahmen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Fenster bestehen aus einer Nicht-Holz-Füllung in einem geschlossenen Holzrahmen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-006-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-007",
+          "normalized_claim": "Glas oder Reflexe ohne geschlossenen Holzrahmen sind keine Fenster.",
+          "subject": "glas oder reflexe ohne geschlossenen holzrahmen sind keine",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-007-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Glas oder Reflexe ohne geschlossenen Holzrahmen sind keine Fenster.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Glas oder Reflexe ohne geschlossenen Holzrahmen sind keine Fenster."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-007-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-008",
+          "normalized_claim": "Türen sind Holzöffnungen mit Bodenkontakt und keine selbstleuchtenden Fenster.",
+          "subject": "türen sind holzöffnungen mit bodenkontakt und keine selbstleuchtenden",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-008-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Türen sind Holzöffnungen mit Bodenkontakt und keine selbstleuchtenden Fenster.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Türen sind Holzöffnungen mit Bodenkontakt und keine selbstleuchtenden Fenster."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-008-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-009",
+          "normalized_claim": "Dünne dunkle Stilkonturen gelten analytisch als neutral.",
+          "subject": "dünne dunkle stilkonturen gelten analytisch als neutral",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-009-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Dünne dunkle Stilkonturen gelten analytisch als neutral.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Dünne dunkle Stilkonturen gelten analytisch als neutral."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-009-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-010",
+          "normalized_claim": "Begehbarer Boden ist zusammenhängend; Himmel berührt, wenn vorhanden, die Bildoberkante und ist inert.",
+          "subject": "begehbarer boden ist zusammenhängend himmel berührt wenn vorhanden",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-010-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Begehbarer Boden ist zusammenhängend; Himmel berührt, wenn vorhanden, die Bildoberkante und ist inert.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Begehbarer Boden ist zusammenhängend; Himmel berührt, wenn vorhanden, die Bildoberkante und ist inert."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-010-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-011",
+          "normalized_claim": "Nachts sind Fenster und aktive Feuer die vorgesehenen Warmlichtquellen.",
+          "subject": "nachts sind fenster und aktive feuer die vorgesehenen",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-011-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Nachts sind Fenster und aktive Feuer die vorgesehenen Warmlichtquellen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Nachts sind Fenster und aktive Feuer die vorgesehenen Warmlichtquellen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-011-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC068-012",
+          "normalized_claim": "Eskalationsreihenfolge: Kanon-Detektoren → Farb-/Strukturheuristik → Marker-Overlay → vollständige Material-Map.",
+          "subject": "eskalationsreihenfolge kanondetektoren farbstrukturheuristik markeroverlay vollständige materialmap",
+          "scope": "doc:docs/bildkanon.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC068-012-BULK",
+              "source_id": "SRC-DOC-65CA7A7525E55DAD",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Eskalationsreihenfolge: Kanon-Detektoren → Farb-/Strukturheuristik → Marker-Overlay → vollständige Material-Map.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Eskalationsreihenfolge: Kanon-Detektoren → Farb-/Strukturheuristik → Marker-Overlay → vollständige Material-Map."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC068-012-DOC",
+              "repo_path": "docs/bildkanon.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-001",
+          "normalized_claim": "Ziel ist eine visuell plausible und kameraraum-konsistente Welt, nicht zwingend ein metrisch korrekter Digital Twin.",
+          "subject": "ziel ist eine visuell plausible und kameraraumkonsistente welt",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-001-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ziel ist eine visuell plausible und kameraraum-konsistente Welt, nicht zwingend ein metrisch korrekter Digital Twin.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ziel ist eine visuell plausible und kameraraum-konsistente Welt, nicht zwingend ein metrisch korrekter Digital Twin."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-001-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-002",
+          "normalized_claim": "Zielgröße ist ungefähr 80 % wahrgenommene räumliche Qualität mit höchstens ungefähr 20 % der Ressourcen.",
+          "subject": "zielgröße ist ungefähr 80 wahrgenommene räumliche qualität mit",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-002-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Zielgröße ist ungefähr 80 % wahrgenommene räumliche Qualität mit höchstens ungefähr 20 % der Ressourcen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Zielgröße ist ungefähr 80 % wahrgenommene räumliche Qualität mit höchstens ungefähr 20 % der Ressourcen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-002-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-003",
+          "normalized_claim": "Das zentrale Zwischenformat soll ein PlausibleDepthField mit Herkunft statt eine vermeintlich wahre DepthMap sein.",
+          "subject": "das zentrale zwischenformat soll ein plausibledepthfield mit herkunft",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-003-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Das zentrale Zwischenformat soll ein PlausibleDepthField mit Herkunft statt eine vermeintlich wahre DepthMap sein.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Das zentrale Zwischenformat soll ein PlausibleDepthField mit Herkunft statt eine vermeintlich wahre DepthMap sein."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-003-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-004",
+          "normalized_claim": "Verdeckte Flächen dürfen geschlossen werden, müssen dann aber als INFERRED oder GENERATED statt OBSERVED gelten.",
+          "subject": "verdeckte flächen dürfen geschlossen werden müssen dann aber",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-004-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Verdeckte Flächen dürfen geschlossen werden, müssen dann aber als INFERRED oder GENERATED statt OBSERVED gelten.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Verdeckte Flächen dürfen geschlossen werden, müssen dann aber als INFERRED oder GENERATED statt OBSERVED gelten."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-004-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-005",
+          "normalized_claim": "Der billige Primäreinstieg ist topologische Zerlegung über Tiefengrenzen, nicht sofort semantische Segmentierung.",
+          "subject": "der billige primäreinstieg ist topologische zerlegung über tiefengrenzen",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-005-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Der billige Primäreinstieg ist topologische Zerlegung über Tiefengrenzen, nicht sofort semantische Segmentierung.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Der billige Primäreinstieg ist topologische Zerlegung über Tiefengrenzen, nicht sofort semantische Segmentierung."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-005-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-006",
+          "normalized_claim": "Tiefenstruktur ist primäre Segmentierungsdomäne; Farbe und Textur sind sekundäre Hilfen.",
+          "subject": "tiefenstruktur ist primäre segmentierungsdomäne farbe und textur sind",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-006-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Tiefenstruktur ist primäre Segmentierungsdomäne; Farbe und Textur sind sekundäre Hilfen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Tiefenstruktur ist primäre Segmentierungsdomäne; Farbe und Textur sind sekundäre Hilfen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-006-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-007",
+          "normalized_claim": "Boundary Tracing soll geordnete Außenkonturen statt loser Kantenwolken erzeugen.",
+          "subject": "boundary tracing soll geordnete außenkonturen statt loser kantenwolken",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-007-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Boundary Tracing soll geordnete Außenkonturen statt loser Kantenwolken erzeugen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Boundary Tracing soll geordnete Außenkonturen statt loser Kantenwolken erzeugen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-007-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-008",
+          "normalized_claim": "An Kreuzungen soll der Tracer dem Ast mit der stärksten zusammenhängenden kompatiblen Masse folgen.",
+          "subject": "an kreuzungen soll der tracer dem ast mit",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-008-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "An Kreuzungen soll der Tracer dem Ast mit der stärksten zusammenhängenden kompatiblen Masse folgen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "An Kreuzungen soll der Tracer dem Ast mit der stärksten zusammenhängenden kompatiblen Masse folgen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-008-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-009",
+          "normalized_claim": "DepthCluster werden schrittweise anhand von Grenzen, Tiefenordnung und konkurrierenden Hypothesen zu SurfacePatches kultiviert.",
+          "subject": "depthcluster werden schrittweise anhand von grenzen tiefenordnung und",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-009-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "DepthCluster werden schrittweise anhand von Grenzen, Tiefenordnung und konkurrierenden Hypothesen zu SurfacePatches kult",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "DepthCluster werden schrittweise anhand von Grenzen, Tiefenordnung und konkurrierenden Hypothesen zu SurfacePatches kultiviert."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-009-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-010",
+          "normalized_claim": "Die kleinste plausible geometrische Erklärung wird vor dichter Geometrie bevorzugt: Ebene, Platte, Box, Prisma, Zylinder, erst danach freier Patch.",
+          "subject": "die kleinste plausible geometrische erklärung wird vor dichter",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-010-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die kleinste plausible geometrische Erklärung wird vor dichter Geometrie bevorzugt: Ebene, Platte, Box, Prisma, Zylinder",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die kleinste plausible geometrische Erklärung wird vor dichter Geometrie bevorzugt: Ebene, Platte, Box, Prisma, Zylinder, erst danach freier Patch."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-010-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-011",
+          "normalized_claim": "Unsichtbare Bereiche dürfen fortgesetzt, extrudiert, gespiegelt oder als Durchgang/Fernkulisse behandelt werden, wenn sichtbare Anschlussbedingungen sie begrenzen.",
+          "subject": "unsichtbare bereiche dürfen fortgesetzt extrudiert gespiegelt oder als",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-011-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Unsichtbare Bereiche dürfen fortgesetzt, extrudiert, gespiegelt oder als Durchgang/Fernkulisse behandelt werden, wenn si",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Unsichtbare Bereiche dürfen fortgesetzt, extrudiert, gespiegelt oder als Durchgang/Fernkulisse behandelt werden, wenn sichtbare Anschlussbedingungen sie begrenzen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-011-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-012",
+          "normalized_claim": "Virtuelles LiDAR kann eine Hypothese testen, macht deren verdeckte Teile aber nicht nachträglich beobachtet.",
+          "subject": "virtuelles lidar kann eine hypothese testen macht deren",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-012-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Virtuelles LiDAR kann eine Hypothese testen, macht deren verdeckte Teile aber nicht nachträglich beobachtet.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Virtuelles LiDAR kann eine Hypothese testen, macht deren verdeckte Teile aber nicht nachträglich beobachtet."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-012-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-013",
+          "normalized_claim": "Plausibilitätskosten sollen Originalansicht, Nähte/Löcher, Selbstschnitte, Reprojektion, Kamerajitter und unnötige Komplexität berücksichtigen.",
+          "subject": "plausibilitätskosten sollen originalansicht nähtelöcher selbstschnitte reprojektion kamerajitter und",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-013-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Plausibilitätskosten sollen Originalansicht, Nähte/Löcher, Selbstschnitte, Reprojektion, Kamerajitter und unnötige Kompl",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Plausibilitätskosten sollen Originalansicht, Nähte/Löcher, Selbstschnitte, Reprojektion, Kamerajitter und unnötige Komplexität berücksichtigen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-013-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-014",
+          "normalized_claim": "Virtuelle Multi-Views können nach stabiler Hülle zur Splat-Initialisierung genutzt werden.",
+          "subject": "virtuelle multiviews können nach stabiler hülle zur splatinitialisierung",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-014-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Virtuelle Multi-Views können nach stabiler Hülle zur Splat-Initialisierung genutzt werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Virtuelle Multi-Views können nach stabiler Hülle zur Splat-Initialisierung genutzt werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-014-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-015",
+          "normalized_claim": "Provenienz und räumlicher Zustand müssen getrennt gespeichert werden.",
+          "subject": "provenienz und räumlicher zustand müssen getrennt gespeichert werden",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-015-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Provenienz und räumlicher Zustand müssen getrennt gespeichert werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Provenienz und räumlicher Zustand müssen getrennt gespeichert werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-015-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-016",
+          "normalized_claim": "Neue reale Frames sind wegen neuer Baseline und Sichtbarkeit wertvoll, nicht wegen bloßer Framezahl.",
+          "subject": "neue reale frames sind wegen neuer baseline und",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-016-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Neue reale Frames sind wegen neuer Baseline und Sichtbarkeit wertvoll, nicht wegen bloßer Framezahl.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Neue reale Frames sind wegen neuer Baseline und Sichtbarkeit wertvoll, nicht wegen bloßer Framezahl."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-016-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-017",
+          "normalized_claim": "Generierte Geometrie darf nicht allein deshalb wahrer werden, weil sie aus ihrer eigenen virtuellen Kamera konsistent aussieht.",
+          "subject": "generierte geometrie darf nicht allein deshalb wahrer werden",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-017-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Generierte Geometrie darf nicht allein deshalb wahrer werden, weil sie aus ihrer eigenen virtuellen Kamera konsistent au",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Generierte Geometrie darf nicht allein deshalb wahrer werden, weil sie aus ihrer eigenen virtuellen Kamera konsistent aussieht."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-017-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC069-018",
+          "normalized_claim": "Schwere Modelle bleiben für klar begrenzte Restfragen reserviert.",
+          "subject": "schwere modelle bleiben für klar begrenzte restfragen reserviert",
+          "scope": "doc:docs/billige-raumhypothesen-tiefengrenzen.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC069-018-BULK",
+              "source_id": "SRC-DOC-1295A6BB084E1356",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Schwere Modelle bleiben für klar begrenzte Restfragen reserviert.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Schwere Modelle bleiben für klar begrenzte Restfragen reserviert."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC069-018-DOC",
+              "repo_path": "docs/billige-raumhypothesen-tiefengrenzen.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-001",
+          "normalized_claim": "Das Dokument ist Forschungsreferenz zur Cultivation und keine verbindliche Architektur.",
+          "subject": "das dokument ist forschungsreferenz zur cultivation und keine",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-001-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Das Dokument ist Forschungsreferenz zur Cultivation und keine verbindliche Architektur.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Das Dokument ist Forschungsreferenz zur Cultivation und keine verbindliche Architektur."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-001-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-002",
+          "normalized_claim": "SAM2 und Depth Anything V2 hatten reale kanonische Quellen, obwohl die damalige Registry sie zunächst als MISSING führte.",
+          "subject": "sam2 und depth anything v2 hatten reale kanonische",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-002-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SAM2 und Depth Anything V2 hatten reale kanonische Quellen, obwohl die damalige Registry sie zunächst als MISSING führte",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SAM2 und Depth Anything V2 hatten reale kanonische Quellen, obwohl die damalige Registry sie zunächst als MISSING führte."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-002-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-003",
+          "normalized_claim": "Die Provider-Registry besitzt kein eigenes masks-/segmentation-Capability-Vokabular.",
+          "subject": "die providerregistry besitzt kein eigenes maskssegmentationcapabilityvokabular",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-003-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Die Provider-Registry besitzt kein eigenes masks-/segmentation-Capability-Vokabular.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Die Provider-Registry besitzt kein eigenes masks-/segmentation-Capability-Vokabular."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-003-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-004",
+          "normalized_claim": "SAM2 soll als zusätzlicher Evidenzkanal dienen, nicht den Multi-Evidenz-Cultivator ersetzen.",
+          "subject": "sam2 soll als zusätzlicher evidenzkanal dienen nicht den",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-004-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SAM2 soll als zusätzlicher Evidenzkanal dienen, nicht den Multi-Evidenz-Cultivator ersetzen.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SAM2 soll als zusätzlicher Evidenzkanal dienen, nicht den Multi-Evidenz-Cultivator ersetzen."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-004-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-005",
+          "normalized_claim": "SAM2 segmentiert Appearance-/Instanzgrenzen, nicht automatisch geometrische Kontinuität.",
+          "subject": "sam2 segmentiert appearanceinstanzgrenzen nicht automatisch geometrische kontinuität",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-005-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SAM2 segmentiert Appearance-/Instanzgrenzen, nicht automatisch geometrische Kontinuität.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SAM2 segmentiert Appearance-/Instanzgrenzen, nicht automatisch geometrische Kontinuität."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-005-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-006",
+          "normalized_claim": "SAM2-Maske plus Depth kann über gefilterte 3D-Punkte in Geometrie überführt werden.",
+          "subject": "sam2maske plus depth kann über gefilterte 3dpunkte in",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-006-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SAM2-Maske plus Depth kann über gefilterte 3D-Punkte in Geometrie überführt werden.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SAM2-Maske plus Depth kann über gefilterte 3D-Punkte in Geometrie überführt werden."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-006-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-007",
+          "normalized_claim": "Depth Anything V2 läuft über @huggingface/transformers auf CPU/WASM ohne CUDA, Torch oder GPU.",
+          "subject": "depth anything v2 läuft über huggingfacetransformers auf cpuwasm",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-007-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Depth Anything V2 läuft über @huggingface/transformers auf CPU/WASM ohne CUDA, Torch oder GPU.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Depth Anything V2 läuft über @huggingface/transformers auf CPU/WASM ohne CUDA, Torch oder GPU."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-007-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-008",
+          "normalized_claim": "Monokulare DA2-Tiefe basiert auf gelernten statistischen Priors und nicht nur auf Geometrie aus dem Einzelbild.",
+          "subject": "monokulare da2tiefe basiert auf gelernten statistischen priors und",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-008-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Monokulare DA2-Tiefe basiert auf gelernten statistischen Priors und nicht nur auf Geometrie aus dem Einzelbild.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Monokulare DA2-Tiefe basiert auf gelernten statistischen Priors und nicht nur auf Geometrie aus dem Einzelbild."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-008-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-009",
+          "normalized_claim": "Eine aus nur einer Depthmap rückprojizierte Szene bleibt bei kleinen Rotationen brauchbar, öffnet bei größeren Rotationen aber Löcher und besitzt keine echten Rückseiten.",
+          "subject": "eine aus nur einer depthmap rückprojizierte szene bleibt",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-009-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Eine aus nur einer Depthmap rückprojizierte Szene bleibt bei kleinen Rotationen brauchbar, öffnet bei größeren Rotatione",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Eine aus nur einer Depthmap rückprojizierte Szene bleibt bei kleinen Rotationen brauchbar, öffnet bei größeren Rotationen aber Löcher und besitzt keine echten Rückseiten."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-009-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-010",
+          "normalized_claim": "DA2, Cultivation und Box-Solver erfüllen komplementäre Rollen: dichte Tiefe, Objekt-/Flächentrennung und vollständige primitive Körper.",
+          "subject": "da2 cultivation und boxsolver erfüllen komplementäre rollen dichte",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-010-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "DA2, Cultivation und Box-Solver erfüllen komplementäre Rollen: dichte Tiefe, Objekt-/Flächentrennung und vollständige pr",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "DA2, Cultivation und Box-Solver erfüllen komplementäre Rollen: dichte Tiefe, Objekt-/Flächentrennung und vollständige primitive Körper."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-010-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-011",
+          "normalized_claim": "Ein funktionierender Browser-Depth-Pfad hebt die Wahrheitshierarchie nicht auf; monokulare Schätzung bleibt unter gemessener/geometrisch gestützter Evidenz.",
+          "subject": "ein funktionierender browserdepthpfad hebt die wahrheitshierarchie nicht auf",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-011-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ein funktionierender Browser-Depth-Pfad hebt die Wahrheitshierarchie nicht auf; monokulare Schätzung bleibt unter gemess",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ein funktionierender Browser-Depth-Pfad hebt die Wahrheitshierarchie nicht auf; monokulare Schätzung bleibt unter gemessener/geometrisch gestützter Evidenz."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-011-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-012",
+          "normalized_claim": "TripoSR und Stable Fast 3D gehören zur GENERATED-Vervollständigung unbekannter Bereiche und sollen gemessene Ergebnisse nicht überschreiben.",
+          "subject": "triposr und stable fast 3d gehören zur generatedvervollständigung",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-012-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "TripoSR und Stable Fast 3D gehören zur GENERATED-Vervollständigung unbekannter Bereiche und sollen gemessene Ergebnisse ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "TripoSR und Stable Fast 3D gehören zur GENERATED-Vervollständigung unbekannter Bereiche und sollen gemessene Ergebnisse nicht überschreiben."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-012-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC070-013",
+          "normalized_claim": "Browser-Nativität ist eine zusätzliche Taxonomieachse und ersetzt weder Stack- noch Provenienzklassifikation.",
+          "subject": "browsernativität ist eine zusätzliche taxonomieachse und ersetzt weder",
+          "scope": "doc:docs/browser-native-provider-kandidaten.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC070-013-BULK",
+              "source_id": "SRC-DOC-9C2AA1031E1F2070",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Browser-Nativität ist eine zusätzliche Taxonomieachse und ersetzt weder Stack- noch Provenienzklassifikation.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Browser-Nativität ist eine zusätzliche Taxonomieachse und ersetzt weder Stack- noch Provenienzklassifikation."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC070-013-DOC",
+              "repo_path": "docs/browser-native-provider-kandidaten.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        }
+      ],
+      "relations": []
+    }
+  ]
+}

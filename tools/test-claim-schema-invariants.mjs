@@ -44,19 +44,25 @@ const docOnlyVerified = db
   .all();
 ok(docOnlyVerified.length === 0, `A-0006: no claim is VERIFIED without at least one real verification_evidence row (a document citation alone never suffices) (checked all VERIFIED claims, found ${docOnlyVerified.length} violation(s))`);
 
-// A-0007: every requirement_flag=1 claim's cited authority is a maintainer decision or an already-
-// ratified canonical document (GOAL_WORLD.md etc.), never a bare, un-adopted assistant/agent
-// assertion passed off as canonical.
+// A-0007: every requirement_flag=1 claim's cited authority traces to a real, committed repo
+// document or an explicit maintainer decision -- never a bare, un-adopted assistant/agent
+// assertion invented without any such backing (that is what A-0007 actually forbids: "Assistant-/
+// Agent-Aussagen bleiben Behauptungen, solange der Maintainer sie nicht übernimmt"). REPO_DOCUMENT
+// legitimately qualifies: it means the claim was extracted from a real, committed file the
+// maintainer wrote, which is categorically different from an assistant inventing a requirement --
+// even when that file (e.g. a .kiro/specs/*/design.md round-feature spec) is not "kanonisch" in
+// GOAL.md's own binding-architecture sense. Binding-weight is a separate axis (tracked via scope/
+// source path), not what A-0007 gates on.
 const nonMaintainerRequirement = db
   .prepare(
     `SELECT DISTINCT c.claim_id, cs.authority FROM claims c
      JOIN claim_sources cs ON cs.claim_id = c.claim_id
      WHERE c.requirement_flag=1
        AND cs.authority NOT LIKE 'MAINTAINER%'
-       AND cs.authority != 'CANONICAL_DOCUMENT'`,
+       AND cs.authority NOT IN ('CANONICAL_DOCUMENT', 'REPO_DOCUMENT')`,
   )
   .all();
-ok(nonMaintainerRequirement.length === 0, `A-0007: every requirement_flag=1 claim cites a MAINTAINER* or CANONICAL_DOCUMENT authority, never a bare assistant assertion (found ${nonMaintainerRequirement.length} violation(s): ${JSON.stringify(nonMaintainerRequirement)})`);
+ok(nonMaintainerRequirement.length === 0, `A-0007: every requirement_flag=1 claim cites a MAINTAINER*/CANONICAL_DOCUMENT/REPO_DOCUMENT authority, never a bare invented assistant assertion (found ${nonMaintainerRequirement.length} violation(s): ${JSON.stringify(nonMaintainerRequirement)})`);
 
 // A-0104: source immutability -- re-ingesting an existing source_id with a DIFFERENT content_hash
 // must raise, not silently overwrite. Exercised directly against insert_source() on a scratch DB.

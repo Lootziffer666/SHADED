@@ -1,0 +1,3378 @@
+{
+  "extractions": [
+    {
+      "extraction": {
+        "extraction_id": "EXT-BULK-0003-DOCS-21-30",
+        "source_id": "SRC-DOC-BC6F067BC09E3967",
+        "topic": "Bulk doc-claim reconciliation: 0003-docs-21-30.json",
+        "extracted_at": "2026-09-06T10:12:06.045629+00:00",
+        "status": "COMPLETE",
+        "retrieval_anchor": null,
+        "notes": "Reconciled from maintainer-provided raw extraction 0003-docs-21-30.json (mode: append-only, no comparison/reconciliation done at extraction time). This pass: verified every referenced source path still exists in the repo and is unchanged since the extraction's branch snapshot; skipped 0 claim(s) that duplicate an already richly-modeled claim.db entry (see BULK_DOC_CLAIMS_SKIPPED.md) rather than creating a parallel duplicate; ingested the remaining 96 as UNVERIFIED/BEHAUPTET per A-0006 (a document claim alone is never VERIFIED)."
+      },
+      "claims": [
+        {
+          "claim_id": "C-DOC021-001",
+          "normalized_claim": "Round 4 makes the scene walkable and reactive, rebuilding player, trails, campfire, particle ecosystem, and bio-character ideas on SHADED architecture.",
+          "subject": "round 4 makes the scene walkable and reactive",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-001-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 4 makes the scene walkable and reactive, rebuilding player, trails, campfire, particle ecosystem, and bio-characte",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 4 makes the scene walkable and reactive, rebuilding player, trails, campfire, particle ecosystem, and bio-character ideas on SHADED architecture."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-001-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-002",
+          "normalized_claim": "Round 4 defines Texture Unit 5 as a 512² RGBA trail/disturbance texture and describes it as the world's only mutable state.",
+          "subject": "round 4 defines texture unit 5 as a",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-002-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 4 defines Texture Unit 5 as a 512² RGBA trail/disturbance texture and describes it as the world's only mutable sta",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 4 defines Texture Unit 5 as a 512² RGBA trail/disturbance texture and describes it as the world's only mutable state."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-002-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-003",
+          "normalized_claim": "Trail R is transient footprint/snow dent, G impulse/shake, B permanent trampled path, A heat/burn trace.",
+          "subject": "trail r is transient footprintsnow dent g impulseshake",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-003-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Trail R is transient footprint/snow dent, G impulse/shake, B permanent trampled path, A heat/burn trace.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Trail R is transient footprint/snow dent, G impulse/shake, B permanent trampled path, A heat/burn trace."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-003-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-004",
+          "normalized_claim": "R/G must decay with real measurable decay (half-value within <=2s), B is permanent, A decays very slowly.",
+          "subject": "rg must decay with real measurable decay halfvalue",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-004-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "R/G must decay with real measurable decay (half-value within <=2s), B is permanent, A decays very slowly.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "R/G must decay with real measurable decay (half-value within <=2s), B is permanent, A decays very slowly."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-004-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-005",
+          "normalized_claim": "WASD/arrows move an optional Canvas-2D player with material-dependent speed; Space dashes and writes trail impulses/footprints.",
+          "subject": "wasdarrows move an optional canvas2d player with materialdependent",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-005-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "WASD/arrows move an optional Canvas-2D player with material-dependent speed; Space dashes and writes trail impulses/foot",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "WASD/arrows move an optional Canvas-2D player with material-dependent speed; Space dashes and writes trail impulses/footprints."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-005-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-006",
+          "normalized_claim": "Rising trail B should darken grass to mud and eventually shift local grass behavior toward path behavior including puddle capability.",
+          "subject": "rising trail b should darken grass to mud",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-006-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Rising trail B should darken grass to mud and eventually shift local grass behavior toward path behavior including puddl",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Rising trail B should darken grass to mud and eventually shift local grass behavior toward path behavior including puddle capability."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-006-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-007",
+          "normalized_claim": "Fire placement requires a working click handler with correct coordinate mapping; fire emits light, smoke/sparks, melts snow, can spread on dry wood/roof/foliage, and is extinguished by wetness/rain.",
+          "subject": "fire placement requires a working click handler with",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-007-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Fire placement requires a working click handler with correct coordinate mapping; fire emits light, smoke/sparks, melts s",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Fire placement requires a working click handler with correct coordinate mapping; fire emits light, smoke/sparks, melts snow, can spread on dry wood/roof/foliage, and is extinguished by wetness/rain."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-007-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-008",
+          "normalized_claim": "Leaves, fruit, and grass-clump particles react to wind, dash, shake, and material and validate positions through getMaterialTypeAt.",
+          "subject": "leaves fruit and grassclump particles react to wind",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-008-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Leaves, fruit, and grass-clump particles react to wind, dash, shake, and material and validate positions through getMate",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Leaves, fruit, and grass-clump particles react to wind, dash, shake, and material and validate positions through getMaterialTypeAt."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-008-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-009",
+          "normalized_claim": "The player shows breathing, cold breath, wetness state, and simple aging in Canvas-2D rendering.",
+          "subject": "the player shows breathing cold breath wetness state",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-009-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The player shows breathing, cold breath, wetness state, and simple aging in Canvas-2D rendering.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The player shows breathing, cold breath, wetness state, and simple aging in Canvas-2D rendering."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-009-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-010",
+          "normalized_claim": "Without input, cinema mode should remain the Round-1–3 ambient experience.",
+          "subject": "without input cinema mode should remain the round13",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-010-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Without input, cinema mode should remain the Round-1–3 ambient experience.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Without input, cinema mode should remain the Round-1–3 ambient experience."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-010-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-011",
+          "normalized_claim": "Snapshots/WebM should composite the overlay canvas.",
+          "subject": "snapshotswebm should composite the overlay canvas",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-011-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Snapshots/WebM should composite the overlay canvas.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Snapshots/WebM should composite the overlay canvas."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-011-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC021-012",
+          "normalized_claim": "verify.js should test interaction by simulated input, visible trail growth, measurable decay, and fire glow.",
+          "subject": "verifyjs should test interaction by simulated input visible",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC021-012-BULK",
+              "source_id": "SRC-DOC-BC6F067BC09E3967",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "verify.js should test interaction by simulated input, visible trail growth, measurable decay, and fire glow.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "verify.js should test interaction by simulated input, visible trail growth, measurable decay, and fire glow."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC021-012-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-001",
+          "normalized_claim": "Round-4 task 1 is marked complete: Unit-5 persistent trail texture, dirty upload, measurable decay, and trail API.",
+          "subject": "round4 task 1 is marked complete unit5 persistent",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-001-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 1 is marked complete: Unit-5 persistent trail texture, dirty upload, measurable decay, and trail API.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 1 is marked complete: Unit-5 persistent trail texture, dirty upload, measurable decay, and trail API."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-001-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-002",
+          "normalized_claim": "Round-4 task 2 is marked complete: shader responses for mud, snow dents, sway boost, and melt/glow.",
+          "subject": "round4 task 2 is marked complete shader responses",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-002-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 2 is marked complete: shader responses for mud, snow dents, sway boost, and melt/glow.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 2 is marked complete: shader responses for mud, snow dents, sway boost, and melt/glow."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-002-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-003",
+          "normalized_claim": "Round-4 task 3 is marked complete: aligned overlay canvas and UV coordinate mapping.",
+          "subject": "round4 task 3 is marked complete aligned overlay",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-003-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 3 is marked complete: aligned overlay canvas and UV coordinate mapping.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 3 is marked complete: aligned overlay canvas and UV coordinate mapping."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-003-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-004",
+          "normalized_claim": "Round-4 task 4 is marked complete: WASD/dash material-dependent player with ice inertia, footprints/trails, and player API.",
+          "subject": "round4 task 4 is marked complete wasddash materialdependent",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-004-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 4 is marked complete: WASD/dash material-dependent player with ice inertia, footprints/trails, and player A",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 4 is marked complete: WASD/dash material-dependent player with ice inertia, footprints/trails, and player API."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-004-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-005",
+          "normalized_claim": "Round-4 task 5 is marked complete: campfire click/tool, uniform runtime lights, smoke/sparks, wetness-gated spread, rain extinguishing, and fire API.",
+          "subject": "round4 task 5 is marked complete campfire clicktool",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-005-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 5 is marked complete: campfire click/tool, uniform runtime lights, smoke/sparks, wetness-gated spread, rain",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 5 is marked complete: campfire click/tool, uniform runtime lights, smoke/sparks, wetness-gated spread, rain extinguishing, and fire API."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-005-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-006",
+          "normalized_claim": "Round-4 task 6 is marked complete: particle ecosystem with wind/dash/material reaction.",
+          "subject": "round4 task 6 is marked complete particle ecosystem",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-006-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 6 is marked complete: particle ecosystem with wind/dash/material reaction.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 6 is marked complete: particle ecosystem with wind/dash/material reaction."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-006-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-007",
+          "normalized_claim": "Round-4 task 7 is marked complete: breathing, cold vapor, wetness, aging.",
+          "subject": "round4 task 7 is marked complete breathing cold",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-007-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 7 is marked complete: breathing, cold vapor, wetness, aging.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 7 is marked complete: breathing, cold vapor, wetness, aging."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-007-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-008",
+          "normalized_claim": "Round-4 task 8 is marked complete: overlay compositing in snapshots/recorder.",
+          "subject": "round4 task 8 is marked complete overlay compositing",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-008-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 8 is marked complete: overlay compositing in snapshots/recorder.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 8 is marked complete: overlay compositing in snapshots/recorder."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-008-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC022-009",
+          "normalized_claim": "Round-4 task 9 is marked complete: interaction verification and no-input ambient regression, then commit+push.",
+          "subject": "round4 task 9 is marked complete interaction verification",
+          "scope": "doc:.kiro/specs/round-4-interaction-ecosystem/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC022-009-BULK",
+              "source_id": "SRC-DOC-6DC7E730C940AFF0",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-4 task 9 is marked complete: interaction verification and no-input ambient regression, then commit+push.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-4 task 9 is marked complete: interaction verification and no-input ambient regression, then commit+push."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC022-009-DOC",
+              "repo_path": ".kiro/specs/round-4-interaction-ecosystem/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-001",
+          "normalized_claim": "The revised owner decision says docs/bildkanon.md supersedes riskier heuristic increments with canonical detectors: framed windows, sky rule, and next Fachwerk signature.",
+          "subject": "the revised owner decision says docsbildkanonmd supersedes riskier",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-001-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The revised owner decision says docs/bildkanon.md supersedes riskier heuristic increments with canonical detectors: fram",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The revised owner decision says docs/bildkanon.md supersedes riskier heuristic increments with canonical detectors: framed windows, sky rule, and next Fachwerk signature."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-001-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-002",
+          "normalized_claim": "Ground-anchor logic remains as a geometric safety net under the canonical detectors.",
+          "subject": "groundanchor logic remains as a geometric safety net",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-002-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Ground-anchor logic remains as a geometric safety net under the canonical detectors.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Ground-anchor logic remains as a geometric safety net under the canonical detectors."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-002-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-003",
+          "normalized_claim": "The structure pass runs in analyze() after window detectors and before soft masks/derived maps; marker overrides still have the last word.",
+          "subject": "the structure pass runs in analyze after window",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-003-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The structure pass runs in analyze() after window detectors and before soft masks/derived maps; marker overrides still h",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The structure pass runs in analyze() after window detectors and before soft masks/derived maps; marker overrides still have the last word."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-003-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-004",
+          "normalized_claim": "For path components in heuristic mode, a ring analysis with wood neutralized reclassifies building-dominated, ground-poor components to rock/building surface.",
+          "subject": "for path components in heuristic mode a ring",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-004-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "For path components in heuristic mode, a ring analysis with wood neutralized reclassifies building-dominated, ground-poo",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "For path components in heuristic mode, a ring analysis with wood neutralized reclassifies building-dominated, ground-poor components to rock/building surface."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-004-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-005",
+          "normalized_claim": "The ground-anchor reclassification is intended to prevent terraces/decks/balconies from generating path water behavior while leaving grass-bordered paths untouched.",
+          "subject": "the groundanchor reclassification is intended to prevent terracesdecksbalconies",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-005-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The ground-anchor reclassification is intended to prevent terraces/decks/balconies from generating path water behavior w",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The ground-anchor reclassification is intended to prevent terraces/decks/balconies from generating path water behavior while leaving grass-bordered paths untouched."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-005-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-006",
+          "normalized_claim": "A proposed building-zone mask seeds from roof components and grows over connected W/K/N/P pixels while stopping at G/A; puddle/rivulet/creep/mud are masked by 1-zone.",
+          "subject": "a proposed buildingzone mask seeds from roof components",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-006-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "A proposed building-zone mask seeds from roof components and grows over connected W/K/N/P pixels while stopping at G/A; ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "A proposed building-zone mask seeds from roof components and grows over connected W/K/N/P pixels while stopping at G/A; puddle/rivulet/creep/mud are masked by 1-zone."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-006-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-007",
+          "normalized_claim": "A proposed wall/ground split uses vertical local context for path pixels near zones to convert wall-like pixels to K.",
+          "subject": "a proposed wallground split uses vertical local context",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-007-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "A proposed wall/ground split uses vertical local context for path pixels near zones to convert wall-like pixels to K.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "A proposed wall/ground split uses vertical local context for path pixels near zones to convert wall-like pixels to K."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-007-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-008",
+          "normalized_claim": "Window validation should use building-zone occupancy >0.4 where zones exist, falling back to previous voting where no zone exists.",
+          "subject": "window validation should use buildingzone occupancy 04 where",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-008-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Window validation should use building-zone occupancy >0.4 where zones exist, falling back to previous voting where no zo",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Window validation should use building-zone occupancy >0.4 where zones exist, falling back to previous voting where no zone exists."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-008-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-009",
+          "normalized_claim": "SHADED.structure should expose component/reclassification/zone diagnostics and verify.js should compare class counts to expected-classes.json with ±10% tolerance.",
+          "subject": "shadedstructure should expose componentreclassificationzone diagnostics and verifyjs should",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-009-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SHADED.structure should expose component/reclassification/zone diagnostics and verify.js should compare class counts to ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SHADED.structure should expose component/reclassification/zone diagnostics and verify.js should compare class counts to expected-classes.json with ±10% tolerance."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-009-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC023-010",
+          "normalized_claim": "The design notes risks for bridges, enclosed courtyards, and an isometric 'facade under roof' assumption requiring a future viewpoint switch.",
+          "subject": "the design notes risks for bridges enclosed courtyards",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC023-010-BULK",
+              "source_id": "SRC-DOC-0A9720C292AC97C9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The design notes risks for bridges, enclosed courtyards, and an isometric 'facade under roof' assumption requiring a fut",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The design notes risks for bridges, enclosed courtyards, and an isometric 'facade under roof' assumption requiring a future viewpoint switch."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC023-010-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-001",
+          "normalized_claim": "Pure color heuristics necessarily confuse visually similar but structurally different materials; Round 5 adds geometry/neighborhood context so location influences classification.",
+          "subject": "pure color heuristics necessarily confuse visually similar but",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-001-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Pure color heuristics necessarily confuse visually similar but structurally different materials; Round 5 adds geometry/n",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Pure color heuristics necessarily confuse visually similar but structurally different materials; Round 5 adds geometry/neighborhood context so location influences classification."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-001-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-002",
+          "normalized_claim": "Structural rules correct rather than replace color heuristics.",
+          "subject": "structural rules correct rather than replace color heuristics",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-002-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Structural rules correct rather than replace color heuristics.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Structural rules correct rather than replace color heuristics."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-002-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-003",
+          "normalized_claim": "Marker/map overlays always have final authority.",
+          "subject": "markermap overlays always have final authority",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-003-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Marker/map overlays always have final authority.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Marker/map overlays always have final authority."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-003-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-004",
+          "normalized_claim": "Every structural rule must be verified on three reference scenes and must not improve one by breaking another.",
+          "subject": "every structural rule must be verified on three",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-004-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Every structural rule must be verified on three reference scenes and must not improve one by breaking another.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Every structural rule must be verified on three reference scenes and must not improve one by breaking another."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-004-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-005",
+          "normalized_claim": "Path components dominated by roof context with little grass/water contact should be reclassified as building surface, and water maps should derive only from grounded paths.",
+          "subject": "path components dominated by roof context with little",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-005-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Path components dominated by roof context with little grass/water contact should be reclassified as building surface, an",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Path components dominated by roof context with little grass/water contact should be reclassified as building surface, and water maps should derive only from grounded paths."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-005-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-006",
+          "normalized_claim": "When roof components exist, a building-zone mask should include roofs and connected wall/wood/window surfaces.",
+          "subject": "when roof components exist a buildingzone mask should",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-006-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "When roof components exist, a building-zone mask should include roofs and connected wall/wood/window surfaces.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "When roof components exist, a building-zone mask should include roofs and connected wall/wood/window surfaces."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-006-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-007",
+          "normalized_claim": "Inside building zones, puddles, rivulets, trample effects, and path overgrowth should be suppressed while drip edges and window lights remain.",
+          "subject": "inside building zones puddles rivulets trample effects and",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-007-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Inside building zones, puddles, rivulets, trample effects, and path overgrowth should be suppressed while drip edges and",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Inside building zones, puddles, rivulets, trample effects, and path overgrowth should be suppressed while drip edges and window lights remain."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-007-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-008",
+          "normalized_claim": "Local context should split merged wall/path components so walls do not receive puddle depth.",
+          "subject": "local context should split merged wallpath components so",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-008-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Local context should split merged wall/path components so walls do not receive puddle depth.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Local context should split merged wall/path components so walls do not receive puddle depth."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-008-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-009",
+          "normalized_claim": "Window candidates should lie inside or at the edge of building zones where such zones are available.",
+          "subject": "window candidates should lie inside or at the",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-009-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Window candidates should lie inside or at the edge of building zones where such zones are available.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Window candidates should lie inside or at the edge of building zones where such zones are available."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-009-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC024-010",
+          "normalized_claim": "window.SHADED should expose structural diagnostics; verify.js should log per-scene class counts and treat >10% deviation from checked-in expected values as regression.",
+          "subject": "windowshaded should expose structural diagnostics verifyjs should log",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC024-010-BULK",
+              "source_id": "SRC-DOC-CD2CF2F5ED946A6B",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "window.SHADED should expose structural diagnostics; verify.js should log per-scene class counts and treat >10% deviation",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "window.SHADED should expose structural diagnostics; verify.js should log per-scene class counts and treat >10% deviation from checked-in expected values as regression."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC024-010-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-001",
+          "normalized_claim": "Round-5 task 1 is marked complete: structure-pass scaffold and SHADED.structure diagnostics.",
+          "subject": "round5 task 1 is marked complete structurepass scaffold",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-001-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 1 is marked complete: structure-pass scaffold and SHADED.structure diagnostics.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 1 is marked complete: structure-pass scaffold and SHADED.structure diagnostics."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-001-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-002",
+          "normalized_claim": "Round-5 task 2 is marked complete: ground-anchor ring rule building>0.30 and ground<0.20 converts P to K.",
+          "subject": "round5 task 2 is marked complete groundanchor ring",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-002-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 2 is marked complete: ground-anchor ring rule building>0.30 and ground<0.20 converts P to K.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 2 is marked complete: ground-anchor ring rule building>0.30 and ground<0.20 converts P to K."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-002-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-003",
+          "normalized_claim": "Round-5 task 3 is marked complete: verify.js class counts and expected-classes.json with ±10% tolerance.",
+          "subject": "round5 task 3 is marked complete verifyjs class",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-003-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 3 is marked complete: verify.js class counts and expected-classes.json with ±10% tolerance.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 3 is marked complete: verify.js class counts and expected-classes.json with ±10% tolerance."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-003-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-004",
+          "normalized_claim": "Round-5 task 4 is marked complete: visual verification on three scenes.",
+          "subject": "round5 task 4 is marked complete visual verification",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-004-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 4 is marked complete: visual verification on three scenes.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 4 is marked complete: visual verification on three scenes."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-004-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-005",
+          "normalized_claim": "Round-5 task 5 is marked complete: canonical framed-window detector using non-wood fill in >=55% wood ring plus blue or bright-warm color gate, explicitly no simple-dark rule, with K1 wall support and scale-aware analysis.",
+          "subject": "round5 task 5 is marked complete canonical framedwindow",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-005-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 5 is marked complete: canonical framed-window detector using non-wood fill in >=55% wood ring plus blue or ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 5 is marked complete: canonical framed-window detector using non-wood fill in >=55% wood ring plus blue or bright-warm color gate, explicitly no simple-dark rule, with K1 wall support and scale-aware analysis."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-005-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-006",
+          "normalized_claim": "Round-5 task 6 is marked complete: top-edge blue-bright sky flood to inert class prevents sky from being interpreted as water/puddles.",
+          "subject": "round5 task 6 is marked complete topedge bluebright",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-006-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 6 is marked complete: top-edge blue-bright sky flood to inert class prevents sky from being interpreted as ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 6 is marked complete: top-edge blue-bright sky flood to inert class prevents sky from being interpreted as water/puddles."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-006-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-007",
+          "normalized_claim": "Round-5 task 7 is marked complete: Fachwerk signature building-zone mask on Unit 7, zone masking of puddle/rivulet/creep/mud, and zone-based window validation; a known terracotta-path-as-roof debt remains.",
+          "subject": "round5 task 7 is marked complete fachwerk signature",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-007-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 7 is marked complete: Fachwerk signature building-zone mask on Unit 7, zone masking of puddle/rivulet/creep",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 7 is marked complete: Fachwerk signature building-zone mask on Unit 7, zone masking of puddle/rivulet/creep/mud, and zone-based window validation; a known terracotta-path-as-roof debt remains."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-007-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-008",
+          "normalized_claim": "Round-5 task 8 is marked complete: two new canonical village images added to verification; anchor rings switched from bounding boxes to adjacency rings and minStruct added.",
+          "subject": "round5 task 8 is marked complete two new",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-008-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 8 is marked complete: two new canonical village images added to verification; anchor rings switched from bo",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 8 is marked complete: two new canonical village images added to verification; anchor rings switched from bounding boxes to adjacency rings and minStruct added."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-008-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC025-009",
+          "normalized_claim": "Round-5 task 9 is marked complete: bildkanon documentation linked and changes committed/pushed by increment.",
+          "subject": "round5 task 9 is marked complete bildkanon documentation",
+          "scope": "doc:.kiro/specs/round-5-structural-segmentation/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC025-009-BULK",
+              "source_id": "SRC-DOC-40DC4ADE3EFEA582",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-5 task 9 is marked complete: bildkanon documentation linked and changes committed/pushed by increment.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-5 task 9 is marked complete: bildkanon documentation linked and changes committed/pushed by increment."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC025-009-DOC",
+              "repo_path": ".kiro/specs/round-5-structural-segmentation/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-001",
+          "normalized_claim": "Lens state 0..5 can be driven by keys 1..5 and SHADED.lens.set/get.",
+          "subject": "lens state 05 can be driven by keys",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-001-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Lens state 0..5 can be driven by keys 1..5 and SHADED.lens.set/get.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Lens state 0..5 can be driven by keys 1..5 and SHADED.lens.set/get."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-001-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-002",
+          "normalized_claim": "The lens shader block runs at the very end of main() after full world composition.",
+          "subject": "the lens shader block runs at the very",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-002-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The lens shader block runs at the very end of main() after full world composition.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The lens shader block runs at the very end of main() after full world composition."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-002-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-003",
+          "normalized_claim": "Lens 1 shows grayscale plus trail.b and touch wear in amber; lens 2 shows pressure in red; lens 3 shows sound in cyan; lens 4 leaves the composed color unchanged; lens 5 shows material-mask edges in black/white.",
+          "subject": "lens 1 shows grayscale plus trailb and touch",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-003-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Lens 1 shows grayscale plus trail.b and touch wear in amber; lens 2 shows pressure in red; lens 3 shows sound in cyan; l",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Lens 1 shows grayscale plus trail.b and touch wear in amber; lens 2 shows pressure in red; lens 3 shows sound in cyan; lens 4 leaves the composed color unchanged; lens 5 shows material-mask edges in black/white."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-003-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-004",
+          "normalized_claim": "Sound is a new independent texture field on Unit 8 because all four trail channels are occupied and sound is conceptually not ground contact.",
+          "subject": "sound is a new independent texture field on",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-004-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Sound is a new independent texture field on Unit 8 because all four trail channels are occupied and sound is conceptuall",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Sound is a new independent texture field on Unit 8 because all four trail channels are occupied and sound is conceptually not ground contact."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-004-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-005",
+          "normalized_claim": "The sound field uses a persistent 256 buffer with stamp, time decay around 0.35s half-life, dirty upload, and SHADED.sound.emit API.",
+          "subject": "the sound field uses a persistent 256 buffer",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-005-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The sound field uses a persistent 256 buffer with stamp, time decay around 0.35s half-life, dirty upload, and SHADED.sou",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The sound field uses a persistent 256 buffer with stamp, time decay around 0.35s half-life, dirty upload, and SHADED.sound.emit API."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-005-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-006",
+          "normalized_claim": "Lens 4 deliberately does nothing because it represents the consistent fully composed world; this is described as the narrative point rather than a missing implementation.",
+          "subject": "lens 4 deliberately does nothing because it represents",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-006-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Lens 4 deliberately does nothing because it represents the consistent fully composed world; this is described as the nar",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Lens 4 deliberately does nothing because it represents the consistent fully composed world; this is described as the narrative point rather than a missing implementation."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-006-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-007",
+          "normalized_claim": "Lens 1/2 read existing living state directly rather than duplicating state into new textures.",
+          "subject": "lens 12 read existing living state directly rather",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-007-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Lens 1/2 read existing living state directly rather than duplicating state into new textures.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Lens 1/2 read existing living state directly rather than duplicating state into new textures."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-007-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-008",
+          "normalized_claim": "Round 8 does not build dialogue/verb/inventory systems, real audio, or import/commit third-party original assets.",
+          "subject": "round 8 does not build dialogueverbinventory systems real",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-008-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 8 does not build dialogue/verb/inventory systems, real audio, or import/commit third-party original assets.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 8 does not build dialogue/verb/inventory systems, real audio, or import/commit third-party original assets."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-008-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-009",
+          "normalized_claim": "SCUMM v5 canvas/resource structural inventory is only calibration context for future loaders, not content imported into this round.",
+          "subject": "scumm v5 canvasresource structural inventory is only calibration",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-009-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SCUMM v5 canvas/resource structural inventory is only calibration context for future loaders, not content imported into ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SCUMM v5 canvas/resource structural inventory is only calibration context for future loaders, not content imported into this round."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-009-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC026-010",
+          "normalized_claim": "window.SHADED gets additive lens.set/get and sound.emit/clear APIs.",
+          "subject": "windowshaded gets additive lenssetget and soundemitclear apis",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC026-010-BULK",
+              "source_id": "SRC-DOC-21E850C22CA34CD9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "window.SHADED gets additive lens.set/get and sound.emit/clear APIs.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "window.SHADED gets additive lens.set/get and sound.emit/clear APIs."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC026-010-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-001",
+          "normalized_claim": "Round 8 implements the five-lens monocle mechanic from the owner prolog and introduces sound as world-law primitive #7.",
+          "subject": "round 8 implements the fivelens monocle mechanic from",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-001-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 8 implements the five-lens monocle mechanic from the owner prolog and introduces sound as world-law primitive #7.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 8 implements the five-lens monocle mechanic from the owner prolog and introduces sound as world-law primitive #7."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-001-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-002",
+          "normalized_claim": "Round 8 explicitly excludes the prolog's dialogue/verb/inventory gameplay layer.",
+          "subject": "round 8 explicitly excludes the prologs dialogueverbinventory gameplay",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-002-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 8 explicitly excludes the prolog's dialogue/verb/inventory gameplay layer.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 8 explicitly excludes the prolog's dialogue/verb/inventory gameplay layer."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-002-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-003",
+          "normalized_claim": "No original graphics/sounds/resources from third-party games may enter the repository; local user-owned resource inventory may record counts/formats/hashes but not raw content.",
+          "subject": "no original graphicssoundsresources from thirdparty games may enter",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-003-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "No original graphics/sounds/resources from third-party games may enter the repository; local user-owned resource invento",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "No original graphics/sounds/resources from third-party games may enter the repository; local user-owned resource inventory may record counts/formats/hashes but not raw content."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-003-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-004",
+          "normalized_claim": "Global lens state is 0..5 with key 1–5 activation and same-key toggle off.",
+          "subject": "global lens state is 05 with key 15",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-004-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Global lens state is 0..5 with key 1–5 activation and same-key toggle off.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Global lens state is 0..5 with key 1–5 activation and same-key toggle off."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-004-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-005",
+          "normalized_claim": "Active lenses should dim the base and isolate only the selected feature, except lens 4 which intentionally shows the unchanged normal image.",
+          "subject": "active lenses should dim the base and isolate",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-005-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Active lenses should dim the base and isolate only the selected feature, except lens 4 which intentionally shows the unc",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Active lenses should dim the base and isolate only the selected feature, except lens 4 which intentionally shows the unchanged normal image."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-005-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-006",
+          "normalized_claim": "Lens mappings are dirt/wear, pressure, sound waves, material fidelity/full image, and material-mask edges.",
+          "subject": "lens mappings are dirtwear pressure sound waves material",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-006-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Lens mappings are dirt/wear, pressure, sound waves, material fidelity/full image, and material-mask edges.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Lens mappings are dirt/wear, pressure, sound waves, material fidelity/full image, and material-mask edges."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-006-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-007",
+          "normalized_claim": "Sound must use its own transient CPU buffer/texture and sound.emit stamp with ~0.35s half-life rather than overloading trail channels.",
+          "subject": "sound must use its own transient cpu buffertexture",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-007-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Sound must use its own transient CPU buffer/texture and sound.emit stamp with ~0.35s half-life rather than overloading t",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Sound must use its own transient CPU buffer/texture and sound.emit stamp with ~0.35s half-life rather than overloading trail channels."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-007-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-008",
+          "normalized_claim": "With lens state 0, rendering must remain pixel-identical to prior behavior and existing verify/actor/editor tests must remain green.",
+          "subject": "with lens state 0 rendering must remain pixelidentical",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-008-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "With lens state 0, rendering must remain pixel-identical to prior behavior and existing verify/actor/editor tests must r",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "With lens state 0, rendering must remain pixel-identical to prior behavior and existing verify/actor/editor tests must remain green."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-008-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC027-009",
+          "normalized_claim": "verify-lenses.js should test API, visible changes for lenses 1/2/3/5, no meaningful change for lens 4, sound emit/decay, keyboard toggle, and no shader/page errors.",
+          "subject": "verifylensesjs should test api visible changes for lenses",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC027-009-BULK",
+              "source_id": "SRC-DOC-2986311FC7AFCD05",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "verify-lenses.js should test API, visible changes for lenses 1/2/3/5, no meaningful change for lens 4, sound emit/decay,",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "verify-lenses.js should test API, visible changes for lenses 1/2/3/5, no meaningful change for lens 4, sound emit/decay, keyboard toggle, and no shader/page errors."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC027-009-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC028-001",
+          "normalized_claim": "Round-8 task 1 is marked complete: u_lens final shader block for lenses 1/2/4/5 from existing state.",
+          "subject": "round8 task 1 is marked complete u_lens final",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC028-001-BULK",
+              "source_id": "SRC-DOC-1C90F4886F043B3F",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-8 task 1 is marked complete: u_lens final shader block for lenses 1/2/4/5 from existing state.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-8 task 1 is marked complete: u_lens final shader block for lenses 1/2/4/5 from existing state."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC028-001-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC028-002",
+          "normalized_claim": "Round-8 task 2 is marked complete: Unit-8 256 sound field with stamp/tick/upload/clear and ~0.35s decay.",
+          "subject": "round8 task 2 is marked complete unit8 256",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC028-002-BULK",
+              "source_id": "SRC-DOC-1C90F4886F043B3F",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-8 task 2 is marked complete: Unit-8 256 sound field with stamp/tick/upload/clear and ~0.35s decay.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-8 task 2 is marked complete: Unit-8 256 sound field with stamp/tick/upload/clear and ~0.35s decay."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC028-002-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC028-003",
+          "normalized_claim": "Round-8 task 3 is marked complete: lens and sound APIs, keyboard toggles, and status line.",
+          "subject": "round8 task 3 is marked complete lens and",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC028-003-BULK",
+              "source_id": "SRC-DOC-1C90F4886F043B3F",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-8 task 3 is marked complete: lens and sound APIs, keyboard toggles, and status line.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-8 task 3 is marked complete: lens and sound APIs, keyboard toggles, and status line."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC028-003-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC028-004",
+          "normalized_claim": "Round-8 task 4 is marked complete: asset-boundary documentation of ephemeral user-owned SCUMM structural inventory without committed raw files.",
+          "subject": "round8 task 4 is marked complete assetboundary documentation",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC028-004-BULK",
+              "source_id": "SRC-DOC-1C90F4886F043B3F",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-8 task 4 is marked complete: asset-boundary documentation of ephemeral user-owned SCUMM structural inventory witho",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-8 task 4 is marked complete: asset-boundary documentation of ephemeral user-owned SCUMM structural inventory without committed raw files."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC028-004-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC028-005",
+          "normalized_claim": "Round-8 task 5 is marked complete: verify-lenses.js plus existing verify/actors regression.",
+          "subject": "round8 task 5 is marked complete verifylensesjs plus",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC028-005-BULK",
+              "source_id": "SRC-DOC-1C90F4886F043B3F",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-8 task 5 is marked complete: verify-lenses.js plus existing verify/actors regression.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-8 task 5 is marked complete: verify-lenses.js plus existing verify/actors regression."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC028-005-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC028-006",
+          "normalized_claim": "Round-8 task 6 is marked complete: pipeline/readme/package/CI documentation and wiring, commit+push.",
+          "subject": "round8 task 6 is marked complete pipelinereadmepackageci documentation",
+          "scope": "doc:.kiro/specs/round-8-inspection-lenses/tasks.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC028-006-BULK",
+              "source_id": "SRC-DOC-1C90F4886F043B3F",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round-8 task 6 is marked complete: pipeline/readme/package/CI documentation and wiring, commit+push.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round-8 task 6 is marked complete: pipeline/readme/package/CI documentation and wiring, commit+push."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC028-006-DOC",
+              "repo_path": ".kiro/specs/round-8-inspection-lenses/tasks.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-001",
+          "normalized_claim": "Round 9's local flow is user-owned game files → offline costume browser → label-only JSON → external/local sprite-sheet creation → build-scene-project JSON merge → existing SceneEditorFacade.loadProject with user File objects.",
+          "subject": "round 9s local flow is userowned game files",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-001-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 9's local flow is user-owned game files → offline costume browser → label-only JSON → external/local sprite-sheet ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 9's local flow is user-owned game files → offline costume browser → label-only JSON → external/local sprite-sheet creation → build-scene-project JSON merge → existing SceneEditorFacade.loadProject with user File objects."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-001-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-002",
+          "normalized_claim": "tools/costume-browser.html performs structural LECF/LFLF/COST walking and marks pixel preview experimental.",
+          "subject": "toolscostumebrowserhtml performs structural lecflflfcost walking and marks pixel",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-002-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "tools/costume-browser.html performs structural LECF/LFLF/COST walking and marks pixel preview experimental.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "tools/costume-browser.html performs structural LECF/LFLF/COST walking and marks pixel preview experimental."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-002-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-003",
+          "normalized_claim": "Costume-browser export contains only index, offset, room, and name labels, not image data.",
+          "subject": "costumebrowser export contains only index offset room and",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-003-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Costume-browser export contains only index, offset, room, and name labels, not image data.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Costume-browser export contains only index, offset, room, and name labels, not image data."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-003-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-004",
+          "normalized_claim": "Sprite-sheet generation from labels is outside Round 9 in this design and occurs locally with user tools.",
+          "subject": "spritesheet generation from labels is outside round 9",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-004-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Sprite-sheet generation from labels is outside Round 9 in this design and occurs locally with user tools.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Sprite-sheet generation from labels is outside Round 9 in this design and occurs locally with user tools."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-004-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-005",
+          "normalized_claim": "tools/build-scene-project.mjs merges costume labels and placements as JSON into shaded.scene-project/v1 without image data.",
+          "subject": "toolsbuildsceneprojectmjs merges costume labels and placements as json",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-005-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "tools/build-scene-project.mjs merges costume labels and placements as JSON into shaded.scene-project/v1 without image da",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "tools/build-scene-project.mjs merges costume labels and placements as JSON into shaded.scene-project/v1 without image data."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-005-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-006",
+          "normalized_claim": "SceneEditorFacade.loadProject(project, assets) is considered already sufficient for loading real local scene/material/actor File objects, so Round 9 intentionally does not build a second loader.",
+          "subject": "sceneeditorfacadeloadprojectproject assets is considered already sufficient for loading",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-006-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "SceneEditorFacade.loadProject(project, assets) is considered already sufficient for loading real local scene/material/ac",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "SceneEditorFacade.loadProject(project, assets) is considered already sufficient for loading real local scene/material/actor File objects, so Round 9 intentionally does not build a second loader."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-006-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-007",
+          "normalized_claim": "The scene-project contract explicitly keeps image/manifest bytes out of project JSON and requires actual files to be provided out-of-band on real load.",
+          "subject": "the sceneproject contract explicitly keeps imagemanifest bytes out",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-007-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The scene-project contract explicitly keeps image/manifest bytes out of project JSON and requires actual files to be pro",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The scene-project contract explicitly keeps image/manifest bytes out of project JSON and requires actual files to be provided out-of-band on real load."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-007-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-008",
+          "normalized_claim": "Because authoritative COST animation-offset semantics are unavailable, scanForCels brute-force scans for plausible cel headers/RLE streams instead of pretending precise animation grouping.",
+          "subject": "because authoritative cost animationoffset semantics are unavailable scanforcels",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-008-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Because authoritative COST animation-offset semantics are unavailable, scanForCels brute-force scans for plausible cel h",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Because authoritative COST animation-offset semantics are unavailable, scanForCels brute-force scans for plausible cel headers/RLE streams instead of pretending precise animation grouping."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-008-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-009",
+          "normalized_claim": "The costume browser must make no fetch/XMLHttpRequest/remote image requests and use only local object URLs and Blob downloads.",
+          "subject": "the costume browser must make no fetchxmlhttprequestremote image",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-009-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The costume browser must make no fetch/XMLHttpRequest/remote image requests and use only local object URLs and Blob down",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The costume browser must make no fetch/XMLHttpRequest/remote image requests and use only local object URLs and Blob downloads."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-009-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-010",
+          "normalized_claim": "Label export payload is size/content constrained to prevent accidental pixel data leakage.",
+          "subject": "label export payload is sizecontent constrained to prevent",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-010-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Label export payload is size/content constrained to prevent accidental pixel data leakage.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Label export payload is size/content constrained to prevent accidental pixel data leakage."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-010-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC029-011",
+          "normalized_claim": "Round 10 is designated to take over sprite-sheet export, dialogue engine, and concrete first-scene placement.",
+          "subject": "round 10 is designated to take over spritesheet",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/design.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC029-011-BULK",
+              "source_id": "SRC-DOC-3B199A51AF9035D9",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 10 is designated to take over sprite-sheet export, dialogue engine, and concrete first-scene placement.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 10 is designated to take over sprite-sheet export, dialogue engine, and concrete first-scene placement."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC029-011-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/design.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-001",
+          "normalized_claim": "Round 9 provides a toolchain for correct sprites/placements/animations without original third-party assets entering the repository or session.",
+          "subject": "round 9 provides a toolchain for correct spritesplacementsanimations",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-001-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Round 9 provides a toolchain for correct sprites/placements/animations without original third-party assets entering the ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Round 9 provides a toolchain for correct sprites/placements/animations without original third-party assets entering the repository or session."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-001-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-002",
+          "normalized_claim": "An offline costume-browser HTML tool should parse local SCUMM resource structure, show costume previews, allow naming, make no network requests, and export only index/offset/room/name.",
+          "subject": "an offline costumebrowser html tool should parse local",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-002-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "An offline costume-browser HTML tool should parse local SCUMM resource structure, show costume previews, allow naming, m",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "An offline costume-browser HTML tool should parse local SCUMM resource structure, show costume previews, allow naming, make no network requests, and export only index/offset/room/name."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-002-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-003",
+          "normalized_claim": "The cel pixel decoder must be visibly marked experimental because no authoritative format specification is available.",
+          "subject": "the cel pixel decoder must be visibly marked",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-003-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "The cel pixel decoder must be visibly marked experimental because no authoritative format specification is available.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "The cel pixel decoder must be visibly marked experimental because no authoritative format specification is available."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-003-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-004",
+          "normalized_claim": "Decoder failure or implausible values must produce a visible fallback rather than silently showing false pixels; structural/header/palette fields are treated as independently reliable.",
+          "subject": "decoder failure or implausible values must produce a",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-004-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Decoder failure or implausible values must produce a visible fallback rather than silently showing false pixels; structu",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Decoder failure or implausible values must produce a visible fallback rather than silently showing false pixels; structural/header/palette fields are treated as independently reliable."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-004-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-005",
+          "normalized_claim": "Scene placement must reuse shaded.scene-project/v1 and SceneEditorFacade.loadProject rather than create parallel loading infrastructure.",
+          "subject": "scene placement must reuse shadedsceneprojectv1 and sceneeditorfacadeloadproject rather",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-005-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Scene placement must reuse shaded.scene-project/v1 and SceneEditorFacade.loadProject rather than create parallel loading",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Scene placement must reuse shaded.scene-project/v1 and SceneEditorFacade.loadProject rather than create parallel loading infrastructure."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-005-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-006",
+          "normalized_claim": "assets.actorFiles remain actual local user-provided File objects.",
+          "subject": "assetsactorfiles remain actual local userprovided file objects",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-006-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "assets.actorFiles remain actual local user-provided File objects.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "assets.actorFiles remain actual local user-provided File objects."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-006-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-007",
+          "normalized_claim": "A CLI should combine label export and placement list into valid scene-project JSON and warn on unknown labels instead of silently dropping them.",
+          "subject": "a cli should combine label export and placement",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-007-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "A CLI should combine label export and placement list into valid scene-project JSON and warn on unknown labels instead of",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "A CLI should combine label export and placement list into valid scene-project JSON and warn on unknown labels instead of silently dropping them."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-007-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-008",
+          "normalized_claim": "Costume-browser verification must use a synthetic fixture and confirm found costume, decoded preview, label export, and absence of image data.",
+          "subject": "costumebrowser verification must use a synthetic fixture and",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-008-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Costume-browser verification must use a synthetic fixture and confirm found costume, decoded preview, label export, and ",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Costume-browser verification must use a synthetic fixture and confirm found costume, decoded preview, label export, and absence of image data."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-008-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-009",
+          "normalized_claim": "tools/cost-format.mjs should be self-tested with encoder/decoder round-trip.",
+          "subject": "toolscostformatmjs should be selftested with encoderdecoder roundtrip",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 1,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-009-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "tools/cost-format.mjs should be self-tested with encoder/decoder round-trip.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "tools/cost-format.mjs should be self-tested with encoder/decoder round-trip."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-009-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        },
+        {
+          "claim_id": "C-DOC030-010",
+          "normalized_claim": "Sprite-sheet PNG/manifest export and dialogue/verb/inventory/prolog scene are explicitly outside Round 9.",
+          "subject": "spritesheet pngmanifest export and dialogueverbinventoryprolog scene are explicitly",
+          "scope": "doc:.kiro/specs/round-9-asset-pipeline/requirements.md",
+          "first_seen": "2026-09-06T10:12:06.045629+00:00",
+          "last_seen": "2026-09-06T10:12:06.045629+00:00",
+          "requirement_flag": 0,
+          "assertion_flag": 1,
+          "verification_status": "UNVERIFIED",
+          "confidence": 0.95,
+          "epistemic_kind": "CLAIM",
+          "sources": [
+            {
+              "claim_source_id": "CS-C-DOC030-010-BULK",
+              "source_id": "SRC-DOC-605310B6E7F2442E",
+              "source_location": "bulk doc-claim extraction (maintainer-provided, this session reconciled)",
+              "anchor": "Sprite-sheet PNG/manifest export and dialogue/verb/inventory/prolog scene are explicitly outside Round 9.",
+              "speaker": "extraction",
+              "authority": "REPO_DOCUMENT",
+              "original_text": "Sprite-sheet PNG/manifest export and dialogue/verb/inventory/prolog scene are explicitly outside Round 9."
+            }
+          ],
+          "targets": [
+            {
+              "target_id": "T-C-DOC030-010-DOC",
+              "repo_path": ".kiro/specs/round-9-asset-pipeline/requirements.md",
+              "symbol": null,
+              "subsystem": null,
+              "owner": null,
+              "test_id": null
+            }
+          ],
+          "evidence": []
+        }
+      ],
+      "relations": []
+    }
+  ]
+}
