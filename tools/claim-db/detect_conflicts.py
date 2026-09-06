@@ -74,7 +74,7 @@ different_source = sources_a.isdisjoint(sources_b) and (sources_a or sources_b)
             different_assertion = claim_a[0] != claim_b[0]
             both_active = is_active(con, a) and is_active(con, b)
             relation = existing_relation(con, a, b)
-            no_resolving_relation = relation is None or relation[0] not in ("SUPERSEDES", "DUPLICATES")
+no_resolving_relation = relation is None or relation[0] not in ("SUPERSEDES", "DUPLICATES", "CONTRADICTS")
 
             if different_source and different_assertion and both_active and no_resolving_relation:
                 reasons = (
