@@ -1,26 +1,37 @@
 /**
- * Debug HUD — an fps readout (always on) plus a debug-view switcher (toggled
- * by F1 / backtick / the touch gear button / gamepad Start).
+ * Debug HUD — an fps readout (always on), a debug-view switcher, and the
+ * SCHEMA-driven graphics settings panel, all toggled together by F1 /
+ * backtick / the touch gear button / gamepad Start.
  *
  * Screen-space Babylon GUI (`AdvancedDynamicTexture.CreateFullscreenUI`), not
  * a mesh in the world and not DOM: it can't end up mispositioned by camera
- * distance/FOV/forward-vector math the way a billboarded in-world panel can,
- * and it isn't a second UI stack alongside `touchControls.js`'s DOM overlay.
+ * distance/FOV/forward-vector math the way the earlier billboarded in-world
+ * panel could (and did — see git history around "Replace the broken
+ * in-world settings panel"), and it isn't a second UI stack alongside
+ * `touchControls.js`'s DOM overlay.
  *
- * The shader/art tuning knobs (sun, atmosphere, snow, post, presets, …) live
- * in `core/settings.js`'s `SCHEMA` for whoever is tuning the look from code —
- * they are not runtime player-facing controls and have no widget here.
+ * The graphics panel is built directly from `core/settings.js`'s `SCHEMA` —
+ * one slider/checkbox/enum-stepper per item, grouped exactly as SCHEMA
+ * groups them (Sun & Sky, Atmosphere, Snow, Deformation, Character,
+ * Snow-surf, Spells, Post), including every group's own master toggle
+ * (enableSnowShading, enableDeformBuffer, enableSnowPhysics,
+ * enableFootprints, enableSurfing, showWake, enableSpray, showSpells,
+ * enableIce, enableWaterSpells, enableFancyPost) alongside its sub-controls —
+ * not a hand-picked subset and not a renamed/consolidated "effects" toggle.
+ * SCHEMA stays the single source of truth: add a field there and it appears
+ * here with no further wiring.
  *
- * Interaction needs a free cursor, so opening the debug-view row releases
- * pointer lock; `overlayState.open` is exported so input.js's click-to-relock
- * handler can back off while it's up.
+ * Interaction needs a free cursor, so opening the row releases pointer lock;
+ * `overlayState.open` is exported so input.js's click-to-relock handler can
+ * back off while it's up.
  */
 
 import {
-    AdvancedDynamicTexture, StackPanel, TextBlock, Button, Control,
+    AdvancedDynamicTexture, StackPanel, ScrollViewer, TextBlock, Slider,
+    Checkbox, Button, Grid, Control,
 } from "@babylonjs/gui";
 
-import { S, set } from "../core/settings.js";
+import { S, SCHEMA, set } from "../core/settings.js";
 import { stats, resetSpikes } from "../core/perf.js";
 
 /** Shared with input.js so an open debug row doesn't also re-request pointer lock on click. */
@@ -107,6 +118,177 @@ export class Overlay {
             }
         }
         this._syncDebugButtons();
+
+        // -------------------------------------------------- graphics panel, toggled
+        // A ScrollViewer, not a plain StackPanel: SCHEMA has 8 groups and dozens of
+        // items, taller than a phone screen at readable font sizes, so it has to
+        // scroll rather than clip or shrink to unreadable.
+        const scroll = new ScrollViewer("graphicsScroll");
+        scroll.width = "min(92%, 520px)";
+        scroll.heightInPixels = Math.max(220, Math.round(window.innerHeight * 0.6));
+        scroll.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+        scroll.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        scroll.topInPixels = 120;
+        scroll.barColor = "#8fc4e8";
+        scroll.barBackground = "rgba(143,196,232,0.12)";
+        scroll.thickness = 0;
+        scroll.background = "rgba(8,12,19,0.72)";
+        scroll.isVisible = false;
+        ui.addControl(scroll);
+        this.graphicsScroll = scroll;
+
+        const panel = new StackPanel("graphicsPanel");
+        panel.isVertical = true;
+        panel.paddingTopInPixels = 12;
+        panel.paddingBottomInPixels = 24;
+        panel.paddingLeftInPixels = 12;
+        panel.paddingRightInPixels = 12;
+        panel.spacing = 2;
+        scroll.addControl(panel);
+        this.graphicsPanel = panel;
+
+        /** @type {Array<{k:string, sync:() => void}>} */
+        this.widgets = [];
+        for (let g = 0; g < SCHEMA.length; g++) this._mkGroup(SCHEMA[g]);
+    }
+
+    _addGroupHeader(text) {
+        const t = new TextBlock("h_" + text);
+        t.text = text.toUpperCase();
+        t.color = "#6f8296";
+        t.fontSize = 13;
+        t.heightInPixels = 32;
+        t.paddingTopInPixels = 10;
+        t.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        this.graphicsPanel.addControl(t);
+    }
+
+    /** One SCHEMA group -> a header plus one row per item (slider / checkbox / enum stepper). */
+    _mkGroup(group) {
+        this._addGroupHeader(group.group);
+        for (let i = 0; i < group.items.length; i++) {
+            const it = group.items[i];
+            const row = new Grid();
+            row.heightInPixels = 34;
+            row.addColumnDefinition(0.5);
+            row.addColumnDefinition(0.5);
+
+            const lab = new TextBlock();
+            lab.text = it.l;
+            lab.color = "#8fa3b8";
+            lab.fontSize = 14;
+            lab.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+            row.addControl(lab, 0, 0);
+
+            if (it.t === "f") {
+                const wrap = new StackPanel();
+                wrap.isVertical = false;
+                wrap.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                wrap.height = 1;
+
+                const s = new Slider();
+                s.minimum = it.min;
+                s.maximum = it.max;
+                s.value = S[it.k];
+                s.step = it.step;
+                s.widthInPixels = 120;
+                s.heightInPixels = 24;
+                s.color = "#8fc4e8";
+                s.background = "rgba(143,196,232,0.18)";
+                s.onValueChangedObservable.add((n) => {
+                    set(it.k, n);
+                    v.text = fmtNum(n, it.step);
+                });
+
+                const v = new TextBlock();
+                v.text = fmtNum(S[it.k], it.step);
+                v.color = "#dbe6f2";
+                v.fontSize = 13;
+                v.widthInPixels = 56;
+                v.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+
+                wrap.addControl(s);
+                wrap.addControl(v);
+                row.addControl(wrap, 0, 1);
+
+                this.widgets.push({
+                    k: it.k,
+                    sync: () => {
+                        s.value = S[it.k];
+                        v.text = fmtNum(S[it.k], it.step);
+                    },
+                });
+            } else if (it.t === "b") {
+                const cb = new Checkbox();
+                cb.widthInPixels = 26;
+                cb.heightInPixels = 26;
+                cb.isChecked = !!S[it.k];
+                cb.color = "#eaf4ff";
+                cb.background = "rgba(143,196,232,0.16)";
+                cb.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                cb.onIsCheckedChangedObservable.add((val) => set(it.k, val));
+                row.addControl(cb, 0, 1);
+                this.widgets.push({ k: it.k, sync: () => (cb.isChecked = !!S[it.k]) });
+            } else if (it.t === "e") {
+                const wrap = new StackPanel();
+                wrap.isVertical = false;
+                wrap.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                wrap.height = 1;
+
+                const val = new TextBlock();
+                val.text = String(S[it.k]);
+                val.color = "#dbe6f2";
+                val.fontSize = 13;
+                val.widthInPixels = 90;
+                val.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+
+                const step = (dir) => {
+                    const idx = it.opts.indexOf(S[it.k]);
+                    const next = it.opts[(idx + dir + it.opts.length) % it.opts.length];
+                    set(it.k, next);
+                    val.text = String(next);
+                };
+                const prev = Button.CreateSimpleButton("prev_" + it.k, "‹");
+                this._styleSmallButton(prev);
+                prev.onPointerClickObservable.add(() => step(-1));
+                const next = Button.CreateSimpleButton("next_" + it.k, "›");
+                this._styleSmallButton(next);
+                next.onPointerClickObservable.add(() => step(1));
+
+                wrap.addControl(prev);
+                wrap.addControl(val);
+                wrap.addControl(next);
+                row.addControl(wrap, 0, 1);
+                this.widgets.push({ k: it.k, sync: () => (val.text = String(S[it.k])) });
+            } else if (it.t === "s") {
+                // Static status row: no `S` key behind it, nothing to click —
+                // structural systems that can't be toggled at runtime. See
+                // the "Core (always on)" group in settings.js.
+                const badge = new TextBlock();
+                badge.text = "always on";
+                badge.color = "#5c8fb0";
+                badge.fontSize = 13;
+                badge.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                row.addControl(badge, 0, 1);
+            }
+
+            this.graphicsPanel.addControl(row);
+        }
+    }
+
+    _styleSmallButton(b) {
+        b.color = "#8fa3b8";
+        b.background = "rgba(143,196,232,0.10)";
+        b.thickness = 1;
+        b.cornerRadius = 4;
+        b.fontSize = 16;
+        b.widthInPixels = 32;
+        b.heightInPixels = 28;
+        if (b.textBlock) b.textBlock.color = "#dbe6f2";
+    }
+
+    _syncWidgets() {
+        for (let i = 0; i < this.widgets.length; i++) this.widgets[i].sync();
     }
 
     _syncDebugButtons() {
@@ -120,9 +302,11 @@ export class Overlay {
     toggle() {
         this.visible = !this.visible;
         this.bar.isVisible = this.visible;
+        this.graphicsScroll.isVisible = this.visible;
         overlayState.open = this.visible;
         if (this.visible) {
             this._syncDebugButtons();
+            this._syncWidgets();
             if (document.pointerLockElement) document.exitPointerLock();
         }
     }
@@ -155,4 +339,11 @@ export class Overlay {
     resetSpikes() {
         resetSpikes();
     }
+}
+
+function fmtNum(v, step) {
+    if (step >= 1) return v.toFixed(0);
+    if (step >= 0.01) return v.toFixed(2);
+    if (step >= 0.001) return v.toFixed(3);
+    return v.toFixed(4);
 }
