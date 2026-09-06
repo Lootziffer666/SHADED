@@ -7,7 +7,7 @@
 
 #include<snowNoise>
 #include<snowTerrain>
-#include<snowDeform>
+#include<sharedDeform>
 #include<snowSandbox>
 #include<snowClipmap>
 

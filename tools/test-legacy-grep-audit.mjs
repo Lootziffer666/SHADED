@@ -74,12 +74,6 @@ const classifications = [
     reason: 'Generic ability/VFX dispatch system, not Snowflow-specific; GOAL_WORLD.md G-0406 flags Snowflow\'s OWN demo spells as a dependency risk, not a generically-named dispatch system that SHADED now owns.',
   },
   {
-    term: 'snowDeform',
-    matcher: /snowDeform/,
-    classification: 'KNOWN_OPEN_ITEM',
-    reason: 'The shared terrain-deformation WGSL include is named after snow specifically but is actually consumed by both the snow beauty pass AND the sand/sandbox path (src/shaders/lib/sandbox.wgsl explicitly reuses it) -- a real naming mismatch, not yet renamed in this pass because it touches 5 WGSL #include sites this repo cannot compile-check (no WGSL compiler for src/shaders/*.wgsl at all, see EXECUTION_PLAN.md Task 4\'s note) or visually verify (headless WebGPU crashes on a real scene boot). Left as an explicitly logged open item rather than a risky, unverifiable rename.',
-  },
-  {
     term: 'stick-zone/stick-base/stick-knob/setupStick',
     matcher: /stick-zone|stick-base|stick-knob|setupStick/,
     classification: 'CURRENT_SOLE_OWNER',
@@ -100,4 +94,22 @@ for (const term of ['legacy editor', 'compatibility UI', 'hidden UI', 'private m
   ok(hits.length === 0, `"${term}" -- zero hits in src/ and index.html (nothing to classify)`);
 }
 
-console.log('\n✅ Legacy-grep audit: every term on GOAL_WORLD.md Section 29\'s list is either gone from user-facing/entry-point identity, genuinely absent, or explicitly classified as history-provenance, material-specific, generic, current-sole-owner, or a logged open item -- none left unclassified');
+// snowDeform (formerly this list's one KNOWN_OPEN_ITEM): renamed to sharedDeform across all real
+// sites -- named after snow specifically despite being consumed by both the snow beauty pass AND
+// the sand/sandbox path (src/shaders/lib/sandbox.wgsl explicitly reuses it). Now zero hits for the
+// old name, and the new name appears everywhere it should: registry.js's INCLUDES key plus all 4
+// #include<> call sites (the registry key and the #include<> name must match textually -- no WGSL
+// compiler in this repo checks that beyond string equality, so this structural check IS the
+// verification available).
+{
+  const hits = readAll().filter(({text}) => /snowDeform/.test(text));
+  ok(hits.length === 0, '"snowDeform" -- zero hits: renamed to sharedDeform (was the one KNOWN_OPEN_ITEM on this list, now resolved)');
+  const registry = readFileSync(join(SRC, 'shaders', 'registry.js'), 'utf8');
+  ok(/sharedDeform\s*:\s*deformLib/.test(registry), 'registry.js INCLUDES map has a sharedDeform key');
+  for (const file of ['snow.fragment.wgsl', 'snow.vertex.wgsl', 'terrainDepth.vertex.wgsl', 'terrainPrepass.vertex.wgsl']) {
+    const text = readFileSync(join(SRC, 'shaders', file), 'utf8');
+    ok(text.includes('#include<sharedDeform>'), `${file} includes sharedDeform (matches the renamed registry key)`);
+  }
+}
+
+console.log('\n✅ Legacy-grep audit: every term on GOAL_WORLD.md Section 29\'s list is either gone from user-facing/entry-point identity, genuinely absent, or explicitly classified as history-provenance, material-specific, generic, current-sole-owner, or resolved (snowDeform -> sharedDeform) -- none left unclassified');

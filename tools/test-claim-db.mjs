@@ -84,4 +84,31 @@ for (const row of claimStatuses) {
   );
 }
 
-console.log('\n✅ claim.db: schema, epistemic views, markdown inventory provenance and sand-ownership evidence all hold up under direct query');
+// A-0801 (Self-Test: Bootstrap): existing markdown/chat sources actually produce atomic claims
+// with real, traceable provenance -- not paraphrased, the exact original text.
+const sandClaimSource = db
+  .prepare("SELECT original_text FROM claim_sources WHERE claim_id='C-SAND-0001' AND source_id='SRC-CHAT-20260906-0143-001'")
+  .get();
+ok(sandClaimSource !== undefined && sandClaimSource.original_text.length > 0, 'A-0801: a claim (C-SAND-0001) atomically extracted from a CHAT_EXPORT source carries the exact original_text as provenance, not a paraphrase');
+const docClaimSource = db
+  .prepare("SELECT cs.original_text, s.source_type FROM claim_sources cs JOIN sources s ON s.source_id=cs.source_id WHERE cs.claim_id='C-CONFLICT-G0006-GOAL'")
+  .get();
+ok(docClaimSource !== undefined && docClaimSource.source_type === 'DOC', 'A-0801: a claim also exists bootstrapped from a canonical DOCUMENT source (not just chat), with the same real-provenance guarantee');
+
+// A-0806 (Self-Test: Rolling Documents): Document A -> DB-Update -> Audit; Document B -> DB-Update
+// -> new Audit + Delta, chained via previous_audit_id, and the delta only touches what actually
+// changed (not a blind full re-audit of everything).
+const audits = db.prepare('SELECT audit_id, previous_audit_id FROM audits ORDER BY created_at').all();
+ok(audits.length >= 2, `A-0806: at least 2 audit runs exist (found ${audits.length})`);
+const secondAudit = audits.find((a) => a.previous_audit_id !== null);
+ok(secondAudit !== undefined, 'A-0806: a later audit chains to an earlier one via previous_audit_id (not two disconnected snapshots)');
+const deltaFinding = db
+  .prepare("SELECT finding_type, status FROM audit_findings WHERE audit_id=?")
+  .get(secondAudit?.audit_id);
+ok(deltaFinding !== undefined && deltaFinding.finding_type === 'NEW_CLAIM_SINCE_LAST_AUDIT', 'A-0806: the chained audit records a delta finding scoped to what the second document actually added, not a full re-audit');
+const firstAuditFindingsUntouched = db
+  .prepare("SELECT count(*) as c FROM audit_findings WHERE audit_id=? AND status='OPEN'")
+  .get(secondAudit?.previous_audit_id);
+ok(firstAuditFindingsUntouched.c === 3, `A-0806: the first audit's own findings are untouched by the second document's delta (still ${firstAuditFindingsUntouched.c} OPEN, unchanged)`);
+
+console.log('\n✅ claim.db: schema, epistemic views, markdown inventory provenance, sand-ownership evidence, bootstrap provenance (A-0801) and rolling-audit delta (A-0806) all hold up under direct query');

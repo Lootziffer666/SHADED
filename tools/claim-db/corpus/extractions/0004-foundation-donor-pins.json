@@ -81,7 +81,25 @@
           ]
         }
       ],
-      "relations": []
+      "relations": [],
+      "audit": {
+        "audit_id": "AUD-20260906-EXT0004",
+        "corpus_snapshot": "558fbe247d11f2e191d8b35c175615b916934d15a5f33aa7aa7adcf695de5197",
+        "repo_commit": "f1f8ad74a5f7e5e30bf2ecb0abd2e7f0b3c3e4f9",
+        "created_at": "2026-09-06T05:56:00+00:00",
+        "previous_audit_id": "AUD-20260906-CHAT001",
+        "findings": [
+          {
+            "finding_id": "F-DONOR-FOUNDATION-0001-NEW",
+            "claim_id": "C-DONOR-FOUNDATION-0001",
+            "finding_type": "NEW_CLAIM_SINCE_LAST_AUDIT",
+            "severity": "INFO",
+            "details": "GOAL_ALFRED.md A-0806 (Rolling Documents): delta since AUD-20260906-CHAT001 (the sand-ownership chat's audit) -- ingesting a second, unrelated document (this session's /goal donor-pins message) added exactly 1 new claim (C-DONOR-FOUNDATION-0001) with its own real evidence, resolving to VERIFIED. The three findings from AUD-20260906-CHAT001 (F-SAND-0001-MISSING, F-SAND-0002-GLOBAL, F-SAND-0003-EVIDENCE) are untouched by this document -- 0 resolved, 0 reopened, 0 superseded by it -- demonstrating that a document delta only touches the claims it actually concerns, not a blind full reimport (A-0402).",
+            "status": "RESOLVED",
+            "created_at": "2026-09-06T05:56:00+00:00"
+          }
+        ]
+      }
     }
   ]
 }

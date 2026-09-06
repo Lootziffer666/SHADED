@@ -75,7 +75,7 @@ const INCLUDES = {
     snowShadowLookup: shadowLookupLib,
     snowAtmosphere: atmosphereLib,
     snowClipmap: clipmapLib,
-    snowDeform: deformLib,
+    sharedDeform: deformLib,
     snowSandbox: sandboxLib,
     snowCharSkin: charSkinLib,
     snowWake: wakeLib,

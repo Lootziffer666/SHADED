@@ -57,6 +57,7 @@ for (const rel of trackedFiles) {
   if (rel.includes('corpus/sources/0002-full-markdown-inventory.json')) continue; // append-only historical ledger (A-0104): old path's source entry is retained history, not a live reference
   if (rel === 'claim.db') continue; // same historical ledger, binary form: old source rows genuinely store the old path text, by design (A-0104 never deletes/rewrites them)
   if (rel === 'docs/geometry-library/README.md') continue; // explicitly says "vormals `shaded-geometry`" (formerly) -- a historical note, not a stale live reference
+  if (rel === 'tools/test-living-skill-migration.mjs') continue; // this file's own source necessarily names the old path to check for it
   const abs = join(REPO_ROOT, rel);
   if (!existsSync(abs) || !statSync(abs).isFile()) continue;
   let content;

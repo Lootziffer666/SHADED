@@ -18,7 +18,7 @@
 
 #include<snowNoise>
 #include<snowTerrain>
-#include<snowDeform>
+#include<sharedDeform>
 #include<snowSandbox>
 #include<snowShading>
 #include<snowSpellLights>

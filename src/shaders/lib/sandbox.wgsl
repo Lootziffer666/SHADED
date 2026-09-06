@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------------
 // snowSandbox — the read side of the world sandbox's live dune field.
 //
-// Edge-faded authority via snowDeform's `deformFalloff`, reused directly —
+// Edge-faded authority via sharedDeform's `deformFalloff`, reused directly —
 // that part is generic (just a distance-from-centre test) and doesn't care
 // how the buffer is addressed. The UV mapping is its own function, though:
 // `deformUV` assumes a toroidal buffer that's continuously scrolled on the
@@ -16,12 +16,12 @@
 // packed into one RGBA texel (R = height delta in metres, GBA = colour) so
 // every consumer reads one fetch instead of juggling two buffers.
 //
-// Consumed by the same three places snowDeform is: the beauty vertex shader
+// Consumed by the same three places sharedDeform is: the beauty vertex shader
 // (displacement), the shadow-depth and prepass vertex shaders (so a dune casts
 // its own shadow and shows up correctly in AO instead of acne-ing against a
 // surface it isn't drawing), and the beauty fragment shader (the sand
 // material blend). All three vertex shaders must agree on the height exactly,
-// for the same reason snowDeform's three consumers do.
+// for the same reason sharedDeform's three consumers do.
 //
 // This is what actually *replaces* the ground rather than laying a second
 // surface over it or cutting the first one away: there is only ever the one
